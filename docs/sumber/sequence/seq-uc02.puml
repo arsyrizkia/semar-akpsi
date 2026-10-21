@@ -1,0 +1,45 @@
+@startuml
+' Disusun dari Tabel Pesan UC-02 dan halaman "CD UC-02" berkas kelompok (tidak ada halaman SD UC-02).
+mainframe sd UC-02 Mengelola aturan pemeriksaan
+
+actor "tim : TimKerjaDPPM" as tim
+participant "skema : SkemaPendanaan" as skema
+participant "basis : BasisAturan" as basis
+participant "butir : ButirCek" as butir
+participant "periode : PeriodeSeleksi" as periode
+
+activate tim
+tim -> skema : basisAturanBerlaku(periode)
+skema --> tim : basis aturan berlaku
+tim -> basis : daftarButirBerlaku(semua)
+basis --> tim : daftar butir beserta jenisnya
+loop setiap butir yang ditambah, diubah, atau dinonaktifkan
+  alt butir baru
+    tim -> butir : «create» create(jenis, parameter)
+    butir --> tim : butir tersimpan
+  else butir manual yang sudah ada
+    tim -> butir : ubahParameter(parameter) / nonaktifkan()
+    butir --> tim : butir diperbarui
+  else butir turunan templat
+    tim -> butir : ubahParameter(parameter)
+    butir --> tim : ditolak, ubah lewat UC-01 (3a)
+  end
+end
+loop (1,*) hasil uji belum sesuai harapan (S-1)
+  tim -> basis : ujiPadaContoh()
+  basis --> tim : hasil uji pada contoh proposal
+  opt perlu perbaikan
+    tim -> butir : ubahParameter(parameter)
+    butir --> tim : parameter diperbarui
+  end
+end
+tim -> basis : validasiTanggalBerlaku(tanggal)
+basis -> periode : masaPengusulanBerjalan()
+periode --> basis : status masa pengusulan
+break tanggal jatuh di tengah masa pengusulan (6a)
+  basis --> tim : ditolak
+end
+basis -> basis : simpanVersiBaru()
+basis --> tim : basis aturan versi baru tersimpan
+deactivate tim
+@enduml

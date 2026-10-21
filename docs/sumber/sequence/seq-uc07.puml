@@ -1,0 +1,42 @@
+@startuml
+mainframe sd UC-07 Melakukan pemeriksaan akhir
+
+actor "rev : Reviewer" as rev
+participant "penugasan : PenugasanReviewer" as penugasan
+participant "proposal : Proposal" as proposal
+participant "versi : VersiProposal" as versi
+participant "penilaian : Penilaian" as penilaian
+participant "«system»\nbima : BIMA" as bima
+
+activate rev
+ref over proposal, versi : UC-09 Memeriksa butir semantik
+rev -> penugasan : bukaProposal()
+penugasan -> proposal : bukaVersiDinilai()
+proposal -> versi : ambilHasilPemeriksaan()
+versi --> proposal : rekomendasi, kutipan
+proposal --> penugasan : versi yang dinilai
+penugasan --> rev : rekomendasi + kutipan per butir
+create penilaian
+rev -> penilaian : «create»
+loop setiap rekomendasi butir yang diverifikasi
+  opt reviewer tidak setuju dengan rekomendasi (titik ekstensi langkah 4)
+    ref over rev, penugasan, proposal, versi, penilaian : UC-08 Mengoreksi rekomendasi sistem
+  end
+end
+alt simpan sementara (S-1)
+  rev -> penilaian : simpanNilai(nilai, komentar)
+  penilaian --> rev : draf penilaian tersimpan, dilanjutkan dari langkah 4
+else simpan permanen
+  rev -> penilaian : simpanNilai(nilai, komentar)
+  penilaian --> rev : nilai dan komentar tersimpan
+  rev -> penilaian : terima()
+  penilaian -> penugasan : tandaiSelesai()
+  penugasan -> proposal : mencatatPenilaian()
+  proposal -> bima : kirimKeputusan(keputusan, umpanBalik)
+  bima --> proposal : keputusan terkirim
+  proposal --> penugasan : penilaian tercatat
+  penugasan --> penilaian : penugasan selesai
+  penilaian --> rev : penilaian final tersimpan dan terkirim ke BIMA
+end
+deactivate rev
+@enduml

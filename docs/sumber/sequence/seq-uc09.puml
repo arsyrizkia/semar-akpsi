@@ -1,0 +1,35 @@
+@startuml
+mainframe sd UC-09 Memeriksa butir semantik
+
+participant "proposal : Proposal" as proposal
+participant "versi : VersiProposal" as versi
+participant "basis : BasisAturan" as basis
+participant "butir : ButirCek" as butir
+participant "«system»\nllm : Layanan LLM" as llm
+participant "hasil : HasilPemeriksaan" as hasil
+
+activate proposal
+proposal -> versi : jalankanPemeriksaan(semantik)
+versi -> versi : siapkanTeksTanpaIdentitas()
+versi -> basis : periksaSemantik(teksTanpaIdentitas)
+loop setiap butir semantik yang aktif
+  basis -> butir : nilaiSemantik(teksBagian)
+  loop (1,2) Layanan LLM belum merespons
+    butir -> llm : kirimPermintaan(teksBagian, pertanyaan)
+    llm --> butir : rekomendasi, kutipan, tingkat keyakinan
+  end
+  alt Layanan LLM merespons
+    butir -> butir : cocokkanKutipan(teksBagian)
+    butir --> basis : rekomendasi / perlu diperiksa manual (S-1)
+  else tidak merespons setelah dua kali (S-2)
+    butir --> basis : "belum ada rekomendasi"
+  end
+end
+basis --> versi : rekomendasi setiap butir semantik
+loop setiap butir semantik
+  create hasil
+  versi -> hasil : «create»(butir, rekomendasi, kutipan, keyakinan)
+end
+versi --> proposal : rekomendasi tersimpan
+deactivate proposal
+@enduml

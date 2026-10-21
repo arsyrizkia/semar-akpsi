@@ -1,0 +1,45 @@
+@startuml
+mainframe sd UC-03 Menugaskan reviewer
+
+actor "tim : TimKerjaDPPM" as tim
+participant "periode : PeriodeSeleksi" as periode
+participant "«system»\nbima : BIMA" as bima
+participant "penugasan : PenugasanReviewer" as penugasan
+participant "proposal : Proposal" as proposal
+actor "rev : Reviewer" as rev
+
+activate tim
+loop (1,*) jumlah reviewer tidak cukup (S-1)
+  tim -> periode : tetapkanBatasBeban(batas)
+  periode --> tim : batas beban tersimpan
+  tim -> periode : susunPenugasan()
+  periode -> bima : ambilDaftarReviewer()
+  bima --> periode : daftar reviewer bersedia dan institusinya
+  alt reviewer cukup
+    loop setiap proposal terkirim pada periode
+      create penugasan
+      periode -> penugasan : «create»(proposal)
+      periode -> penugasan : pilihReviewer(daftarReviewer, batasBeban)
+      penugasan --> periode : reviewer beda institusi, beban rata
+    end
+    periode --> tim : usulan penugasan dan sebaran beban
+  else reviewer tidak cukup (S-1)
+    periode --> tim : kekurangan reviewer
+  end
+end
+loop memindahkan proposal ke reviewer lain (S-2)
+  tim -> penugasan : pilihReviewer(reviewerBaru, batasBeban)
+  penugasan --> tim : syarat institusi dan beban diperiksa ulang
+end
+loop setiap penugasan yang ditetapkan
+  tim -> penugasan : tetapkan()
+  penugasan -> proposal : mencatatPenugasan(penugasan)
+  proposal -> bima : kirimPenugasan(penugasan)
+  bima --> proposal : penugasan tercatat di BIMA
+  proposal --> penugasan : penugasan tercatat
+  penugasan -> rev : terimaProposal(proposal)
+  rev --> penugasan : notifikasi diterima
+  penugasan --> tim : penugasan ditetapkan
+end
+deactivate tim
+@enduml

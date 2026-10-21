@@ -1,0 +1,66 @@
+@startuml
+mainframe sd UC-01 Mengelola templat proposal
+
+actor "tim : TimKerjaDPPM" as A
+participant "templat : TemplatProposal" as T
+participant "bagian : BagianTemplat" as B
+participant "butir : ButirCek" as C
+participant "skema : SkemaPendanaan" as S
+participant "lama : TemplatProposal" as L
+participant "butirLama : ButirCek" as CL
+
+activate A
+A -> S : ambilTemplatBerlaku(periode)
+alt skema punya templat berlaku, tanpa draf
+  S --> A : templat berlaku
+else skema belum punya templat, tanpa draf (S-1)
+  S --> A : templat kosong
+else skema punya draf tersimpan (S-3)
+  S --> A : draf tersimpan
+end
+opt tidak ada draf tersimpan
+  create T
+  A -> T : «create»
+end
+loop (1,*) isian belum lengkap (S-2)
+  A -> T : aturBagian(daftarBagian, lampiranWajib)
+  loop setiap bagian baru
+    create B
+    T -> B : «create»
+    T -> B : aturKetentuan(batasKata, wajib)
+    B --> T : ketentuan tersimpan
+  end
+  T --> A : daftar bagian
+  A -> T : tetapkanPeriodeBerlaku(periode)
+  T --> A : periode tersimpan
+  A -> T : periksaKelengkapan()
+  T --> A : hasil kelengkapan, bagian belum terisi
+end
+A -> T : terbitkan()
+T -> S : cekPengusulanBerjalan()
+S --> T : status masa pengusulan
+break masa pengusulan sedang berjalan (6a)
+  T --> A : ditolak, templat disimpan sebagai draf
+end
+T -> S : gantiTemplatBerlaku(templat)
+opt skema punya templat versi lama
+  S -> L : arsipkan()
+  loop setiap butir turunan versi lama
+    L -> CL : nonaktifkan()
+    CL --> L : butir nonaktif
+  end
+  L --> S : versi lama diarsipkan
+end
+S --> T : templat berlaku diganti
+T -> T : turunkanButirCek()
+activate T
+loop setiap butir turunan templat
+  create C
+  T -> C : «create»
+  T -> C : aturParameter(parameter)
+  C --> T : butir draf
+end
+deactivate T
+T --> A : templat terbit, butir cek draf dibuat
+deactivate A
+@enduml

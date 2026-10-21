@@ -1,0 +1,48 @@
+@startuml
+mainframe sd UC-05 Mengajukan proposal
+
+actor "peng : Pengusul" as peng
+participant "proposal : Proposal" as proposal
+participant "«system»\nbima : BIMA" as bima
+participant "periode : PeriodeSeleksi" as periode
+participant "skema : SkemaPendanaan" as skema
+participant "versi : VersiProposal" as versi
+participant "templat : TemplatProposal" as templat
+participant "bagian : BagianTemplat" as bagian
+
+activate peng
+loop (1,*) ada butir gagal (S-1)
+  peng -> proposal : tarikDariBima()
+  proposal -> periode : cekMasaPengusulan()
+  periode --> proposal : status masa pengusulan
+  break masa pengusulan ditutup (1a)
+    proposal --> peng : pengajuan ditolak
+  end
+  proposal -> bima : ambilBerkas(idProposal)
+  bima --> proposal : berkas, lampiran, metadata
+  proposal -> skema : ambilTemplatBerlaku(periode)
+  skema --> proposal : templat berlaku
+  proposal -> skema : ambilAturanBerlaku(periode)
+  skema --> proposal : basis aturan berlaku
+  create versi
+  proposal -> versi : «create»(berkas, templat, basis)
+  proposal -> versi : potongTeks()
+  versi -> templat : potongPerBagian(teks)
+  loop setiap bagian templat
+    templat -> bagian : ambilTeksBagian(teks)
+    bagian --> templat : teks bagian
+  end
+  templat --> versi : teks per bagian
+  versi --> proposal : teks tersimpan
+  proposal -> versi : jalankanPemeriksaan(deterministik)
+  ref over versi, templat : UC-06 Memeriksa butir deterministik
+  versi --> proposal : status tiap butir + angka pembukti
+  alt semua butir lolos
+    proposal -> proposal : catatTerkirim()
+    proposal --> peng : hasil tiap butir + angka pembukti, bukti pengiriman
+  else ada butir gagal (S-1)
+    proposal --> peng : hasil tiap butir + angka pembukti; pengiriman ditahan
+  end
+end
+deactivate peng
+@enduml

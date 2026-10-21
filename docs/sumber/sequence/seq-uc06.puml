@@ -1,0 +1,37 @@
+@startuml
+mainframe sd UC-06 Memeriksa butir deterministik
+
+participant "proposal : Proposal" as proposal
+participant "versi : VersiProposal" as versi
+participant "basis : BasisAturan" as basis
+participant "butir : ButirCek" as butir
+participant "hasil : HasilPemeriksaan" as hasil
+
+activate proposal
+proposal -> versi : jalankanPemeriksaan(deterministik)
+versi -> basis : periksaDeterministik(versi)
+loop setiap butir deterministik yang aktif
+  basis -> versi : ambilTeksBagian(bagian)
+  versi --> basis : teks bagian, lampiran, metadata
+  basis -> butir : periksa(teksBagian)
+  alt kesesuaian templat dan judul (2)
+    butir -> butir : cocokkanStrukturJudul()
+  else batas kata tiap bagian (3)
+    butir -> butir : hitungKata()
+  else kata kunci (4)
+    butir -> butir : cekKataKunci()
+  else sitasi dan daftar pustaka (5)
+    butir -> butir : cocokkanSitasi()
+  else lampiran wajib (6)
+    butir -> butir : cekLampiran()
+  end
+  butir --> basis : status, angka pembukti
+end
+basis --> versi : status tiap butir + angka pembukti
+loop setiap butir yang diperiksa
+  create hasil
+  versi -> hasil : «create»(butir, status, angkaPembukti)
+end
+versi --> proposal : status tiap butir + angka pembukti
+deactivate proposal
+@enduml

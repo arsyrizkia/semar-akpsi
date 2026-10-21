@@ -1,0 +1,43 @@
+@startuml
+mainframe sd UC-04 Memantau kesesuaian penilaian
+
+actor "tim : TimKerjaDPPM" as tim
+participant "skema : SkemaPendanaan" as skema
+participant "basis : BasisAturan" as basis
+participant "butir : ButirCek" as butir
+participant "hasil : HasilPemeriksaan" as hasil
+participant "koreksi : KoreksiRekomendasi" as koreksi
+
+activate tim
+tim -> skema : ambilAturanBerlaku(periode)
+skema --> tim : basis aturan berlaku
+tim -> basis : rekapKesesuaian(periode)
+loop setiap butir dalam basis aturan
+  basis -> butir : hitungTingkatKoreksi(periode)
+  loop setiap hasil pemeriksaan butir pada periode
+    butir -> hasil : ambilStatus()
+    opt rekomendasi dikoreksi reviewer
+      hasil -> koreksi : ambilAlasan()
+      koreksi --> hasil : keputusan, alasan koreksi
+    end
+    hasil --> butir : status, institusi, keputusan reviewer
+  end
+  butir --> basis : tingkat gagal, % disetujui, tingkat koreksi
+end
+basis --> tim : rekap gagal per institusi + butir koreksi tertinggi dan alasannya
+loop membuka rincian satu butir (S-1)
+  tim -> basis : rekapKesesuaian(periode, butir)
+  basis -> butir : ambilRincian(periode)
+  butir -> hasil : ambilContoh()
+  hasil --> butir : rekomendasi, kutipan, keputusan
+  butir --> basis : rincian butir
+  basis --> tim : rincian butir
+end
+loop setiap butir yang aturannya perlu diperbaiki
+  tim -> basis : tandaiButir(butir)
+  basis -> butir : tandaiPerluDitinjau()
+  butir --> basis : butir ditandai
+  basis --> tim : tanda tersimpan (bahan UC-02)
+end
+deactivate tim
+@enduml

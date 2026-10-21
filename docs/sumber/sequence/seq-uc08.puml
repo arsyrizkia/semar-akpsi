@@ -1,0 +1,32 @@
+@startuml
+mainframe sd UC-08 Mengoreksi rekomendasi sistem
+
+actor "rev : Reviewer" as rev
+participant "penilaian : Penilaian" as penilaian
+participant "koreksi : KoreksiRekomendasi" as koreksi
+participant "hasil : HasilPemeriksaan" as hasil
+
+activate rev
+rev -> penilaian : catatKoreksi(hasil)
+create koreksi
+penilaian -> koreksi : «create»(hasil)
+activate koreksi
+koreksi -> hasil : ambilRekomendasi()
+hasil --> koreksi : rekomendasi, kutipan, alasan sistem
+deactivate koreksi
+penilaian --> rev : rekomendasi, kutipan, alasan sistem
+break reviewer membatalkan koreksi (3a)
+  penilaian --> rev : rekomendasi semula tetap berlaku
+end
+loop (1,*) alasan belum diisi (S-1)
+  rev -> koreksi : simpanKoreksi(keputusan, alasan, jenisKekeliruan)
+  alt alasan terisi
+    koreksi -> hasil : gantiRekomendasi(keputusan)
+    hasil --> koreksi : rekomendasi digantikan
+    koreksi --> rev : koreksi tersimpan; kembali ke UC-07 langkah 5
+  else alasan kosong
+    koreksi --> rev : alasan wajib diisi
+  end
+end
+deactivate rev
+@enduml
