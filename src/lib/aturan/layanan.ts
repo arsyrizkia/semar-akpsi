@@ -22,6 +22,8 @@ import {
   type BarisBasis,
   type BarisButir,
 } from "./draf";
+import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
+import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ringkasParameter, validasiButir, type GalatButir, type MasukanButir } from "./parameter";
 import { validasiTanggalBerlaku } from "./tanggal";
 
@@ -275,6 +277,11 @@ export async function ujiPadaContoh(skemaId: string, periodeId: string | null): 
       }
       try {
         semantik = sem.length ? await nilaiSemantikTeks(dok, sem) : [];
+        // Bila LLM nyata tidak berfungsi (mis. key belum valid) dan tak satu butir pun mendapat rekomendasi, ulangi dengan
+        // mode tiruan berlabel "tiruan" supaya UC-02 langkah 6 tetap dapat diperagakan.
+        if (semantik.length && semantik.every((x) => x.status === "Belum ada rekomendasi")) {
+          semantik = (await nilaiSemantikDenganOpsi(dok, sem, { tiruan: true, penyedia: kirimPermintaanTiruan })).map((x) => x.hasil);
+        }
       } catch (e) {
         peringatan.push(`Pemeriksaan semantik pada ${d.nama} tidak dapat dijalankan: ${e instanceof Error ? e.message : "galat tidak dikenal"}`);
       }

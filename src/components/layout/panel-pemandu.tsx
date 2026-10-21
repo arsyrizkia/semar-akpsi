@@ -80,7 +80,7 @@ export function PanelPemandu({
   return (
     <aside
       aria-label={`Panduan langkah ${kode}`}
-      className="fixed bottom-4 right-4 z-30 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg border border-emas-500 bg-krem shadow-xl"
+      className={cn("fixed bottom-4 right-4 z-30 max-w-[calc(100vw-2rem)] rounded-lg border border-emas-500 bg-krem shadow-xl", terbuka ? "w-[22rem]" : "w-[17rem]")}
     >
       <header className="flex items-center justify-between gap-2 rounded-t-lg bg-sogan-800 px-3 py-2 text-krem">
         <p className="text-sm font-semibold">
@@ -96,9 +96,9 @@ export function PanelPemandu({
         </span>
       </header>
       {!terbuka && aktifNomor ? (
-        <p className="px-3 py-1.5 text-xs text-sogan-800">
+        <p className="line-clamp-2 px-3 py-1.5 text-xs text-sogan-800" title={langkah.find((l) => l.nomor === aktifNomor)?.teks}>
           <span className="font-mono font-bold text-emas-700">{aktifNomor}</span>{" "}
-          {langkah.find((l) => l.nomor === aktifNomor)?.teks.slice(0, 90)}
+          {langkah.find((l) => l.nomor === aktifNomor)?.teks}
         </p>
       ) : null}
       {terbuka ? (

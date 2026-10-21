@@ -15,7 +15,7 @@ export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof
   return (
     <RTabs.Trigger
       className={cn(
-        "-mb-px rounded-t-md border border-transparent px-4 py-2 text-sm font-semibold text-sogan-700 hover:bg-sogan-100 data-[state=active]:border-sogan-200 data-[state=active]:border-b-white data-[state=active]:bg-white data-[state=active]:text-sogan-900",
+        "-mb-px shrink-0 whitespace-nowrap rounded-t-md border border-transparent px-4 py-2 text-sm font-semibold text-sogan-700 hover:bg-sogan-100 data-[state=active]:border-sogan-200 data-[state=active]:border-b-white data-[state=active]:bg-white data-[state=active]:text-sogan-900",
         className,
       )}
       {...props}

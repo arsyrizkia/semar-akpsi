@@ -11,6 +11,7 @@ const skema = z.object({
   komponen: z.array(z.object({ komponen: z.string(), keputusan: z.enum(["Memenuhi", "Tidak memenuhi"]) })),
   umpanBalik: z.string(),
   jumlahKoreksi: z.number().optional(),
+  kunci: z.string().optional(),
 });
 
 export async function POST(req: Request) {

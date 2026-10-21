@@ -73,7 +73,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
     if (terpilih && tandaRef.current) tandaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [terpilih, tabAktif]);
 
-  const aktifNomor = final ? "12" : koreksiBuka ? (galatKoreksi.alasan ? "8.S-1" : "8.4") : terpilih ? "6" : "4";
+  const aktifNomor = final ? "12" : koreksiBuka ? (galatKoreksi.alasan ? "UC-08·S-1" : "UC-08·4") : terpilih ? "6" : "4";
 
   function pilihButir(id: string) {
     setTerpilih(id);
@@ -100,6 +100,8 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
     const kolom = validasiKoreksi(formKoreksi);
     if (Object.keys(kolom).length) {
       setGalatKoreksi(kolom); // S-1: bingkai merah + pesan
+      // fokus ke isian yang salah supaya pengguna papan ketik tidak mencarinya sendiri
+      setTimeout(() => document.getElementById(kolom.alasan ? `kr-alasan-${b.hasilId}` : `kr-jenis-${b.hasilId}`)?.focus(), 0);
       return;
     }
     mulai(async () => {
@@ -243,14 +245,14 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
         {/* Panel kiri: teks proposal, satu tab per bagian */}
         <Panel judul="Teks Proposal" className="min-w-0">
           <Tabs value={tabAktif} onValueChange={setTabAktif}>
-            <TabsList aria-label="Bagian proposal">
+            <TabsList aria-label="Bagian proposal" className="flex-nowrap overflow-x-auto">
               {data.tab.map((t) => (
                 <TabsTrigger key={t.nama} value={t.nama} className={butir.some((b) => b.tab === t.nama) ? undefined : "opacity-70"}>
                   {t.nama}
                   {butir.some((b) => b.tab === t.nama) ? (
                     <span className="ml-1 text-xs font-normal">
                       ({butir.filter((b) => b.tab === t.nama).length}
-                      {butir.some((b) => b.tab === t.nama && (b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi")) ? <span aria-label="ada butir yang harus dibaca sendiri" className="ml-0.5 text-bata-700">●</span> : null})
+                      {butir.some((b) => b.tab === t.nama && (b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi")) ? <span className="ml-0.5 text-bata-700"><span aria-hidden>●</span><span className="sr-only">ada butir yang harus dibaca sendiri</span></span> : null})
                     </span>
                   ) : null}
                 </TabsTrigger>
@@ -282,11 +284,13 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
         {/* Panel kanan: butir semantik pada tab yang dibuka */}
         <Panel judul="Butir Semantik" className="min-w-0 self-start lg:sticky lg:top-4">
           <p className="mb-3 text-xs text-sogan-700">
-            Ringkasan: {butir.length} butir
+            Total proposal: {butir.length} butir semantik
             {butir.filter((b) => b.koreksi).length ? `, ${butir.filter((b) => b.koreksi).length} dikoreksi` : ""}
             {butir.filter((b) => b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi").length ? `, ${butir.filter((b) => b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi").length} perlu dibaca sendiri` : ""}.
-            {" "}Tingkat keyakinan (ambang contoh): tinggi ≥ 0,8; sedang 0,5-0,8; rendah &lt; 0,5.
+            
           </p>
+          <p className="mb-3 text-xs text-sogan-700">Tingkat keyakinan (ambang contoh): tinggi ≥ 0,8; sedang 0,5 sampai 0,8; rendah &lt; 0,5.</p>
+          <p className="mb-3 text-xs font-semibold text-sogan-800">Butir yang tidak Anda koreksi dianggap Anda setujui saat Simpan Permanen.</p>
           {butirTab.length === 0 ? (
             <p className="text-sm text-sogan-700">{data.butir.length === 0 && !data.semantik.siap ? "Menunggu rekomendasi." : "Tidak ada butir semantik pada tab ini."}</p>
           ) : (
@@ -312,8 +316,10 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                         {b.deskripsi}
                       </p>
                       <p className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="font-semibold text-sogan-700">Rekomendasi:</span>
-                        <StatusBadge status={b.status} />
+                        <span className="font-semibold text-sogan-700">{b.koreksi ? "Rekomendasi sistem semula:" : "Rekomendasi:"}</span>
+                        <span className={b.koreksi ? "opacity-60" : undefined}>
+                          <StatusBadge status={b.status} />
+                        </span>
                         {b.tiruan ? <StatusBadge status="tiruan" /> : null}
                         {b.koreksi ? <span className="text-xs text-sogan-600">(rekomendasi semula; keputusan reviewer berlaku)</span> : null}
                         {b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi" ? <span className="text-xs font-semibold text-bata-700">Baca bagian ini sendiri</span> : null}
@@ -332,10 +338,12 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                         <div className="rounded border border-sogan-300 bg-white p-2 text-sm">
                           <p className="flex flex-wrap items-center gap-2">
                             <StatusBadge status="Dikoreksi reviewer" />
-                            <span className="font-semibold">Keputusan reviewer: {b.koreksi.keputusan}</span>
+                            <span className="font-semibold">Keputusan reviewer yang berlaku:</span>
+                            <StatusBadge status={b.koreksi.keputusan} />
                           </p>
                           <p className="mt-1 text-xs text-sogan-700">
-                            {b.koreksi.jenisKekeliruan}: {b.koreksi.alasan}
+                            {b.koreksi.jenisKekeliruan ? `${b.koreksi.jenisKekeliruan}: ` : ""}
+                            {b.koreksi.alasan}
                           </p>
                         </div>
                       ) : null}
@@ -446,6 +454,11 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
             <Textarea id="umpan-balik" className="min-h-40" value={umpanBalik} disabled={final} onChange={(e) => setUmpanBalik(e.target.value)} />
           </Field>
           <div className="mt-4">{alertPesan}</div>
+          {!final ? (
+            <p className="mb-3 text-sm text-sogan-800">
+              {butir.length - butir.filter((b) => b.koreksi).length} rekomendasi akan dianggap disetujui, {butir.filter((b) => b.koreksi).length} dikoreksi reviewer.
+            </p>
+          ) : null}
           {!final ? (
             <div className="flex flex-wrap gap-3">
               <Button varian="garis" onClick={simpanSementara} disabled={sibuk}>

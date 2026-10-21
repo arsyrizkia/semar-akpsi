@@ -135,8 +135,9 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
     batasBeban,
   );
 
-  // S-1: reviewer tidak cukup, usulan tidak disusun
+  // S-1: reviewer tidak cukup, usulan tidak disusun. Usulan lama dibuang supaya tidak ada usulan yang melanggar batas baru dan dapat ditetapkan.
   if (hasil.belumDitugaskan.length > 0) {
+    await db.delete(penugasanReviewer).where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, "Diusulkan")));
     await catatLogAudit({
       aktor: "sistem",
       aksi: "susun_penugasan_kekurangan_reviewer",
@@ -191,7 +192,7 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
  * UC-03 S-2.2/S-2.3: periksa ulang syarat institusi, kesediaan, dan beban bagi reviewer pengganti.
  * Bila memenuhi, baris penugasan diperbarui; bila tidak, reviewer semula tetap dipakai dan syarat yang dilanggar dikembalikan.
  */
-export async function pilihReviewer(penugasanId: string, reviewerBaruId: string): Promise<HasilPilihReviewer> {
+export async function pilihReviewer(penugasanId: string, reviewerBaruId: string, aktor = "sistem"): Promise<HasilPilihReviewer> {
   const db = getDb();
   const [pn] = await db.select().from(penugasanReviewer).where(eq(penugasanReviewer.id, penugasanId));
   if (!pn) throw new Error("Penugasan tidak ditemukan.");
@@ -216,7 +217,7 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string)
   });
   if (syaratDilanggar.length) {
     await catatLogAudit({
-      aktor: "tim-kerja",
+      aktor,
       aksi: "pindah_penugasan_ditolak",
       objek: `penugasan:${pn.id}`,
       rincian: { reviewerBaru: baru.id, syaratDilanggar },
@@ -225,7 +226,7 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string)
   }
   await db.update(penugasanReviewer).set({ reviewerId: baru.id }).where(eq(penugasanReviewer.id, pn.id));
   await catatLogAudit({
-    aktor: "tim-kerja",
+    aktor,
     aksi: "pindah_penugasan",
     objek: `penugasan:${pn.id}`,
     rincian: { dari: pn.reviewerId, ke: baru.id },
@@ -250,12 +251,17 @@ export async function tetapkanPenugasan(periodeId: string, aktor: string): Promi
     .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, "Diusulkan")));
   if (!usulan.length) return { jumlah: 0 };
 
-  const ids = usulan.map((u) => u.id);
   const waktu = new Date();
-  await db
+  // klaim atomik: hanya baris yang masih Diusulkan yang diproses, jadi dua klik serentak tidak mengirim penugasan ganda
+  const diklaim = await db
     .update(penugasanReviewer)
     .set({ status: "Ditetapkan", label: "Baru", tanggal: waktu })
-    .where(inArray(penugasanReviewer.id, ids));
+    .where(and(inArray(penugasanReviewer.id, usulan.map((u) => u.id)), eq(penugasanReviewer.status, "Diusulkan")))
+    .returning({ id: penugasanReviewer.id });
+  const idDiklaim = new Set(diklaim.map((d) => d.id));
+  if (!idDiklaim.size) return { jumlah: 0 };
+  const ids = [...idDiklaim];
+  usulan.splice(0, usulan.length, ...usulan.filter((u) => idDiklaim.has(u.id)));
 
   try {
     const proposalBaris = await db.select({ id: proposal.id, idProposal: proposal.idProposal }).from(proposal).where(inArray(proposal.id, usulan.map((u) => u.proposalId)));
@@ -268,6 +274,7 @@ export async function tetapkanPenugasan(periodeId: string, aktor: string): Promi
         idProposal: idBimaProposal.get(u.proposalId)!,
         reviewerIdBima: idBimaReviewer.get(u.reviewerId)!,
         tanggal: waktu.toISOString(),
+        kunci: u.id,
       })),
     });
   } catch (e) {
@@ -320,7 +327,10 @@ export const ambilDaftarReviewer = () => bima.ambilDaftarReviewer();
 /** kirimPenugasan(): penugasan yang ditetapkan dikirim ke BIMA lewat klien HTTP. */
 export const kirimPenugasan = (payload: Parameters<typeof bima.kirimPenugasan>[0]) => bima.kirimPenugasan(payload);
 
-/** tetapkan(), mencatatPenugasan(), terimaProposal(): satu transaksi tetapkanPenugasan (status Ditetapkan, kirim ke BIMA, log audit). */
+/**
+ * tetapkan(), mencatatPenugasan(), terimaProposal(): ketiganya dijalankan di dalam tetapkanPenugasan (alias nominal, tidak dipanggil sendiri).
+ * Urutannya bukan satu transaksi basis data: status diklaim atomik, BIMA dipanggil, dan status dikembalikan (kompensasi) bila BIMA gagal.
+ */
 export const tetapkan = tetapkanPenugasan;
 export const mencatatPenugasan = tetapkanPenugasan;
 export const terimaProposal = tetapkanPenugasan;

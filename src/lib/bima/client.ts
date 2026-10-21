@@ -28,6 +28,8 @@ export interface ReviewerBima {
 }
 
 export const PERCOBAAN_ULANG_BIMA = 2;
+/** Batas waktu setiap percobaan; BIMA yang menggantung diperlakukan sebagai galat jaringan sehingga ulang otomatis (NFR 4.4) berjalan. */
+export const BATAS_WAKTU_BIMA_MS = 10_000;
 
 export interface OpsiKlienBima {
   baseUrl?: string;
@@ -57,7 +59,7 @@ export function buatKlienBima(opsi: OpsiKlienBima = {}) {
     let galatTerakhir: unknown;
     for (let ke = 0; ke <= PERCOBAAN_ULANG_BIMA; ke++) {
       try {
-        const res = await f(url, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) }, cache: "no-store" });
+        const res = await f(url, { ...init, headers: { ...headers, ...(init.headers as Record<string, string>) }, cache: "no-store", signal: AbortSignal.timeout(BATAS_WAKTU_BIMA_MS) });
         if (res.ok) return res;
         if (res.status < 500) throw new BimaGagalError(`BIMA menolak permintaan (${res.status})`, res.status, ke + 1);
         galatTerakhir = new BimaGagalError(`BIMA gagal (${res.status})`, res.status, ke + 1);

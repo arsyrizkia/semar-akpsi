@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Alert, Badge, Button, Checkbox, Panel, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import type { BarisKoreksiTertinggi, ContohRincian } from "@/lib/pemantauan/rekap";
 import { aksiTandaiButir, type HasilTandaiAksi } from "./aksi";
@@ -42,6 +42,15 @@ export function LaporanKoreksi({
   }
 
   const butirTerbuka = baris.find((b) => b.kode === terbuka);
+  const rincianRef = useRef<HTMLElement | null>(null);
+  const judulRincianRef = useRef<HTMLHeadingElement | null>(null);
+  const tombolAsalRef = useRef<HTMLButtonElement | null>(null);
+  // UC-04 S-1: panel rincian muncul di bawah tabel, jadi gulir ke sana dan pindahkan fokus agar klik terlihat berdampak
+  useEffect(() => {
+    if (!terbuka) return;
+    rincianRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    judulRincianRef.current?.focus({ preventScroll: true });
+  }, [terbuka]);
 
   return (
     <Panel judul="Butir dengan Koreksi Tertinggi">
@@ -67,7 +76,10 @@ export function LaporanKoreksi({
                     <TD className="max-w-xs">
                       <button
                         type="button"
-                        onClick={() => setTerbuka(b.kode)}
+                        onClick={(e) => {
+                          tombolAsalRef.current = e.currentTarget;
+                          setTerbuka(b.kode);
+                        }}
                         className="text-left font-semibold text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600"
                       >
                         {b.kode}
@@ -124,12 +136,16 @@ export function LaporanKoreksi({
       )}
 
       {butirTerbuka ? (
-        <section aria-label="Rincian Butir" className="mt-6 rounded-md border border-emas-500 bg-krem p-4">
+        <section ref={rincianRef} aria-label="Rincian Butir" className="mt-6 scroll-mt-4 rounded-md border border-emas-500 bg-krem p-4">
           <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-serif text-lg font-semibold text-sogan-800">
+            <h3 ref={judulRincianRef} tabIndex={-1} className="font-sans text-lg font-semibold text-sogan-800 outline-none">
               Rincian Butir: {butirTerbuka.kode}
             </h3>
-            <Button ukuran="sm" varian="garis" onClick={() => setTerbuka(null)}>
+            <Button ukuran="sm" varian="garis" onClick={() => {
+                setTerbuka(null);
+                tombolAsalRef.current?.focus();
+              }}
+            >
               Tutup
             </Button>
           </header>

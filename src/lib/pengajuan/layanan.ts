@@ -94,7 +94,7 @@ export interface BerkasDariBima {
   lampiran: { namaLampiran: string; nama: string; tipe: string; bytes: Buffer }[];
 }
 
-/** tarikDariBima(): metadata dan semua berkas (ambilBerkas) lewat klien BIMA. */
+/** tarikDariBima(): ambilProposal (metadata) lalu ambilBerkas (bima/client.ts); metadata dan semua berkas (ambilBerkas) lewat klien BIMA. */
 export async function tarikDariBima(idProposal: string): Promise<BerkasDariBima> {
   const ringkasan = await bima.ambilProposal(idProposal);
   if (!ringkasan.naskah) throw new Error("proposal di BIMA belum memiliki berkas naskah");
@@ -155,7 +155,7 @@ async function idProposalSemar(idProposal: string): Promise<string | null> {
 }
 
 /**
- * Langkah 3 UC-05 (sinkron, cepat): tarikDariBima() → cekMasaPengusulan(). Bila ditutup, pengajuan ditolak (3a)
+ * Langkah 3 UC-05 (sinkron, cepat): cekMasaPengusulan() dipanggil lebih dulu; tarikDariBima() baru berjalan di latar belakang (prosesPengajuan). Bila ditutup, pengajuan ditolak (3a)
  * tanpa memanggil API BIMA dan tanpa versi baru. Bila berjalan, pemeriksaan dijadwalkan di latar belakang
  * (`jadwalkan` = after() Next.js) dan J-06 menampilkan "Pemeriksaan sedang berjalan".
  */

@@ -20,7 +20,7 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
   if (!periodeId.success) return { galat: "Periode tidak dikenali." };
   if (!Number.isInteger(batas) || batas < 1) return { galat: "Isi \"Batas Beban per Reviewer\" dengan bilangan bulat minimal 1." };
   try {
-    await catatLogAudit({ aktor: sesi.akun.nama, aksi: "minta_susun_penugasan", objek: `periode:${periodeId.data}`, rincian: { batas } });
+    await catatLogAudit({ aktor: sesi.akun.idBima, aksi: "minta_susun_penugasan", objek: `periode:${periodeId.data}`, rincian: { batas } });
     const hasil = await susunPenugasan(periodeId.data, batas);
     revalidatePath(JALUR);
     if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan };
@@ -34,12 +34,12 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
 
 /** UC-03 S-2.1-S-2.3: "Simpan Pemindahan". */
 export async function aksiPindah(penugasanId: string, reviewerBaruId: string): Promise<HasilPindahAksi> {
-  await wajibTimKerja();
+  const sesi = await wajibTimKerja();
   const a = skemaUuid.safeParse(penugasanId);
   const b = skemaUuid.safeParse(reviewerBaruId);
   if (!a.success || !b.success) return { diterima: false, syaratDilanggar: [], galat: "Pilih \"Reviewer Pengganti\" terlebih dahulu." };
   try {
-    const hasil: HasilPilihReviewer = await pilihReviewer(a.data, b.data);
+    const hasil: HasilPilihReviewer = await pilihReviewer(a.data, b.data, sesi.akun.idBima);
     revalidatePath(JALUR);
     return { diterima: hasil.diterima, syaratDilanggar: hasil.syaratDilanggar };
   } catch (e) {
@@ -53,7 +53,7 @@ export async function aksiTetapkan(periodeId: string): Promise<HasilTetapkanAksi
   const id = skemaUuid.safeParse(periodeId);
   if (!id.success) return { berhasil: false, galat: "Periode tidak dikenali." };
   try {
-    const { jumlah } = await tetapkanPenugasan(id.data, sesi.akun.nama);
+    const { jumlah } = await tetapkanPenugasan(id.data, sesi.akun.idBima);
     revalidatePath(JALUR);
     if (jumlah === 0) return { berhasil: false, galat: "Belum ada usulan penugasan yang dapat ditetapkan." };
     return { berhasil: true, jumlah };

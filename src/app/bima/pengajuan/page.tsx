@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { CatatanSkenario } from "@/components/layout/catatan-skenario";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { wajibPengusulBima } from "@/lib/bima/sesi";
@@ -31,6 +33,10 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
         <h1 className="text-2xl font-bold">Pengajuan proposal</h1>
         <p className="mt-1 text-slate-600">Masuk sebagai {akun.nama} ({akun.institusi}).</p>
       </div>
+
+      <Suspense fallback={null}>
+        <CatatanSkenario netral />
+      </Suspense>
 
       <SakelarMasaBima masa={pengaturan.masaPengusulan} />
 

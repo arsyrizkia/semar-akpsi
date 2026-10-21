@@ -43,8 +43,9 @@ const SKENARIO: Kartu[] = [
   { kode: "UC-05b", judul: "Proposal ditahan lalu terkirim setelah diperbaiki", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan (Metode melebihi batas), lalu Ajukan ulang dengan naskah perbaikan (Terkirim V2)" },
   { kode: "UC-05c", judul: "Proposal ditahan lalu ditolak karena masa pengusulan ditutup", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan, tutup masa di BIMA, Ajukan ulang (Ditolak, 3a)" },
   { kode: "UC-07a", judul: "Menyetujui seluruh rekomendasi", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Tanpa koreksi, lalu Simpan Permanen" },
-  { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", jendela: "J-08", catatan: "Tidak Setuju pada satu butir (UC-08)" },
-  { kode: "UC-07c", judul: "Menyimpan sementara lalu melanjutkan", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Penilaian berstatus Draf sudah sebagian terisi" },
+  { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Mulai dari J-07 (Periksa), lalu Tidak Setuju pada satu butir (UC-08)" },
+  { kode: "UC-07c", judul: "Menyimpan sementara lalu melanjutkan", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Langkah 3-4 (isi sebagian, Simpan Sementara) disiapkan otomatis: Draf sudah terisi" },
+  { kode: "UC-07c-awal", judul: "Menyimpan sementara lalu melanjutkan: dari awal", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Mulai dari label Baru; Simpan Sementara diperagakan sendiri" },
 ];
 
 function DaftarKartu({ daftar }: { daftar: Kartu[] }) {

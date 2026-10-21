@@ -47,8 +47,31 @@ Nama fungsi servis sama dengan metode sequence (keputusan 5). Alias (`export con
 | seq-uc02 | daftarButirBerlaku, basisAturanBerlaku = daftarButirBerlaku; ubahParameter = simpanButir; nonaktifkan = nonaktifkanButir; ujiPadaContoh; validasiTanggalBerlaku (`aturan/tanggal.ts`); simpanVersiBaru; masaPengusulanBerjalan (`waktu.ts`); create -> insert Drizzle |
 | seq-uc03 | tetapkanBatasBeban, susunPenugasan, pilihReviewer, tetapkanPenugasan di `penugasan/layanan.ts`; ambilDaftarReviewer dan kirimPenugasan (pembungkus klien BIMA, dipanggil di alur); tetapkan, mencatatPenugasan, terimaProposal = tetapkanPenugasan |
 | seq-uc04 | ambilAturanBerlaku, rekapKesesuaian (`pemantauan/rekap.ts`), tandaiButir di `pemantauan/layanan.ts`; hitungTingkatKoreksi, ambilStatus, ambilAlasan, ambilRincian, ambilContoh = susunLaporan; tandaiPerluDitinjau = tandaiButir |
-| seq-uc05 | tarikDariBima, cekMasaPengusulan (membandingkan jam demo dengan tanggalBuka/tanggalTutup), ambilTemplatBerlaku, ambilAturanBerlaku, catatTerkirim di `pengajuan/layanan.ts`; potongTeks, potongPerBagian (`pengajuan/potong.ts`); ambilBerkas (`berkas.ts`); jalankanPemeriksaan = jalankanPemeriksaanDeterministik (`pemeriksa/deterministik/index.ts`) |
+| seq-uc05 | (catatan r2: `ambilBerkas` sequence = `bima.ambilBerkas` di `lib/bima/client.ts` dengan argumen berkasId, didahului `bima.ambilProposal`; bukan `berkas.ts`) tarikDariBima, cekMasaPengusulan (membandingkan jam demo dengan tanggalBuka/tanggalTutup), ambilTemplatBerlaku, ambilAturanBerlaku, catatTerkirim di `pengajuan/layanan.ts`; potongTeks, potongPerBagian (`pengajuan/potong.ts`); ambilBerkas (`berkas.ts`); jalankanPemeriksaan = jalankanPemeriksaanDeterministik (`pemeriksa/deterministik/index.ts`) |
 | seq-uc06 | periksaDeterministik = jalankanPemeriksaanDeterministik; periksa = periksaDeterministikTeks; ambilTeksBagian = teksBagian; cocokkanStrukturJudul, hitungKata, cekKataKunci, cocokkanSitasi, cekLampiran di `pemeriksa/deterministik/` |
 | seq-uc07 | bukaProposal (dan periksaAkses), bukaVersiDinilai, ambilHasilPemeriksaan, muatPemeriksaan, simpanNilai, terima, tandaiSelesai, mencatatPenilaian, kirimKeputusan = kirimKeBima di `penilaian/layanan.ts`, semuanya dipanggil oleh muatPemeriksaan dan simpanPermanen |
 | seq-uc08 | catatKoreksi, ambilRekomendasi, gantiRekomendasi, simpanKoreksi di `penilaian/layanan.ts` (simpanKoreksi memanggil ketiganya) |
 | seq-uc09 | jalankanPemeriksaan(semantik) -> `semantik/jalankan.ts:jalankan`; periksaSemantik, nilaiSemantik = nilaiSemantikDenganOpsi (`semantik/mesin.ts`); kirimPermintaan (`semantik/llm.ts`) dan mintaJawaban (batas percobaan); cocokkanKutipan, siapkanTeksTanpaIdentitas (`semantik/teks.ts`) |
+
+
+Catatan r2: alias nominal yang tidak pernah dipanggil dengan namanya sendiri (satu fungsi memikul beberapa pesan sequence): aturBagian, aturKetentuan, tetapkanPeriodeBerlaku (= simpanIsian); basisAturanBerlaku, ubahParameter; tetapkan, mencatatPenugasan, terimaProposal (= tetapkanPenugasan); hitungTingkatKoreksi, ambilStatus, ambilAlasan, ambilRincian, ambilContoh (= susunLaporan); tandaiPerluDitinjau; periksaDeterministik, periksa, ambilTeksBagian; nilaiSemantik, periksaSemantik. `aturParameter` hanya komentar. `pilihReviewer` hanya melayani S-2 (susunPenugasan memakai `susunUsulanMurni`). Penolakan 4a UC-02 berjalan lewat `periksaKunciButir`. Kartu jalan pintas: UC-07b kini mendarat di J-07, UC-07c-awal mulai dari label Baru.
+
+## Bukti (tangkapan layar e2e, run penuh r2)
+
+Run penuh `npm run e2e` pada kode r2, 19 dari 19 skenario lulus (`docs/bukti-e2e/laporan.md`; salinan dari `e2e/hasil/` yang di-.gitignore). Nomor = awalan berkas PNG di `docs/bukti-e2e/`.
+
+| UC / langkah atau alternatif | PNG |
+|---|---|
+| UC-05 langkah 1 (BIMA), 2 (J-06 sedang diperiksa), 11 (Terkirim, bukti pengiriman) | 05, 06, 07 |
+| UC-05 S-1.2 (Ditahan), S-1.3/S-1.4 (ajukan ulang menjadi Terkirim V2) | 08, 09 |
+| UC-05 3a (Ditahan lalu Ditolak, pesan 3a.2) | 10, 11 |
+| UC-01 langkah 3-10, S-2, 9a, S-1 | 12, 13, 14, 15, 16 |
+| UC-02 langkah 3-8, 4a, 8a | 17, 18, 19, 20, 21 |
+| UC-03 langkah 2-8, S-1, S-2 | 22, 23, 24, 25, 26, 27 |
+| UC-04 langkah 3-7, S-1, label di J-03 | 28, 29, 30 |
+| UC-07a (tanpa koreksi, Simpan Permanen) | 31, 34 |
+| UC-07c (Draf, dimuat ulang) | 32, 33, 38 |
+| UC-07b / UC-08 (koreksi, S-1 alasan kosong, 4a) | 35, 36, 37, 39 |
+| UC-09 S-1, S-2 | 40, 41 |
+| NFR 3.1 (403 reviewer lain) | 42 |
+| PanelPemandu di J-08 | 43 |

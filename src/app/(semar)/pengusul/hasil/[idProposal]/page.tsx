@@ -81,6 +81,29 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
           </Panel>
         ) : null}
 
+        {status === "Terkirim" && !diperiksa ? (
+          <Panel judul="Bukti Pengiriman">
+            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[12rem_1fr]">
+              <dt className="font-semibold text-sogan-800">ID Proposal</dt>
+              <dd>{p.idProposal}</dd>
+              <dt className="font-semibold text-sogan-800">Judul</dt>
+              <dd>{p.judul}</dd>
+              <dt className="font-semibold text-sogan-800">Skema</dt>
+              <dd>{d.namaSkema}</dd>
+              <dt className="font-semibold text-sogan-800">Kode versi</dt>
+              <dd>{d.versi?.kode ?? "-"}</dd>
+              <dt className="font-semibold text-sogan-800">Waktu pencatatan</dt>
+              <dd>{formatWaktu(p.waktuTerkirim)}</dd>
+            </dl>
+          </Panel>
+        ) : null}
+
+        <div>
+          <Button asChild varian="utama">
+            <a href="/bima/pengajuan">Kembali ke BIMA</a>
+          </Button>
+        </div>
+
         {!diperiksa && !d.gagal && status !== "Ditolak" && d.hasil.length ? (
           <Panel judul="Hasil Setiap Butir">
             <Table>
@@ -116,31 +139,9 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
           </Panel>
         ) : null}
 
-        {status === "Terkirim" && !diperiksa ? (
-          <Panel judul="Bukti Pengiriman">
-            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[12rem_1fr]">
-              <dt className="font-semibold text-sogan-800">ID Proposal</dt>
-              <dd>{p.idProposal}</dd>
-              <dt className="font-semibold text-sogan-800">Judul</dt>
-              <dd>{p.judul}</dd>
-              <dt className="font-semibold text-sogan-800">Skema</dt>
-              <dd>{d.namaSkema}</dd>
-              <dt className="font-semibold text-sogan-800">Kode versi</dt>
-              <dd>{d.versi?.kode ?? "-"}</dd>
-              <dt className="font-semibold text-sogan-800">Waktu pencatatan</dt>
-              <dd>{formatWaktu(p.waktuTerkirim)}</dd>
-            </dl>
-          </Panel>
-        ) : null}
-
-        <div>
-          <Button asChild varian="utama">
-            <a href="/bima/pengajuan">Kembali ke BIMA</a>
-          </Button>
-        </div>
       </div>
 
-      <PanelPemandu kode="UC-05" judul="Mengajukan proposal" langkah={[...LANGKAH_UC05, ...LANGKAH_UC06.map((l) => ({ ...l, nomor: `6.${l.nomor}`, alternatif: true }))]} aktifNomor={aktif} />
+      <PanelPemandu kode="UC-05" judul="Mengajukan proposal" langkah={[...LANGKAH_UC05, ...LANGKAH_UC06.map((l) => ({ ...l, nomor: `UC-06·${l.nomor}`, alternatif: true }))]} aktifNomor={aktif} />
     </>
   );
 }

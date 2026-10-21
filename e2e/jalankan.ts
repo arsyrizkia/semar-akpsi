@@ -715,7 +715,7 @@ async function utama() {
 
     await skenario("Reviewer lain mendapat 403 di J-08", page, async (c) => {
       yakin(urlJ08, "URL J-08 tidak tercatat dari skenario sebelumnya");
-      const idPenugasan = urlJ08.split("/").pop()!;
+      const idPenugasan = new URL(urlJ08).pathname.split("/").pop()!;
       const idMilikReviewer2 = idPenugasan;
       // masuk sebagai reviewer-1
       await buka(page, url(`/api/bima/sesi/masuk?idBima=reviewer-1&kembali=${encodeURIComponent("/api/sso/callback")}`));

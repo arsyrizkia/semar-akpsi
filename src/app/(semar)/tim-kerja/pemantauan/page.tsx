@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Alert, Badge, Button, Field, JudulHalaman, Panel, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
+import { Alert, Button, Field, JudulHalaman, Panel, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { PanelPemandu } from "@/components/layout/panel-pemandu";
 import { wajibTimKerja } from "@/lib/auth";
 import { judulUc04, kodeUc04, langkahUc04 } from "@/lib/demo/pemandu/uc04";
@@ -62,8 +62,8 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
         <div className="space-y-6">
           <p className="text-sm text-sogan-700">
             {periode.nama}, {skema.namaSkema}
-            {laporan.basis ? ` (basis aturan versi ${laporan.basis.versi})` : " (belum ada basis aturan)"}. Penilaian final yang dihitung:{" "}
-            {laporan.jumlahPenilaianFinal} hasil pemeriksaan semantik.
+            {laporan.basis ? ` (basis aturan versi ${laporan.basis.versi})` : " (belum ada basis aturan)"}. Dihitung dari {laporan.jumlahPenilaianFinal} hasil pemeriksaan semantik
+            pada penilaian final.
           </p>
 
           <Panel judul="Butir Deterministik Paling Sering Gagal">
@@ -130,7 +130,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
                 </Table>
                 <p className="mt-2 text-xs text-sogan-600">
                   Rekomendasi yang tidak dikoreksi dihitung disetujui (J-08 tidak memiliki tombol &quot;Setuju&quot;). Butir deterministik tidak muncul di sini
-                  karena reviewer tidak mengoreksinya. <Badge>asumsi terbuka</Badge>
+                  karena reviewer tidak mengoreksinya.
                 </p>
               </>
             )}
@@ -139,7 +139,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
           <LaporanKoreksi periodeId={periode.id} skemaId={skema.id} baris={laporan.koreksiTertinggi} rincian={laporan.rincian} />
         </div>
       )}
-      <PanelPemandu kode={kodeUc04} judul={judulUc04} langkah={langkahUc04} />
+      <PanelPemandu kode={kodeUc04} judul={judulUc04} langkah={langkahUc04} aktifNomor={laporan ? "3" : "2"} />
     </>
   );
 }

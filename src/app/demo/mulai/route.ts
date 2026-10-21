@@ -8,7 +8,7 @@ export const maxDuration = 120;
 
 const KODE = new Set<string>([
   "UC-01", "UC-02", "UC-03", "UC-04", "UC-05", "UC-06", "UC-07", "UC-08", "UC-09",
-  "UC-05a", "UC-05b", "UC-05c", "UC-07a", "UC-07b", "UC-07c", "UC-01-S1", "UC-09-S1", "UC-09-S2",
+  "UC-05a", "UC-05b", "UC-05c", "UC-07a", "UC-07b", "UC-07c", "UC-07c-awal", "UC-01-S1", "UC-09-S1", "UC-09-S2",
 ]);
 
 /** Jalan pintas /demo (parameter j08=1 pada skenario UC-07 membuka J-08 langsung, tanpa lewat daftar J-07): menyiapkan data skenario, memasang sesi peran yang sesuai (SEMAR dan BIMA), lalu membuka jendela awal. */
@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
     const hasil = await siapkanJalanPintas(kode as KodeJalanPintas, { langsungJ08: req.nextUrl.searchParams.get("j08") === "1" });
     const akun = await pastikanAkunDariBima(hasil.akun);
     if (!akun) throw new Error(`akun ${hasil.akun} tidak ada`);
-    const res = NextResponse.redirect(new URL(hasil.tujuan, req.url), 303);
+    // catatan skenario ditampilkan sebagai banner di jendela tujuan (komponen CatatanSkenario)
+    const tujuan = new URL(hasil.tujuan, req.url);
+    tujuan.searchParams.set("catatan", hasil.catatan);
+    const res = NextResponse.redirect(tujuan, 303);
     res.cookies.set(COOKIE_SEMAR, await buatSesiSemar(akun.idBima), opsiCookie);
     res.cookies.set(COOKIE_BIMA, await buatSesiBima(akun.idBima), opsiCookie);
     return res;

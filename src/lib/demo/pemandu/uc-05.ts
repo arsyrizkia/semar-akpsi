@@ -4,8 +4,8 @@ import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
 export const LANGKAH_UC05: LangkahPemandu[] = [
   { nomor: "1", teks: "Pengusul mengunggah berkas proposal dan lampiran di halaman usulan BIMA, lalu menekan \"Ajukan Usulan\"." },
   { nomor: "2", teks: "BIMA meneruskan pengusul ke J-06 membawa idProposal dan identitas pengusul. J-06 menampilkan \"Pemeriksaan sedang berjalan\"." },
-  { nomor: "3", teks: "tarikDariBima() lalu cekMasaPengusulan(): masa pengusulan masih berjalan, proses berlanjut." },
-  { nomor: "4", teks: "ambilBerkas(idProposal) lewat API BIMA; gagal diulang otomatis paling banyak dua kali." },
+  { nomor: "3", teks: "cekMasaPengusulan(): masa pengusulan masih berjalan, proses berlanjut (di prototipe dipanggil sebelum tarikDariBima; lihat catatan inkonsistensi no. 13)." },
+  { nomor: "4", teks: "tarikDariBima(): ambilBerkas lewat API BIMA (didahului ambilProposal untuk metadata); gagal diulang otomatis paling banyak dua kali." },
   { nomor: "5", teks: "ambilTemplatBerlaku(periode) dan ambilAturanBerlaku(periode) pada skema yang diikuti." },
   { nomor: "6", teks: "VersiProposal baru dibuat dengan «create»(berkas, templat, basis)." },
   { nomor: "7", teks: "potongTeks() memotong naskah per bagian sesuai templat (potongPerBagian, ambilTeksBagian)." },

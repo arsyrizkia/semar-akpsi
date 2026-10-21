@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const skema = z.object({
   periodeId: z.string().optional(),
-  penugasan: z.array(z.object({ idProposal: z.string(), reviewerIdBima: z.string(), tanggal: z.string() })),
+  penugasan: z.array(z.object({ idProposal: z.string(), reviewerIdBima: z.string(), tanggal: z.string(), kunci: z.string().optional() })),
 });
 
 export async function POST(req: Request) {

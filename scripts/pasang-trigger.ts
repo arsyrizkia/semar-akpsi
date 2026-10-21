@@ -1,9 +1,11 @@
 /** Memasang pemicu yang menjadikan log_audit append-only (NFR 3.3). Idempoten. */
 import { Pool } from "@neondatabase/serverless";
+import { pasangProxyLokal } from "../src/db";
 
 async function main() {
   const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL belum diatur");
+  pasangProxyLokal();
   const pool = new Pool({ connectionString: url });
   await pool.query(`
     CREATE OR REPLACE FUNCTION log_audit_tolak_ubah() RETURNS trigger AS $$

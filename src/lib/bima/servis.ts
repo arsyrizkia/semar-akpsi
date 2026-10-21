@@ -2,7 +2,7 @@
  * Fungsi servis sisi BIMA tiruan. HANYA dipanggil dari route /api/bima/* dan halaman /bima/*.
  * Kode SEMAR tidak boleh mengimpor berkas ini; SEMAR memakai src/lib/bima/client.ts (HTTP).
  */
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bimaAkun, bimaBerkas, bimaKotakMasuk, bimaProposal, bimaReviewer } from "@/db/schema";
 import { ambilBerkas } from "../berkas";
@@ -47,22 +47,38 @@ export async function daftarReviewerBima() {
   return getDb().select().from(bimaReviewer);
 }
 
+/** Idempotensi tanpa mengubah skema: kunci disimpan di payload dan diperiksa sebelum insert. */
+async function sudahAda(jenis: string, kunci: string): Promise<boolean> {
+  const [ada] = await getDb()
+    .select({ id: bimaKotakMasuk.id })
+    .from(bimaKotakMasuk)
+    .where(and(eq(bimaKotakMasuk.jenis, jenis), sql`${bimaKotakMasuk.payload}->>'kunci' = ${kunci}`))
+    .limit(1);
+  return Boolean(ada);
+}
+
 export interface PayloadPenugasan {
   periodeId?: string;
-  penugasan: { idProposal: string; reviewerIdBima: string; tanggal: string }[];
+  penugasan: { idProposal: string; reviewerIdBima: string; tanggal: string; kunci?: string }[];
 }
 export async function terimaPenugasanDariSemar(p: PayloadPenugasan) {
   const db = getDb();
   if (!p.penugasan.length) return { diterima: 0 };
+  // idempoten: pengiriman ulang (ulang otomatis klien atau "Kirim ulang") tidak menambah baris ganda untuk kunci yang sama
+  const baru = [];
+  for (const x of p.penugasan) {
+    if (!x.kunci || !(await sudahAda("penugasan", x.kunci))) baru.push(x);
+  }
+  if (!baru.length) return { diterima: 0, duplikat: p.penugasan.length };
   await db.insert(bimaKotakMasuk).values(
-    p.penugasan.map((x) => ({
+    baru.map((x) => ({
       jenis: "penugasan",
       idProposal: x.idProposal,
       penerimaIdBima: x.reviewerIdBima,
       payload: { ...x, periodeId: p.periodeId ?? null },
     })),
   );
-  return { diterima: p.penugasan.length };
+  return { diterima: baru.length };
 }
 
 export interface PayloadKeputusan {
@@ -71,8 +87,10 @@ export interface PayloadKeputusan {
   komponen: { komponen: string; keputusan: "Memenuhi" | "Tidak memenuhi" }[];
   umpanBalik: string;
   jumlahKoreksi?: number;
+  kunci?: string;
 }
 export async function terimaKeputusanDariSemar(p: PayloadKeputusan) {
+  if (p.kunci && (await sudahAda("keputusan", p.kunci))) return { diterima: true, duplikat: true };
   await getDb().insert(bimaKotakMasuk).values({
     jenis: "keputusan",
     idProposal: p.idProposal,

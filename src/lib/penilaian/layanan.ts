@@ -2,8 +2,8 @@
  * Layanan UC-07 (pemeriksaan akhir) dan UC-08 (koreksi rekomendasi) di sisi server.
  * Semua fungsi menerima akun reviewer yang sedang masuk dan memeriksa kepemilikan penugasan (NFR 3.1).
  */
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { getDb } from "@/db";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { getDb, type Db } from "@/db";
 import {
   bagianTemplat,
   butirCek,
@@ -280,10 +280,11 @@ export async function simpanKoreksi(
 
 /* ------------------------------- simpan ------------------------------- */
 /** simpanNilai(nilai, komentar) (seq-uc07): keputusan komponen dan umpan balik disimpan dalam satu transaksi. */
-export async function simpanNilai(penilaianId: string, umpanBalik: string, komponen: Record<string, Keputusan>, status: "Draf" | "Final") {
-  const db = getDb();
+type Eksekutor = Pick<Db, "insert" | "update" | "delete" | "select">;
+
+export async function simpanNilai(penilaianId: string, umpanBalik: string, komponen: Record<string, Keputusan>, status: "Draf" | "Final", ex?: Eksekutor) {
   const memenuhi = KOMPONEN_BORANG.filter((k) => komponen[k] === "Memenuhi").length;
-  await db.transaction(async (tx) => {
+  const tulis = async (tx: Eksekutor) => {
     await tx.delete(keputusanKomponen).where(eq(keputusanKomponen.penilaianId, penilaianId));
     const baris = Object.entries(komponen).map(([k, v]) => ({ penilaianId, komponen: k, keputusan: v }));
     if (baris.length) await tx.insert(keputusanKomponen).values(baris);
@@ -291,7 +292,9 @@ export async function simpanNilai(penilaianId: string, umpanBalik: string, kompo
       .update(penilaian)
       .set({ komentar: umpanBalik, status, nilai: `${memenuhi} dari ${KOMPONEN_BORANG.length} komponen Memenuhi`, diperbaruiPada: new Date() })
       .where(eq(penilaian.id, penilaianId));
-  });
+  };
+  if (ex) await tulis(ex);
+  else await getDb().transaction(async (tx) => tulis(tx));
 }
 
 /** S-1: Simpan Sementara. Tanpa entri log audit dan tanpa pengiriman ke BIMA. */
@@ -327,6 +330,7 @@ async function kirimKeBima(penugasanId: string, akun: Pick<Akun, "id" | "idBima"
       komponen: komponen.map((k) => ({ komponen: k.komponen, keputusan: k.keputusan })),
       umpanBalik: pen.komentar ?? "",
       jumlahKoreksi: koreksi.length,
+      kunci: pen.id,
     });
   } catch (e) {
     await catatLogAudit({ aktor: akun.idBima, aksi: "penilaian.kirim_bima_gagal", objek: `penugasan:${penugasanId}`, rincian: { galat: e instanceof Error ? e.message : String(e) } });
@@ -338,13 +342,13 @@ async function kirimKeBima(penugasanId: string, akun: Pick<Akun, "id" | "idBima"
 }
 
 /** terima() (seq-uc07): penilaian diterima sebagai final; sesudah ini isian hanya dapat dibaca. */
-export async function terima(penilaianId: string): Promise<void> {
-  await getDb().update(penilaian).set({ status: "Final", diperbaruiPada: new Date() }).where(eq(penilaian.id, penilaianId));
+export async function terima(penilaianId: string, ex: Pick<Db, "update"> = getDb()): Promise<void> {
+  await ex.update(penilaian).set({ status: "Final", diperbaruiPada: new Date() }).where(eq(penilaian.id, penilaianId));
 }
 
 /** tandaiSelesai() (seq-uc07): penugasan berlabel Selesai di J-07. */
-export async function tandaiSelesai(penugasanId: string): Promise<void> {
-  await getDb().update(penugasanReviewer).set({ status: "Selesai", label: "Selesai" }).where(eq(penugasanReviewer.id, penugasanId));
+export async function tandaiSelesai(penugasanId: string, ex: Pick<Db, "update"> = getDb()): Promise<void> {
+  await ex.update(penugasanReviewer).set({ status: "Selesai", label: "Selesai" }).where(eq(penugasanReviewer.id, penugasanId));
 }
 
 /** mencatatPenilaian() (seq-uc07): entri log audit penilaian.simpan_permanen. */
@@ -354,14 +358,15 @@ export async function mencatatPenilaian(
   penilaianId: string,
   komponen: Record<string, Keputusan>,
   panjangUmpanBalik: number,
+  ex: Pick<Db, "select" | "insert"> = getDb(),
 ): Promise<void> {
-  const koreksi = await getDb().select({ id: koreksiRekomendasi.id }).from(koreksiRekomendasi).where(eq(koreksiRekomendasi.penilaianId, penilaianId));
+  const koreksi = await ex.select({ id: koreksiRekomendasi.id }).from(koreksiRekomendasi).where(eq(koreksiRekomendasi.penilaianId, penilaianId));
   await catatLogAudit({
     aktor: akun.idBima,
     aksi: "penilaian.simpan_permanen",
     objek: `penugasan:${penugasanId}`,
     rincian: { komponen, jumlahKoreksi: koreksi.length, umpanBalikPanjang: panjangUmpanBalik },
-  });
+  }, ex);
 }
 
 /** Simpan Permanen: simpanNilai, terima, tandaiSelesai, mencatatPenilaian (log audit), kirimKeputusan. */
@@ -377,10 +382,21 @@ export async function simpanPermanen(
   const komponen = bersihkanKomponen(isian.komponen);
   if (!komponenLengkap(komponen)) return { ok: false, galat: PESAN_KOMPONEN_BELUM_LENGKAP };
 
-  await simpanNilai(pen.id, isian.umpanBalik ?? "", komponen, "Draf");
-  await terima(pen.id);
-  await tandaiSelesai(penugasanId);
-  await mencatatPenilaian(penugasanId, akun, pen.id, komponen, (isian.umpanBalik ?? "").length);
+  // Satu transaksi: klaim atomik status Final (dua permintaan serentak tidak keduanya lolos), keputusan komponen,
+  // penugasan Selesai, dan log audit. Pengiriman ke BIMA dilakukan sesudah commit.
+  const berhasil = await getDb().transaction(async (tx) => {
+    const klaim = await tx
+      .update(penilaian)
+      .set({ status: "Final", diperbaruiPada: new Date() })
+      .where(and(eq(penilaian.id, pen.id), ne(penilaian.status, "Final")))
+      .returning({ id: penilaian.id });
+    if (!klaim.length) return false;
+    await simpanNilai(pen.id, isian.umpanBalik ?? "", komponen, "Final", tx);
+    await tandaiSelesai(penugasanId, tx);
+    await mencatatPenilaian(penugasanId, akun, pen.id, komponen, (isian.umpanBalik ?? "").length, tx);
+    return true;
+  });
+  if (!berhasil) return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
 
   const kirim = await kirimKeputusan(penugasanId, akun);
   return kirim.ok ? { ok: true, terkirim: true } : { ok: true, terkirim: false, pesanKirim: kirim.galat };

@@ -24,10 +24,10 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
   await ambilPengaturanDemo();
   if (ubah.masaPengusulan) {
     // Sakelar masa menggeser tanggalTutup periode berjalan supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
-    // dengan statusnya: "ditutup" = tanggalTutup kemarin; "berjalan" = tanggalTutup dua pekan lagi.
+    // dengan statusnya: "ditutup" = tanggalTutup semenit lalu (hari ini); "berjalan" = tanggalTutup dua pekan lagi.
     const [p] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
     if (p) {
-      const tutup = new Date(Date.now() + (ubah.masaPengusulan === "ditutup" ? -1 : 14) * HARI_MS);
+      const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
     }
   }

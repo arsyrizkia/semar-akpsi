@@ -77,6 +77,15 @@ export function PapanTemplat(props: Props) {
     if (!draf) return;
     setPesan(null);
     setSudahCoba(true);
+    if (!kelengkapan.lengkap) {
+      // S-2: tanda dan pesan "Lengkapi isian yang ditandai" ada di puncak panel; gulir ke isian bertanda pertama
+      setTimeout(() => {
+        const el = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+        (el ?? document.querySelector<HTMLElement>('[role="alert"]'))?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.focus({ preventScroll: true });
+      }, 50);
+      return;
+    }
     mulai(async () => {
       const r = await aksiTerbitkan(skemaId, draf.id, { bagian: isian.bagian, lampiran: isian.lampiran, periodeBerlakuId: isian.periodeId || null });
       if (!r.ok) return setPesan({ jenis: "galat", teks: r.pesan });
@@ -331,7 +340,7 @@ export function PapanTemplat(props: Props) {
         </Panel>
       ) : null}
 
-      <PanelPemandu kode="UC-01" judul="Mengelola templat proposal" langkah={LANGKAH_UC01} />
+      <PanelPemandu kode="UC-01" judul="Mengelola templat proposal" langkah={LANGKAH_UC01} aktifNomor={pesan?.jenis === "terbit" ? "10" : pesan?.jenis === "draf" ? "9a" : draf ? "5" : "3"} />
     </>
   );
 }

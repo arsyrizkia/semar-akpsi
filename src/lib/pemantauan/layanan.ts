@@ -125,7 +125,7 @@ export async function susunLaporan(periodeId: string, skemaId: string): Promise<
  * tandaiButir(butir) -> tandaiPerluDitinjau(): status Aktif menjadi "Perlu ditinjau" pada basis aturan berlaku.
  * Hanya penanda bahan UC-02; butir tetap dipakai pemeriksa sampai basis versi baru disimpan.
  */
-export async function tandaiButir(skemaId: string, periodeId: string, kodeButir: string[], aktorId: string, aktorNama: string) {
+export async function tandaiButir(skemaId: string, periodeId: string, kodeButir: string[], aktorId: string, aktorIdBima: string) {
   const db = getDb();
   const basis = await ambilAturanBerlaku(skemaId, periodeId);
   if (!basis || !kodeButir.length) return { ditandai: [] as string[] };
@@ -142,7 +142,7 @@ export async function tandaiButir(skemaId: string, periodeId: string, kodeButir:
   }
   for (const t of target) {
     await catatLogAudit({
-      aktor: aktorNama,
+      aktor: aktorIdBima,
       aksi: "tandai_butir_perlu_ditinjau",
       objek: `butir:${t.kode}`,
       rincian: { skemaId, periodeId, basisAturanId: basis.id },
