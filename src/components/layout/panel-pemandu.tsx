@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { BookOpen, ChevronDown, ChevronUp, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export interface LangkahPemandu {
 
 /**
  * Panel pemandu langkah real use case (keputusan 10). Bisa disembunyikan; pilihan disimpan di localStorage.
- * Contoh: <PanelPemandu kode="UC-01" judul="Menyusun templat proposal" langkah={[{ nomor: "1", teks: "..." }]} />
+ * Contoh: <PanelPemandu kode="UC-01" judul="Mengelola templat proposal" langkah={[{ nomor: "1", teks: "..." }]} />
  */
 export function PanelPemandu({
   kode,
@@ -48,7 +48,12 @@ export function PanelPemandu({
   /** sorot satu langkah yang sedang berlangsung */
   aktifNomor?: string;
 }) {
-  const [terbuka, setTerbuka] = useState(true);
+  // Bawaan: ciut (hanya kepala panel + langkah aktif) agar tidak menutupi isi jendela; pengguna membukanya bila perlu.
+  const [terbuka, setTerbuka] = useState(false);
+  const aktifRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    if (terbuka) aktifRef.current?.scrollIntoView({ block: "nearest" });
+  }, [terbuka, aktifNomor]);
   const tersembunyi = useSyncExternalStore(langganan, bacaSembunyi, () => false);
 
   function atur(sembunyi: boolean) {
@@ -90,11 +95,18 @@ export function PanelPemandu({
           </button>
         </span>
       </header>
+      {!terbuka && aktifNomor ? (
+        <p className="px-3 py-1.5 text-xs text-sogan-800">
+          <span className="font-mono font-bold text-emas-700">{aktifNomor}</span>{" "}
+          {langkah.find((l) => l.nomor === aktifNomor)?.teks.slice(0, 90)}
+        </p>
+      ) : null}
       {terbuka ? (
         <ol className="max-h-72 space-y-1.5 overflow-y-auto p-3 text-sm">
           {langkah.map((l) => (
             <li
               key={l.nomor + l.teks}
+              ref={aktifNomor === l.nomor ? aktifRef : undefined}
               className={cn(
                 "flex gap-2 rounded px-2 py-1",
                 l.alternatif && "bg-emas-50",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Field, Input, Panel, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { PanelPemandu } from "@/components/layout/panel-pemandu";
@@ -34,6 +34,11 @@ export function PapanTemplat(props: Props) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();
   const [pesan, setPesan] = useState<Pesan>(null);
+  const pesanRef = useRef<HTMLDivElement | null>(null);
+  // pesan hasil Terbitkan dirender di atas halaman, sedangkan tombolnya di bawah: gulir ke pesan supaya terlihat
+  useEffect(() => {
+    if (pesan) pesanRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [pesan]);
 
   // Isian dikunci pada id draf: bila draf berganti (diterbitkan atau dibuat), isian dimuat ulang dari server.
   const kunciDraf = draf?.id ?? "tanpa-draf";
@@ -113,6 +118,7 @@ export function PapanTemplat(props: Props) {
         </div>
       </Panel>
 
+      <div ref={pesanRef}>
       {pesan?.jenis === "terbit" ? (
         <Alert jenis="sukses" judul={`Templat versi ${pesan.versi} telah terbit`} className="mb-6">
           <p>
@@ -133,6 +139,7 @@ export function PapanTemplat(props: Props) {
           {pesan.teks}
         </Alert>
       ) : null}
+      </div>
 
       <Panel
         judul={berlaku ? `Templat Berlaku, Versi ${berlaku.versi}` : "Templat Berlaku"}

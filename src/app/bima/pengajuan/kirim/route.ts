@@ -4,10 +4,11 @@ import { daftarSkemaBima, simpanUsulanBima, type BerkasUnggahan } from "@/lib/bi
 import { jenisBerkas, TIPE_DOCX, TIPE_PDF } from "@/lib/pengajuan/ekstraksi";
 import { buatTokenPengajuan } from "@/lib/pengajuan/token";
 import { urlSsoSemar } from "@/lib/bima/sso";
+import { buatDocx, susunContoh } from "@/lib/contoh/proposal";
 
 export const dynamic = "force-dynamic";
 
-const BATAS_BYTE = 8 * 1024 * 1024;
+const BATAS_BYTE = 4 * 1024 * 1024; // badan permintaan fungsi Vercel dibatasi 4,5 MB; lebih besar ditolak platform dengan 413
 
 interface GalatForm {
   judul?: string;
@@ -19,7 +20,7 @@ interface GalatForm {
 
 async function bacaBerkas(f: FormDataEntryValue | null, bolehKosong: boolean): Promise<{ berkas?: BerkasUnggahan; galat?: string }> {
   if (!(f instanceof File) || f.size === 0) return bolehKosong ? {} : { galat: "Berkas wajib diunggah." };
-  if (f.size > BATAS_BYTE) return { galat: "Berkas terlalu besar (maksimal 8 MB)." };
+  if (f.size > BATAS_BYTE) return { galat: "Berkas terlalu besar (maksimal 4 MB)." };
   const bytes = Buffer.from(await f.arrayBuffer());
   const jenis = jenisBerkas(f.name, f.type, bytes);
   if (!jenis) return { galat: "Format berkas harus DOCX atau PDF." };
@@ -45,8 +46,13 @@ export async function POST(req: Request) {
   const skema = (await daftarSkemaBima()).find((s) => s.kode === skemaKode);
   if (!skema) galat.skema = "Pilih skema pendanaan.";
 
-  const naskah = await bacaBerkas(form.get("naskah"), Boolean(idProposal));
-  if (naskah.galat) galat.naskah = naskah.galat;
+  // Khusus simulasi UC-05b: naskah perbaikan contoh (varian e) menggantikan unggahan, hanya bila judulnya cocok dengan usulan
+  const perbaikan = susunContoh("e");
+  const pakaiPerbaikan = Boolean(idProposal) && form.get("naskahPerbaikan") === "1" && judul === perbaikan.judul;
+  const naskah = pakaiPerbaikan
+    ? { berkas: { nama: "naskah-perbaikan-contoh.docx", tipe: TIPE_DOCX, bytes: await buatDocx(perbaikan) } as BerkasUnggahan }
+    : await bacaBerkas(form.get("naskah"), Boolean(idProposal));
+  if ('galat' in naskah && naskah.galat) galat.naskah = naskah.galat;
 
   const lampiran: Record<string, BerkasUnggahan> = {};
   for (const nama of skema?.lampiranWajib ?? []) {

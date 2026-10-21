@@ -34,7 +34,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
 
       <Panel className="mb-6">
         <form method="get" className="flex flex-wrap items-end gap-4">
-          <Field label="Periode Seleksi" htmlFor="periode" className="w-64">
+          <Field label="Periode Seleksi" htmlFor="periode" className="w-full max-w-md">
             <Select id="periode" name="periode" defaultValue={periode?.id ?? periodeAda[0]?.id} required>
               {periodeAda.map((p) => (
                 <option key={p.id} value={p.id}>

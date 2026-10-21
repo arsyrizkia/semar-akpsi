@@ -122,3 +122,13 @@ export const jalankanPemeriksaanDeterministik: JalankanPemeriksaanDeterministik 
   });
   return { versiId, hasil, semuaLolos: jumlahGagal === 0, jumlahGagal };
 };
+
+/* ------------------------------ metode seq-uc05 / seq-uc06 ------------------------------ */
+
+/** jalankanPemeriksaan(deterministik) (seq-uc05 langkah 9) dan periksaDeterministik(versi) (seq-uc06): satu fungsi yang sama. */
+export const jalankanPemeriksaan = jalankanPemeriksaanDeterministik;
+export const periksaDeterministik = jalankanPemeriksaanDeterministik;
+/** periksa(teksBagian): pemeriksaan per butir atas teks. */
+export const periksa = periksaDeterministikTeks;
+/** ambilTeksBagian(bagian): teks sebuah bagian dari dokumen. */
+export { teksBagian as ambilTeksBagian } from "./pemeriksa";

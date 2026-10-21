@@ -5,6 +5,7 @@ import { Alert, Button, JudulHalaman, Panel, StatusBadge, Table, TBody, TD, TH, 
 import { PanelPemandu } from "@/components/layout/panel-pemandu";
 import { wajibPengusul } from "@/lib/auth";
 import { LANGKAH_UC05 } from "@/lib/demo/pemandu/uc-05";
+import { LANGKAH_UC06 } from "@/lib/demo/pemandu/uc-06";
 import { ambilStatusPengajuan } from "@/lib/pengajuan/layanan";
 import { cn, formatTanggal, formatWaktu } from "@/lib/utils";
 import { kirimUlang } from "./aksi";
@@ -118,7 +119,7 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
         {status === "Terkirim" && !diperiksa ? (
           <Panel judul="Bukti Pengiriman">
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[12rem_1fr]">
-              <dt className="font-semibold text-sogan-800">idProposal</dt>
+              <dt className="font-semibold text-sogan-800">ID Proposal</dt>
               <dd>{p.idProposal}</dd>
               <dt className="font-semibold text-sogan-800">Judul</dt>
               <dd>{p.judul}</dd>
@@ -139,7 +140,7 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
         </div>
       </div>
 
-      <PanelPemandu kode="UC-05" judul="Mengajukan proposal" langkah={LANGKAH_UC05} aktifNomor={aktif} />
+      <PanelPemandu kode="UC-05" judul="Mengajukan proposal" langkah={[...LANGKAH_UC05, ...LANGKAH_UC06.map((l) => ({ ...l, nomor: `6.${l.nomor}`, alternatif: true }))]} aktifNomor={aktif} />
     </>
   );
 }

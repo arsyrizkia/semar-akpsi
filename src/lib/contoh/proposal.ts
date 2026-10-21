@@ -7,11 +7,12 @@
  *  b = gagal jumlah kata di satu bagian (Metode melebihi batas)
  *  c = gagal kata kunci (4, bukan 5) dan sitasi (9 referensi, 7 dikutip)
  *  d = seperti a, topik lain; dipakai skenario reviewer (sudah Terkirim)
+ *  e = naskah perbaikan varian b: topik dan judul sama, bagian Metode dalam batas (dipakai UC-05b "terkirim setelah diperbaiki")
  */
 import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 
-export type VarianContoh = "a" | "b" | "c" | "d";
+export type VarianContoh = "a" | "b" | "c" | "d" | "e";
 
 export const BAGIAN_CONTOH = ["Ringkasan", "Pendahuluan", "Tinjauan Pustaka", "Metode", "Hasil yang Diharapkan", "Kata Kunci", "Daftar Pustaka"] as const;
 export const LAMPIRAN_CONTOH = ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"] as const;
@@ -30,7 +31,7 @@ interface Topik {
   kataKunci: string[];
 }
 
-const TOPIK: Record<VarianContoh, Topik> = {
+const TOPIK: Record<Exclude<VarianContoh, "e">, Topik> = {
   a: {
     judul: "Model Prediksi Curah Hujan Harian Berbasis Jaringan Saraf Tiruan untuk Wilayah Pesisir Utara",
     objek: "curah hujan harian",
@@ -160,7 +161,7 @@ export interface DefinisiContoh {
 }
 
 export function susunContoh(varian: VarianContoh): DefinisiContoh {
-  const t = TOPIK[varian];
+  const t = TOPIK[varian === "e" ? "b" : varian];
   const gagalKata = varian === "b";
   const gagalSitasi = varian === "c";
   const jumlahPustaka = gagalSitasi ? 9 : 8;

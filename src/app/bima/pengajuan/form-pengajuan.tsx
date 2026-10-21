@@ -12,6 +12,8 @@ interface Props {
     naskah: string | null;
     lampiran: Record<string, string>;
   };
+  /** demo: tersedia naskah perbaikan contoh untuk usulan ini (UC-05b) */
+  perbaikanTersedia?: boolean;
 }
 
 interface Galat {
@@ -26,7 +28,7 @@ const kelasInput =
   "w-full rounded border border-slate-400 bg-white px-3 py-2 text-slate-900 aria-[invalid=true]:border-2 aria-[invalid=true]:border-red-600";
 
 /** Formulir pengajuan di BIMA tiruan (tampilan netral, bukan tema SEMAR). */
-export function FormPengajuan({ skema, awal }: Props) {
+export function FormPengajuan({ skema, awal, perbaikanTersedia }: Props) {
   const [skemaKode, setSkemaKode] = useState(awal?.skemaKode ?? skema[0]?.kode ?? "");
   const [galat, setGalat] = useState<Galat>({});
   const [mengirim, setMengirim] = useState(false);
@@ -102,6 +104,12 @@ export function FormPengajuan({ skema, awal }: Props) {
         />
         {awal?.naskah ? <p className="mt-1 text-xs text-slate-600">Berkas saat ini: {awal.naskah}. Unggah berkas baru untuk menggantinya.</p> : null}
         {galat.naskah ? <p role="alert" className="mt-1 text-sm text-red-700">{galat.naskah}</p> : null}
+        {perbaikanTersedia ? (
+          <label className="mt-2 flex items-start gap-2 text-sm">
+            <input type="checkbox" name="naskahPerbaikan" value="1" className="mt-1" />
+            <span>Pakai naskah perbaikan (contoh) - khusus simulasi: bagian Metode sudah dalam batas kata, judul tetap sama.</span>
+          </label>
+        ) : null}
       </div>
 
       {lampiran.length ? (

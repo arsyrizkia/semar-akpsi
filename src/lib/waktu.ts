@@ -3,9 +3,9 @@
  * Prototipe hanya memiliki satu periode berjalan: sakelar masaPengusulan adalah penentu tunggal
  * apakah pengusulan dianggap berjalan atau ditutup; geserHari menggeser tampilan/perhitungan tanggal.
  */
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { pengaturanDemo } from "@/db/schema";
+import { pengaturanDemo, periodeSeleksi } from "@/db/schema";
 
 export type PengaturanDemo = typeof pengaturanDemo.$inferSelect;
 
@@ -17,9 +17,20 @@ export async function ambilPengaturanDemo(): Promise<PengaturanDemo> {
   return baru ?? (await db.select().from(pengaturanDemo).where(eq(pengaturanDemo.id, 1)))[0];
 }
 
+const HARI_MS = 86_400_000;
+
 export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "masaPengusulan" | "geserHari">>) {
   const db = getDb();
   await ambilPengaturanDemo();
+  if (ubah.masaPengusulan) {
+    // Sakelar masa menggeser tanggalTutup periode berjalan supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
+    // dengan statusnya: "ditutup" = tanggalTutup kemarin; "berjalan" = tanggalTutup dua pekan lagi.
+    const [p] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+    if (p) {
+      const tutup = new Date(Date.now() + (ubah.masaPengusulan === "ditutup" ? -1 : 14) * HARI_MS);
+      await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
+    }
+  }
   await db
     .update(pengaturanDemo)
     .set({ ...ubah, diperbaruiPada: new Date() })

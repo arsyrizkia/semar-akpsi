@@ -253,8 +253,9 @@ export function PapanPenugasan({
                         aria-label={`Beban ${s.namaReviewer}`}
                         className="h-2.5 w-full overflow-hidden rounded-full bg-sogan-100"
                       >
-                        <div className={s.jumlah >= s.batas ? "h-full bg-bata-600" : "h-full bg-daun-500"} style={{ width: `${persen}%` }} />
+                        <div className={s.jumlah > s.batas ? "h-full bg-bata-600" : s.jumlah === s.batas ? "h-full bg-emas-700" : "h-full bg-daun-500"} style={{ width: `${persen}%` }} />
                       </div>
+                      {s.jumlah >= s.batas ? <span className="text-xs text-sogan-700">{s.jumlah > s.batas ? "melebihi batas" : "penuh"}</span> : null}
                     </TD>
                   </TR>
                 );

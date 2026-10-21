@@ -184,7 +184,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
 
   await simpanIsian(db, t.id, m.isian);
 
-  const berjalan = m.masaBerjalan ?? (await masaPengusulanBerjalan()); // cekPengusulanBerjalan(), langkah 8
+  const berjalan = m.masaBerjalan ?? (await cekPengusulanBerjalan()); // langkah 8
   if (berjalan) {
     // 9a: tetap Draf, templat yang berlaku tidak berubah, butir tidak diturunkan
     await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.simpan-draf", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, alasan: "masa pengusulan berjalan" } });
@@ -202,18 +202,10 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
       .from(templatProposal)
       .where(and(eq(templatProposal.skemaId, m.skemaId), eq(templatProposal.status, "Terbit")));
     const drafBasis = await pastikanDrafBasis(tx, m.skemaId, m.pelaku.id);
-    if (lama.length > 0) {
-      const idLama = lama.map((l) => l.id);
-      await tx.update(templatProposal).set({ status: "Arsip" }).where(inArray(templatProposal.id, idLama));
-      await tx
-        .update(butirCek)
-        .set({ status: "Nonaktif" })
-        .where(and(eq(butirCek.basisAturanId, drafBasis.id), eq(butirCek.asal, "templat"), inArray(butirCek.templatId, idLama)));
-    }
-    await tx.update(templatProposal).set({ status: "Terbit", diterbitkanPada: waktu }).where(eq(templatProposal.id, t.id));
+    await gantiTemplatBerlaku(tx, { baruId: t.id, lamaIds: lama.map((l) => l.id), drafBasisId: drafBasis.id, waktu });
 
     // turunkanButirCek (langkah 10): berstatus Draf, terkunci (asal = templat)
-    const turunan = turunkanButirDariTemplat(bagian, lampiran);
+    const turunan = turunkanButirCek(bagian, lampiran);
     const [{ nilai }] = await tx.select({ nilai: max(butirCek.urutan) }).from(butirCek).where(eq(butirCek.basisAturanId, drafBasis.id));
     let urutan = nilai ?? 0;
     if (turunan.length > 0) {
@@ -245,3 +237,39 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
   });
   return { hasil: "terbit", versi: t.versi, jumlahButir };
 }
+
+/* ------------------------------ metode seq-uc01 ------------------------------ */
+
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/** cekPengusulanBerjalan() (seq-uc01 langkah 8): nama metode sequence untuk masaPengusulanBerjalan. */
+export const cekPengusulanBerjalan = masaPengusulanBerjalan;
+
+/** turunkanButirCek() (seq-uc01 langkah 10): butir cek terkunci (asal templat) dari bagian dan lampiran wajib. */
+export const turunkanButirCek = turunkanButirDariTemplat;
+
+/** arsipkan(): templat Terbit yang digantikan menjadi Arsip. */
+async function arsipkan(tx: Tx, lamaIds: string[]) {
+  if (lamaIds.length) await tx.update(templatProposal).set({ status: "Arsip" }).where(inArray(templatProposal.id, lamaIds));
+}
+
+/** nonaktifkan(): butir turunan templat lama pada draf basis aturan dinonaktifkan. */
+async function nonaktifkanTurunanLama(tx: Tx, drafBasisId: string, lamaIds: string[]) {
+  if (!lamaIds.length) return;
+  await tx
+    .update(butirCek)
+    .set({ status: "Nonaktif" })
+    .where(and(eq(butirCek.basisAturanId, drafBasisId), eq(butirCek.asal, "templat"), inArray(butirCek.templatId, lamaIds)));
+}
+
+/** gantiTemplatBerlaku() (seq-uc01 langkah 9): arsipkan yang lama, nonaktifkan turunannya, terbitkan yang baru. */
+async function gantiTemplatBerlaku(tx: Tx, p: { baruId: string; lamaIds: string[]; drafBasisId: string; waktu: Date }) {
+  await arsipkan(tx, p.lamaIds);
+  await nonaktifkanTurunanLama(tx, p.drafBasisId, p.lamaIds);
+  await tx.update(templatProposal).set({ status: "Terbit", diterbitkanPada: p.waktu }).where(eq(templatProposal.id, p.baruId));
+}
+
+/** aturBagian(), aturKetentuan(), tetapkanPeriodeBerlaku(): metode TemplatProposal; satu penyimpanan isian (simpanIsian) merealisasikan ketiganya. */
+export const aturBagian = simpanIsian;
+export const aturKetentuan = simpanIsian;
+export const tetapkanPeriodeBerlaku = simpanIsian;

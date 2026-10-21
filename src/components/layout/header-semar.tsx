@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { LogoSemar } from "@/components/merek";
-import type { Akun } from "@/lib/auth";
+import { targetSetelahMasuk, type Akun } from "@/lib/auth";
 
 const namaPeran = { tim_kerja: "Tim Kerja DPPM", reviewer: "Reviewer", pengusul: "Pengusul" } as const;
 
@@ -10,9 +10,13 @@ export function HeaderSemar({ akun, pengelola, children }: { akun: Akun; pengelo
     <>
       <header className="latar-kawung text-krem">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" aria-label="SEMAR, ke halaman awal">
+          {akun.peran === "pengusul" ? (
             <LogoSemar />
-          </Link>
+          ) : (
+            <Link href={targetSetelahMasuk(akun)} aria-label="SEMAR, ke jendela awal">
+              <LogoSemar />
+            </Link>
+          )}
           <div className="flex items-center gap-4 text-sm">
             <div className="text-right leading-tight">
               <p className="font-semibold">{akun.nama}</p>
@@ -21,6 +25,7 @@ export function HeaderSemar({ akun, pengelola, children }: { akun: Akun; pengelo
                 {pengelola ? " (pengelola)" : ""} - {akun.institusi}
               </p>
             </div>
+            {akun.peran === "pengusul" ? null : (
             <form action="/api/sso/keluar" method="post">
               <button
                 type="submit"
@@ -29,6 +34,7 @@ export function HeaderSemar({ akun, pengelola, children }: { akun: Akun; pengelo
                 <LogOut aria-hidden className="size-4" /> Keluar
               </button>
             </form>
+            )}
           </div>
         </div>
         {children}

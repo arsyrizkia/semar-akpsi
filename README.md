@@ -14,6 +14,8 @@ npm install
 cp .env.example .env.local   # isi DATABASE_URL; lainnya opsional
 npm run db:push              # skema ke Neon + pemicu log_audit append-only
 npm run seed                 # data contoh sementara (mengosongkan tabel, kecuali log_audit)
+# PERINGATAN: DATABASE_URL hasil `vercel env pull` adalah basis data PRODUKSI yang dipakai bersama. `npm test` melewati tes basis data
+# dan `npm run e2e` menolak jalan kecuali DATABASE_URL_UJI diisi (branch Neon uji) atau SEMAR_IZINKAN_DB_PRODUKSI=1. `npm run seed` dan Reset menghapus data demo.
 npm run dev
 ```
 

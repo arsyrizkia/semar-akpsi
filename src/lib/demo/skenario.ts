@@ -1,5 +1,6 @@
 /**
- * Penyiapan data dan sesi untuk halaman /demo: jalan pintas UC-01..UC-09 dan enam skenario (UC-05 a/b/c, UC-07 a/b/c).
+ * Penyiapan data dan sesi untuk halaman /demo: jalan pintas UC-01..UC-09, varian UC-01 S-1 dan UC-09 S-1/S-2, dan enam
+ * use scenario Bab 10.1 (UC-05 a/b/c, UC-07 a/b/c).
  * Setiap fungsi idempotent dan tidak mereset seluruh basis data; reset penuh hanya lewat tombol "Reset & isi data demo".
  */
 import { and, eq, sql } from "drizzle-orm";
@@ -8,8 +9,10 @@ import * as s from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { simpanBerkas } from "@/lib/berkas";
 import { buatDocx, susunContoh, type VarianContoh } from "@/lib/contoh/proposal";
-import { jalankanPemeriksaanDeterministik, jalankanPemeriksaanSemantik } from "@/lib/kontrak";
+import { jalankanPemeriksaanDeterministik } from "@/lib/kontrak";
 import { KOMPONEN_BORANG } from "@/lib/kontrak/tipe";
+import { jalankan as jalankanSemantik } from "@/lib/pemeriksa/semantik/jalankan";
+import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@/lib/pengajuan/layanan";
 import { ubahPengaturanDemo } from "@/lib/waktu";
 
@@ -17,6 +20,7 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 export type KodeJalanPintas =
   | "UC-01" | "UC-02" | "UC-03" | "UC-04" | "UC-05" | "UC-06" | "UC-07" | "UC-08" | "UC-09"
+  | "UC-01-S1" | "UC-09-S1" | "UC-09-S2"
   | "UC-05a" | "UC-05b" | "UC-05c" | "UC-07a" | "UC-07b" | "UC-07c";
 
 export interface HasilSiapkan {
@@ -131,7 +135,7 @@ async function pastikanDataPemantauan() {
   if (final > 0) return;
 
   const klon = await buatProposalDemo({ varian: "d", pengusulIdBima: "pengusul-1", sufiks: "dinilai" });
-  await jalankanPemeriksaanSemantik(klon.versiId);
+  await jalankanSemantik(klon.versiId, { tiruan: true, penyedia: kirimPermintaanTiruan }); // data pemantauan selalu deterministik, apa pun mode LLM produksi
   await db.update(s.jobSemantik).set({ status: "Selesai", selesaiPada: new Date() }).where(eq(s.jobSemantik.versiId, klon.versiId));
   const [pn] = await db
     .insert(s.penugasanReviewer)
@@ -204,27 +208,61 @@ export async function siapkanPemeriksaanReviewer(skenario: SkenarioLlm) {
     .set({ status: "Ditetapkan", label: "Baru", reviewerId: await idAkun("reviewer-2") })
     .where(eq(s.penugasanReviewer.id, pn.id));
 
-  const semula = process.env.SEMAR_LLM_TIRUAN_SKENARIO;
-  const modeSemula = process.env.SEMAR_LLM_MODE;
-  try {
-    if (skenario === "normal") delete process.env.SEMAR_LLM_TIRUAN_SKENARIO;
-    else process.env.SEMAR_LLM_TIRUAN_SKENARIO = skenario;
-    process.env.SEMAR_LLM_MODE = "tiruan"; // skenario paksa hanya bermakna pada mode tiruan
-    await jalankanPemeriksaanSemantik(pn.versiId);
-  } finally {
-    if (semula === undefined) delete process.env.SEMAR_LLM_TIRUAN_SKENARIO;
-    else process.env.SEMAR_LLM_TIRUAN_SKENARIO = semula;
-    if (modeSemula === undefined) delete process.env.SEMAR_LLM_MODE;
-    else process.env.SEMAR_LLM_MODE = modeSemula;
-  }
+  // mode tiruan dipaksa lewat opsi (bukan process.env) supaya permintaan lain yang berjalan bersamaan tidak ikut terpengaruh
+  await jalankanSemantik(pn.versiId, { tiruan: true, penyedia: kirimPermintaanTiruan, skenario: skenario === "normal" ? undefined : skenario });
   return { penugasanId: pn.id, idProposal: p.idProposal };
+}
+
+/**
+ * UC-07c: penilaian Draf yang sebagian terisi (tiga keputusan komponen dan umpan balik), sehingga J-07 berlabel "Draf"
+ * dan J-08 memuat ulang isian itu (langkah 5 use scenario).
+ */
+async function siapkanDrafSebagian(penugasanId: string) {
+  const db = getDb();
+  const [pl] = await db
+    .insert(s.penilaian)
+    .values({ penugasanId, status: "Draf", komentar: "Draf: ringkasan sudah jelas; bagian metode masih perlu saya periksa lagi.", nilai: `3 dari ${KOMPONEN_BORANG.length} komponen Memenuhi` })
+    .returning();
+  await db.insert(s.keputusanKomponen).values(KOMPONEN_BORANG.slice(0, 3).map((k) => ({ penilaianId: pl.id, komponen: k, keputusan: "Memenuhi" as const })));
+  await db.update(s.penugasanReviewer).set({ label: "Draf" }).where(eq(s.penugasanReviewer.id, penugasanId));
+}
+
+/** UC-01 S-1: skema tanpa templat. Dibuat sesuai kebutuhan (idempoten) supaya tidak mengubah skema contoh lain. */
+async function pastikanSkemaTanpaTemplat(): Promise<string> {
+  const db = getDb();
+  let [sk] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PK"));
+  if (!sk) {
+    [sk] = await db
+      .insert(s.skemaPendanaan)
+      .values({ kode: "PK", namaSkema: "Penelitian Kolaborasi (contoh sementara)", deskripsi: "Skema tanpa templat untuk memperagakan UC-01 S-1 (contoh sementara).", contoh: true })
+      .returning();
+  }
+  return sk.id;
+}
+
+/** Draf templat sisa demo sebelumnya dibuang supaya jalan pintas UC-01 selalu mulai dari langkah 3 (tombol Susun Versi Baru tampil). */
+async function bersihkanDrafTemplat() {
+  const db = getDb();
+  const draf = await db.select({ id: s.templatProposal.id }).from(s.templatProposal).where(eq(s.templatProposal.status, "Draf"));
+  for (const d of draf) {
+    await db.delete(s.butirCek).where(eq(s.butirCek.templatId, d.id));
+    await db.delete(s.bagianTemplat).where(eq(s.bagianTemplat.templatId, d.id));
+    await db.delete(s.templatProposal).where(eq(s.templatProposal.id, d.id));
+  }
 }
 
 /* ------------------------------ pintu masuk ------------------------------ */
 
 export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsungJ08?: boolean } = {}): Promise<HasilSiapkan> {
   switch (kode) {
+    case "UC-01-S1": {
+      const skemaId = await pastikanSkemaTanpaTemplat();
+      await bersihkanDrafTemplat();
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      return { akun: "dppm-pengelola", tujuan: `/tim-kerja/templat?skema=${skemaId}`, catatan: "Skema belum memiliki templat (UC-01 S-1): \"Susun Versi Baru\" membuat versi 1." };
+    }
     case "UC-01":
+      await bersihkanDrafTemplat();
       await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
       return { akun: "dppm-pengelola", tujuan: "/tim-kerja/templat", catatan: "Masa pengusulan ditutup supaya Terbitkan berakhir di jalur utama; nyalakan sakelar \"berjalan\" untuk melihat alternatif 9a." };
     case "UC-02":
@@ -244,11 +282,19 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
     case "UC-05c": {
       const nomor = kode === "UC-05" || kode === "UC-05a" ? 1 : kode === "UC-06" || kode === "UC-05b" ? 2 : 3;
       const id = await pulihkanDrafBima(nomor);
-      await ubahPengaturanDemo({ masaPengusulan: nomor === 3 ? "ditutup" : "berjalan" });
+      // UC-05c dimulai saat masa berjalan: pengajuan pertama Ditahan; masa ditutup lewat alat simulasi di BIMA, lalu "Ajukan ulang" -> Ditolak (3a)
+      await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
       return {
         akun: `pengusul-${nomor}`,
         tujuan: `/bima/pengajuan?proposal=${id}`,
-        catatan: nomor === 1 ? "Proposal lolos semua butir (Terkirim)." : nomor === 2 ? "Bagian Metode melebihi batas kata (Ditahan)." : "Masa pengusulan ditutup (Ditolak, alternatif 3a).",
+        catatan:
+          kode === "UC-05c"
+            ? "Ajukan (Ditahan karena kata kunci dan sitasi), tutup masa pengusulan di BIMA, lalu Ajukan ulang (Ditolak, alternatif 3a)."
+            : kode === "UC-05b"
+              ? "Ajukan (Ditahan karena Metode melebihi batas kata), lalu Ajukan ulang dengan naskah perbaikan contoh (Terkirim, versi V2)."
+              : nomor === 1
+                ? "Proposal lolos semua butir (Terkirim)."
+                : "Bagian Metode melebihi batas kata (Ditahan).",
       };
     }
     case "UC-07":
@@ -256,19 +302,26 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
     case "UC-07b":
     case "UC-07c":
     case "UC-08":
-    case "UC-09": {
-      const skenario: SkenarioLlm = kode === "UC-07b" ? "kutipan-salah" : kode === "UC-07c" ? "tidak-merespons" : "normal";
+    case "UC-09":
+    case "UC-09-S1":
+    case "UC-09-S2": {
+      const skenario: SkenarioLlm = kode === "UC-09-S1" ? "kutipan-salah" : kode === "UC-09-S2" ? "tidak-merespons" : "normal";
       const { penugasanId } = await siapkanPemeriksaanReviewer(skenario);
-      const langsungJ08 = kode === "UC-08" || kode === "UC-09" || opsi.langsungJ08 === true;
+      if (kode === "UC-07c") await siapkanDrafSebagian(penugasanId);
+      const langsungJ08 = kode === "UC-07b" || kode === "UC-08" || kode === "UC-09" || kode === "UC-09-S1" || kode === "UC-09-S2" || opsi.langsungJ08 === true;
       return {
         akun: "reviewer-2",
         tujuan: langsungJ08 ? `/reviewer/pemeriksaan/${penugasanId}` : "/reviewer/penugasan",
         catatan:
-          skenario === "kutipan-salah"
-            ? "Butir pertama: kutipan LLM tidak ditemukan di teks (UC-09 S-1, Perlu diperiksa manual)."
-            : skenario === "tidak-merespons"
-              ? "Butir pertama: LLM tidak merespons dua kali (UC-09 S-2, Belum ada rekomendasi)."
-              : "Hasil semantik normal (mode tiruan).",
+          kode === "UC-07c"
+            ? "Penilaian Draf sudah berisi tiga keputusan komponen dan umpan balik: J-07 berlabel Draf, J-08 memuat ulang isiannya."
+            : kode === "UC-07b"
+              ? "Pilih satu butir yang menurut Anda keliru, tekan Tidak Setuju, isi alasan, lalu Simpan Koreksi (UC-08)."
+              : skenario === "kutipan-salah"
+                ? "Butir pertama: kutipan LLM tidak ditemukan di teks (UC-09 S-1, Perlu diperiksa manual)."
+                : skenario === "tidak-merespons"
+                  ? "Butir pertama: LLM tidak merespons dua kali (UC-09 S-2, Belum ada rekomendasi)."
+                  : "Hasil semantik normal (mode tiruan).",
       };
     }
   }

@@ -15,7 +15,8 @@ export function validasiKoreksi(m: MasukanKoreksi): Record<string, string> {
   const galat: Record<string, string> = {};
   if (m.keputusan !== "Memenuhi" && m.keputusan !== "Tidak memenuhi") galat.keputusan = "Pilih keputusan reviewer";
   if (!m.alasan || m.alasan.trim().length === 0) galat.alasan = PESAN_ALASAN_WAJIB;
-  if (!(JENIS_KEKELIRUAN as readonly string[]).includes(m.jenisKekeliruan)) galat.jenisKekeliruan = "Pilih jenis kekeliruan";
+  // Bab 10: jenis kekeliruan diasumsikan tidak wajib; bila diisi, harus salah satu nilai baku.
+  if (m.jenisKekeliruan && !(JENIS_KEKELIRUAN as readonly string[]).includes(m.jenisKekeliruan)) galat.jenisKekeliruan = "Pilih jenis kekeliruan dari daftar";
   return galat;
 }
 

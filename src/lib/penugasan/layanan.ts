@@ -96,7 +96,7 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
   await tetapkanBatasBeban(periodeId, batasBeban);
 
   // ambilDaftarReviewer() melalui API BIMA (client mengulang otomatis maksimal 2 kali)
-  const daftar = (await bima.ambilDaftarReviewer()).filter((r) => r.bersedia);
+  const daftar = (await ambilDaftarReviewer()).filter((r) => r.bersedia);
   const reviewerSemar = (await Promise.all(daftar.map((r) => pastikanAkunDariBima(r.idBima)))).filter(
     (a): a is NonNullable<typeof a> => !!a && a.peran === "reviewer",
   );
@@ -262,7 +262,7 @@ export async function tetapkanPenugasan(periodeId: string, aktor: string): Promi
     const reviewerBaris = await db.select({ id: akun.id, idBima: akun.idBima }).from(akun).where(inArray(akun.id, usulan.map((u) => u.reviewerId)));
     const idBimaProposal = new Map(proposalBaris.map((p) => [p.id, p.idProposal]));
     const idBimaReviewer = new Map(reviewerBaris.map((r) => [r.id, r.idBima]));
-    await bima.kirimPenugasan({
+    await kirimPenugasan({
       periodeId,
       penugasan: usulan.map((u) => ({
         idProposal: idBimaProposal.get(u.proposalId)!,
@@ -311,3 +311,16 @@ export async function ambilPeriodeTerbaru() {
   const [p] = await getDb().select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
   return p ?? null;
 }
+
+/* ------------------------------ metode seq-uc03 ------------------------------ */
+
+/** ambilDaftarReviewer() (langkah 3): daftar reviewer BIMA lewat klien HTTP (ulang otomatis maksimal 2 kali). */
+export const ambilDaftarReviewer = () => bima.ambilDaftarReviewer();
+
+/** kirimPenugasan(): penugasan yang ditetapkan dikirim ke BIMA lewat klien HTTP. */
+export const kirimPenugasan = (payload: Parameters<typeof bima.kirimPenugasan>[0]) => bima.kirimPenugasan(payload);
+
+/** tetapkan(), mencatatPenugasan(), terimaProposal(): satu transaksi tetapkanPenugasan (status Ditetapkan, kirim ke BIMA, log audit). */
+export const tetapkan = tetapkanPenugasan;
+export const mencatatPenugasan = tetapkanPenugasan;
+export const terimaProposal = tetapkanPenugasan;

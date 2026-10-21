@@ -16,6 +16,12 @@ describe("validasiKoreksi (UC-08 S-1)", () => {
   });
 });
 
+describe("jenis kekeliruan opsional (Bab 10)", () => {
+  it("kosong diterima; hanya alasan yang wajib", () => {
+    expect(validasiKoreksi({ keputusan: "Memenuhi", alasan: "Sudah menjawab butir.", jenisKekeliruan: "" })).toEqual({});
+  });
+});
+
 describe("komponen borang", () => {
   it("hanya komponen baku dengan keputusan sah", () => {
     const k = bersihkanKomponen({ [KOMPONEN_BORANG[0]]: "Memenuhi", [KOMPONEN_BORANG[1]]: "entah", "Komponen asing": "Memenuhi" });

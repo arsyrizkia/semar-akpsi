@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { wajibPengusul } from "@/lib/auth";
 import { kirimUlangPengajuan } from "@/lib/pengajuan/layanan";
@@ -10,4 +11,5 @@ export async function kirimUlang(formData: FormData): Promise<void> {
   const proposalId = String(formData.get("proposalId") ?? "");
   if (!proposalId) return;
   await kirimUlangPengajuan(proposalId, sesi.akun, (kerja) => after(kerja));
+  revalidatePath("/pengusul/hasil/[idProposal]", "page");
 }

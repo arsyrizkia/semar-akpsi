@@ -15,6 +15,8 @@ export interface OpsiNilai {
   jedaMs?: number;
   /** paksa label tiruan (bawaan: menurut modeLlm()) */
   tiruan?: boolean;
+  /** skenario paksa mode tiruan pada butir pertama (menggantikan pembacaan env global yang tidak aman untuk permintaan serentak) */
+  skenario?: "kutipan-salah" | "tidak-merespons";
 }
 
 interface Sasaran {
@@ -101,8 +103,9 @@ export function bentukHasil(
 }
 
 /** Skenario paksa untuk mode tiruan: SEMAR_LLM_TIRUAN_SKENARIO = kutipan-salah | tidak-merespons (berlaku pada butir pertama). */
-function skenarioTiruan(indeks: number): "kutipan-salah" | "tidak-merespons" | null {
+function skenarioTiruan(indeks: number, opsiSkenario?: OpsiNilai["skenario"]): "kutipan-salah" | "tidak-merespons" | null {
   if (indeks !== 0) return null;
+  if (opsiSkenario) return opsiSkenario;
   const s = process.env.SEMAR_LLM_TIRUAN_SKENARIO;
   return s === "kutipan-salah" || s === "tidak-merespons" ? s : null;
 }
@@ -114,6 +117,7 @@ async function periksaSatu(
   penyedia: PenyediaLlm,
   tiruan: boolean,
   jedaMs?: number,
+  skenario?: OpsiNilai["skenario"],
 ): Promise<{ hasil: HasilButirSemantik; percobaan: number }> {
   const sasaran = tentukanSasaran(dokumen, b);
   const { bagian } = parameterSemantik(b);
@@ -130,7 +134,7 @@ async function periksaSatu(
       },
     };
   }
-  const paksa = tiruan ? skenarioTiruan(indeks) : null;
+  const paksa = tiruan ? skenarioTiruan(indeks, skenario) : null;
   let pakaiPenyedia = penyedia;
   if (paksa === "tidak-merespons") pakaiPenyedia = async () => { throw new Error("waktu tunggu 15 detik terlampaui (skenario tiruan)"); };
   if (paksa === "kutipan-salah") {
@@ -166,9 +170,15 @@ export async function nilaiSemantikDenganOpsi(
   async function pekerja() {
     while (berikut < semantik.length) {
       const i = berikut++;
-      keluaran[i] = await periksaSatu(dokumen, semantik[i], i, penyedia, tiruan, opsi.jedaMs);
+      keluaran[i] = await periksaSatu(dokumen, semantik[i], i, penyedia, tiruan, opsi.jedaMs, opsi.skenario);
     }
   }
   await Promise.all(Array.from({ length: Math.min(paralel, semantik.length) }, pekerja));
   return keluaran;
 }
+
+/* ------------------------------ metode seq-uc09 ------------------------------ */
+
+/** nilaiSemantik(teksBagian) dan periksaSemantik(teksTanpaIdentitas): penilaian semantik semua butir atas dokumen. */
+export const nilaiSemantik = nilaiSemantikDenganOpsi;
+export const periksaSemantik = nilaiSemantikDenganOpsi;

@@ -10,7 +10,7 @@ export function tingkatKeyakinan(nilai: number): "Tinggi" | "Sedang" | "Rendah" 
 
 const gaya = {
   Tinggi: { isi: "bg-daun-600", teks: "text-daun-700" },
-  Sedang: { isi: "bg-emas-500", teks: "text-emas-700" },
+  Sedang: { isi: "bg-emas-700", teks: "text-emas-700" },
   Rendah: { isi: "bg-bata-600", teks: "text-bata-700" },
 } as const;
 

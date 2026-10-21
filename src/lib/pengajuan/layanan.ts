@@ -1,10 +1,10 @@
 /**
  * UC-05 Mengajukan proposal, sisi SEMAR. Nama fungsi mengikuti seq-uc05.puml:
- * tarikDariBima, cekMasaPengusulan, ambilTemplatBerlaku, ambilAturanBerlaku, buatVersiProposal («create»),
+ * tarikDariBima, cekMasaPengusulan, ambilTemplatBerlaku, ambilAturanBerlaku, «create» VersiProposal (insert di prosesPengajuan),
  * potongTeks/potongPerBagian/ambilTeksBagian (potong.ts), jalankanPemeriksaan(deterministik), catatTerkirim.
  * SEMAR memanggil BIMA hanya lewat @/lib/bima/client (ulang otomatis maksimal 2 kali, NFR 4.4).
  */
-import { and, asc, desc, eq, inArray, lt, max, min } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, max, min, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   bagianTemplat,
@@ -34,7 +34,7 @@ export type Proposal = typeof proposal.$inferSelect;
 export type VersiProposal = typeof versiProposal.$inferSelect;
 
 /** Batas waktu pemeriksaan satu proposal (NFR 2.1). Lewat dari ini, J-06 menawarkan pengiriman ulang. */
-export const BATAS_PEMERIKSAAN_MS = 3 * 60_000;
+export const BATAS_PEMERIKSAAN_MS = 125_000; // NFR 2.1: 2 menit, ditambah jeda sebelum J-06 menawarkan pengiriman ulang
 
 /* ------------------------------ periode, templat, aturan ------------------------------ */
 
@@ -45,11 +45,20 @@ export async function ambilPeriodeBerjalan(): Promise<Periode> {
   return p;
 }
 
-/** cekMasaPengusulan(): sakelar masa pengusulan adalah penentu tunggal (lihat src/lib/waktu.ts). */
+/**
+ * cekMasaPengusulan() (UC-05 langkah 3): membandingkan waktu (jam demo) dengan tanggalBuka dan tanggalTutup periode.
+ * Sakelar demo menggeser tanggalTutup (lihat ubahPengaturanDemo), jadi tanggal dan sakelar selalu searah; sakelar "ditutup" tetap menang.
+ */
 export async function cekMasaPengusulan(periode: Periode): Promise<{ berjalan: boolean; tanggalTutup: Date }> {
-  return { berjalan: await masaPengusulanBerjalan(), tanggalTutup: periode.tanggalTutup };
+  const sekarang = await waktuDemo();
+  const dalamRentang = sekarang >= periode.tanggalBuka && sekarang <= periode.tanggalTutup;
+  return { berjalan: dalamRentang && (await masaPengusulanBerjalan()), tanggalTutup: periode.tanggalTutup };
 }
 
+/**
+ * ambilTemplatBerlaku (versi UC-05): templat Terbit untuk periode tertentu, beserta bagiannya. Versi UC-01 di templat/layanan.ts
+ * (ambilTemplatBerlaku(skemaId)) hanya membaca templat Terbit terbaru sebuah skema; keduanya sengaja berbeda tanda tangan.
+ */
 export async function ambilTemplatBerlaku(periodeId: string, skemaId: string) {
   const db = getDb();
   const daftar = await db
@@ -209,7 +218,22 @@ export async function kirimUlangPengajuan(proposalId: string, pengusul: Akun, ja
     await catatLogAudit({ aktor: pengusul.idBima, aksi: "pengajuan.ditolak", objek: p.idProposal, rincian: { alasan: "masa pengusulan ditutup" } });
     return true;
   }
-  await db.update(proposal).set({ status: "Sedang diperiksa" }).where(eq(proposal.id, p.id));
+  // klik ganda atau dua tab tidak boleh menjalankan dua pemeriksaan yang berebut nomor versi
+  if (p.status === "Sedang diperiksa") {
+    const [terakhir] = await db
+      .select({ waktu: logAudit.waktu })
+      .from(logAudit)
+      .where(and(eq(logAudit.aksi, "pengajuan.mulai"), eq(logAudit.objek, p.idProposal)))
+      .orderBy(desc(logAudit.id))
+      .limit(1);
+    if (terakhir && Date.now() - terakhir.waktu.getTime() <= BATAS_PEMERIKSAAN_MS) return false; // masih berjalan
+  }
+  const klaim = await db
+    .update(proposal)
+    .set({ status: "Sedang diperiksa" })
+    .where(and(eq(proposal.id, p.id), eq(proposal.status, p.status), ne(proposal.status, "Terkirim")))
+    .returning({ id: proposal.id });
+  if (klaim.length === 0) return false;
   await catatLogAudit({ aktor: pengusul.idBima, aksi: "pengajuan.mulai", objek: p.idProposal, rincian: { kirimUlang: true } });
   jadwalkan(() => prosesPengajuan(p.id));
   return true;

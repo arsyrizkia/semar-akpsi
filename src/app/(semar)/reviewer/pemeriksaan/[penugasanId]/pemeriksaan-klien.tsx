@@ -27,7 +27,7 @@ import { langkahJ08 } from "@/lib/demo/pemandu/j08";
 import { JENIS_KEKELIRUAN, KOMPONEN_BORANG, type Keputusan } from "@/lib/kontrak/tipe";
 import { cariKutipan } from "@/lib/pemeriksa/semantik/teks";
 import type { ButirTampil, DataPemeriksaan, KoreksiTampil } from "@/lib/penilaian/tipe";
-import { PESAN_ALASAN_WAJIB, validasiKoreksi } from "@/lib/penilaian/validasi";
+import { PESAN_ALASAN_WAJIB, PESAN_KOMPONEN_BELUM_LENGKAP, validasiKoreksi } from "@/lib/penilaian/validasi";
 import { aksiKirimUlang, aksiSimpanKoreksi, aksiSimpanPermanen, aksiSimpanSementara } from "./actions";
 
 const MAKS_POLLING = 40;
@@ -47,6 +47,8 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
   const [pesan, setPesan] = useState<{ jenis: "info" | "sukses" | "galat"; teks: string } | null>(null);
   const [sibuk, mulai] = useTransition();
   const tandaRef = useRef<HTMLElement | null>(null);
+  const pesanBawahRef = useRef<HTMLDivElement | null>(null);
+  const [komponenKosong, setKomponenKosong] = useState<string[]>([]);
 
   const butir: ButirTampil[] = useMemo(
     () => data.butir.map((b) => ({ ...b, koreksi: koreksiLokal[b.hasilId] ?? b.koreksi })),
@@ -125,6 +127,16 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
   }
 
   function simpanPermanen() {
+    // validasi di klien lebih dulu: tandai komponen yang kosong, gulir ke komponen kosong pertama (teks pesan tetap sama dengan server)
+    const kosong = KOMPONEN_BORANG.filter((k) => !komponen[k]);
+    if (kosong.length) {
+      setKomponenKosong([...kosong]);
+      setPesan({ jenis: "galat", teks: PESAN_KOMPONEN_BELUM_LENGKAP });
+      const i = KOMPONEN_BORANG.indexOf(kosong[0]);
+      document.getElementById(`kb-label-${i}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setKomponenKosong([]);
     mulai(async () => {
       const r = await aksiSimpanPermanen(data.penugasanId, isian());
       if (!r.ok) {
@@ -135,6 +147,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
       setKoreksiBuka(null);
       if (r.terkirim) {
         setTerkirim(true);
+        toast.success("Penilaian tersimpan dan terkirim ke BIMA");
         setPesan({ jenis: "sukses", teks: "Penilaian tersimpan dan terkirim ke BIMA" });
       } else {
         setTerkirim(false);
@@ -153,8 +166,30 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
     });
   }
 
-  const tampilPesan = pesan ?? (final && terkirim ? { jenis: "sukses" as const, teks: "Penilaian tersimpan dan terkirim ke BIMA" } : null);
   const gagalKirim = final && !terkirim;
+  // keadaan menetap (juga setelah halaman dimuat ulang): final terkirim = sukses; final belum terkirim = galat dengan "Kirim ulang"
+  const pesanMenetap: { jenis: "sukses" | "galat"; teks: string } | null = final
+    ? terkirim
+      ? { jenis: "sukses", teks: "Penilaian tersimpan dan terkirim ke BIMA" }
+      : { jenis: "galat", teks: "Penilaian tersimpan, tetapi gagal terkirim ke BIMA. Tekan \"Kirim ulang\"." }
+    : null;
+  const tampilPesan = pesan ?? pesanMenetap;
+  const alertPesan = (
+    <div ref={pesanBawahRef}>
+      {tampilPesan ? (
+        <Alert jenis={tampilPesan.jenis === "galat" ? "galat" : tampilPesan.jenis} className="mb-4" judul={tampilPesan.jenis === "sukses" ? tampilPesan.teks : undefined}>
+          {tampilPesan.jenis === "sukses" ? null : tampilPesan.teks}
+          {gagalKirim ? (
+            <div className="mt-2">
+              <Button ukuran="sm" onClick={kirimUlang} disabled={sibuk}>
+                Kirim ulang
+              </Button>
+            </div>
+          ) : null}
+        </Alert>
+      ) : null}
+    </div>
+  );
 
   return (
     <>
@@ -198,18 +233,6 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
           Butir semantik belum memiliki rekomendasi. Anda tetap dapat memeriksa teks secara manual.
         </Alert>
       ) : null}
-      {tampilPesan ? (
-        <Alert jenis={tampilPesan.jenis === "galat" ? "galat" : tampilPesan.jenis} className="mb-6" judul={tampilPesan.jenis === "sukses" ? tampilPesan.teks : undefined}>
-          {tampilPesan.jenis === "sukses" ? null : tampilPesan.teks}
-          {gagalKirim ? (
-            <div className="mt-2">
-              <Button ukuran="sm" onClick={kirimUlang} disabled={sibuk}>
-                Kirim ulang
-              </Button>
-            </div>
-          ) : null}
-        </Alert>
-      ) : null}
       {final ? (
         <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-sogan-700">
           <Lock aria-hidden className="size-4" /> Penilaian final: semua isian hanya dapat dibaca.
@@ -222,8 +245,14 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
           <Tabs value={tabAktif} onValueChange={setTabAktif}>
             <TabsList aria-label="Bagian proposal">
               {data.tab.map((t) => (
-                <TabsTrigger key={t.nama} value={t.nama}>
+                <TabsTrigger key={t.nama} value={t.nama} className={butir.some((b) => b.tab === t.nama) ? undefined : "opacity-70"}>
                   {t.nama}
+                  {butir.some((b) => b.tab === t.nama) ? (
+                    <span className="ml-1 text-xs font-normal">
+                      ({butir.filter((b) => b.tab === t.nama).length}
+                      {butir.some((b) => b.tab === t.nama && (b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi")) ? <span aria-label="ada butir yang harus dibaca sendiri" className="ml-0.5 text-bata-700">●</span> : null})
+                    </span>
+                  ) : null}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -251,14 +280,20 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
         </Panel>
 
         {/* Panel kanan: butir semantik pada tab yang dibuka */}
-        <Panel judul="Butir Semantik" className="min-w-0 self-start">
+        <Panel judul="Butir Semantik" className="min-w-0 self-start lg:sticky lg:top-4">
+          <p className="mb-3 text-xs text-sogan-700">
+            Ringkasan: {butir.length} butir
+            {butir.filter((b) => b.koreksi).length ? `, ${butir.filter((b) => b.koreksi).length} dikoreksi` : ""}
+            {butir.filter((b) => b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi").length ? `, ${butir.filter((b) => b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi").length} perlu dibaca sendiri` : ""}.
+            {" "}Tingkat keyakinan (ambang contoh): tinggi ≥ 0,8; sedang 0,5-0,8; rendah &lt; 0,5.
+          </p>
           {butirTab.length === 0 ? (
             <p className="text-sm text-sogan-700">{data.butir.length === 0 && !data.semantik.siap ? "Menunggu rekomendasi." : "Tidak ada butir semantik pada tab ini."}</p>
           ) : (
             <ul className="space-y-4">
               {butirTab.map((b) => (
                 <li key={b.hasilId}>
-                  <article className={`rounded-md border ${terpilih === b.hasilId ? "border-emas-500 ring-2 ring-emas-300" : "border-sogan-200"} bg-krem/50`}>
+                  <article className={`rounded-md border ${terpilih === b.hasilId ? "border-emas-500 ring-2 ring-emas-300" : "border-sogan-200"} ${b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi" ? "border-l-4 border-l-bata-600" : ""} bg-krem/50`}>
                     <div
                       role="button"
                       tabIndex={0}
@@ -280,6 +315,8 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                         <span className="font-semibold text-sogan-700">Rekomendasi:</span>
                         <StatusBadge status={b.status} />
                         {b.tiruan ? <StatusBadge status="tiruan" /> : null}
+                        {b.koreksi ? <span className="text-xs text-sogan-600">(rekomendasi semula; keputusan reviewer berlaku)</span> : null}
+                        {b.status === "Perlu diperiksa manual" || b.status === "Belum ada rekomendasi" ? <span className="text-xs font-semibold text-bata-700">Baca bagian ini sendiri</span> : null}
                       </p>
                       {b.status === "Perlu diperiksa manual" && b.rekomendasi ? (
                         <p className="text-xs text-sogan-700">Rekomendasi sistem: {b.rekomendasi} (kutipannya belum dapat dipastikan ada di teks).</p>
@@ -352,7 +389,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                             aria-invalid={galatKoreksi.jenisKekeliruan ? true : undefined}
                             onChange={(e) => setFormKoreksi((f) => ({ ...f, jenisKekeliruan: e.target.value }))}
                           >
-                            <option value="">Pilih jenis kekeliruan</option>
+                            <option value="">Pilih jenis kekeliruan (opsional)</option>
                             {JENIS_KEKELIRUAN.map((j) => (
                               <option key={j} value={j}>
                                 {j}
@@ -389,6 +426,8 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                 </p>
                 <RadioGroup
                   aria-labelledby={`kb-label-${i}`}
+                  aria-invalid={komponenKosong.includes(k) && !komponen[k] ? true : undefined}
+                  className={komponenKosong.includes(k) && !komponen[k] ? "rounded border-2 border-bata-600 p-2" : undefined}
                   value={komponen[k] ?? ""}
                   disabled={final}
                   onValueChange={(v) => setKomponen((s) => ({ ...s, [k]: v as Keputusan }))}
@@ -396,6 +435,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
                   <RadioItem id={`kb-m-${i}`} value="Memenuhi" label="Memenuhi" />
                   <RadioItem id={`kb-t-${i}`} value="Tidak memenuhi" label="Tidak memenuhi" />
                 </RadioGroup>
+                {komponenKosong.includes(k) && !komponen[k] ? <p role="alert" className="mt-1 text-sm text-bata-700">Belum diputuskan</p> : null}
               </li>
             ))}
           </ul>
@@ -405,8 +445,9 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
           <Field label="Umpan Balik untuk Pengusul" htmlFor="umpan-balik">
             <Textarea id="umpan-balik" className="min-h-40" value={umpanBalik} disabled={final} onChange={(e) => setUmpanBalik(e.target.value)} />
           </Field>
+          <div className="mt-4">{alertPesan}</div>
           {!final ? (
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button varian="garis" onClick={simpanSementara} disabled={sibuk}>
                 Simpan Sementara
               </Button>

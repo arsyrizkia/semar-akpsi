@@ -57,7 +57,12 @@ export async function daftarPenugasanReviewer(akunId: string): Promise<BarisDaft
 type Penugasan = typeof penugasanReviewer.$inferSelect;
 export type HasilAkses = { ok: true; penugasan: Penugasan } | { ok: false; kode: 403 | 404 };
 
-/** bukaProposal(): pastikan penugasan ada dan milik reviewer ini. Penolakan 403 dicatat di log audit. */
+/** bukaProposal() (seq-uc07): nama metode sequence untuk periksaAkses. */
+export async function bukaProposal(penugasanId: string, akun: Pick<Akun, "id" | "idBima">): Promise<HasilAkses> {
+  return periksaAkses(penugasanId, akun);
+}
+
+/** Pastikan penugasan ada dan milik reviewer ini. Penolakan 403 dicatat di log audit. */
 export async function periksaAkses(penugasanId: string, akun: Pick<Akun, "id" | "idBima">): Promise<HasilAkses> {
   if (!UUID.test(penugasanId)) return { ok: false, kode: 404 };
   const [p] = await getDb().select().from(penugasanReviewer).where(eq(penugasanReviewer.id, penugasanId));
@@ -72,7 +77,7 @@ export async function periksaAkses(penugasanId: string, akun: Pick<Akun, "id" | 
 /* ------------------------------- J-08 ------------------------------- */
 async function pastikanPenilaian(penugasanId: string) {
   const db = getDb();
-  const [ada] = await db.select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId)).orderBy(asc(penilaian.diperbaruiPada)).limit(1);
+  const [ada] = await db.select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId)).orderBy(desc(penilaian.diperbaruiPada)).limit(1); // yang terbaru disimpan = yang dipakai (stabil walau ada baris ganda akibat permintaan serentak)
   if (ada) return ada;
   const [baru] = await db.insert(penilaian).values({ penugasanId, status: "Draf" }).returning(); // «create» penilaian (UC-07 langkah 5)
   return baru;
@@ -108,7 +113,30 @@ async function ulangSekali<T>(kerja: () => Promise<T>): Promise<T> {
   }
 }
 
-/** bukaVersiDinilai() + ambilHasilPemeriksaan(): seluruh bahan J-08. Tidak memanggil LLM. */
+/** bukaVersiDinilai() (seq-uc07): versi proposal yang dinilai penugasan ini; bila belum tercatat, memakai versi terbaru. */
+export async function bukaVersiDinilai(penugasan: Penugasan): Promise<string> {
+  const db = getDb();
+  let versiId = penugasan.versiId;
+  if (!versiId) {
+    const [terbaru] = await db.select({ id: versiProposal.id }).from(versiProposal).where(eq(versiProposal.proposalId, penugasan.proposalId)).orderBy(desc(versiProposal.nomor)).limit(1);
+    versiId = terbaru?.id ?? null;
+    if (versiId) await db.update(penugasanReviewer).set({ versiId }).where(eq(penugasanReviewer.id, penugasan.id));
+  }
+  if (!versiId) throw new Error("Proposal belum memiliki versi yang dapat dinilai");
+  return versiId;
+}
+
+/** ambilHasilPemeriksaan() (seq-uc07): semua hasil pemeriksaan sebuah versi beserta butirnya, urut menurut butir. */
+export function ambilHasilPemeriksaan(versiId: string) {
+  return getDb()
+    .select({ h: hasilPemeriksaan, urutan: butirCek.urutan, deskripsi: butirCek.deskripsi, parameter: butirCek.parameter })
+    .from(hasilPemeriksaan)
+    .innerJoin(butirCek, eq(butirCek.id, hasilPemeriksaan.butirId))
+    .where(eq(hasilPemeriksaan.versiId, versiId))
+    .orderBy(asc(butirCek.urutan));
+}
+
+/** Seluruh bahan J-08 (bukaVersiDinilai + ambilHasilPemeriksaan + keputusan tersimpan). Tidak memanggil LLM. */
 export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemeriksaan> {
   const db = getDb();
   const ambilProposal = () =>
@@ -118,26 +146,14 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
       .innerJoin(skemaPendanaan, eq(skemaPendanaan.id, proposal.skemaId))
       .where(eq(proposal.id, penugasan.proposalId));
 
-  let versiId = penugasan.versiId;
-  if (!versiId) {
-    const [terbaru] = await db.select({ id: versiProposal.id }).from(versiProposal).where(eq(versiProposal.proposalId, penugasan.proposalId)).orderBy(desc(versiProposal.nomor)).limit(1);
-    versiId = terbaru?.id ?? null;
-    if (versiId) await db.update(penugasanReviewer).set({ versiId }).where(eq(penugasanReviewer.id, penugasan.id));
-  }
-  if (!versiId) throw new Error("Proposal belum memiliki versi yang dapat dinilai");
-  const idVersi = versiId;
+  const idVersi = await bukaVersiDinilai(penugasan);
   // pembacaan yang saling bebas dijalankan serempak (NFR 2.3: J-08 terbuka paling lama 3 detik)
   const [[prop], [versi]] = await ulangSekali(() => Promise.all([ambilProposal(), db.select().from(versiProposal).where(eq(versiProposal.id, idVersi))]));
 
   const [daftarBagian, pen, semuaHasil, semantik] = await ulangSekali(() => Promise.all([
     versi.templatId ? db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan)) : Promise.resolve([]),
     pastikanPenilaian(penugasan.id),
-    db
-      .select({ h: hasilPemeriksaan, urutan: butirCek.urutan, deskripsi: butirCek.deskripsi, parameter: butirCek.parameter })
-      .from(hasilPemeriksaan)
-      .innerJoin(butirCek, eq(butirCek.id, hasilPemeriksaan.butirId))
-      .where(eq(hasilPemeriksaan.versiId, idVersi))
-      .orderBy(asc(butirCek.urutan)),
+    ambilHasilPemeriksaan(idVersi),
     // rekomendasi harus sudah ada saat reviewer membuka (UC-07 langkah 1); bila belum, jadwalkan tanpa menunggu
     pastikanSemantikBerjalan(idVersi),
   ]));
@@ -199,7 +215,45 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
 }
 
 /* ------------------------------- UC-08 ------------------------------- */
-/** catatKoreksi + simpanKoreksi + gantiRekomendasi. Rekomendasi sistem semula tidak diubah (untuk pemantauan UC-04). */
+type HasilSemantik = typeof hasilPemeriksaan.$inferSelect;
+
+/** catatKoreksi(hasil) (seq-uc08): pastikan akses, penilaian belum final, dan butir semantik milik proposal ini. */
+export async function catatKoreksi(
+  penugasanId: string,
+  akun: Pick<Akun, "id" | "idBima">,
+  hasilId: string,
+): Promise<{ ok: true; penilaianId: string; hasil: HasilSemantik } | { ok: false; galat: string }> {
+  const akses = await bukaProposal(penugasanId, akun);
+  if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
+  const db = getDb();
+  const pen = await pastikanPenilaian(penugasanId);
+  if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
+  if (!UUID.test(hasilId)) return { ok: false, galat: "Butir tidak ditemukan" };
+  const [h] = await db.select().from(hasilPemeriksaan).where(eq(hasilPemeriksaan.id, hasilId));
+  const versiNilai = akses.penugasan.versiId;
+  if (!h || h.jenis !== "semantik" || (versiNilai && h.versiId !== versiNilai)) return { ok: false, galat: "Butir tidak ditemukan pada proposal ini" };
+  return { ok: true, penilaianId: pen.id, hasil: h };
+}
+
+/** ambilRekomendasi() (seq-uc08 langkah 3): rekomendasi sistem semula untuk sebuah hasil; tidak pernah diubah oleh koreksi. */
+export function ambilRekomendasi(hasil: HasilSemantik): { rekomendasi: Keputusan | null; status: string } {
+  return { rekomendasi: hasil.rekomendasi, status: hasil.status };
+}
+
+/** gantiRekomendasi(keputusan) (seq-uc08): keputusan reviewer menggantikan rekomendasi pada penilaian ini (baris koreksi di-upsert). */
+export async function gantiRekomendasi(penilaianId: string, hasilId: string, keputusan: Keputusan, alasan: string, jenisKekeliruan: string): Promise<void> {
+  const db = getDb();
+  await db
+    .insert(koreksiRekomendasi)
+    .values({ penilaianId, hasilId, keputusanReviewer: keputusan, alasan, jenisKekeliruan })
+    .onConflictDoUpdate({
+      target: koreksiRekomendasi.hasilId,
+      set: { penilaianId, keputusanReviewer: keputusan, alasan, jenisKekeliruan, waktuKoreksi: new Date() },
+    });
+  await db.update(penilaian).set({ diperbaruiPada: new Date() }).where(eq(penilaian.id, penilaianId));
+}
+
+/** simpanKoreksi(keputusan, alasan, jenisKekeliruan): catatKoreksi, ambilRekomendasi, gantiRekomendasi, lalu log audit. */
 export async function simpanKoreksi(
   penugasanId: string,
   akun: Pick<Akun, "id" | "idBima">,
@@ -208,38 +262,25 @@ export async function simpanKoreksi(
 ): Promise<HasilAksi<{ koreksi: { keputusan: Keputusan; alasan: string; jenisKekeliruan: string } }>> {
   const kolom = validasiKoreksi(masukan);
   if (Object.keys(kolom).length) return { ok: false, galat: kolom.alasan ?? "Masukan koreksi tidak valid", kolom };
-  const akses = await periksaAkses(penugasanId, akun);
-  if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
-
-  const db = getDb();
-  const pen = await pastikanPenilaian(penugasanId);
-  if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
-  if (!UUID.test(hasilId)) return { ok: false, galat: "Butir tidak ditemukan" };
-  const [h] = await db.select().from(hasilPemeriksaan).where(eq(hasilPemeriksaan.id, hasilId));
-  const versiNilai = akses.penugasan.versiId;
-  if (!h || h.jenis !== "semantik" || (versiNilai && h.versiId !== versiNilai)) return { ok: false, galat: "Butir tidak ditemukan pada proposal ini" };
+  const catat = await catatKoreksi(penugasanId, akun, hasilId);
+  if (!catat.ok) return catat;
+  const semula = ambilRekomendasi(catat.hasil);
 
   const keputusan = masukan.keputusan as Keputusan;
   const alasan = masukan.alasan.trim();
-  await db
-    .insert(koreksiRekomendasi)
-    .values({ penilaianId: pen.id, hasilId, keputusanReviewer: keputusan, alasan, jenisKekeliruan: masukan.jenisKekeliruan })
-    .onConflictDoUpdate({
-      target: koreksiRekomendasi.hasilId,
-      set: { penilaianId: pen.id, keputusanReviewer: keputusan, alasan, jenisKekeliruan: masukan.jenisKekeliruan, waktuKoreksi: new Date() },
-    });
-  await db.update(penilaian).set({ diperbaruiPada: new Date() }).where(eq(penilaian.id, pen.id));
+  await gantiRekomendasi(catat.penilaianId, hasilId, keputusan, alasan, masukan.jenisKekeliruan);
   await catatLogAudit({
     aktor: akun.idBima,
     aksi: "koreksi.simpan",
     objek: `hasil:${hasilId}`,
-    rincian: { penugasanId, butir: h.butirKode, rekomendasiSemula: h.rekomendasi, statusSemula: h.status, keputusanReviewer: keputusan, jenisKekeliruan: masukan.jenisKekeliruan },
+    rincian: { penugasanId, butir: catat.hasil.butirKode, rekomendasiSemula: semula.rekomendasi, statusSemula: semula.status, keputusanReviewer: keputusan, jenisKekeliruan: masukan.jenisKekeliruan },
   });
   return { ok: true, koreksi: { keputusan, alasan, jenisKekeliruan: masukan.jenisKekeliruan } };
 }
 
 /* ------------------------------- simpan ------------------------------- */
-async function simpanIsian(penilaianId: string, umpanBalik: string, komponen: Record<string, Keputusan>, status: "Draf" | "Final") {
+/** simpanNilai(nilai, komentar) (seq-uc07): keputusan komponen dan umpan balik disimpan dalam satu transaksi. */
+export async function simpanNilai(penilaianId: string, umpanBalik: string, komponen: Record<string, Keputusan>, status: "Draf" | "Final") {
   const db = getDb();
   const memenuhi = KOMPONEN_BORANG.filter((k) => komponen[k] === "Memenuhi").length;
   await db.transaction(async (tx) => {
@@ -259,11 +300,11 @@ export async function simpanSementara(
   akun: Pick<Akun, "id" | "idBima">,
   isian: { umpanBalik: string; komponen: Record<string, string | undefined> },
 ): Promise<HasilAksi> {
-  const akses = await periksaAkses(penugasanId, akun);
+  const akses = await bukaProposal(penugasanId, akun);
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
   const pen = await pastikanPenilaian(penugasanId);
   if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
-  await simpanIsian(pen.id, isian.umpanBalik ?? "", bersihkanKomponen(isian.komponen), "Draf");
+  await simpanNilai(pen.id, isian.umpanBalik ?? "", bersihkanKomponen(isian.komponen), "Draf");
   await getDb().update(penugasanReviewer).set({ label: "Draf" }).where(eq(penugasanReviewer.id, penugasanId));
   return { ok: true };
 }
@@ -271,7 +312,7 @@ export async function simpanSementara(
 /** Kirim keputusan ke BIMA lewat klien (ulang otomatis maksimal 2 kali). */
 async function kirimKeBima(penugasanId: string, akun: Pick<Akun, "id" | "idBima">): Promise<HasilAksi> {
   const db = getDb();
-  const [pen] = await db.select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId));
+  const [pen] = await db.select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId)).orderBy(desc(penilaian.diperbaruiPada)).limit(1);
   const [prop] = await db
     .select({ idProposal: proposal.idProposal })
     .from(penugasanReviewer)
@@ -296,40 +337,64 @@ async function kirimKeBima(penugasanId: string, akun: Pick<Akun, "id" | "idBima"
   return { ok: true };
 }
 
+/** terima() (seq-uc07): penilaian diterima sebagai final; sesudah ini isian hanya dapat dibaca. */
+export async function terima(penilaianId: string): Promise<void> {
+  await getDb().update(penilaian).set({ status: "Final", diperbaruiPada: new Date() }).where(eq(penilaian.id, penilaianId));
+}
+
+/** tandaiSelesai() (seq-uc07): penugasan berlabel Selesai di J-07. */
+export async function tandaiSelesai(penugasanId: string): Promise<void> {
+  await getDb().update(penugasanReviewer).set({ status: "Selesai", label: "Selesai" }).where(eq(penugasanReviewer.id, penugasanId));
+}
+
+/** mencatatPenilaian() (seq-uc07): entri log audit penilaian.simpan_permanen. */
+export async function mencatatPenilaian(
+  penugasanId: string,
+  akun: Pick<Akun, "idBima">,
+  penilaianId: string,
+  komponen: Record<string, Keputusan>,
+  panjangUmpanBalik: number,
+): Promise<void> {
+  const koreksi = await getDb().select({ id: koreksiRekomendasi.id }).from(koreksiRekomendasi).where(eq(koreksiRekomendasi.penilaianId, penilaianId));
+  await catatLogAudit({
+    aktor: akun.idBima,
+    aksi: "penilaian.simpan_permanen",
+    objek: `penugasan:${penugasanId}`,
+    rincian: { komponen, jumlahKoreksi: koreksi.length, umpanBalikPanjang: panjangUmpanBalik },
+  });
+}
+
 /** Simpan Permanen: simpanNilai, terima, tandaiSelesai, mencatatPenilaian (log audit), kirimKeputusan. */
 export async function simpanPermanen(
   penugasanId: string,
   akun: Pick<Akun, "id" | "idBima">,
   isian: { umpanBalik: string; komponen: Record<string, string | undefined> },
 ): Promise<HasilAksi<{ terkirim: boolean; pesanKirim?: string }>> {
-  const akses = await periksaAkses(penugasanId, akun);
+  const akses = await bukaProposal(penugasanId, akun);
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
   const pen = await pastikanPenilaian(penugasanId);
   if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
   const komponen = bersihkanKomponen(isian.komponen);
   if (!komponenLengkap(komponen)) return { ok: false, galat: PESAN_KOMPONEN_BELUM_LENGKAP };
 
-  const db = getDb();
-  await simpanIsian(pen.id, isian.umpanBalik ?? "", komponen, "Final");
-  await db.update(penugasanReviewer).set({ status: "Selesai", label: "Selesai" }).where(eq(penugasanReviewer.id, penugasanId)); // tandaiSelesai
-  const koreksi = await db.select({ id: koreksiRekomendasi.id }).from(koreksiRekomendasi).where(eq(koreksiRekomendasi.penilaianId, pen.id));
-  await catatLogAudit({
-    aktor: akun.idBima,
-    aksi: "penilaian.simpan_permanen",
-    objek: `penugasan:${penugasanId}`,
-    rincian: { komponen, jumlahKoreksi: koreksi.length, umpanBalikPanjang: (isian.umpanBalik ?? "").length },
-  }); // mencatatPenilaian
+  await simpanNilai(pen.id, isian.umpanBalik ?? "", komponen, "Draf");
+  await terima(pen.id);
+  await tandaiSelesai(penugasanId);
+  await mencatatPenilaian(penugasanId, akun, pen.id, komponen, (isian.umpanBalik ?? "").length);
 
-  const kirim = await kirimKeBima(penugasanId, akun);
+  const kirim = await kirimKeputusan(penugasanId, akun);
   return kirim.ok ? { ok: true, terkirim: true } : { ok: true, terkirim: false, pesanKirim: kirim.galat };
 }
 
 /** Tombol "Kirim ulang" bila pengiriman ke BIMA gagal setelah penilaian final tersimpan. */
 export async function kirimUlangKeBima(penugasanId: string, akun: Pick<Akun, "id" | "idBima">): Promise<HasilAksi> {
-  const akses = await periksaAkses(penugasanId, akun);
+  const akses = await bukaProposal(penugasanId, akun);
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
-  const [pen] = await getDb().select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId));
+  const [pen] = await getDb().select().from(penilaian).where(eq(penilaian.penugasanId, penugasanId)).orderBy(desc(penilaian.diperbaruiPada)).limit(1);
   if (!pen || pen.status !== "Final") return { ok: false, galat: "Penilaian belum final" };
   if (pen.dikirimKeBimaPada) return { ok: true };
-  return kirimKeBima(penugasanId, akun);
+  return kirimKeputusan(penugasanId, akun);
 }
+
+/** kirimKeputusan(keputusan, umpanBalik) (seq-uc07): nama metode sequence untuk kirimKeBima. */
+export const kirimKeputusan = kirimKeBima;

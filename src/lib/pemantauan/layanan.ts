@@ -150,3 +150,15 @@ export async function tandaiButir(skemaId: string, periodeId: string, kodeButir:
   }
   return { ditandai: target.map((t) => t.kode) };
 }
+
+/* ------------------------------ metode seq-uc04 ------------------------------ */
+
+/** hitungTingkatKoreksi(), ambilStatus(), ambilAlasan(), ambilRincian(), ambilContoh(): dihitung bersama oleh susunLaporan lewat rekapKesesuaian. */
+export const hitungTingkatKoreksi = susunLaporan;
+export const ambilStatus = susunLaporan;
+export const ambilAlasan = susunLaporan;
+export const ambilRincian = susunLaporan;
+export const ambilContoh = susunLaporan;
+
+/** tandaiPerluDitinjau(): status Aktif menjadi Perlu ditinjau (bagian dari tandaiButir). */
+export const tandaiPerluDitinjau = tandaiButir;

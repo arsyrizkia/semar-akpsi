@@ -159,3 +159,6 @@ export const kirimPermintaanTiruan: PenyediaLlm = async (p) => {
 export function penyediaBawaan(): PenyediaLlm {
   return modeLlm() === "tiruan" ? kirimPermintaanTiruan : kirimPermintaanNyata;
 }
+
+/** kirimPermintaan(teksBagian, pertanyaan) (seq-uc09 langkah 5): satu permintaan ke Layanan LLM sesuai mode; batas waktu dan percobaan diatur mesin. */
+export const kirimPermintaan: PenyediaLlm = (p) => penyediaBawaan()(p);

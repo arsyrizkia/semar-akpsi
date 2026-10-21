@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LogoSemar } from "@/components/merek";
 import { Alert, Badge, JudulHalaman, Panel } from "@/components/ui";
+import { desc } from "drizzle-orm";
+import { getDb } from "@/db";
+import { logAudit } from "@/db/schema";
+import { formatWaktu } from "@/lib/utils";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { modeLlm } from "@/lib/llm/konfigurasi";
 import { KontrolDemo } from "./kontrol-demo";
@@ -19,24 +23,28 @@ interface Kartu {
 }
 
 const UC: Kartu[] = [
-  { kode: "UC-01", judul: "Menyusun templat proposal", peran: "Tim Kerja (pengelola)", jendela: "J-02" },
+  { kode: "UC-01", judul: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", jendela: "J-02" },
+  { kode: "UC-01-S1", judul: "Mengelola templat proposal: skema belum punya templat (S-1)", peran: "Tim Kerja (pengelola)", jendela: "J-02", catatan: "Skema contoh tanpa templat" },
   { kode: "UC-02", judul: "Mengelola aturan pemeriksaan", peran: "Tim Kerja (pengelola)", jendela: "J-03" },
   { kode: "UC-03", judul: "Menugaskan reviewer", peran: "Tim Kerja DPPM", jendela: "J-04" },
   { kode: "UC-04", judul: "Memantau kesesuaian penilaian", peran: "Tim Kerja DPPM", jendela: "J-05" },
   { kode: "UC-05", judul: "Mengajukan proposal", peran: "Pengusul", jendela: "BIMA tiruan, J-06" },
-  { kode: "UC-06", judul: "Memeriksa butir deterministik", peran: "Pengusul", jendela: "J-06", catatan: "Memakai proposal yang gagal jumlah kata" },
+  { kode: "UC-06", judul: "Memeriksa butir deterministik", peran: "Sistem (di dalam UC-05)", jendela: "J-06", catatan: "Memakai proposal yang gagal jumlah kata" },
   { kode: "UC-07", judul: "Melakukan pemeriksaan akhir", peran: "Reviewer", jendela: "J-07, J-08" },
-  { kode: "UC-08", judul: "Mengoreksi rekomendasi sistem", peran: "Reviewer", jendela: "J-08" },
-  { kode: "UC-09", judul: "Memeriksa butir semantik", peran: "Reviewer", jendela: "J-08", catatan: "Hasil LLM mode tiruan" },
+  { kode: "UC-08", judul: "Mengoreksi rekomendasi sistem", peran: "Reviewer (di dalam UC-07)", jendela: "J-08" },
+  { kode: "UC-09", judul: "Memeriksa butir semantik", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Hasil LLM mode tiruan" },
+  { kode: "UC-09-S1", judul: "Memeriksa butir semantik: kutipan LLM tidak ditemukan (S-1)", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Perlu diperiksa manual" },
+  { kode: "UC-09-S2", judul: "Memeriksa butir semantik: LLM tidak merespons (S-2)", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Belum ada rekomendasi" },
 ];
 
+/** Judul dan kondisi mengikuti Tabel use scenario Bab 10.1 (us-05a..us-07c). */
 const SKENARIO: Kartu[] = [
-  { kode: "UC-05a", judul: "Proposal lolos semua butir", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Terkirim" },
-  { kode: "UC-05b", judul: "Ada butir gagal (jumlah kata Metode)", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan (S-1)" },
-  { kode: "UC-05c", judul: "Masa pengusulan sudah ditutup", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditolak (3a)" },
-  { kode: "UC-07a", judul: "Rekomendasi sistem normal", peran: "Reviewer", jendela: "J-07, J-08", catatan: "UC-09 jalur utama" },
-  { kode: "UC-07b", judul: "Kutipan LLM tidak ditemukan", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Perlu diperiksa manual (UC-09 S-1)" },
-  { kode: "UC-07c", judul: "LLM tidak merespons", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Belum ada rekomendasi (UC-09 S-2)" },
+  { kode: "UC-05a", judul: "Proposal terkirim pada pengajuan pertama", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Semua butir lolos (Terkirim)" },
+  { kode: "UC-05b", judul: "Proposal ditahan lalu terkirim setelah diperbaiki", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan (Metode melebihi batas), lalu Ajukan ulang dengan naskah perbaikan (Terkirim V2)" },
+  { kode: "UC-05c", judul: "Proposal ditahan lalu ditolak karena masa pengusulan ditutup", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan, tutup masa di BIMA, Ajukan ulang (Ditolak, 3a)" },
+  { kode: "UC-07a", judul: "Menyetujui seluruh rekomendasi", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Tanpa koreksi, lalu Simpan Permanen" },
+  { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", jendela: "J-08", catatan: "Tidak Setuju pada satu butir (UC-08)" },
+  { kode: "UC-07c", judul: "Menyimpan sementara lalu melanjutkan", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Penilaian berstatus Draf sudah sebagian terisi" },
 ];
 
 function DaftarKartu({ daftar }: { daftar: Kartu[] }) {
@@ -68,6 +76,7 @@ function DaftarKartu({ daftar }: { daftar: Kartu[] }) {
 export default async function Demo({ searchParams }: { searchParams: Promise<{ galat?: string }> }) {
   const { galat } = await searchParams;
   const pengaturan = await ambilPengaturanDemo();
+  const log = await getDb().select().from(logAudit).orderBy(desc(logAudit.id)).limit(20);
   return (
     <>
       <header className="latar-kawung text-krem">
@@ -96,9 +105,40 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
           </Panel>
           <Panel judul="Enam skenario">
             <p className="mb-3 text-sm text-sogan-700">
-              UC-05 a/b/c memperagakan hasil pengajuan (Terkirim, Ditahan, Ditolak). UC-07 a/b/c memperagakan hasil pemeriksaan semantik (normal, kutipan tidak ditemukan, LLM tidak merespons).
+              Keenam kartu mengikuti use scenario Bab 10.1: UC-05 a/b/c (terkirim; ditahan lalu terkirim; ditahan lalu ditolak) dan UC-07 a/b/c (menyetujui seluruh rekomendasi; mengoreksi rekomendasi yang keliru; menyimpan sementara lalu melanjutkan). Varian hasil semantik ada pada kartu UC-09 S-1 dan S-2.
             </p>
             <DaftarKartu daftar={SKENARIO} />
+          </Panel>
+          <Panel judul="Log audit (hanya baca)">
+            <p className="mb-3 text-sm text-sogan-700">
+              20 entri terakhir. Tidak ada tombol ubah atau hapus: basis data menolak UPDATE dan DELETE pada tabel ini lewat pemicu (NFR 3.3).
+            </p>
+            {log.length === 0 ? (
+              <p className="text-sm text-sogan-600">Belum ada entri.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-sogan-200 text-sogan-700">
+                      <th className="py-1 pr-3">Waktu</th>
+                      <th className="py-1 pr-3">Aktor</th>
+                      <th className="py-1 pr-3">Aksi</th>
+                      <th className="py-1">Objek</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {log.map((l) => (
+                      <tr key={l.id} className="border-b border-sogan-100">
+                        <td className="whitespace-nowrap py-1 pr-3">{formatWaktu(l.waktu)}</td>
+                        <td className="py-1 pr-3">{l.aktor}</td>
+                        <td className="py-1 pr-3 font-mono">{l.aksi}</td>
+                        <td className="py-1 font-mono">{l.objek}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Panel>
           <p className="text-xs text-sogan-600">
             Akun demo: dppm-pengelola, dppm-anggota, pengusul-1..3, reviewer-1..6. Pemetaan lengkap: docs/peta-uc-jendela.md.

@@ -335,3 +335,10 @@ export async function simpanVersiBaru(m: MasukanSimpanVersi): Promise<HasilSimpa
   });
   return { ok: true, versi: draf.versi, tanggalBerlaku: v.tanggal.toISOString(), jumlahAktif };
 }
+
+/* ------------------------------ metode seq-uc02 ------------------------------ */
+
+/** basisAturanBerlaku(), ubahParameter(), nonaktifkan(): nama metode sequence untuk daftarButirBerlaku, simpanButir, nonaktifkanButir. */
+export const basisAturanBerlaku = daftarButirBerlaku;
+export const ubahParameter = simpanButir;
+export const nonaktifkan = nonaktifkanButir;

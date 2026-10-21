@@ -18,7 +18,32 @@ try {
 }
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const HASIL = path.join(ROOT, "e2e", "hasil");
+/**
+ * Run penuh menulis ke e2e/hasil/. Run terfilter (E2E_FILTER) menulis ke subfolder e2e/hasil/filter-<nama>/ dan tidak
+ * menghapus hasil run penuh.
+ */
+const HASIL = process.env.E2E_FILTER
+  ? path.join(ROOT, "e2e", "hasil", `filter-${process.env.E2E_FILTER.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 30)}`)
+  : path.join(ROOT, "e2e", "hasil");
+
+/**
+ * Penjaga basis data: e2e menekan "Reset & isi data demo" (TRUNCATE semua tabel). DATABASE_URL hasil `vercel env pull`
+ * sama dengan produksi, jadi e2e hanya jalan terhadap basis data uji (DATABASE_URL_UJI) atau dengan izin eksplisit.
+ */
+function jagaBasisData() {
+  if (process.env.E2E_BASE_URL && process.env.SEMAR_IZINKAN_DB_PRODUKSI !== "1") {
+    console.error("e2e dihentikan: E2E_BASE_URL mengarah ke aplikasi yang basis datanya tidak dapat diperiksa (mungkin produksi). Pakai server lokal dengan DATABASE_URL_UJI, atau SEMAR_IZINKAN_DB_PRODUKSI=1 bila disengaja.");
+    process.exit(2);
+  }
+  if (process.env.DATABASE_URL_UJI) {
+    process.env.DATABASE_URL = process.env.DATABASE_URL_UJI;
+    process.env.DATABASE_URL_UNPOOLED = process.env.DATABASE_URL_UJI_UNPOOLED ?? process.env.DATABASE_URL_UJI;
+    return;
+  }
+  if (process.env.SEMAR_IZINKAN_DB_PRODUKSI === "1") return;
+  console.error("e2e dihentikan: tidak ada DATABASE_URL_UJI. Basis data dari .env.local adalah basis data produksi yang dipakai bersama, dan e2e menekan Reset. Isi DATABASE_URL_UJI dengan branch Neon uji, atau SEMAR_IZINKAN_DB_PRODUKSI=1 bila memang disengaja.");
+  process.exit(2);
+}
 const CHROME = process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 /* ------------------------------ pelaporan ------------------------------ */
@@ -153,10 +178,13 @@ async function buka(page: Page, url: string, tungguTeks?: string) {
 
 /** Memastikan PanelPemandu untuk kode tertentu ada di jendela (membukanya bila disembunyikan), lalu menyembunyikannya lagi. */
 async function pemanduTampil(page: Page, kode: string, namaFoto?: string) {
-  if ((await jumlahTombol(page, "Tampilkan panduan")) > 0) await klik(page, "Tampilkan panduan");
+  if ((await page.$("button[aria-label='Tampilkan panduan']")) || (await jumlahTombol(page, "Tampilkan panduan")) > 0) await klik(page, "Tampilkan panduan");
   await page.waitForSelector(`aside[aria-label="Panduan langkah ${kode}"]`, { timeout: 10_000 }).catch(() => {
     throw new Error(`PanelPemandu ${kode} tidak tampil`);
   });
+  // bawaan panel ciut (tidak menutupi isi jendela): buka dulu untuk memeriksa daftar langkah
+  const bukaPanel = await page.$("aside button[aria-label='Buka panduan']");
+  if (bukaPanel) await bukaPanel.click();
   const jumlahLangkah = await page.$$eval(`aside[aria-label="Panduan langkah ${kode}"] li`, (l) => l.length);
   yakin(jumlahLangkah >= 5, `PanelPemandu ${kode} hanya berisi ${jumlahLangkah} langkah`);
   if (namaFoto) await foto(page, namaFoto);
@@ -218,7 +246,8 @@ async function nyalakanServer(): Promise<{ base: string; proses?: ChildProcess }
 /* ------------------------------ utama ------------------------------ */
 
 async function utama() {
-  rmSync(HASIL, { recursive: true, force: true });
+  jagaBasisData();
+  rmSync(HASIL, { recursive: true, force: true }); // hanya folder run ini (subfolder bila terfilter)
   mkdirSync(HASIL, { recursive: true });
   const { base, proses } = await nyalakanServer();
   console.log("Aplikasi berjalan di", base);
@@ -234,6 +263,7 @@ async function utama() {
       /* abaikan */
     }
   });
+  page.on("dialog", (d) => void d.accept()); // konfirmasi Reset & isi data demo
   page.on("console", (m) => {
     if (m.type() === "error") galatKonsol.push(m.text());
   });
@@ -325,18 +355,42 @@ async function utama() {
       await klik(page, "Kembali ke BIMA");
       await page.waitForFunction(() => location.pathname === "/bima/pengajuan", { timeout: 20_000 });
       c("tombol Kembali ke BIMA berfungsi");
+
+      // langkah 4-8: perbaiki (naskah perbaikan contoh), ajukan ulang, semua butir lolos, bukti pengiriman V2
+      await buka(page, url("/bima/pengajuan?proposal=PRP-2026-0002"), "Ajukan: PRP-2026-0002");
+      await page.click("input[name=naskahPerbaikan]");
+      await ajukan();
+      await page.waitForFunction(() => location.pathname.startsWith("/pengusul/hasil/"), { timeout: 60_000 });
+      yakin((await tungguStatusPengajuan(page)) === "Terkirim", "setelah diperbaiki, status seharusnya Terkirim");
+      await adaTeks(page, "Bukti Pengiriman");
+      const sesudah = await teksHalaman(page);
+      yakin(/Kode versi\s*V2/.test(sesudah), "bukti pengiriman seharusnya memuat kode versi V2");
+      await foto(page, "j06-05b-terkirim-v2");
+      c("S-1.3/S-1.4: ajukan ulang dengan naskah perbaikan menghasilkan Terkirim, kode versi V2, bukti pengiriman");
     });
 
-    await skenario("UC-05c: masa pengusulan ditutup (Ditolak, 3a)", page, async (c) => {
+    await skenario("UC-05c: ditahan lalu ditolak karena masa pengusulan ditutup (3a)", page, async (c) => {
       await buka(page, url("/demo/mulai?k=UC-05c"), "Pengajuan proposal");
       await ajukan();
       await page.waitForFunction(() => location.pathname.startsWith("/pengusul/hasil/"), { timeout: 60_000 });
-      yakin((await tungguStatusPengajuan(page)) === "Ditolak", "status seharusnya Ditolak");
+      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "pengajuan pertama (masa berjalan) seharusnya Ditahan");
+      await foto(page, "j06-05c-ditahan");
+      await klik(page, "Kembali ke BIMA");
+      await page.waitForFunction(() => location.pathname === "/bima/pengajuan", { timeout: 20_000 });
+      await klik(page, "Tutup masa pengusulan");
+      await page.waitForFunction(() => document.querySelector("[data-testid=masa-bima]")?.textContent === "ditutup", { timeout: 20_000 });
+      await klik(page, "Ajukan ulang");
+      await adaTeks(page, "Ajukan Usulan");
+      await ajukan();
+      await page.waitForFunction(() => location.pathname.startsWith("/pengusul/hasil/"), { timeout: 60_000 });
+      yakin((await tungguStatusPengajuan(page)) === "Ditolak", "pengajuan ulang setelah masa ditutup seharusnya Ditolak");
       const t = await teksHalaman(page);
       yakin(/masa pengusulan/i.test(t) && /ditutup/i.test(t), "pemberitahuan masa pengusulan ditutup tidak tampil");
       yakin((await page.$("table")) === null, "daftar butir tidak boleh tampil pada Ditolak");
+      const tgl = t.match(/ditutup pada ([^\n.]+)/i)?.[1];
+      yakin(tgl, "tanggal tutup tidak tampil pada pesan 3a.2");
       await foto(page, "j06-ditolak");
-      c("J-06 menampilkan Ditolak dan pemberitahuan masa pengusulan ditutup tanpa daftar butir");
+      c(`Ditahan lebih dulu, lalu Ditolak setelah masa ditutup; pesan 3a.2 memuat tanggal tutup (${tgl})`);
     });
 
     /* ---- UC-01 ---- */
@@ -379,6 +433,14 @@ async function utama() {
       await adaTeks(page, "Masa pengusulan skema ini sedang berjalan. Templat disimpan sebagai draf untuk periode berikutnya.");
       await foto(page, "j02-9a-draf");
       c("pesan 9a persis; templat berlaku tidak berubah");
+    });
+
+    await skenario("UC-01 S-1: skema belum punya templat", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-01-S1"), "Skema ini belum memiliki templat");
+      await foto(page, "j02-s1-belum-ada-templat");
+      await klik(page, "Susun Versi Baru");
+      await adaTeks(page, "Isian Templat Versi 1 (Draf)");
+      c("S-1: keterangan Skema ini belum memiliki templat; Susun Versi Baru membuat versi 1");
     });
 
     /* ---- UC-02 ---- */
@@ -535,8 +597,34 @@ async function utama() {
     });
 
     /* ---- UC-07 / UC-08 / UC-09 ---- */
+    await skenario("UC-07a: menyetujui seluruh rekomendasi (tanpa koreksi)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-07a&j08=1"), "Butir Semantik");
+      yakin((await jumlahTombol(page, "Tidak Setuju")) >= 1, "tombol Tidak Setuju tidak ada");
+      for (let i = 0; i < 6; i++) await page.click(`#kb-m-${i}`);
+      await isi(page, "#umpan-balik", "Seluruh rekomendasi sistem saya setujui.");
+      await klik(page, "Simpan Permanen");
+      await adaTeks(page, "Penilaian tersimpan dan terkirim ke BIMA", 90_000);
+      yakin(!(await teksHalaman(page)).includes("Dikoreksi reviewer"), "tidak boleh ada butir berlabel Dikoreksi reviewer");
+      await foto(page, "j08-07a-final-tanpa-koreksi");
+      c("rekomendasi tidak dikoreksi (dihitung disetujui), Simpan Permanen berhasil dan terkirim ke BIMA");
+    });
+
+    await skenario("UC-07c: menyimpan sementara lalu melanjutkan (Draf sudah terisi)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-07c"), "Periksa");
+      yakin((await teksHalaman(page)).includes("Draf"), "J-07 seharusnya berlabel Draf");
+      await foto(page, "j07-07c-draf");
+      const idx = await page.evaluate(() => [...document.querySelectorAll("a")].filter((a) => a.textContent?.trim() === "Periksa").length);
+      yakin(idx >= 1, "tombol Periksa tidak ada");
+      await klik(page, "Periksa", 0);
+      await adaTeks(page, "Butir Semantik", 60_000);
+      const umpan = await page.$eval("#umpan-balik", (e) => (e as HTMLTextAreaElement).value);
+      yakin(umpan.startsWith("Draf:"), `umpan balik draf tidak dimuat ulang: ${umpan.slice(0, 40)}`);
+      await foto(page, "j08-07c-draf-dimuat");
+      c("J-07 berlabel Draf; J-08 memuat ulang umpan balik dan keputusan komponen tersimpan");
+    });
+
     let urlJ08 = "";
-    await skenario("UC-07a/UC-08/UC-09: pemeriksaan reviewer (jalur utama, S-1 alasan kosong, 4a Batal, simpan sementara dan permanen)", page, async (c) => {
+    await skenario("UC-07b/UC-08: pemeriksaan reviewer (jalur utama, S-1 alasan kosong, 4a Batal, simpan sementara dan permanen)", page, async (c) => {
       await buka(page, url("/demo/mulai?k=UC-07a"), "Periksa");
       const j07 = await teksHalaman(page);
       yakin(j07.includes("Baru"), "label Baru tidak tampil di J-07");
@@ -609,16 +697,16 @@ async function utama() {
       c("Simpan Permanen: pesan Penilaian tersimpan dan terkirim ke BIMA, isian hanya-baca");
     });
 
-    await skenario("UC-07b/UC-09 S-1: kutipan LLM tidak ditemukan (Perlu diperiksa manual)", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-07b&j08=1"), "Butir Semantik");
+    await skenario("UC-09 S-1: kutipan LLM tidak ditemukan (Perlu diperiksa manual)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-09-S1"), "Butir Semantik");
       const ditemukan = await cariTekSemuaTab(page, "Perlu diperiksa manual");
       yakin(ditemukan, "label Perlu diperiksa manual tidak muncul");
       await foto(page, "j08-s1-perlu-manual");
       c("label Perlu diperiksa manual tampil pada butir yang kutipannya tidak ditemukan");
     });
 
-    await skenario("UC-07c/UC-09 S-2: LLM tidak merespons (Belum ada rekomendasi)", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-07c&j08=1"), "Butir Semantik");
+    await skenario("UC-09 S-2: LLM tidak merespons (Belum ada rekomendasi)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-09-S2"), "Butir Semantik");
       const ditemukan = await cariTekSemuaTab(page, "Belum ada rekomendasi");
       yakin(ditemukan, "label Belum ada rekomendasi tidak muncul");
       await foto(page, "j08-s2-belum-ada");

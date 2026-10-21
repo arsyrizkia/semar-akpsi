@@ -19,7 +19,13 @@ export function KontrolDemo({ masa }: { masa: "berjalan" | "ditutup" }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Button varian="bahaya" disabled={sibuk} onClick={() => jalankan(resetDemo)}>
+        <Button
+          varian="bahaya"
+          disabled={sibuk}
+          onClick={() => {
+            if (window.confirm("Semua data demo (kecuali log audit) akan dihapus dan diisi ulang. Basis data ini dipakai bersama. Lanjutkan?")) jalankan(resetDemo);
+          }}
+        >
           Reset &amp; isi data demo
         </Button>
         <span className="text-sm text-sogan-700">Mengosongkan semua data kecuali log audit, lalu mengisi ulang data contoh.</span>

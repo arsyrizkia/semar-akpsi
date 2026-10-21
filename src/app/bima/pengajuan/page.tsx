@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { wajibPengusulBima } from "@/lib/bima/sesi";
 import { ambilUsulanPengusul, daftarSkemaBima, daftarUsulanPengusul } from "@/lib/bima/servis-pengajuan";
+import { susunContoh } from "@/lib/contoh/proposal";
+import { ambilPengaturanDemo } from "@/lib/waktu";
 import { FormPengajuan } from "./form-pengajuan";
+import { SakelarMasaBima } from "./sakelar-masa";
 
 export const metadata: Metadata = { title: "Pengajuan proposal (simulasi)" };
 export const dynamic = "force-dynamic";
@@ -18,6 +21,8 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
   const q = await searchParams;
   const [usulan, skema] = await Promise.all([daftarUsulanPengusul(akun.idBima), daftarSkemaBima()]);
   const terpilih = q.proposal ? await ambilUsulanPengusul(akun.idBima, q.proposal) : null;
+  const pengaturan = await ambilPengaturanDemo();
+  const judulPerbaikan = susunContoh("e").judul;
   const tampilForm = terpilih ? terpilih.statusBima !== "Terkirim" : q.baru === "1" || usulan.length === 0;
 
   return (
@@ -26,6 +31,8 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
         <h1 className="text-2xl font-bold">Pengajuan proposal</h1>
         <p className="mt-1 text-slate-600">Masuk sebagai {akun.nama} ({akun.institusi}).</p>
       </div>
+
+      <SakelarMasaBima masa={pengaturan.masaPengusulan} />
 
       {q.galat ? (
         <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-800">
@@ -87,6 +94,7 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
           <FormPengajuan
             key={terpilih?.id ?? "baru"}
             skema={skema}
+            perbaikanTersedia={Boolean(terpilih && terpilih.statusBima === "Ditahan" && terpilih.judul === judulPerbaikan)}
             awal={
               terpilih
                 ? {

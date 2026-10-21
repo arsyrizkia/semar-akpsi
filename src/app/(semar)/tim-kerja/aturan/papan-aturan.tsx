@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Lock, Plus } from "lucide-react";
 import { Alert, Badge, BarKeyakinan, Button, Field, Input, Panel, Select, StatusBadge, Table, TBody, TD, TH, Textarea, THead, TR } from "@/components/ui";
@@ -51,6 +51,19 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
   const [galatVersi, setGalatVersi] = useState<string | null>(null);
   const [berhasilVersi, setBerhasilVersi] = useState<{ versi: number; tanggal: string } | null>(null);
   const [galatUmum, setGalatUmum] = useState<string | null>(null);
+  const [tampilNonaktif, setTampilNonaktif] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const terkunciRef = useRef<HTMLDivElement | null>(null);
+
+  // Umpan balik harus terlihat di tempat aksi: gulir ke panel isian / pesan 4a begitu muncul, lalu fokuskan isian pertama.
+  useEffect(() => {
+    if (!panel) return;
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    panelRef.current?.querySelector<HTMLElement>("input:not([disabled]), textarea, select")?.focus({ preventScroll: true });
+  }, [panel]);
+  useEffect(() => {
+    if (terkunci) terkunciRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [terkunci]);
 
   const { nyata, draf, butir } = tampilan;
   const dasar = draf ?? nyata;
@@ -179,12 +192,14 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
         </div>
 
         {terkunci ? (
+          <div ref={terkunciRef}>
           <Alert jenis="peringatan" className="mb-4">
             <p>{terkunci}</p>
             <Button asChild ukuran="sm" varian="emas" className="mt-3">
               <Link href={`/tim-kerja/templat?skema=${skemaId}`}>Buka Templat Proposal</Link>
             </Button>
           </Alert>
+          </div>
         ) : null}
         {galatUmum ? (
           <Alert jenis="galat" className="mb-4">
@@ -192,6 +207,12 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
           </Alert>
         ) : null}
 
+        {butir.some((b) => b.status === "Nonaktif") ? (
+          <label className="mb-3 flex items-center gap-2 text-sm text-sogan-800">
+            <input type="checkbox" checked={tampilNonaktif} onChange={(e) => setTampilNonaktif(e.target.checked)} />
+            Tampilkan butir nonaktif ({butir.filter((b) => b.status === "Nonaktif").length})
+          </label>
+        ) : null}
         <Table>
           <THead>
             <TR>
@@ -214,8 +235,8 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
                 </TD>
               </TR>
             ) : null}
-            {butir.map((b) => (
-              <TR key={b.id} className={b.status === "Perlu ditinjau" ? "bg-emas-100 hover:bg-emas-100" : b.status === "Nonaktif" ? "opacity-60" : undefined}>
+            {butir.filter((b) => tampilNonaktif || b.status !== "Nonaktif").map((b) => (
+              <TR key={b.id} className={b.status === "Perlu ditinjau" ? "bg-emas-100 hover:bg-emas-100" : b.status === "Nonaktif" ? "text-sogan-700" : undefined}>
                 <TD className="whitespace-nowrap font-mono text-xs font-semibold">{b.kode}</TD>
                 <TD className="min-w-48">{b.deskripsi}</TD>
                 <TD className="capitalize">{b.jenis}</TD>
@@ -254,6 +275,7 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
       </Panel>
 
       {panel ? (
+        <div ref={panelRef}>
         <Panel judul={panel.mode === "tambah" ? "Tambah Butir" : `Ubah Butir ${panel.butir.kode}`} className="mb-6">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Kode" htmlFor="b-kode" galat={galat.kode}>
@@ -328,6 +350,7 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
             </Button>
           </div>
         </Panel>
+        </div>
       ) : null}
 
       <Panel judul="Uji dan Simpan" className="mb-6">

@@ -45,7 +45,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
               ))}
             </Select>
           </Field>
-          <Field label="Periode Seleksi" htmlFor="periode" className="w-full max-w-xs">
+          <Field label="Periode Seleksi" htmlFor="periode" className="w-full max-w-md">
             <Select id="periode" name="periode" defaultValue={periodeTerpilih.id}>
               {periode.map((p) => (
                 <option key={p.id} value={p.id}>
