@@ -245,7 +245,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
         {/* Panel kiri: teks proposal, satu tab per bagian */}
         <Panel judul="Teks Proposal" className="min-w-0">
           <Tabs value={tabAktif} onValueChange={setTabAktif}>
-            <TabsList aria-label="Bagian proposal" className="flex-nowrap overflow-x-auto">
+            <TabsList aria-label="Bagian proposal" className="flex-wrap">
               {data.tab.map((t) => (
                 <TabsTrigger key={t.nama} value={t.nama} className={butir.some((b) => b.tab === t.nama) ? undefined : "opacity-70"}>
                   {t.nama}
@@ -456,7 +456,11 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
           <div className="mt-4">{alertPesan}</div>
           {!final ? (
             <p className="mb-3 text-sm text-sogan-800">
-              {butir.length - butir.filter((b) => b.koreksi).length} rekomendasi akan dianggap disetujui, {butir.filter((b) => b.koreksi).length} dikoreksi reviewer.
+              {butir.filter((b) => !b.koreksi && b.status !== "Belum ada rekomendasi" && b.status !== "Perlu diperiksa manual").length} rekomendasi akan dianggap disetujui, {butir.filter((b) => b.koreksi).length} dikoreksi reviewer
+              {butir.filter((b) => !b.koreksi && (b.status === "Belum ada rekomendasi" || b.status === "Perlu diperiksa manual")).length
+                ? `, ${butir.filter((b) => !b.koreksi && (b.status === "Belum ada rekomendasi" || b.status === "Perlu diperiksa manual")).length} butir tanpa rekomendasi yang dapat disetujui (perlu dibaca sendiri)`
+                : ""}
+              .
             </p>
           ) : null}
           {!final ? (
