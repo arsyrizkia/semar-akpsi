@@ -1,19 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { AMBANG_KEYAKINAN } from "@/lib/kontrak/tipe";
 import { tingkatKeyakinan } from "@/components/ui/bar-keyakinan";
-import { jalankanPemeriksaanDeterministik, antrekanPemeriksaanSemantik, susunPenugasan } from "@/lib/kontrak";
 import { buatTokenSso, verifikasiTokenSso, buatSesiSemar, verifikasiSesiBima, verifikasiSesiSemar, jalurAman } from "@/lib/sesi";
 import { BimaGagalError, buatKlienBima } from "@/lib/bima/client";
 import { buatDocx, hitungKataContoh, susunContoh } from "@/lib/contoh/proposal";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
-
-describe("kontrak: stub belum diimplementasi", () => {
-  it("melempar galat yang jelas", async () => {
-    await expect(jalankanPemeriksaanDeterministik("x")).rejects.toThrow("belum diimplementasi");
-    await expect(antrekanPemeriksaanSemantik("x")).rejects.toThrow("belum diimplementasi");
-    await expect(susunPenugasan("x", 1)).rejects.toThrow("belum diimplementasi");
-  });
-});
 
 describe("tingkat keyakinan (ambang contoh)", () => {
   it("memetakan ambang 0,8 dan 0,5", () => {

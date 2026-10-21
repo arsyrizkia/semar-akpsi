@@ -2,6 +2,7 @@
  * Sesi SEMAR di server + guard per peran. Dipakai di server component, layout, dan route handler.
  * Cookie hanya memuat idBima; akun dibaca ulang dari basis data pada setiap permintaan.
  */
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -40,14 +41,15 @@ export async function pastikanAkunDariBima(idBima: string): Promise<Akun | null>
   return hasil;
 }
 
-export async function ambilSesi(): Promise<SesiSemar | null> {
+/** Dibungkus cache React: layout dan halaman dalam satu permintaan memakai satu pembacaan sesi. */
+export const ambilSesi = cache(async (): Promise<SesiSemar | null> => {
   const jar = await cookies();
   const isi = await verifikasiSesiSemar(jar.get(COOKIE_SEMAR)?.value);
   if (!isi) return null;
   const [a] = await getDb().select().from(akun).where(eq(akun.idBima, isi.idBima));
   if (!a) return null;
   return { akun: a, pengelola: a.peran === "tim_kerja" && a.hakAkses === "pengelola" };
-}
+});
 
 /** Halaman awal setiap peran sesudah masuk (J-01). */
 export function targetSetelahMasuk(a: Pick<Akun, "peran" | "hakAkses">): string {

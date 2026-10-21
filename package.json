@@ -11,6 +11,7 @@
     "test": "vitest run",
     "db:push": "dotenv -e .env.local -- drizzle-kit push --force && dotenv -e .env.local -- tsx scripts/pasang-trigger.ts",
     "seed": "dotenv -e .env.local -- tsx scripts/seed.ts",
+    "e2e": "tsx e2e/jalankan.ts",
     "contoh:proposal": "tsx scripts/buat-proposal-contoh.ts"
   },
   "dependencies": {
