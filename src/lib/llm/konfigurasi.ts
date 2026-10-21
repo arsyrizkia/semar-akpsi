@@ -20,5 +20,12 @@ export const PERCOBAAN_ULANG_LLM = 2;
 
 export function getAnthropic(): Anthropic {
   if (modeLlm() === "tiruan") throw new Error("LLM dalam mode tiruan; tidak ada klien Anthropic");
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: BATAS_WAKTU_LLM_MS, maxRetries: 0 });
+  // Key organisasi yang tidak terikat workspace wajib menyertakan header anthropic-workspace-id.
+  const workspace = process.env.ANTHROPIC_WORKSPACE_ID;
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    timeout: BATAS_WAKTU_LLM_MS,
+    maxRetries: 0,
+    ...(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {}),
+  });
 }
