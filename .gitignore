@@ -8,3 +8,6 @@ out/
 .DS_Store
 coverage/
 e2e/hasil/
+.env*.local
+*.tsbuildinfo
+next-env.d.ts

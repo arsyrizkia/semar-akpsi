@@ -1,0 +1,25 @@
+{
+  "label": "contoh sementara",
+  "lampiranWajib": ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"],
+  "templat": {
+    "PD": [
+      { "nama": "Ringkasan", "batasKata": 300, "wajib": true },
+      { "nama": "Pendahuluan", "batasKata": 1000, "wajib": true },
+      { "nama": "Tinjauan Pustaka", "batasKata": 1000, "wajib": true },
+      { "nama": "Metode", "batasKata": 1200, "wajib": true },
+      { "nama": "Hasil yang Diharapkan", "batasKata": 500, "wajib": true },
+      { "nama": "Kata Kunci", "batasKata": null, "wajib": true },
+      { "nama": "Daftar Pustaka", "batasKata": null, "wajib": true }
+    ],
+    "PT": [
+      { "nama": "Ringkasan", "batasKata": 300, "wajib": true },
+      { "nama": "Pendahuluan", "batasKata": 800, "wajib": true },
+      { "nama": "Tinjauan Pustaka", "batasKata": 800, "wajib": true },
+      { "nama": "Metode", "batasKata": 1400, "wajib": true },
+      { "nama": "Hasil yang Diharapkan", "batasKata": 600, "wajib": true },
+      { "nama": "Rencana Hilirisasi", "batasKata": 400, "wajib": false },
+      { "nama": "Kata Kunci", "batasKata": null, "wajib": true },
+      { "nama": "Daftar Pustaka", "batasKata": null, "wajib": true }
+    ]
+  }
+}

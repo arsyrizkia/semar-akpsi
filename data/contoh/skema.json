@@ -1,0 +1,14 @@
+{
+  "label": "contoh sementara",
+  "skema": [
+    { "kode": "PD", "namaSkema": "Penelitian Dasar", "deskripsi": "Skema pendanaan penelitian dasar (contoh sementara)." },
+    { "kode": "PT", "namaSkema": "Penelitian Terapan", "deskripsi": "Skema pendanaan penelitian terapan (contoh sementara)." }
+  ],
+  "periode": {
+    "tahun": 2026,
+    "nama": "Seleksi Pendanaan 2026 (contoh sementara)",
+    "bukaHariRelatif": -21,
+    "tutupHariRelatif": 14,
+    "batasBebanReviewer": 2
+  }
+}

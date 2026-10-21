@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* Tema wayang Semar: sogan (cokelat), emas, krem, hijau daun, merah bata. Kontras diperiksa terhadap WCAG AA. */
+@theme {
+  --color-sogan-50: #f7f0e6;
+  --color-sogan-100: #eedfcb;
+  --color-sogan-200: #dcc3a0;
+  --color-sogan-300: #c6a073;
+  --color-sogan-400: #a87b4c;
+  --color-sogan-500: #8a5e36;
+  --color-sogan-600: #6f4727;
+  --color-sogan-700: #573620;
+  --color-sogan-800: #3f2616;
+  --color-sogan-900: #2b190e;
+
+  --color-emas-50: #fbf3dc;
+  --color-emas-100: #f5e5ae;
+  --color-emas-300: #e4be5a;
+  --color-emas-400: #d4a63a;
+  --color-emas-500: #b8892a;
+  --color-emas-700: #6f5013;
+
+  --color-krem: #fbf6ea;
+  --color-krem-100: #f4ecd8;
+  --color-krem-200: #eadfc4;
+
+  --color-daun-100: #ddebdd;
+  --color-daun-500: #3e7a47;
+  --color-daun-600: #2f6439;
+  --color-daun-700: #234d2c;
+
+  --color-bata-100: #f6ddd5;
+  --color-bata-500: #b5472f;
+  --color-bata-600: #9a3a25;
+  --color-bata-700: #7a2d1d;
+
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-judul), Georgia, serif;
+}
+
+:root {
+  --latar: var(--color-krem);
+  --teks: var(--color-sogan-900);
+}
+
+html {
+  background: var(--latar);
+}
+
+body {
+  background: var(--latar);
+  color: var(--teks);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  color: var(--color-sogan-800);
+  letter-spacing: 0.005em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-emas-500);
+  outline-offset: 2px;
+}
+
+/* Motif kawung halus untuk latar header (SVG inline, orisinal). */
+.latar-kawung {
+  background-color: var(--color-sogan-800);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23d4a63a' stroke-opacity='.22' stroke-width='1'%3E%3Cellipse cx='24' cy='11' rx='5' ry='10'/%3E%3Cellipse cx='24' cy='37' rx='5' ry='10'/%3E%3Cellipse cx='11' cy='24' rx='10' ry='5'/%3E%3Cellipse cx='37' cy='24' rx='10' ry='5'/%3E%3C/g%3E%3Ccircle cx='24' cy='24' r='2' fill='%23d4a63a' fill-opacity='.25'/%3E%3C/svg%3E");
+  background-size: 48px 48px;
+}
+
+.latar-kawung-terang {
+  background-color: var(--color-krem-100);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%238a5e36' stroke-opacity='.12' stroke-width='1'%3E%3Cellipse cx='24' cy='11' rx='5' ry='10'/%3E%3Cellipse cx='24' cy='37' rx='5' ry='10'/%3E%3Cellipse cx='11' cy='24' rx='10' ry='5'/%3E%3Cellipse cx='37' cy='24' rx='10' ry='5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 48px 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

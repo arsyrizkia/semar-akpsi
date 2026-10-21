@@ -1,0 +1,28 @@
+# Perubahan dan penyimpangan model data dari class diagram
+
+Dicatat sesuai keputusan 4 (`docs/keputusan.md`). Skema lengkap: `src/db/schema.ts`. Agen lain menambahkan baris baru di bawah, jangan menghapus.
+
+| Kelas / tabel | Perubahan | Alasan | Bab naskah yang disesuaikan |
+|---|---|---|---|
+| TimKerjaDPPM, Pengusul, Reviewer → `akun` | Tiga kelas digabung dalam satu tabel `akun` dengan kolom `peran` (tim_kerja, pengusul, reviewer), `hakAkses` (pengelola/anggota, hanya Tim Kerja), `idBima`, `institusi`, `nomorInduk` (nip/nidn/kode), `bersedia`, `bidang`. | Login lewat akun BIMA (SSO) memerlukan satu identitas; aturan beda institusi pada penugasan memerlukan institusi untuk Pengusul dan Reviewer; kesediaan reviewer dibaca dari BIMA. | Bab 8 (class diagram dan Tabel 8.x kelas), kamus data |
+| Reviewer | Ditambah atribut `institusi`, `bersedia`, `bidang` (CRC hanya kode, namaReviewer). | Syarat pemilihan reviewer (institusi berbeda, kesediaan, batas beban). | Bab 8 |
+| `pengaturan_demo` (baru) | Tabel satu baris: `masaPengusulan` (berjalan/ditutup), `geserHari` ("jam demo"). | Demo harus dapat menutup masa pengusulan dan menggeser tanggal tanpa menunggu waktu nyata (keputusan 10). Bukan bagian sistem produksi. | Tidak perlu (khusus prototipe); sebut di Bab 9 (prototipe) |
+| PeriodeSeleksi | `nama` ditambah; `batasBebanReviewer` diberi nilai awal. | Tampilan pilihan periode (J-03, J-05). | Bab 8 |
+| TemplatProposal | Ditambah `diterbitkanPada`, `dibuatOleh`, `periodeBerlakuId` (relasi ke PeriodeSeleksi). Unik (skema, versi). | UC-01 s.3, s.6, s.10 (nomor versi, periode berlaku, jejak penerbit). | Bab 8 |
+| BagianTemplat | `batasKata` boleh kosong (bagian tanpa batas kata, mis. Daftar Pustaka). | Daftar Pustaka dan Kata Kunci tidak dibatasi kata. | Bab 8 |
+| BasisAturan | Ditambah `versi`, `tanggalBerlaku` (sudah ditandai "belum ada di CRC"), `periodeId`, `kode` unik per skema-versi. | UC-02 s.7 dan 8a (versi dan tanggal berlaku). | Bab 8 |
+| ButirCek | Ditambah `komponen`, `pemeriksa`, `aturanHitung`, `contohJawaban`, `urutan`, `ditandaiOleh`, `ditandaiPada`, `templatId`; `parameter` berupa JSON terstruktur (`ParameterButir`, `src/lib/kontrak/tipe.ts`). | Menautkan butir ke komponen borang dan fungsi pemeriksa (Tabel 5.5), menampilkan "Aturan Hitung" di J-03, dan menjaga butir turunan templat terkunci. | Bab 8, Tabel 5.5 |
+| ButirCek (katalog) | Baris Tabel 5.5 berjenis D+S dipecah menjadi dua butir (kode berakhiran -D dan -S), mis. ISI-03D/ISI-03S, ISI-05D/ISI-05S. | `jenis` pada ButirCek hanya satu nilai; pemeriksaan D dan S memakai pemeriksa berbeda. | Tabel 5.5 (tandai pemecahan) |
+| ButirCek (turunan templat) | Kode otomatis BGN-nn (bagian wajib), KTA-nn (batas kata), LMP-nn (lampiran wajib), `asal = templat`. Lampiran yang diperiksa semantik (surat mahasiswa, artikel, surat mitra) memakai butir manual LMP-S1, ART-S1, ART-S2, MIT-S1. | UC-01 s.10 (turunkanButirCek). | Bab 7 UC-01, Bab 8 |
+| `berkas_versi` (baru) | Tabel berkas SEMAR: `penyimpanan` (blob/db), `kunci`, `bytes` (bytea), `tipe`, `ukuran`. | Penyimpanan berkas (keputusan 7) dengan cadangan basis data bila Blob tidak tersedia. | Bab 8 (komponen penyimpanan), Bab 11 |
+| Proposal | Status tambahan "Belum diajukan" dan "Sedang diperiksa" (selain Terkirim, Ditahan, Ditolak); `idProposal` (rujukan BIMA) unik. | Penanda "Pemeriksaan sedang berjalan" (NFR 2.1) dan pelacakan asal BIMA. | Bab 8 (status), Bab 10 |
+| VersiProposal | Ditambah `nomor`, `kode`, `templatId`, `basisAturanId`, `berkasId`, `teksPerBagian` (JSON), `kataKunci`, `lampiranAda`, `teksLampiran`, `judulBagianDitemukan`, `judulDokumen`, `statusPemeriksaan`. | Menyimpan masukan pemeriksa (UC-05 s.6, potongPerBagian) dan versi templat/aturan yang dipakai agar hasil dapat ditelusuri. | Bab 8 |
+| HasilPemeriksaan | Ditambah `butirKode`, `bagian`, `batasDilanggar`, `alasanSistem`, `tiruan`; status memuat enam nilai (Lolos, Gagal, Memenuhi, Tidak memenuhi, Perlu diperiksa manual, Belum ada rekomendasi). Unik (versi, butir). | S-1.2 UC-06 (bagian dan batas dilanggar), UC-09 S-1/S-2, label mode tiruan. | Bab 8 |
+| `job_semantik` (baru) | Antrean pemeriksaan semantik: `status`, `percobaan`, `galat`, waktu. | NFR 2.5 (antrean tanpa kehilangan permintaan) dan NFR 4.4. | Bab 6.2, Bab 8 |
+| PenugasanReviewer | Ditambah `versiId` (versi yang dinilai), `periodeId`, `label` (Baru/Draf/Selesai untuk J-07). | UC-07 `bukaVersiDinilai` dan label J-07. | Bab 8 |
+| Penilaian | Ditambah `status` (Draf/Final), `dikirimKeBimaPada`, `diperbaruiPada`. | UC-07 S-1 simpan sementara dan s.12 simpan permanen. | Bab 8 |
+| `keputusan_komponen` (baru) | Keputusan Memenuhi/Tidak memenuhi per komponen borang untuk satu Penilaian. | Panel "Keputusan Komponen Borang" pada J-08. | Bab 8 |
+| KoreksiRekomendasi | Ditambah `jenisKekeliruan`, `penilaianId`; unik per `hasilId` (relasi 1..0..1). | UC-08 panel koreksi. | Bab 8 |
+| `dokumen_contoh` (baru) | Bahan "Uji pada Contoh" di J-03: teks per bagian, kata kunci, lampiran, teks lampiran. | UC-02 s.6; kelas DokumenContoh disebut di Asumsi Terbuka spesifikasi UI. | Bab 8, Bab 10 UC-02 |
+| `log_audit` (baru) | Append-only, dijaga pemicu basis data yang menolak UPDATE dan DELETE. Aksi dicatat lewat `catatLogAudit`. | NFR 3.3 (log audit hanya-baca). Kelas LogAudit sudah ditandai "belum ada di CRC". | Bab 6.2, Bab 8 |
+| `bima_akun`, `bima_proposal`, `bima_berkas`, `bima_reviewer`, `bima_kotak_masuk` (baru) | Tabel sisi BIMA tiruan, terpisah dari tabel SEMAR dan hanya diakses lewat `src/lib/bima/servis.ts` (dari API/halaman BIMA). | Arsitektur opsi B (keputusan 1): BIMA adalah sistem eksternal. Bukan bagian model SEMAR. | Bab 9 (arsitektur prototipe), Bab 11 |

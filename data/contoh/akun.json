@@ -1,0 +1,19 @@
+{
+  "label": "contoh sementara",
+  "catatan": "Semua nama orang dan institusi rekaan.",
+  "akun": [
+    { "idBima": "dppm-pengelola", "nama": "Ratna Wulandari", "peran": "tim_kerja", "hakAkses": "pengelola", "institusi": "Direktorat Contoh Penelitian dan Pengabdian", "nomorInduk": "NIP-197001012000", "bersedia": false },
+    { "idBima": "dppm-anggota", "nama": "Bagas Pramudya", "peran": "tim_kerja", "hakAkses": "anggota", "institusi": "Direktorat Contoh Penelitian dan Pengabdian", "nomorInduk": "NIP-198002022005", "bersedia": false },
+
+    { "idBima": "pengusul-1", "nama": "Dr. Sekar Anindita", "peran": "pengusul", "institusi": "Universitas Nusantara Contoh", "nomorInduk": "NIDN-0011223301", "bersedia": false },
+    { "idBima": "pengusul-2", "nama": "Dr. Haris Mulyono", "peran": "pengusul", "institusi": "Institut Teknologi Bahari Contoh", "nomorInduk": "NIDN-0011223302", "bersedia": false },
+    { "idBima": "pengusul-3", "nama": "Dr. Laras Prameswari", "peran": "pengusul", "institusi": "Universitas Kepulauan Contoh", "nomorInduk": "NIDN-0011223303", "bersedia": false },
+
+    { "idBima": "reviewer-1", "nama": "Prof. Dimas Kusuma", "peran": "reviewer", "institusi": "Universitas Nusantara Contoh", "nomorInduk": "RVW-001", "bersedia": true, "bidang": "Ilmu komputer" },
+    { "idBima": "reviewer-2", "nama": "Dr. Intan Maharani", "peran": "reviewer", "institusi": "Institut Teknologi Bahari Contoh", "nomorInduk": "RVW-002", "bersedia": true, "bidang": "Teknik material" },
+    { "idBima": "reviewer-3", "nama": "Prof. Wahyu Setiaji", "peran": "reviewer", "institusi": "Universitas Kepulauan Contoh", "nomorInduk": "RVW-003", "bersedia": true, "bidang": "Perikanan dan kelautan" },
+    { "idBima": "reviewer-4", "nama": "Dr. Nanda Prakoso", "peran": "reviewer", "institusi": "Politeknik Mandala Contoh", "nomorInduk": "RVW-004", "bersedia": true, "bidang": "Teknik lingkungan" },
+    { "idBima": "reviewer-5", "nama": "Dr. Citra Lestari", "peran": "reviewer", "institusi": "Universitas Pertiwi Contoh", "nomorInduk": "RVW-005", "bersedia": true, "bidang": "Statistika" },
+    { "idBima": "reviewer-6", "nama": "Prof. Eko Santoso", "peran": "reviewer", "institusi": "Institut Sains Karya Contoh", "nomorInduk": "RVW-006", "bersedia": false, "bidang": "Sosial ekonomi" }
+  ]
+}
