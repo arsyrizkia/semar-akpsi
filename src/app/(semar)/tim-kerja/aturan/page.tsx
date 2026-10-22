@@ -6,7 +6,7 @@ import { daftarPeriode, daftarSkema } from "@/lib/templat/layanan";
 import { masaPengusulanBerjalan } from "@/lib/waktu";
 import { PapanAturan } from "./papan-aturan";
 
-export const metadata: Metadata = { title: "Aturan Pemeriksaan (J-03)" };
+export const metadata: Metadata = { title: "J-03 Aturan Pemeriksaan" };
 export const dynamic = "force-dynamic";
 // "Uji pada Contoh" ikut memanggil layanan LLM untuk butir semantik (15 detik per bagian)
 export const maxDuration = 60;

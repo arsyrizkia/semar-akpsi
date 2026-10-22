@@ -5,7 +5,7 @@ import { SemarIlustrasi, LogoSemar } from "@/components/merek";
 import { Alert, Button } from "@/components/ui";
 import { ambilSesi, targetSetelahMasuk } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Masuk (J-01)" };
+export const metadata: Metadata = { title: "J-01 Masuk" };
 export const dynamic = "force-dynamic";
 
 /** J-01 Masuk: Tim Kerja DPPM dan Reviewer. Pengusul tidak memakai jendela ini. */
@@ -19,7 +19,7 @@ export default async function Masuk({ searchParams }: { searchParams: Promise<{ 
       <div className="grid w-full max-w-4xl overflow-hidden rounded-xl border border-sogan-300 bg-krem shadow-xl md:grid-cols-[1fr_1.2fr]">
         <div className="latar-kawung flex flex-col items-center justify-center gap-4 p-8">
           <SemarIlustrasi className="max-w-[260px]" />
-          <p className="text-center font-serif text-lg text-emas-100">Semar menunjuk jalan, reviewer yang memutuskan.</p>
+          <p className="text-center text-lg text-emas-100">Semar menunjuk jalan, reviewer yang memutuskan.</p>
         </div>
         <div className="flex flex-col justify-center gap-5 p-8">
           <LogoSemar terang={false} />

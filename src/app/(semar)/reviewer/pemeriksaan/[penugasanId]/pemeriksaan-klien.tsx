@@ -202,7 +202,7 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
       <Panel className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-serif text-xl font-semibold text-sogan-900">{data.proposal.judul}</p>
+            <p className="text-xl font-semibold text-sogan-900">{data.proposal.judul}</p>
             <p className="text-sm text-sogan-700">
               {data.proposal.idProposal} · {data.proposal.skema} · versi {data.proposal.kodeVersi}
             </p>

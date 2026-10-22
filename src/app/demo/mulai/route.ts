@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       if (!kode || !KODE.has(kode)) return NextResponse.redirect(new URL("/demo?galat=kode", req.url), 303);
       hasil = await siapkanJalanPintas(kode as KodeJalanPintas, { langsungJ08: req.nextUrl.searchParams.get("j08") === "1" });
     }
-    // catatan skenario ditampilkan sebagai banner di jendela tujuan (komponen CatatanSkenario)
+    // catatan skenario ditampilkan di panel navigator demo (lihat navigator-demo.tsx), bukan di badan halaman
     const tujuan = new URL(hasil.tujuan, req.url);
     tujuan.searchParams.set("catatan", hasil.catatan);
     const res = NextResponse.redirect(tujuan, 303);

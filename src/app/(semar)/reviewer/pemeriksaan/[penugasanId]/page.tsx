@@ -6,7 +6,7 @@ import { wajibReviewer } from "@/lib/auth";
 import { muatPemeriksaan, periksaAkses } from "@/lib/penilaian/layanan";
 import { PemeriksaanKlien } from "./pemeriksaan-klien";
 
-export const metadata: Metadata = { title: "Pemeriksaan Proposal (J-08)" };
+export const metadata: Metadata = { title: "J-08 Pemeriksaan Proposal" };
 export const dynamic = "force-dynamic";
 
 /**

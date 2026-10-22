@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // skill dan skrip bantu (bukan kode aplikasi)
+    ".claude/**",
+    "coverage/**",
   ]),
 ]);
 

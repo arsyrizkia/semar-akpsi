@@ -5,7 +5,7 @@ import { daftarPeriode, daftarSkema, susunLaporan } from "@/lib/pemantauan/layan
 import { formatPersen } from "@/lib/pemantauan/rekap";
 import { LaporanKoreksi } from "./laporan-koreksi";
 
-export const metadata: Metadata = { title: "Pemantauan Kesesuaian (J-05)" };
+export const metadata: Metadata = { title: "J-05 Pemantauan Kesesuaian" };
 export const dynamic = "force-dynamic";
 
 type Params = Promise<Record<string, string | string[] | undefined>>;

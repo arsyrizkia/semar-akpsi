@@ -361,7 +361,7 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
 
         {uji ? (
           <div className="mt-5">
-            <h3 className="font-serif text-lg font-semibold text-sogan-800">Hasil Uji</h3>
+            <h3 className="text-lg font-semibold text-sogan-800">Hasil Uji</h3>
             {uji.semuaContoh ? <Alert jenis="info" className="my-2">Skema ini belum memiliki contoh sendiri, sehingga semua contoh proposal dipakai.</Alert> : null}
             {uji.peringatan.map((p) => (
               <Alert key={p} jenis="peringatan" className="my-2">

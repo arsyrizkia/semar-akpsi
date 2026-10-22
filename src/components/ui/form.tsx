@@ -1,11 +1,12 @@
 "use client";
 
+import { useId } from "react";
 import { Checkbox as RCheckbox, RadioGroup as RRadio } from "radix-ui";
 import { Check, ChevronDown, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const dasarInput =
-  "w-full rounded-md border border-sogan-400 bg-white px-3 text-sogan-900 placeholder:text-sogan-400 focus-visible:outline-emas-500 disabled:bg-krem-100 disabled:text-sogan-500 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 aria-[invalid=true]:bg-bata-100/40";
+  "w-full rounded-md border border-sogan-400 bg-white px-3 text-sogan-900 placeholder:text-sogan-500 focus-visible:outline-emas-500 disabled:bg-abu-100 disabled:text-abu-600 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 aria-[invalid=true]:bg-bata-100/40";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(dasarInput, "h-10", className)} {...props} />;
@@ -71,7 +72,7 @@ export function Checkbox({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <RCheckbox.Root
         id={id}
-        className="flex size-5 items-center justify-center rounded border border-sogan-500 bg-white data-[state=checked]:bg-sogan-700 data-[state=checked]:text-krem"
+        className="flex size-5 cursor-pointer items-center justify-center rounded-sm border border-sogan-500 bg-white aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 data-[state=checked]:bg-sogan-700 data-[state=checked]:text-krem"
         {...props}
       >
         <RCheckbox.Indicator>
@@ -107,5 +108,97 @@ export function RadioItem({ id, value, label }: { id: string; value: string; lab
         {label}
       </label>
     </span>
+  );
+}
+
+/* ---------------- Isian terpadu: label + kontrol + petunjuk + galat di dekat isian ---------------- */
+interface DasarIsian {
+  label: string;
+  petunjuk?: string;
+  /** pesan galat; bila ada, isian ditandai aria-invalid (bingkai merah) dan pesan dibacakan */
+  galat?: string | null;
+  wajib?: boolean;
+  className?: string;
+}
+
+function Penanda({ id, label, wajib, petunjuk, galat, children, className }: DasarIsian & { id: string; children: React.ReactNode }) {
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-sogan-800">
+        {label}
+        {wajib ? <span aria-hidden className="ml-0.5 text-bata-600">*</span> : null}
+      </label>
+      {children}
+      {galat ? (
+        <p id={`${id}-galat`} role="alert" className="mt-1 text-sm font-medium text-bata-600">
+          {galat}
+        </p>
+      ) : petunjuk ? (
+        <p id={`${id}-petunjuk`} className="mt-1 text-xs text-sogan-600">
+          {petunjuk}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const deskripsiId = (id: string, d: DasarIsian) => (d.galat ? `${id}-galat` : d.petunjuk ? `${id}-petunjuk` : undefined);
+
+/** Isian teks satu baris atau (rows) banyak baris. */
+export function Isian({
+  label,
+  petunjuk,
+  galat,
+  wajib,
+  className,
+  id,
+  multibaris,
+  ...props
+}: DasarIsian & { id?: string; multibaris?: boolean } & Omit<React.InputHTMLAttributes<HTMLInputElement> & React.TextareaHTMLAttributes<HTMLTextAreaElement>, "className">) {
+  const otomatis = useId();
+  const kunci = id ?? otomatis;
+  const bersama = { id: kunci, "aria-invalid": galat ? true : undefined, "aria-describedby": deskripsiId(kunci, { label, petunjuk, galat }), "aria-required": wajib || undefined };
+  return (
+    <Penanda id={kunci} label={label} petunjuk={petunjuk} galat={galat} wajib={wajib} className={className}>
+      {multibaris ? <Textarea {...bersama} {...props} /> : <Input {...bersama} {...props} />}
+    </Penanda>
+  );
+}
+
+/** Pilihan (select bawaan peramban) dengan label dan galat. */
+export function Pilihan({
+  label,
+  petunjuk,
+  galat,
+  wajib,
+  className,
+  id,
+  children,
+  ...props
+}: DasarIsian & { id?: string } & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "className">) {
+  const otomatis = useId();
+  const kunci = id ?? otomatis;
+  return (
+    <Penanda id={kunci} label={label} petunjuk={petunjuk} galat={galat} wajib={wajib} className={className}>
+      <Select id={kunci} aria-invalid={galat ? true : undefined} aria-describedby={deskripsiId(kunci, { label, petunjuk, galat })} aria-required={wajib || undefined} {...props}>
+        {children}
+      </Select>
+    </Penanda>
+  );
+}
+
+/** Kotak centang dengan label terhubung dan galat di bawahnya. */
+export function KotakCentang({ label, galat, id, className, ...props }: { label: string; galat?: string | null; id?: string; className?: string } & Omit<React.ComponentProps<typeof RCheckbox.Root>, "id" | "className">) {
+  const otomatis = useId();
+  const kunci = id ?? otomatis;
+  return (
+    <div className={className}>
+      <Checkbox id={kunci} label={label} aria-invalid={galat ? true : undefined} aria-describedby={galat ? `${kunci}-galat` : undefined} {...props} />
+      {galat ? (
+        <p id={`${kunci}-galat`} role="alert" className="mt-1 text-sm font-medium text-bata-600">
+          {galat}
+        </p>
+      ) : null}
+    </div>
   );
 }

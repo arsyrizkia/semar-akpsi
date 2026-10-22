@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Compass, ChevronDown, Loader2 } from "lucide-react";
 import { ambilMasaPengusulan, setSakelarMasa } from "@/app/demo/aksi";
 import { COOKIE_SKENARIO, KATALOG_JENDELA, alamatSkenario, cariJendela, cariSkenario, jendelaDariJalur, skenarioBawaan } from "@/lib/demo/katalog";
@@ -40,6 +40,49 @@ function bacaCookieSkenario(): string | null {
   return baris ? decodeURIComponent(baris.slice(COOKIE_SKENARIO.length + 1)) : null;
 }
 
+/* Catatan skenario (parameter ?catatan= dari /demo/mulai): disimpan per jalur di sessionStorage dan ditampilkan di panel navigator, bukan di badan halaman. */
+const KUNCI_CATATAN = "semar:catatan-skenario";
+const PERISTIWA_CATATAN = "semar:catatan-ubah";
+function langgananCatatan(cb: () => void) {
+  window.addEventListener(PERISTIWA_CATATAN, cb);
+  return () => window.removeEventListener(PERISTIWA_CATATAN, cb);
+}
+function bacaCatatanMentah(): string {
+  try {
+    return sessionStorage.getItem(KUNCI_CATATAN) ?? "";
+  } catch {
+    return "";
+  }
+}
+function useCatatanSkenario(jalur: string): string | null {
+  const mentah = useSyncExternalStore(langgananCatatan, bacaCatatanMentah, () => "");
+  if (!mentah) return null;
+  try {
+    const { jalur: j, teks } = JSON.parse(mentah) as { jalur: string; teks: string };
+    return j === jalur ? teks : null;
+  } catch {
+    return null;
+  }
+}
+/** Menangkap ?catatan= lalu membersihkannya dari URL. Dipasang dalam Suspense karena memakai useSearchParams. */
+function PenangkapCatatan() {
+  const catatan = useSearchParams().get("catatan");
+  const jalur = usePathname();
+  useEffect(() => {
+    if (!catatan) return;
+    try {
+      sessionStorage.setItem(KUNCI_CATATAN, JSON.stringify({ jalur, teks: catatan }));
+    } catch {
+      /* penyimpanan tidak tersedia: catatan tidak ditampilkan */
+    }
+    window.dispatchEvent(new Event(PERISTIWA_CATATAN));
+    const u = new URL(window.location.href);
+    u.searchParams.delete("catatan");
+    window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+  }, [catatan, jalur]);
+  return null;
+}
+
 /**
  * Navigator demo mengambang (menggantikan panel langkah real use case): pindah antar-jendela J-01..J-08 dan halaman BIMA tiruan, serta
  * antar-skenario keadaan jendela yang sedang dibuka. Setiap pilihan membuka /demo/mulai yang menyiapkan data, memasang sesi peran, lalu
@@ -57,6 +100,7 @@ export function NavigatorDemo() {
   const pilRef = useRef<HTMLButtonElement>(null);
   const sebelumnyaTerbuka = useRef(false);
 
+  const catatanSkenario = useCatatanSkenario(jalur);
   const jendela = jendelaDariJalur(jalur);
   const [kodeCookie, idCookie] = cookieSkenario?.split("/") ?? [];
   const jendelaCookie = kodeCookie ? cariJendela(kodeCookie) : undefined;
@@ -138,6 +182,11 @@ export function NavigatorDemo() {
   }
 
   if (jalur === "/demo" || jalur.startsWith("/demo/")) return null;
+  const penangkap = (
+    <Suspense fallback={null}>
+      <PenangkapCatatan />
+    </Suspense>
+  );
 
   const namaPendek = (j: { kode: string; nama: string }) => (j.kode.startsWith("BIMA") ? j.nama.replace("BIMA: ", "BIMA ") : `${j.kode} ${j.nama}`);
   const ringkasAktif = skenarioCookie && jendelaCookie ? `${jendelaCookie.kode} · ${skenarioCookie.nama}` : null;
@@ -154,6 +203,8 @@ export function NavigatorDemo() {
 
   if (!terbuka) {
     return (
+      <>
+      {penangkap}
       <button
         ref={pilRef}
         type="button"
@@ -167,18 +218,22 @@ export function NavigatorDemo() {
       >
         {menyiapkan ? <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-emas-300" /> : <Compass aria-hidden className="size-4 shrink-0 text-emas-300" />}
         <span className="truncate">{labelPil}</span>
+        {catatanSkenario ? <span className="rounded-sm bg-emas-300 px-1 text-[10px] font-bold text-sogan-900">catatan</span> : null}
       </button>
+      </>
     );
   }
 
   return (
+    <>
+    {penangkap}
     <aside
       ref={panelRef}
       tabIndex={-1}
       aria-label="Navigator demo"
       aria-busy={Boolean(menyiapkan)}
       data-testid="navigator-panel"
-      className="fixed bottom-4 left-4 z-40 flex max-h-[min(36rem,calc(100vh-2rem))] w-[23rem] max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-emas-500 bg-krem shadow-xl outline-none"
+      className="fixed bottom-4 left-4 z-40 flex max-h-[min(36rem,calc(100vh-2rem))] w-[23rem] max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-sogan-300 bg-krem shadow-[var(--shadow-overlay)] outline-none"
     >
       <header className="flex items-center justify-between gap-2 rounded-t-lg bg-sogan-800 px-3 py-2 text-krem">
         <p className="flex items-center gap-2 text-sm font-semibold">
@@ -201,6 +256,15 @@ export function NavigatorDemo() {
           {ringkasAktif ?? "belum dipilih lewat navigator"}
           {jendela ? <span className="block text-sogan-600">Sedang dibuka: {namaPendek(jendela)}</span> : null}
         </p>
+
+        {catatanSkenario ? (
+          <section aria-labelledby="nav-catatan" data-testid="navigator-catatan" className="rounded border-l-4 border-emas-500 bg-white px-2 py-1.5">
+            <h2 id="nav-catatan" className="text-xs font-bold uppercase tracking-wide text-sogan-700">
+              Catatan skenario
+            </h2>
+            <p className="mt-0.5 text-xs text-sogan-900">{catatanSkenario}</p>
+          </section>
+        ) : null}
 
         {menyiapkan ? (
           <p role="status" className="flex items-center gap-2 rounded bg-sogan-100 px-2 py-1.5 text-xs font-semibold text-sogan-800">
@@ -307,5 +371,6 @@ export function NavigatorDemo() {
         </p>
       </div>
     </aside>
+    </>
   );
 }

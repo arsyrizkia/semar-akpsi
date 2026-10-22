@@ -4,7 +4,7 @@ import { Alert, Button, JudulHalaman, Panel, StatusBadge, TBody, TD, TH, THead, 
 import { wajibReviewer } from "@/lib/auth";
 import { daftarPenugasanReviewer } from "@/lib/penilaian/layanan";
 
-export const metadata: Metadata = { title: "Daftar Penugasan (J-07)" };
+export const metadata: Metadata = { title: "J-07 Daftar Penugasan" };
 export const dynamic = "force-dynamic";
 
 /** J-07 Daftar Penugasan: hanya proposal yang ditugaskan kepada reviewer yang sedang masuk (NFR 3.1). Tanpa pencarian atau penyaring. */

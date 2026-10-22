@@ -5,3 +5,7 @@ export * from "./panel";
 export * from "./table";
 export * from "./badge";
 export * from "./bar-keyakinan";
+export * from "./modal";
+export * from "./unduh";
+export * from "./notifikasi";
+export * from "./paginasi";

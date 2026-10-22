@@ -5,7 +5,7 @@ import { ambilDrafTemplat, ambilTemplatBerlaku, daftarPeriode, daftarSkema } fro
 import { masaPengusulanBerjalan } from "@/lib/waktu";
 import { PapanTemplat } from "./papan-templat";
 
-export const metadata: Metadata = { title: "Templat Proposal (J-02)" };
+export const metadata: Metadata = { title: "J-02 Templat Proposal" };
 export const dynamic = "force-dynamic";
 
 /** J-02 Templat Proposal (UC-01). Hanya Tim Kerja DPPM dengan hak pengelola (NFR 3.2). */

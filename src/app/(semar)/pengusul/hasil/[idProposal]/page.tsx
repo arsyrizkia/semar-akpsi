@@ -8,7 +8,7 @@ import { cn, formatTanggal, formatWaktu } from "@/lib/utils";
 import { kirimUlang } from "./aksi";
 import { PemantauPemeriksaan } from "./pemantau";
 
-export const metadata: Metadata = { title: "Hasil Pemeriksaan Pengajuan (J-06)" };
+export const metadata: Metadata = { title: "J-06 Hasil Pemeriksaan Pengajuan" };
 export const dynamic = "force-dynamic";
 
 /**

@@ -1,5 +1,5 @@
 /**
- * ENTRI AGEN C: UC-06 Memeriksa butir deterministik.
+ * ENTRI AGEN D: UC-06 Memeriksa butir deterministik.
  * - periksaDeterministikTeks: murni, tanpa basis data (UC-06 dan "Uji pada Contoh" di J-03).
  * - jalankanPemeriksaanDeterministik: membaca versi proposal, menerapkan butir Aktif / Perlu ditinjau, menyimpan hasil_pemeriksaan.
  */

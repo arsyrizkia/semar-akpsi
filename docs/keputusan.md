@@ -45,6 +45,18 @@ membantu DPPM memeriksa proposal penelitian secara administratif.
       masa pengusulan. Menggantikan panel pemandu langkah *real use case* (data langkah tetap di `src/lib/demo/pemandu/`).
 11. Bahasa antarmuka: Bahasa Indonesia.
 12. Commit tanpa atribusi AI (tanpa baris Co-Authored-By atau Generated-with).
+13. **Tampilan "Sogan tenang" (22 Okt 2026, menggantikan sebagian butir 9).** Font merek dan antarmuka: **Outfit**; tanpa
+    serif. Sogan sebagai primer, emas hanya aksen, kawung hanya di area merek. Desain sistem: `docs/desain-sistem.md`.
+    Setiap perubahan antarmuka wajib memakai skill di `.claude/skills/` (lihat `CLAUDE.md`).
+14. **Layar dan modal** mengikuti inventaris J-01..J-08b dan M-01..M-11 di `docs/arah-perbaikan-2026-10-22.md`. Form
+    pendek dan konfirmasi berupa modal; isi besar yang berdiri sendiri berupa layar dengan URL sendiri.
+15. **Alur bolak-balik:** satu dunia data. Pindah layar atau peran tidak mengubah data, hanya Reset dan skenario
+    navigator yang mengubahnya. Tautan antarentitas dan unduhan (templat .docx, berkas proposal) tersedia.
+16. **Unit test** *black box* (`tests/unit/kotak-hitam/`, `KH-…`) dan *white box* (`tests/unit/kotak-putih/`, `KP-…`)
+    mengikuti Dennis dkk. (2015, hlm. 469–475), dengan rencana di `docs/rencana-uji.md` dan laporan di
+    `docs/laporan-uji.md`. Sumber rencana uji persis Gambar 12-4: *black box* dari CRC Cards / Class Diagrams /
+    Contracts, *white box* dari Method Specifications (`docs/kontrak-dan-spesifikasi-metode.md`). *Real use case* hanya
+    untuk uji integrasi.
 
 ## Data skala nyata (22 Okt 2026)
 

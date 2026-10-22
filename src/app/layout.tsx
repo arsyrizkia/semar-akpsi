@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
-import { Toaster } from "sonner";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { NavigatorDemo } from "@/components/layout/navigator-demo";
+import { Notifikasi } from "@/components/ui/notifikasi";
 
-const judul = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-judul", display: "swap" });
-const ui = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-ui", display: "swap" });
+/** Outfit untuk merek, judul, dan teks UI (variabel; angka tabel memakai fitur tnum bawaan Outfit). */
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "SEMAR", template: "%s | SEMAR" },
+  // judul tab per halaman: "J-xx Nama · SEMAR" (export metadata di tiap page.tsx)
+  title: { default: "SEMAR", template: "%s · SEMAR" },
   description: "Sistem Evaluasi Mandiri dan Asisten Reviewer: prototipe pemeriksaan administratif proposal penelitian.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${judul.variable} ${ui.variable}`}>
+    <html lang="id" className={outfit.variable}>
       <body className="min-h-screen antialiased">
         {children}
         <NavigatorDemo />
-        <Toaster position="top-right" richColors closeButton />
+        <Notifikasi />
       </body>
     </html>
   );

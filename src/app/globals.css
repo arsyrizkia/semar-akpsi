@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
-/* Tema wayang Semar: sogan (cokelat), emas, krem, hijau daun, merah bata. Kontras diperiksa terhadap WCAG AA. */
+/*
+ * Desain sistem "Sogan tenang" (docs/desain-sistem.md): sogan (cokelat) primer, emas hanya aksen kecil, permukaan netral hangat,
+ * motif kawung hanya di area merek. Font Outfit (next/font) untuk merek, judul, dan teks UI. Kontras diperiksa terhadap WCAG AA.
+ */
 @theme {
   --color-sogan-50: #f7f0e6;
   --color-sogan-100: #eedfcb;
@@ -20,9 +23,16 @@
   --color-emas-500: #b8892a;
   --color-emas-700: #6f5013;
 
-  --color-krem: #fbf6ea;
-  --color-krem-100: #f4ecd8;
+  --color-krem: #faf7f1;
+  --color-krem-100: #f1ece1;
   --color-krem-200: #eadfc4;
+
+  /* abu hangat: status netral dan garis halus */
+  --color-abu-50: #f4f1eb;
+  --color-abu-100: #ebe7df;
+  --color-abu-200: #dcd6ca;
+  --color-abu-600: #6b6357;
+  --color-abu-700: #4a4339;
 
   --color-daun-100: #ddebdd;
   --color-daun-500: #3e7a47;
@@ -34,12 +44,19 @@
   --color-bata-600: #9a3a25;
   --color-bata-700: #7a2d1d;
 
-  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-judul), Georgia, serif;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px rgb(43 25 14 / 0.06);
+  --shadow-overlay: 0 8px 24px rgb(43 25 14 / 0.18);
 }
 
 :root {
   --latar: var(--color-krem);
+  --permukaan: #ffffff;
+  --garis: var(--color-sogan-200);
   --teks: var(--color-sogan-900);
 }
 
@@ -55,15 +72,34 @@ body {
 }
 
 h1, h2, h3 {
-  font-family: var(--font-serif);
   color: var(--color-sogan-800);
-  letter-spacing: 0.005em;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+/* hilangkan jeda ketuk ganda di sentuh */
+button, a, summary, [role="button"], [role="tab"] {
+  touch-action: manipulation;
+}
+
+/* Angka tabel rata lebar (Outfit punya fitur tnum; lihat docs/desain-sistem.md). */
+.angka {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only-fokus:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 :focus-visible {
   outline: 3px solid var(--color-emas-700);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px #fbf6ea; /* halo krem: cincin tetap >= 3:1 pada latar terang maupun gelap */
+  box-shadow: 0 0 0 2px #faf7f1; /* halo krem: cincin tetap >= 3:1 pada latar terang maupun gelap */
 }
 
 /* Motif kawung halus untuk latar header (SVG inline, orisinal). */

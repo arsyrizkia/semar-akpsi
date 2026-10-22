@@ -13,7 +13,7 @@ import {
 import { masaPengusulanBerjalan } from "@/lib/waktu";
 import { PapanPenugasan } from "./papan-penugasan";
 
-export const metadata: Metadata = { title: "Penugasan Reviewer (J-04)" };
+export const metadata: Metadata = { title: "J-04 Penugasan Reviewer" };
 export const dynamic = "force-dynamic";
 /** Susun dan Tetapkan pada skala 10.000 proposal berjalan sebagai server action halaman ini. */
 export const maxDuration = 300;
