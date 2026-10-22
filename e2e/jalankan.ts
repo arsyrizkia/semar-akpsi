@@ -827,7 +827,12 @@ async function utama() {
       await foto(page, "j04-menunggu");
       c("skenario menunggu: tabel Usulan Penugasan terisi");
 
-      await lewatNavigator("[data-skenario='kekurangan']", "Kekurangan Reviewer", 180_000);
+      await lewatNavigator("[data-skenario='kekurangan']", "Susun Usulan Penugasan", 180_000);
+      // Susun otomatis (?susun=1) harus benar-benar menampilkan panel S-1 di halaman (bukan sekadar teks banner skenario)
+      await page.waitForFunction(() => document.querySelector("#panel-kekurangan h2")?.textContent?.trim() === "Kekurangan Reviewer", { timeout: 180_000 }).catch(() => {
+        throw new Error("panel Kekurangan Reviewer (#panel-kekurangan) tidak muncul sesudah Susun otomatis");
+      });
+      yakin((await teksPanel("Kekurangan Reviewer")).includes("belum dapat ditugaskan"), "isi panel Kekurangan Reviewer tidak memuat jumlah proposal");
       await foto(page, "j04-kekurangan-navigator");
       c("skenario kekurangan: Susun otomatis dan panel Kekurangan Reviewer tampil");
 
@@ -846,7 +851,13 @@ async function utama() {
       await lewatNavigator("[data-skenario='anggota']", "Penugasan Reviewer");
       const menu = await page.$eval("nav[aria-label='Menu Tim Kerja DPPM']", (e) => e.textContent ?? "");
       yakin(!menu.includes("Templat Proposal") && menu.includes("Penugasan Reviewer") && menu.includes("Pemantauan Kesesuaian"), `menu anggota salah: ${menu}`);
+      await tunggu(1500); // hidrasi
+      const pilAnggota = await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "");
+      yakin(pilAnggota.includes("J-01") && pilAnggota.includes("Masuk sebagai Tim Kerja (anggota)") && !pilAnggota.includes("belum dipilih"), `pil sesudah J-01 anggota salah: ${pilAnggota}`);
       await buka(page, url("/demo/mulai?j=J-01&s=reviewer"), "Daftar Penugasan");
+      await tunggu(1500);
+      const pilRev = await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "");
+      yakin(pilRev.includes("J-01") && pilRev.includes("Masuk sebagai Reviewer"), `pil sesudah J-01 reviewer salah: ${pilRev}`);
       c("J-01: belum masuk, masuk sebagai anggota (menu J-04/J-05 saja), masuk sebagai reviewer (J-07)");
       // J-02
       await buka(page, url("/demo/mulai?j=J-02&s=tanpa-templat"), "Skema ini belum memiliki templat");
@@ -961,7 +972,7 @@ async function utama() {
       });
       await foto(page, "j04-skala-awal");
 
-      // S-1: batas 60 x ±124 reviewer < 10.000
+      // S-1: batas 60 x ±119 reviewer < 10.000
       await isi(page, "#batas", "60");
       t = Date.now();
       await klik(page, "Susun Usulan Penugasan");
@@ -998,7 +1009,7 @@ async function utama() {
       // sebaran semua reviewer
       const sebaran = await page.$eval("[data-testid=ringkasan-sebaran]", (e) => e.textContent ?? "");
       const m = sebaran.match(/(\d+) reviewer bersedia; jumlah proposal per reviewer terendah (\d+), tertinggi (\d+)/);
-      yakin(m && Number(m[1]) >= 120 && Number(m[3]) <= 100 && Number(m[3]) - Number(m[2]) <= 2, `sebaran beban tidak merata: ${sebaran}`);
+      yakin(m && Number(m[1]) >= 115 && Number(m[1]) <= 130 && Number(m[3]) <= 100 && Number(m[3]) - Number(m[2]) <= 2, `sebaran beban tidak merata: ${sebaran}`);
       const barisSebaran = await page.evaluate(() => {
         const tabel = [...document.querySelectorAll("table")].find((x) => x.querySelector("thead")?.textContent?.includes("Jumlah Proposal"))!;
         return tabel.querySelectorAll("tbody tr").length;
@@ -1025,12 +1036,13 @@ async function utama() {
       yakin((await teksPanel("Usulan Penugasan")).includes("Tidak ada usulan yang menunggu penetapan."), "sesudah ditetapkan seharusnya tidak ada usulan menunggu");
       await foto(page, "j04-skala-ditetapkan");
 
-      // kotak masuk BIMA: ringkasan, bukan 10.000 baris
-      await buka(page, url("/bima/kotak-masuk"), "Ringkasan");
+      // kotak masuk BIMA lewat navigator (B-2): pindah jendela tidak boleh menghapus data skala nyata; ringkasan, bukan 10.000 baris
+      await lewatNavigator("[data-jendela='BIMA-2']", "Ringkasan");
       const total = await page.$eval("[data-testid=total-penugasan]", (e) => e.textContent ?? "");
-      yakin(total === "10.000", `kotak masuk BIMA menerima ${total} penugasan, bukan 10.000`);
+      yakin(total === "10.000", `kotak masuk BIMA (B-2 lewat navigator) menerima ${total} penugasan, bukan 10.000`);
       const barisKotak = await page.$$eval("table tbody tr", (r) => r.length);
       yakin(barisKotak === 100, `kotak masuk seharusnya menampilkan 100 pesan terbaru, ada ${barisKotak}`);
+      yakin((await teksHalaman(page)).includes("SKL-2026-"), "kotak masuk B-2 tidak memuat pesan SKL sesudah pindah dari J-04 skala");
       await foto(page, "bima-kotak-masuk-skala");
       c("kotak masuk BIMA: 10.000 penugasan diterima tanpa ganda, ringkasan + 100 pesan terbaru");
       c(`CATATAN WAKTU: susun ${waktuSusun} dtk, tetapkan ${waktuTetapkan} dtk (klik sampai pesan, ${process.env.E2E_BASE_URL ? `produksi ${new URL(process.env.E2E_BASE_URL).host}` : "lokal ke Neon"})`);
@@ -1046,17 +1058,25 @@ async function utama() {
       yakin(/^[1-9]\d? reviewer bersedia/.test(sebaran), `reviewer skala nyata ikut tampil di skenario kecil: ${sebaran}`);
       c(`skenario siap-kecil sesudah skala nyata: ${waktu} dtk; ${sebaran.slice(0, 40)}`);
       await foto(page, "j04-siap-kecil-sesudah-skala");
-      // sisa skala nyata (penugasan reviewer contoh dan pesan SKL) tidak boleh bocor ke jendela reviewer dan BIMA
+      // penugasan skala nyata hanya untuk reviewer rvw-skala-*, jadi tidak bocor ke jendela reviewer contoh
       await buka(page, url("/demo/mulai?j=J-07&s=selesai"), "Daftar Penugasan");
       const baris = await page.$$eval("table tbody tr", (r) => r.map((x) => x.textContent ?? ""));
       yakin(baris.length === 1 && baris[0].includes("Selesai") && !baris[0].includes("Baru"), `J-07 Semua Selesai sesudah skala memuat ${baris.length} baris: ${baris.slice(0, 2).join(" | ").slice(0, 160)}`);
       await buka(page, url("/demo/mulai?j=J-07&s=baru"), "Daftar Penugasan");
       const barisBaru = await page.$$eval("table tbody tr", (r) => r.length);
       yakin(barisBaru === 1, `J-07 Baru sesudah skala memuat ${barisBaru} baris`);
-      await buka(page, url("/bima/kotak-masuk"), "Kotak masuk");
-      const sisaSkl = await page.evaluate(() => document.body.innerText.includes("SKL-2026-"));
-      yakin(!sisaSkl, "kotak masuk BIMA masih memuat pesan SKL sesudah meninggalkan skala nyata");
-      c("tidak ada sisa skala nyata: J-07 Semua Selesai dan Baru tepat 1 baris, kotak masuk BIMA tanpa pesan SKL");
+      // data skala nyata tetap ada di kotak masuk BIMA (B-2 normal) bersama pesan skenario kecil, sampai Reset & isi data demo
+      await buka(page, url("/demo/mulai?j=BIMA-2&s=normal"), "Ringkasan");
+      const totalSetelah = Number((await page.$eval("[data-testid=total-penugasan]", (e) => e.textContent ?? "0")).replace(/\./g, ""));
+      yakin(totalSetelah >= 10_000, `kotak masuk B-2 hanya memuat ${totalSetelah} penugasan; data skala nyata terhapus`);
+      // akun reviewer skala nyata tidak menjadi pilihan masuk
+      await buka(page, url("/bima/masuk"), "Masuk (simulasi)");
+      const ketSembunyi = await page.$eval("[data-testid=akun-skala-tersembunyi]", (e) => e.textContent ?? "");
+      yakin(ketSembunyi.includes("130 akun reviewer skala nyata disembunyikan"), `keterangan akun tersembunyi salah: ${ketSembunyi}`);
+      const jumlahAkun = await page.$$eval("a[href*='/api/bima/sesi/masuk']", (a) => a.length);
+      const adaSkala = await page.$$eval("a[href*='rvw-skala-']", (a) => a.length);
+      yakin(adaSkala === 0 && jumlahAkun < 30, `/bima/masuk menampilkan ${jumlahAkun} akun, ${adaSkala} akun skala`);
+      c(`J-07 Semua Selesai dan Baru tepat 1 baris (tanpa penugasan skala); kotak masuk B-2 tetap memuat ${totalSetelah} penugasan; /bima/masuk menyembunyikan akun skala (${jumlahAkun} akun tampil)`);
     });
 
     /* ---- akhir: basis data bersih ---- */

@@ -61,6 +61,8 @@ export function NavigatorDemo() {
   const [kodeCookie, idCookie] = cookieSkenario?.split("/") ?? [];
   const jendelaCookie = kodeCookie ? cariJendela(kodeCookie) : undefined;
   const skenarioCookie = kodeCookie && idCookie ? cariSkenario(kodeCookie, idCookie) : undefined;
+  // skenario J-01 (masuk) mendarat di jendela lain (J-02/J-04/J-07): pil di sana tetap menyebut skenario masuk yang dipilih
+  const mendarat = jendela && skenarioCookie?.mendaratDi === jendela.kode;
   const aktifDiJendela = jendela && kodeCookie === jendela.kode ? idCookie : undefined;
 
   // papan pintas global
@@ -143,7 +145,9 @@ export function NavigatorDemo() {
   const labelPil = menyiapkan
     ? `Menyiapkan ${menyiapkan}...`
     : jendela
-      ? aktifDiJendela && skenarioCookie
+      ? mendarat && skenarioCookie && jendelaCookie
+        ? `${jendelaCookie.kode} · ${skenarioCookie.nama}`
+        : aktifDiJendela && skenarioCookie
         ? `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · ${skenarioCookie.nama}`
         : `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · skenario belum dipilih`
       : "Navigator demo";

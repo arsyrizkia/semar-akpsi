@@ -10,6 +10,8 @@ export interface SkenarioDemo {
   nama: string;
   /** keadaan yang disiapkan, satu kalimat */
   ringkas: string;
+  /** kode jendela tempat skenario ini mendarat bila bukan jendelanya sendiri (J-01: masuk lalu diarahkan); pil tetap menyebut skenario ini di sana */
+  mendaratDi?: string;
 }
 
 export interface JendelaDemo {
@@ -32,9 +34,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     rute: ["/masuk"],
     skenario: [
       { id: "belum-masuk", nama: "Belum masuk", ringkas: "Sesi dihapus; halaman Masuk dengan akun BIMA." },
-      { id: "pengelola", nama: "Masuk sebagai Tim Kerja (pengelola)", ringkas: "Sesi pengelola dipasang; tujuan sesudah masuk: J-02." },
-      { id: "anggota", nama: "Masuk sebagai Tim Kerja (anggota)", ringkas: "Sesi anggota dipasang; tujuan sesudah masuk: J-04 (menu J-04 dan J-05)." },
-      { id: "reviewer", nama: "Masuk sebagai Reviewer", ringkas: "Sesi reviewer-2 dipasang; tujuan sesudah masuk: J-07." },
+      { id: "pengelola", nama: "Masuk sebagai Tim Kerja (pengelola)", ringkas: "Sesi pengelola dipasang; tujuan sesudah masuk: J-02.", mendaratDi: "J-02" },
+      { id: "anggota", nama: "Masuk sebagai Tim Kerja (anggota)", ringkas: "Sesi anggota dipasang; tujuan sesudah masuk: J-04 (menu J-04 dan J-05).", mendaratDi: "J-04" },
+      { id: "reviewer", nama: "Masuk sebagai Reviewer", ringkas: "Sesi reviewer-2 dipasang; tujuan sesudah masuk: J-07.", mendaratDi: "J-07" },
     ],
   },
   {

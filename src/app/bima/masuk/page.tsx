@@ -20,7 +20,10 @@ const kelompok = [
 export default async function MasukBima({ searchParams }: { searchParams: Promise<{ kembali?: string; lanjut?: string; galat?: string }> }) {
   const q = await searchParams;
   const kembali = jalurAman(q.kembali, "/bima/pengajuan");
-  const akun = await getDb().select().from(bimaAkun);
+  const semua = await getDb().select().from(bimaAkun);
+  // 130 akun reviewer skenario skala nyata (rvw-skala-*) tidak ditampilkan sebagai pilihan masuk
+  const akun = semua.filter((a) => !a.idBima.startsWith("rvw-skala-"));
+  const tersembunyi = semua.length - akun.length;
   return (
     <section>
       <h1 className="text-2xl font-bold">Masuk (simulasi)</h1>
@@ -53,6 +56,11 @@ export default async function MasukBima({ searchParams }: { searchParams: Promis
           </div>
         ))}
       </div>
+      {tersembunyi > 0 ? (
+        <p data-testid="akun-skala-tersembunyi" className="mt-4 text-xs text-slate-500">
+          {tersembunyi} akun reviewer skala nyata disembunyikan.
+        </p>
+      ) : null}
       <p className="mt-6 text-xs text-slate-500">Nama dan institusi adalah contoh sementara (rekaan).</p>
     </section>
   );

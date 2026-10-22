@@ -66,27 +66,6 @@ export interface HasilSiapkanSkala {
   waktuAturMs: number;
 }
 
-/**
- * Skenario selain skala nyata tidak boleh melihat sisa skala nyata: penugasan periode skala (reviewer contoh reviewer-1..5 ikut dibagi
- * saat Tetapkan) dan pesan SKL di kotak masuk BIMA dihapus, lalu reviewer massal dinonaktifkan. Murah bila tidak ada sisa.
- */
-export async function nonaktifkanReviewerSkala(): Promise<void> {
-  const db = getDb();
-  const sisa = await db.execute(sql`SELECT 1 FROM penugasan_reviewer pr JOIN periode_seleksi p ON p.id = pr.periode_id WHERE p.nama LIKE ${NAMA_PERIODE_SKALA + "%"} LIMIT 1`);
-  if ((sisa as unknown as { rows: unknown[] }).rows.length) {
-    await db.execute(sql`DELETE FROM penugasan_reviewer WHERE periode_id IN (SELECT id FROM periode_seleksi WHERE nama LIKE ${NAMA_PERIODE_SKALA + "%"})`);
-  }
-  const pesan = await db.execute(sql`SELECT 1 FROM bima_kotak_masuk WHERE id_proposal LIKE ${AWALAN_ID_PROPOSAL + "%"} LIMIT 1`);
-  if ((pesan as unknown as { rows: unknown[] }).rows.length) {
-    await db.execute(sql`DELETE FROM bima_kotak_masuk WHERE id_proposal LIKE ${AWALAN_ID_PROPOSAL + "%"}`);
-  }
-  const [{ ada }] = await db.select({ ada: sql<number>`count(*)::int` }).from(s.akun).where(sql`${s.akun.idBima} like ${AWALAN_REVIEWER + "%"} and ${s.akun.bersedia}`);
-  if (!ada) return; // tidak ada yang perlu diubah; skenario kecil tidak membayar apa pun
-  await db.update(s.akun).set({ bersedia: false }).where(like(s.akun.idBima, `${AWALAN_REVIEWER}%`));
-  await db.update(s.bimaAkun).set({ bersedia: false }).where(like(s.bimaAkun.idBima, `${AWALAN_REVIEWER}%`));
-  await db.update(s.bimaReviewer).set({ bersedia: false }).where(like(s.bimaReviewer.idBima, `${AWALAN_REVIEWER}%`));
-}
-
 /** Kesediaan reviewer skala nyata bervariasi: setiap reviewer ke-11 tidak bersedia. */
 async function pasangKesediaanSkala(): Promise<void> {
   const db = getDb();

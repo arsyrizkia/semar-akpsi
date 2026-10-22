@@ -19,7 +19,7 @@ import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@
 import { susunPenugasan, tetapkanPenugasan } from "@/lib/penugasan/layanan";
 import { susunVersiBaru } from "@/lib/templat/layanan";
 import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
-import { nonaktifkanReviewerSkala, siapkanSkalaNyata } from "./skala";
+import { siapkanSkalaNyata } from "./skala";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -348,9 +348,9 @@ async function bersihkanDrafTemplat() {
 /* ------------------------------ pintu masuk ------------------------------ */
 
 export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsungJ08?: boolean } = {}): Promise<HasilSiapkan> {
-  // skenario skala nyata J-04 tidak boleh bocor: periode J-04 kembali ke periode utama dan reviewer massal tidak bersedia lagi
+  // skenario skala nyata J-04 tidak boleh bocor ke jendela lain: periode J-04 kembali ke periode utama. Data skala nyata tetap
+  // tersimpan (kumpulan reviewernya hanya rvw-skala-*, jadi tidak menyentuh reviewer contoh) sampai "Reset & isi data demo".
   await setPeriodeAktif(null);
-  await nonaktifkanReviewerSkala();
   switch (kode) {
     case "UC-01-S1": {
       const skemaId = await pastikanSkemaTanpaTemplat();
@@ -522,7 +522,7 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
   const db = getDb();
   const kunci = `${kodeJendela}/${id}`;
 
-  // skala nyata mengaktifkan periode sendiri; semua skenario lain mengembalikan periode utama dan menonaktifkan reviewer massal
+  // skala nyata mengaktifkan periode sendiri; semua skenario lain mengembalikan periode utama (data skala nyata tidak dihapus)
   if (kunci === "J-04/skala") {
     const h = await siapkanSkalaNyata();
     const detik = (h.waktuBuatMs / 1000).toFixed(1);
@@ -533,7 +533,6 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     };
   }
   await setPeriodeAktif(null);
-  await nonaktifkanReviewerSkala(); // juga menghapus penugasan dan pesan kotak masuk sisa skala nyata
   // jendela reviewer tidak boleh memuat penugasan klon sisa J-04 (Ditetapkan/Diusulkan) pada reviewer contoh
   if (kodeJendela === "J-07" || kodeJendela === "J-08" || kunci === "J-01/reviewer") await daurUlangPenugasanKlon();
 

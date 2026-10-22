@@ -187,7 +187,7 @@ export function PapanPenugasan({
       </Panel>
 
       {hasilSusun.kekurangan ? (
-        <Panel judul="Kekurangan Reviewer">
+        <Panel id="panel-kekurangan" judul="Kekurangan Reviewer">
           <Alert jenis="peringatan">
             <p>
               Reviewer yang bersedia tidak cukup untuk batas beban {hasilSusun.batasDipakai ?? batas}. Sebanyak <strong>{angka.format(hasilSusun.kekurangan)}</strong> proposal terkirim belum

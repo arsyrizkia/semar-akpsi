@@ -9,7 +9,7 @@ import { akun, penugasanReviewer, periodeSeleksi, proposal, skemaPendanaan, vers
 import { pastikanAkunMassal } from "@/lib/auth";
 import { bima, BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
-import { ambilPeriodeAktif, masaPengusulanBerjalan } from "@/lib/waktu";
+import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA } from "@/lib/waktu";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
 import { periksaSyarat, susunUsulanMurni } from "./aturan";
 
@@ -25,6 +25,19 @@ export class MasaBelumDitutupError extends Error {
     this.name = "MasaBelumDitutupError";
   }
 }
+
+/** Awalan idBima reviewer massal skenario skala nyata (lihat demo/skala.ts). */
+const AWALAN_REVIEWER_SKALA = "rvw-skala-";
+
+/**
+ * Kumpulan reviewer yang boleh dipakai pada satu periode: periode skala nyata hanya memakai reviewer rvw-skala-* (reviewer contoh
+ * reviewer-1..5 tidak ikut dibagi), periode lain tidak pernah memakai reviewer rvw-skala-*.
+ */
+async function periodeSkala(periodeId: string): Promise<boolean> {
+  const [p] = await getDb().select({ nama: periodeSeleksi.nama }).from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
+  return !!p && p.nama.startsWith(NAMA_PERIODE_SKALA);
+}
+const dalamKumpulan = (idBima: string, skala: boolean) => idBima.startsWith(AWALAN_REVIEWER_SKALA) === skala;
 
 /** Beban = jumlah penugasan reviewer pada periode (semua status), kecuali penugasan yang dikecualikan. Dihitung di basis data (GROUP BY). */
 async function bebanPerReviewer(periodeId: string, kecualiPenugasanId?: string): Promise<Record<string, number>> {
@@ -107,7 +120,8 @@ export async function ambilUsulan(
 /** Tabel "Sebaran Beban": jumlah proposal setiap reviewer yang bersedia terhadap batas (semua reviewer, bukan hanya satu halaman). */
 export async function ambilSebaranBeban(periodeId: string, batas: number): Promise<SebaranBeban[]> {
   const db = getDb();
-  const reviewer = await db.select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)));
+  const skala = await periodeSkala(periodeId);
+  const reviewer = (await db.select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)))).filter((r) => dalamKumpulan(r.idBima, skala));
   const beban = await bebanPerReviewer(periodeId);
   return reviewer
     .map((r) => ({ reviewerId: r.id, namaReviewer: r.nama, jumlah: beban[r.id] ?? 0, batas }))
@@ -140,7 +154,8 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
   await tetapkanBatasBeban(periodeId, batasBeban);
 
   // ambilDaftarReviewer() melalui API BIMA (client mengulang otomatis maksimal 2 kali)
-  const daftar = (await ambilDaftarReviewer()).filter((r) => r.bersedia);
+  const skala = await periodeSkala(periodeId);
+  const daftar = (await ambilDaftarReviewer()).filter((r) => r.bersedia && dalamKumpulan(r.idBima, skala));
   tandai("daftarReviewerBima");
   const reviewerSemar = (await pastikanAkunMassal(daftar.map((r) => r.idBima))).filter((a) => a.peran === "reviewer");
   tandai("salinAkunReviewer");
@@ -248,6 +263,9 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string,
   const [pengusul] = await db.select().from(akun).where(eq(akun.id, pr.pengusulId));
   const [baru] = await db.select().from(akun).where(eq(akun.id, reviewerBaruId));
   if (!baru || baru.peran !== "reviewer") {
+    return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Reviewer pengganti tidak ditemukan."] };
+  }
+  if (!dalamKumpulan(baru.idBima, await periodeSkala(pn.periodeId))) {
     return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Reviewer pengganti tidak ditemukan."] };
   }
   if (baru.id === pn.reviewerId) return { reviewerId: pn.reviewerId, diterima: true, syaratDilanggar: [] };
@@ -364,7 +382,8 @@ export interface KandidatPengganti {
 
 /** Pilihan "Reviewer Pengganti" (S-2): reviewer yang bersedia beserta bebannya saat ini. */
 export async function ambilKandidatPengganti(periodeId: string): Promise<KandidatPengganti[]> {
-  const reviewer = await getDb().select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)));
+  const skala = await periodeSkala(periodeId);
+  const reviewer = (await getDb().select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)))).filter((r) => dalamKumpulan(r.idBima, skala));
   const beban = await bebanPerReviewer(periodeId);
   return reviewer
     .map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi, beban: beban[r.id] ?? 0 }))

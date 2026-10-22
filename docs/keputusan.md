@@ -45,3 +45,7 @@ membantu DPPM memeriksa proposal penelitian secara administratif.
       masa pengusulan. Menggantikan panel pemandu langkah *real use case* (data langkah tetap di `src/lib/demo/pemandu/`).
 11. Bahasa antarmuka: Bahasa Indonesia.
 12. Commit tanpa atribusi AI (tanpa baris Co-Authored-By atau Generated-with).
+
+## Data skala nyata (22 Okt 2026)
+
+Data skenario J-04 "skala" (10.000 proposal, periode "Skala Nyata 2026", pesan SKL-2026-* di kotak masuk BIMA, penugasannya) tidak dihapus oleh skenario lain; hanya "Reset & isi data demo" yang menghapusnya. Kumpulan reviewer periode skala hanya akun `rvw-skala-*` (reviewer contoh reviewer-1..5 tidak ikut dibagi), dan periode lain tidak memakai akun `rvw-skala-*`. Akun `rvw-skala-*` disembunyikan dari /bima/masuk.
