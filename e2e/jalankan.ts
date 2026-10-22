@@ -787,7 +787,9 @@ async function utama() {
       const awal = await teksPanel("Usulan Penugasan");
       yakin(awal.includes("Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini."), "pesan kosong pertama tidak tampil");
       yakin(awal.includes("Tidak ada usulan yang menunggu penetapan."), "pesan kosong kedua tidak tampil");
-      yakin((await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "")).includes("Kosong"), "pil tidak menampilkan skenario aktif");
+      await page.waitForFunction(() => document.querySelector("[data-testid=navigator-pil]")?.textContent?.includes("Kosong"), { timeout: 10_000 }).catch(() => {
+        throw new Error("pil tidak menampilkan skenario aktif");
+      });
       await foto(page, "j04-kosong");
       c("skenario Kosong: kedua pesan keadaan kosong tampil dan pil menyebut skenario aktif");
 
@@ -813,6 +815,7 @@ async function utama() {
       // pil tidak menyebut skenario jendela lain: pindah lewat menu header ke J-05
       await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 }), page.evaluate(() => (document.querySelector("nav[aria-label='Menu Tim Kerja DPPM'] a[href^='/tim-kerja/pemantauan']") as HTMLElement).click())]);
       await adaTeks(page, "Pemantauan Kesesuaian");
+      await tunggu(1500); // hidrasi
       const pilLain = await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "");
       yakin(pilLain.includes("J-05") && !pilLain.includes("Siap") && pilLain.includes("belum dipilih"), `pil memuat skenario jendela lain: ${pilLain}`);
       c(`pil di jendela yang dibuka lewat menu tidak menyebut skenario jendela lain (${pilLain})`);
@@ -953,7 +956,9 @@ async function utama() {
       const awal = await teksPanel("Usulan Penugasan");
       yakin(/10\.000 proposal Terkirim belum punya penugasan tetap/.test(awal), `J-04 skala tidak memuat 10.000 proposal: ${awal.slice(0, 120)}`);
       yakin((await page.$eval("#batas", (e) => (e as HTMLInputElement).value)) === "100", "batas beban bawaan seharusnya 100");
-      yakin((await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "")).includes("Skala nyata"), "pil tidak menyebut skenario skala nyata");
+      await page.waitForFunction(() => document.querySelector("[data-testid=navigator-pil]")?.textContent?.includes("Skala nyata"), { timeout: 10_000 }).catch(() => {
+        throw new Error("pil tidak menyebut skenario skala nyata");
+      });
       await foto(page, "j04-skala-awal");
 
       // S-1: batas 60 x ±124 reviewer < 10.000
