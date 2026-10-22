@@ -19,6 +19,7 @@ import {
 } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { NAMA_PERIODE_SKALA } from "@/lib/waktu";
+import { pilahButirDitandai } from "./status-butir";
 import { rekapKesesuaian, type BarisGagal, type BarisNilai, type HasilRekap, type InfoButir } from "./rekap";
 
 export async function daftarPeriode() {
@@ -79,6 +80,7 @@ export async function susunLaporan(periodeId: string, skemaId: string): Promise<
   const nilaiMentah = await db
     .select({
       hasilId: hasilPemeriksaan.id,
+      proposalId: proposal.id,
       butirKode: hasilPemeriksaan.butirKode,
       judulProposal: proposal.judul,
       rekomendasi: hasilPemeriksaan.rekomendasi,
@@ -102,6 +104,7 @@ export async function susunLaporan(periodeId: string, skemaId: string): Promise<
     .where(and(eq(proposal.periodeId, periodeId), eq(proposal.skemaId, skemaId), eq(hasilPemeriksaan.jenis, "semantik")));
   const nilai: BarisNilai[] = nilaiMentah.map((n) => ({
     hasilId: n.hasilId,
+    proposalId: n.proposalId,
     butirKode: n.butirKode,
     judulProposal: n.judulProposal,
     rekomendasi: n.rekomendasi,
@@ -134,7 +137,7 @@ export async function tandaiButir(skemaId: string, periodeId: string, kodeButir:
     .select({ id: butirCek.id, kode: butirCek.kode, status: butirCek.status })
     .from(butirCek)
     .where(and(eq(butirCek.basisAturanId, basis.id), inArray(butirCek.kode, kodeButir)));
-  const target = baris.filter((b) => b.status === "Aktif");
+  const { target } = pilahButirDitandai(baris, kodeButir);
   if (target.length) {
     await db
       .update(butirCek)
@@ -161,5 +164,5 @@ export const ambilAlasan = susunLaporan;
 export const ambilRincian = susunLaporan;
 export const ambilContoh = susunLaporan;
 
-/** tandaiPerluDitinjau(): status Aktif menjadi Perlu ditinjau (bagian dari tandaiButir). */
-export const tandaiPerluDitinjau = tandaiButir;
+/** tandaiPerluDitinjau(): transisi status butir Aktif -> Perlu ditinjau (murni; dipakai tandaiButir lewat pilahButirDitandai). */
+export { tandaiPerluDitinjau } from "./status-butir";

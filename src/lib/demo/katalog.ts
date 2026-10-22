@@ -21,6 +21,18 @@ export interface JendelaDemo {
   peran: string;
   /** awalan alamat yang dianggap jendela ini */
   rute: string[];
+  /** pola alamat (ekspresi reguler, string) untuk layar turunan seperti J-02b; didahulukan daripada awalan `rute` */
+  pola?: string;
+  /** layar turunan (b): induknya, dipakai navigator untuk mengelompokkan */
+  induk?: string;
+  /** akun demo yang dipasang saat "Pindah layar" bila sesi yang ada bukan peran jendela ini; null = tanpa sesi */
+  akunBawaan?: string | null;
+  /** peran sesi yang diperlukan jendela ini: pindah layar mempertahankan sesi bila peran (dan hak pengelola) sudah cocok */
+  peranSesi?: "tim_kerja" | "reviewer" | "pengusul" | "siapa-saja" | "tanpa";
+  /** hanya pengelola yang boleh membuka (J-02, J-03) */
+  hanyaPengelola?: boolean;
+  /** alamat tujuan "Pindah layar" bila tidak ada rujukan data tertentu (tidak mengubah data) */
+  alamatPindah: string;
   /** skenario yang dipakai saat berpindah ke jendela ini tanpa memilih skenario (bawaan: yang pertama) */
   bawaan?: string;
   skenario: SkenarioDemo[];
@@ -32,6 +44,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     nama: "Masuk",
     peran: "Tim Kerja DPPM, Reviewer",
     rute: ["/masuk"],
+    peranSesi: "tanpa",
+    akunBawaan: null,
+    alamatPindah: "/masuk",
     skenario: [
       { id: "belum-masuk", nama: "Belum masuk", ringkas: "Sesi dihapus; halaman Masuk dengan akun BIMA." },
       { id: "pengelola", nama: "Masuk sebagai Tim Kerja (pengelola)", ringkas: "Sesi pengelola dipasang; tujuan sesudah masuk: J-02.", mendaratDi: "J-02" },
@@ -43,7 +58,12 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     kode: "J-02",
     nama: "Templat Proposal",
     peran: "Tim Kerja (pengelola)",
-    rute: ["/tim-kerja/templat"],
+    rute: [],
+    pola: "^/tim-kerja/templat/?$",
+    peranSesi: "tim_kerja",
+    hanyaPengelola: true,
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/templat",
     skenario: [
       { id: "normal", nama: "Templat berlaku", ringkas: "Skema PD punya templat terbit; masa pengusulan ditutup (Terbitkan berakhir di jalur utama)." },
       { id: "tanpa-templat", nama: "Skema belum punya templat (S-1)", ringkas: "Skema PK tanpa templat; Susun Versi Baru membuat versi 1." },
@@ -52,10 +72,28 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     ],
   },
   {
+    kode: "J-02b",
+    nama: "Penyusunan Templat",
+    peran: "Tim Kerja (pengelola)",
+    induk: "J-02",
+    rute: [],
+    pola: "^/tim-kerja/templat/[^/]+/susun",
+    peranSesi: "tim_kerja",
+    hanyaPengelola: true,
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/templat",
+    skenario: [{ id: "draf", nama: "Draf versi baru terbuka", ringkas: "Draf versi berikutnya skema PD disiapkan dan dibuka di layar penyusunan." }],
+  },
+  {
     kode: "J-03",
     nama: "Aturan Pemeriksaan",
     peran: "Tim Kerja (pengelola)",
-    rute: ["/tim-kerja/aturan"],
+    rute: [],
+    pola: "^/tim-kerja/aturan/?$",
+    peranSesi: "tim_kerja",
+    hanyaPengelola: true,
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/aturan",
     skenario: [
       { id: "normal", nama: "Normal", ringkas: "Tabel butir skema PD; masa pengusulan ditutup." },
       { id: "perlu-ditinjau", nama: "Ada butir Perlu ditinjau (dari UC-04)", ringkas: "Satu butir manual ditandai Perlu ditinjau dari J-05." },
@@ -63,10 +101,26 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     ],
   },
   {
+    kode: "J-03b",
+    nama: "Hasil Uji pada Contoh",
+    peran: "Tim Kerja (pengelola)",
+    induk: "J-03",
+    rute: ["/tim-kerja/aturan/uji"],
+    peranSesi: "tim_kerja",
+    hanyaPengelola: true,
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/aturan",
+    skenario: [{ id: "hasil", nama: "Laporan uji tiga contoh", ringkas: "Basis aturan skema PD normal; laporan uji atas contoh A, B, dan C dibuka." }],
+  },
+  {
     kode: "J-04",
     nama: "Penugasan Reviewer",
     peran: "Tim Kerja DPPM",
-    rute: ["/tim-kerja/penugasan"],
+    rute: [],
+    pola: "^/tim-kerja/penugasan/?$",
+    peranSesi: "tim_kerja",
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/penugasan",
     bawaan: "siap-kecil",
     skenario: [
       { id: "kosong", nama: "Kosong", ringkas: "Tidak ada proposal Terkirim yang perlu ditugaskan dan tidak ada usulan yang menunggu penetapan." },
@@ -78,10 +132,30 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     ],
   },
   {
+    kode: "J-04b",
+    nama: "Usulan Penugasan",
+    peran: "Tim Kerja DPPM",
+    induk: "J-04",
+    rute: [],
+    pola: "^/tim-kerja/penugasan/[^/]+",
+    peranSesi: "tim_kerja",
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/penugasan",
+    skenario: [
+      { id: "siap", nama: "Siap disusun", ringkas: "Enam proposal Terkirim; belum ada usulan; batas beban 3." },
+      { id: "menunggu", nama: "Usulan menunggu penetapan", ringkas: "Usulan penugasan sudah disusun, belum ditetapkan." },
+      { id: "kekurangan", nama: "Kekurangan reviewer (S-1)", ringkas: "Batas beban 1: panel Kekurangan Reviewer tampil." },
+      { id: "ditetapkan", nama: "Sudah ditetapkan", ringkas: "Penugasan ditetapkan dan tercatat di kotak masuk BIMA." },
+    ],
+  },
+  {
     kode: "J-05",
     nama: "Pemantauan Kesesuaian",
     peran: "Tim Kerja DPPM",
     rute: ["/tim-kerja/pemantauan"],
+    peranSesi: "tim_kerja",
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/pemantauan",
     bawaan: "contoh",
     skenario: [
       { id: "belum-final", nama: "Belum ada penilaian final", ringkas: "Penilaian final dihapus; hanya butir deterministik gagal yang tampil." },
@@ -89,10 +163,24 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     ],
   },
   {
+    kode: "J-05b",
+    nama: "Rincian Proposal",
+    peran: "Tim Kerja DPPM",
+    induk: "J-05",
+    rute: ["/tim-kerja/proposal"],
+    peranSesi: "tim_kerja",
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/tim-kerja/pemantauan",
+    skenario: [{ id: "contoh", nama: "Proposal dengan penilaian dan koreksi", ringkas: "Data pemantauan contoh; rincian PRP-2026-0004 dibuka." }],
+  },
+  {
     kode: "J-06",
     nama: "Hasil Pemeriksaan Pengajuan",
     peran: "Pengusul",
     rute: ["/pengusul/hasil"],
+    peranSesi: "pengusul",
+    akunBawaan: "pengusul-1",
+    alamatPindah: "/bima/pengajuan",
     skenario: [
       { id: "terkirim", nama: "Terkirim", ringkas: "Semua butir lolos; bukti pengiriman tampil." },
       { id: "ditahan", nama: "Ditahan", ringkas: "Bagian Metode melebihi batas kata; butir gagal paling atas." },
@@ -105,6 +193,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     nama: "Daftar Penugasan",
     peran: "Reviewer",
     rute: ["/reviewer/penugasan"],
+    peranSesi: "reviewer",
+    akunBawaan: "reviewer-2",
+    alamatPindah: "/reviewer/penugasan",
     bawaan: "baru",
     skenario: [
       { id: "kosong", nama: "Kosong", ringkas: "Reviewer tanpa penugasan." },
@@ -117,7 +208,11 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     kode: "J-08",
     nama: "Pemeriksaan Proposal",
     peran: "Reviewer",
-    rute: ["/reviewer/pemeriksaan"],
+    rute: [],
+    pola: "^/reviewer/pemeriksaan/[^/]+/?$",
+    peranSesi: "reviewer",
+    akunBawaan: "reviewer-2",
+    alamatPindah: "/reviewer/penugasan",
     skenario: [
       { id: "normal", nama: "Normal", ringkas: "Hasil semantik normal (mode tiruan)." },
       { id: "perlu-manual", nama: "Perlu diperiksa manual", ringkas: "Kutipan LLM tidak ditemukan pada butir pertama (S-1)." },
@@ -127,10 +222,25 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     ],
   },
   {
+    kode: "J-08b",
+    nama: "Keputusan Penilaian",
+    peran: "Reviewer",
+    induk: "J-08",
+    rute: [],
+    pola: "^/reviewer/pemeriksaan/[^/]+/keputusan",
+    peranSesi: "reviewer",
+    akunBawaan: "reviewer-2",
+    alamatPindah: "/reviewer/penugasan",
+    skenario: [{ id: "draf", nama: "Draf terisi sebagian", ringkas: "Tiga komponen dan umpan balik sudah terisi; Simpan Permanen belum ditekan." }],
+  },
+  {
     kode: "BIMA-1",
     nama: "BIMA: Pengajuan",
     peran: "Pengusul",
     rute: ["/bima/pengajuan"],
+    peranSesi: "pengusul",
+    akunBawaan: "pengusul-1",
+    alamatPindah: "/bima/pengajuan",
     skenario: [
       { id: "lolos", nama: "Draf lolos semua butir", ringkas: "PRP-2026-0001; masa berjalan; Ajukan Usulan menghasilkan Terkirim." },
       { id: "ditahan", nama: "Draf ditahan lalu diperbaiki", ringkas: "PRP-2026-0002; Metode melebihi batas; Ajukan ulang dengan naskah perbaikan." },
@@ -142,6 +252,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     nama: "BIMA: Kotak masuk",
     peran: "Simulasi BIMA",
     rute: ["/bima/kotak-masuk"],
+    peranSesi: "siapa-saja",
+    akunBawaan: "dppm-pengelola",
+    alamatPindah: "/bima/kotak-masuk",
     skenario: [{ id: "normal", nama: "Kotak masuk saat ini", ringkas: "Penugasan dan keputusan yang diterima dari SEMAR (ringkasan + 100 terbaru)." }],
   },
 ];
@@ -163,9 +276,24 @@ export function cariSkenario(kodeJendela: string, id: string): SkenarioDemo | un
   return cariJendela(kodeJendela)?.skenario.find((s) => s.id === id);
 }
 
-/** Jendela yang sedang dibuka menurut alamat halaman. */
+/** Jendela yang sedang dibuka menurut alamat halaman: pola (layar turunan dan layar induk persis) didahulukan, lalu awalan terpanjang. */
 export function jendelaDariJalur(jalur: string): JendelaDemo | undefined {
-  return KATALOG_JENDELA.find((j) => j.rute.some((r) => jalur === r || jalur.startsWith(`${r}/`)));
+  const lewatPola = KATALOG_JENDELA.find((j) => j.pola && new RegExp(j.pola).test(jalur));
+  if (lewatPola) return lewatPola;
+  let terbaik: { j: JendelaDemo; panjang: number } | undefined;
+  for (const j of KATALOG_JENDELA) {
+    for (const r of j.rute) {
+      if ((jalur === r || jalur.startsWith(`${r}/`)) && (!terbaik || r.length > terbaik.panjang)) terbaik = { j, panjang: r.length };
+    }
+  }
+  return terbaik?.j;
+}
+
+/** Alamat "Pindah layar": hanya berpindah dan memasang peran bila perlu, tidak pernah mengubah data. `rujukan` = idProposal bila ada. */
+export function alamatPindah(kodeJendela: string, rujukan?: string): string {
+  const p = new URLSearchParams({ j: kodeJendela });
+  if (rujukan) p.set("p", rujukan);
+  return `/demo/pindah?${p.toString()}`;
 }
 
 export function alamatSkenario(kodeJendela: string, id?: string): string {

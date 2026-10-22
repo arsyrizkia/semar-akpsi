@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak generator templat dan real use case "Unduh Templat (.docx)".
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-31 TemplatProposal.buatDokumenTemplat (uji round-trip dengan Contract C-21 potongPerBagian); CRC TemplatProposal.
 import { describe, expect, it } from "vitest";
 import { ekstrakDocx } from "@/lib/pengajuan/ekstraksi";
 import { potongPerBagian } from "@/lib/pengajuan/potong";

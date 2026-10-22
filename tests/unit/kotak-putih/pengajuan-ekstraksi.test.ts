@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): diturunkan dari spesifikasi metode; menjalankan setiap cabang/jalur.
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-01 potongPerBagian (tahap ekstraksi teks naskah PDF dan lampiran); setiap cabang ekstraksi.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";

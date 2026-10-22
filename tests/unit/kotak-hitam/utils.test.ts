@@ -1,4 +1,4 @@
-// Uji kotak hitam: cn() menggabungkan kelas dan menyelesaikan bentrok Tailwind.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: fungsi bantu antarmuka (cn, format tanggal WIB dan angka id-ID); tanpa CRC, diuji sebagai unit tambahan prototipe.
 import { describe, expect, it } from "vitest";
 import { cn, formatAngka, formatTanggal, formatWaktu } from "@/lib/utils";
 

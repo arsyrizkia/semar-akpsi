@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak, spesifikasi, dan real use case, tanpa melihat isi metode.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-29 BasisAturan.rekapKesesuaian / ButirCek.hitungTingkatKoreksi, CRC BasisAturan.
 import { describe, expect, it } from "vitest";
 import { formatPersen, rekapKesesuaian, type BarisNilai, type InfoButir } from "@/lib/pemantauan/rekap";
 
@@ -87,5 +87,38 @@ describe("formatPersen", () => {
     expect(formatPersen(87.5)).toBe("87,5%");
     expect(formatPersen(100)).toBe("100%");
     expect(formatPersen(66.666)).toBe("66,7%");
+  });
+});
+
+describe("rekapKesesuaian: batas dan urutan (Contract C-29)", () => {
+  it("KH-rekapKesesuaian-07: tanpa koreksi = 100% disetujui; semua dikoreksi = 0% (batas atas dan bawah)", () => {
+    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-02", kor("a")), nilai("3", "ISI-02", kor("b"))], butir);
+    expect(h.kesesuaian.find((b) => b.kode === "ISI-01")!.persenDisetujui).toBe(100);
+    expect(h.kesesuaian.find((b) => b.kode === "ISI-02")!.persenDisetujui).toBe(0);
+  });
+
+  it("KH-rekapKesesuaian-08: kesesuaian diurutkan dari persen disetujui terendah", () => {
+    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-02", kor("a")), nilai("3", "ISI-02"), nilai("4", "KTA-01", kor("b"))], butir);
+    expect(h.kesesuaian.map((b) => b.kode)).toEqual(["KTA-01", "ISI-02", "ISI-01"]);
+  });
+
+  it("KH-hitungTingkatKoreksi-01: tingkat koreksi = koreksi / hasil pada penilaian final per butir", () => {
+    const h = rekapKesesuaian([], [nilai("1", "ISI-01", kor("a")), nilai("2", "ISI-01"), nilai("3", "ISI-01"), nilai("4", "ISI-01")], butir);
+    expect(h.koreksiTertinggi[0]).toMatchObject({ kode: "ISI-01", jumlah: 4, jumlahKoreksi: 1, tingkatKoreksi: 0.25 });
+  });
+
+  it("KH-hitungTingkatKoreksi-02: tingkat koreksi sama diurutkan menurut jumlah koreksi lalu kode", () => {
+    const h = rekapKesesuaian(
+      [],
+      [nilai("1", "ISI-02", kor("a")), nilai("2", "ISI-01", kor("b")), nilai("3", "ISI-01", kor("c")), nilai("4", "ISI-01"), nilai("5", "ISI-02")],
+      butir,
+    );
+    // ISI-01 2/3 > ISI-02 1/2
+    expect(h.koreksiTertinggi.map((b) => b.kode)).toEqual(["ISI-01", "ISI-02"]);
+  });
+
+  it("KH-rekapKesesuaian-09: rincian menyertakan id proposal untuk tautan ke J-05b", () => {
+    const n = { ...nilai("1", "ISI-01"), proposalId: "uuid-1" };
+    expect(rekapKesesuaian([], [n], butir).rincian["ISI-01"][0].proposalId).toBe("uuid-1");
   });
 });

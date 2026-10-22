@@ -679,6 +679,41 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
       return { akun: "reviewer-2", tujuan: `/reviewer/pemeriksaan/${penugasanId}`, catatan: "Penilaian sudah Simpan Permanen: isian hanya-baca." };
     }
 
+    /* layar turunan (b): menyiapkan keadaan induknya lalu membuka layar turunan itu */
+    case "J-02b/draf": {
+      const h = await siapkanSkenario("J-02", "draf-tersimpan");
+      const [skemaPd] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+      const [draf] = await db
+        .select({ id: s.templatProposal.id })
+        .from(s.templatProposal)
+        .where(and(eq(s.templatProposal.skemaId, skemaPd.id), eq(s.templatProposal.status, "Draf")))
+        .limit(1);
+      return { ...h, tujuan: draf ? `/tim-kerja/templat/${draf.id}/susun` : h.tujuan, catatan: "Draf versi berikutnya skema PD terbuka di layar penyusunan; Unduh Pratinjau (.docx) dan Terbitkan tersedia di sini." };
+    }
+    case "J-03b/hasil": {
+      const h = await siapkanSkenario("J-03", "normal");
+      return { ...h, tujuan: (await tujuanAturan()).replace("/tim-kerja/aturan?", "/tim-kerja/aturan/uji?"), catatan: "Laporan Uji pada Contoh atas contoh A, B, dan C; Kembali ke Aturan Pemeriksaan membuka J-03." };
+    }
+    case "J-04b/siap":
+    case "J-04b/menunggu":
+    case "J-04b/kekurangan":
+    case "J-04b/ditetapkan": {
+      const turunan = { siap: "siap-kecil", menunggu: "menunggu", kekurangan: "kekurangan", ditetapkan: "ditetapkan" } as const;
+      const h = await siapkanSkenario("J-04", turunan[id as keyof typeof turunan]);
+      const periode = await ambilPeriodeBerjalan();
+      return { ...h, tujuan: `/tim-kerja/penugasan/${periode.id}${id === "kekurangan" ? "?susun=1" : ""}` };
+    }
+    case "J-05b/contoh": {
+      const h = await siapkanSkenario("J-05", "contoh");
+      return { ...h, tujuan: "/tim-kerja/proposal/PRP-2026-0004", catatan: "Rincian PRP-2026-0004: hasil pemeriksaan, penugasan, dan penilaian; Unduh Berkas tersedia untuk naskah dan lampiran." };
+    }
+    case "J-08b/draf": {
+      await daurUlangPenugasanKlon();
+      const { penugasanId } = await siapkanPemeriksaanReviewer("normal");
+      await siapkanDrafSebagian(penugasanId);
+      return { akun: "reviewer-2", tujuan: `/reviewer/pemeriksaan/${penugasanId}/keputusan`, catatan: "Tiga komponen dan umpan balik sudah terisi; Simpan Sementara atau Simpan Permanen (M-11) tersedia." };
+    }
+
     /* BIMA tiruan */
     case "BIMA-1/lolos":
       return dariJalanPintas(await siapkanJalanPintas("UC-05a"));

@@ -1,0 +1,332 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Download, Plus, Trash2 } from "lucide-react";
+import { Alert, Bagian, Button, Input, KepalaHalaman, KotakCentang, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu } from "@/components/ui";
+import { periksaKelengkapan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
+import { PESAN_LENGKAPI } from "@/lib/templat/status";
+import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
+import { aksiSimpanDraf, aksiTerbitkan } from "../../aksi";
+
+interface Props {
+  skemaId: string;
+  namaSkema: string;
+  templat: TemplatTampil;
+  periode: PeriodePilihan[];
+  masaBerjalan: boolean;
+}
+
+interface Isian {
+  bagian: BarisBagianMentah[];
+  lampiran: string[];
+  periodeId: string;
+}
+
+const dariTemplat = (t: TemplatTampil): Isian => ({
+  bagian: t.bagian.map((b) => ({ nama: b.nama, batas: b.batasKata == null ? "" : String(b.batasKata), tanpaBatas: b.batasKata == null, wajib: b.wajib })),
+  lampiran: [...t.lampiranWajib],
+  periodeId: t.periodeBerlakuId ?? "",
+});
+
+const sidikIsian = (i: Isian) => JSON.stringify(i);
+
+export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }: Props) {
+  const router = useRouter();
+  const [sibuk, mulai] = useTransition();
+  const [isian, setIsian] = useState<Isian>(() => dariTemplat(templat));
+  const [tersimpan, setTersimpan] = useState(() => sidikIsian(dariTemplat(templat)));
+  const [sudahCoba, setSudahCoba] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [galatModal, setGalatModal] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  const kotor = sidikIsian(isian) !== tersimpan;
+  // peringatan sebelum meninggalkan halaman dengan perubahan yang belum disimpan
+  useEffect(() => {
+    if (!kotor) return;
+    const jaga = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", jaga);
+    return () => window.removeEventListener("beforeunload", jaga);
+  }, [kotor]);
+
+  const masukan = useMemo(() => ({ bagian: isian.bagian, lampiran: isian.lampiran, periodeBerlakuId: isian.periodeId || null }), [isian]);
+  const kelengkapan = useMemo(() => periksaKelengkapan(masukan), [masukan]);
+  const tandai = sudahCoba && !kelengkapan.lengkap;
+
+  const ubahBaris = (i: number, ubah: Partial<BarisBagianMentah>) => setIsian((s) => ({ ...s, bagian: s.bagian.map((b, j) => (j === i ? { ...b, ...ubah } : b)) }));
+
+  async function simpan(): Promise<boolean> {
+    const r = await aksiSimpanDraf(skemaId, templat.id, masukan);
+    if (!r.ok) {
+      beriTahu.galat(r.pesan);
+      return false;
+    }
+    setTersimpan(sidikIsian(isian));
+    return true;
+  }
+
+  function simpanDraf() {
+    mulai(async () => {
+      if (await simpan()) beriTahu.sukses(`Draf versi ${templat.versi} tersimpan. Buka lagi kapan saja dari Templat Proposal.`);
+    });
+  }
+
+  function unduhPratinjau() {
+    mulai(async () => {
+      if (!(await simpan())) return;
+      // pratinjau dibangun dari draf yang baru disimpan; unduhan lewat tautan sementara agar nama berkas dari Content-Disposition dipakai
+      const a = document.createElement("a");
+      a.href = `/api/semar/templat/${templat.id}/unduh`;
+      a.download = "";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      beriTahu.info("Pratinjau diunduh dari isian yang baru disimpan.");
+    });
+  }
+
+  function klikTerbitkan() {
+    setSudahCoba(true);
+    if (!kelengkapan.lengkap) {
+      // S-2: tanda ada di isian; fokus ke isian bertanda pertama
+      setTimeout(() => {
+        const el = ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+        (el ?? ref.current?.querySelector<HTMLElement>('[role="alert"]'))?.scrollIntoView({ block: "center" });
+        el?.focus({ preventScroll: true });
+      }, 50);
+      return;
+    }
+    setGalatModal(null);
+    setModal(true);
+  }
+
+  function konfirmasiTerbitkan() {
+    mulai(async () => {
+      const r = await aksiTerbitkan(skemaId, templat.id, masukan);
+      if (!r.ok) return setGalatModal(r.pesan);
+      const h = r.hasil;
+      if (h.hasil === "tidak-ditemukan") return setGalatModal(h.pesan);
+      if (h.hasil === "tidak-lengkap") {
+        setModal(false);
+        return;
+      }
+      setTersimpan(sidikIsian(isian));
+      setModal(false);
+      // s.10 atau 9a tampil di J-02 sesudah modal ditutup
+      const dasar = `/tim-kerja/templat?skema=${skemaId}&versi=${templat.id}`;
+      router.push(h.hasil === "terbit" ? `${dasar}&hasil=terbit&jumlah=${h.jumlahButir}` : `${dasar}&hasil=draf`);
+    });
+  }
+
+  const namaPeriode = periode.find((p) => p.id === isian.periodeId)?.nama ?? "-";
+
+  return (
+    <div ref={ref}>
+      <KepalaHalaman
+        kode="J-02b"
+        judul="Penyusunan Templat"
+        keterangan={`${namaSkema} · Draf versi ${templat.versi}`}
+        remah={[{ label: "Templat Proposal", href: `/tim-kerja/templat?skema=${skemaId}` }, { label: `Penyusunan Versi ${templat.versi}` }]}
+        aksi={
+          <>
+            <Button varian="sekunder" onClick={unduhPratinjau} disabled={sibuk}>
+              <Download aria-hidden className="size-4" />
+              Unduh Pratinjau (.docx)
+            </Button>
+            <Button varian="sekunder" onClick={simpanDraf} disabled={sibuk || !kotor}>
+              Simpan Draf
+            </Button>
+            <Button onClick={klikTerbitkan} disabled={sibuk}>
+              Terbitkan
+            </Button>
+          </>
+        }
+      />
+
+      <p aria-live="polite" className="-mt-3 mb-5 text-sm text-sogan-700">
+        {kotor ? "Ada perubahan yang belum disimpan." : "Isian sama dengan draf yang tersimpan."}
+      </p>
+
+      {tandai ? (
+        <Alert jenis="galat" className="mb-6">
+          {PESAN_LENGKAPI}
+        </Alert>
+      ) : null}
+
+      <Bagian judul="Bagian Templat">
+        <Table>
+          <THead>
+            <TR>
+              <TH angka>Urutan</TH>
+              <TH>Nama Bagian</TH>
+              <TH>Batas Kata</TH>
+              <TH>Wajib</TH>
+              <TH>
+                <span className="sr-only">Hapus</span>
+              </TH>
+            </TR>
+          </THead>
+          <TBody>
+            {isian.bagian.length === 0 ? (
+              <TR>
+                <TD colSpan={5} className={tandai && kelengkapan.tanpaBagian ? "py-4 text-center font-medium text-bata-600" : "py-4 text-center text-sogan-700"}>
+                  Belum ada bagian. Tekan &ldquo;Tambah Bagian&rdquo;.
+                </TD>
+              </TR>
+            ) : null}
+            {isian.bagian.map((b, i) => {
+              const galatNama = tandai && kelengkapan.bagian[i]?.nama;
+              const galatBatas = tandai && kelengkapan.bagian[i]?.batas;
+              return (
+                <TR key={i}>
+                  <TD angka>{i + 1}</TD>
+                  <TD className="min-w-52">
+                    <Input
+                      aria-label={`Nama Bagian baris ${i + 1}`}
+                      autoComplete="off"
+                      name={`bagian-${i}`}
+                      value={b.nama}
+                      aria-invalid={galatNama ? true : undefined}
+                      aria-describedby={galatNama ? `gn-${i}` : undefined}
+                      onChange={(e) => ubahBaris(i, { nama: e.target.value })}
+                    />
+                    {galatNama ? (
+                      <p id={`gn-${i}`} className="mt-1 text-xs font-medium text-bata-600">
+                        {b.nama.trim() === "" ? "Nama bagian wajib diisi" : "Nama bagian sudah dipakai"}
+                      </p>
+                    ) : null}
+                  </TD>
+                  <TD className="min-w-56">
+                    <div className="flex items-center gap-3">
+                      <Input
+                        aria-label={`Batas Kata baris ${i + 1}`}
+                        autoComplete="off"
+                        name={`batas-${i}`}
+                        inputMode="numeric"
+                        className="w-28"
+                        value={b.tanpaBatas ? "" : b.batas}
+                        disabled={b.tanpaBatas}
+                        aria-invalid={galatBatas ? true : undefined}
+                        aria-describedby={galatBatas ? `gb-${i}` : undefined}
+                        onChange={(e) => ubahBaris(i, { batas: e.target.value })}
+                      />
+                      <KotakCentang id={`tb-${i}`} label="Tanpa batas kata" checked={b.tanpaBatas} onCheckedChange={(v) => ubahBaris(i, { tanpaBatas: v === true })} />
+                    </div>
+                    {galatBatas ? (
+                      <p id={`gb-${i}`} className="mt-1 text-xs font-medium text-bata-600">
+                        Isi angka bulat lebih dari 0, atau centang &ldquo;Tanpa batas kata&rdquo;
+                      </p>
+                    ) : null}
+                  </TD>
+                  <TD>
+                    <KotakCentang id={`wj-${i}`} label="Wajib" checked={b.wajib} onCheckedChange={(v) => ubahBaris(i, { wajib: v === true })} />
+                  </TD>
+                  <TD>
+                    <Button
+                      varian="hantu"
+                      ukuran="sm"
+                      aria-label={`Hapus bagian baris ${i + 1}`}
+                      onClick={() => setIsian((s) => ({ ...s, bagian: s.bagian.filter((_, j) => j !== i) }))}
+                    >
+                      <Trash2 aria-hidden className="size-4" /> Hapus
+                    </Button>
+                  </TD>
+                </TR>
+              );
+            })}
+          </TBody>
+        </Table>
+        <Button
+          varian="sekunder"
+          ukuran="sm"
+          className="mt-3"
+          onClick={() => setIsian((s) => ({ ...s, bagian: [...s.bagian, { nama: "", batas: "", tanpaBatas: false, wajib: true }] }))}
+        >
+          <Plus aria-hidden className="size-4" /> Tambah Bagian
+        </Button>
+      </Bagian>
+
+      <Bagian judul="Lampiran Wajib">
+        {isian.lampiran.length === 0 ? <p className="text-sm text-sogan-700">Belum ada lampiran wajib.</p> : null}
+        <ul className="space-y-2">
+          {isian.lampiran.map((l, i) => {
+            const galat = tandai && kelengkapan.lampiran[i];
+            return (
+              <li key={i} className="max-w-xl">
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-label={`Nama lampiran wajib ${i + 1}`}
+                    autoComplete="off"
+                    name={`lampiran-${i}`}
+                    value={l}
+                    aria-invalid={galat ? true : undefined}
+                    aria-describedby={galat ? `gl-${i}` : undefined}
+                    onChange={(e) => setIsian((s) => ({ ...s, lampiran: s.lampiran.map((x, j) => (j === i ? e.target.value : x)) }))}
+                  />
+                  <Button varian="hantu" ukuran="sm" aria-label={`Hapus lampiran ${i + 1}`} onClick={() => setIsian((s) => ({ ...s, lampiran: s.lampiran.filter((_, j) => j !== i) }))}>
+                    <Trash2 aria-hidden className="size-4" /> Hapus
+                  </Button>
+                </div>
+                {galat ? (
+                  <p id={`gl-${i}`} className="mt-1 text-xs font-medium text-bata-600">
+                    Nama lampiran wajib diisi
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+        <Button varian="sekunder" ukuran="sm" className="mt-3" onClick={() => setIsian((s) => ({ ...s, lampiran: [...s.lampiran, ""] }))}>
+          <Plus aria-hidden className="size-4" /> Tambah Lampiran
+        </Button>
+      </Bagian>
+
+      <Bagian judul="Periode Berlaku">
+        <Pilihan
+          label="Periode Berlaku"
+          className="w-full max-w-sm"
+          name="periode-berlaku"
+          value={isian.periodeId}
+          galat={tandai && kelengkapan.periode ? "Periode Berlaku wajib dipilih" : null}
+          onChange={(e) => setIsian((s) => ({ ...s, periodeId: e.target.value }))}
+        >
+          <option value="">Pilih periode</option>
+          {periode.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nama}
+            </option>
+          ))}
+        </Pilihan>
+      </Bagian>
+
+      <ModalKonfirmasi
+        kode="M-01"
+        buka={modal}
+        saatUbah={(b) => !sibuk && setModal(b)}
+        judul="Konfirmasi Terbitkan"
+        labelKonfirmasi="Terbitkan"
+        memuat={sibuk}
+        galat={galatModal}
+        saatKonfirmasi={konfirmasiTerbitkan}
+      >
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+          <dt className="text-sogan-700">Skema</dt>
+          <dd className="font-semibold">{namaSkema}</dd>
+          <dt className="text-sogan-700">Versi</dt>
+          <dd className="font-semibold">{templat.versi}</dd>
+          <dt className="text-sogan-700">Periode Berlaku</dt>
+          <dd className="font-semibold">{namaPeriode}</dd>
+          <dt className="text-sogan-700">Bagian</dt>
+          <dd className="angka font-semibold">{isian.bagian.length}</dd>
+          <dt className="text-sogan-700">Lampiran Wajib</dt>
+          <dd className="angka font-semibold">{isian.lampiran.length}</dd>
+        </dl>
+        <p className="mt-3 text-sogan-700">
+          Templat versi {templat.versi} menggantikan templat yang berlaku dan butir cek turunannya dibuat sebagai draf.
+          {masaBerjalan ? " Masa pengusulan sedang berjalan, sehingga hasilnya dapat berupa draf." : ""}
+        </p>
+      </ModalKonfirmasi>
+    </div>
+  );
+}

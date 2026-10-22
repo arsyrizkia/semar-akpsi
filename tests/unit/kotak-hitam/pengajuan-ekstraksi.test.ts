@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak, spesifikasi, dan real use case, tanpa melihat isi metode.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-21 TemplatProposal.potongPerBagian dan C-16 sampai C-20 atas naskah DOCX/PDF contoh; CRC VersiProposal.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";

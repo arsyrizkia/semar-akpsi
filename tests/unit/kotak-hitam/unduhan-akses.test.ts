@@ -1,4 +1,4 @@
-// Uji kotak hitam: aturan akses unduhan berkas proposal dan kepala respons unduhan.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Class Diagram Proposal 1 - 0..* PenugasanReviewer dan CRC Proposal (hanya reviewer penugasan dan Tim Kerja boleh mengunduh berkas); unduhan berkas adalah tambahan prototipe.
 import { describe, expect, it } from "vitest";
 import { bentukNamaBerkas, bolehUnduhBerkasProposal, dispositionUnduhan, kepalaUnduhan } from "@/lib/unduhan";
 

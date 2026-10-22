@@ -7,7 +7,7 @@ import { ambilPengaturanDemo } from "@/lib/waktu";
 import { FormPengajuan } from "./form-pengajuan";
 import { SakelarMasaBima } from "./sakelar-masa";
 
-export const metadata: Metadata = { title: "Pengajuan proposal (simulasi)" };
+export const metadata: Metadata = { title: "Pengajuan proposal (simulasi BIMA)" };
 export const dynamic = "force-dynamic";
 
 const PUNYA_HASIL = new Set(["Diajukan ke SEMAR", "Terkirim", "Ditahan", "Ditolak"]);
@@ -15,6 +15,7 @@ const PUNYA_HASIL = new Set(["Diajukan ke SEMAR", "Terkirim", "Ditahan", "Ditola
 /**
  * Halaman pengajuan di BIMA tiruan (UC-05 langkah 1): pengusul mengunggah proposal beserta lampiran lalu menekan
  * "Ajukan Usulan". BIMA meneruskan pengusul ke J-06 di SEMAR membawa idProposal dan identitas pengusul.
+ * Gaya sengaja netral (abu-abu, font sistem), berbeda dari SEMAR.
  */
 export default async function Pengajuan({ searchParams }: { searchParams: Promise<{ proposal?: string; baru?: string; galat?: string }> }) {
   const akun = await wajibPengusulBima();
@@ -28,46 +29,57 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
   return (
     <section className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Pengajuan proposal</h1>
-        <p className="mt-1 text-slate-600">Masuk sebagai {akun.nama} ({akun.institusi}).</p>
+        <h1 className="text-2xl font-bold text-slate-900!">Pengajuan proposal</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Masuk sebagai {akun.nama} ({akun.institusi}).
+        </p>
       </div>
 
       <SakelarMasaBima masa={pengaturan.masaPengusulan} />
 
       {q.galat ? (
-        <p role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-800">
+        <p role="alert" className="border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900">
           {q.galat === "token" ? "Pengajuan tidak dapat dilanjutkan. Silakan ajukan kembali." : "Usulan tidak ditemukan."}
         </p>
       ) : null}
 
       {usulan.length ? (
         <div>
-          <h2 className="mb-2 text-lg font-semibold">Usulan Anda</h2>
-          <div className="overflow-x-auto rounded border border-slate-300 bg-white">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-900!">Usulan Anda</h2>
+            {!tampilForm ? (
+              <Link href="/bima/pengajuan?baru=1" className="text-sm font-semibold text-slate-900 underline underline-offset-2">
+                Buat usulan baru
+              </Link>
+            ) : null}
+          </div>
+          <div className="overflow-x-auto border border-slate-300 bg-white">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-slate-100 text-slate-800">
+              <thead className="bg-slate-200 text-slate-800">
                 <tr>
-                  <th scope="col" className="px-3 py-2">ID Proposal</th>
-                  <th scope="col" className="px-3 py-2">Judul</th>
-                  <th scope="col" className="px-3 py-2">Status</th>
-                  <th scope="col" className="px-3 py-2">Tindakan</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">ID Proposal</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Judul</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Status</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Tindakan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {usulan.map((u) => (
-                  <tr key={u.id}>
+                  <tr key={u.id} className={terpilih?.id === u.id ? "bg-slate-50" : undefined}>
                     <td className="px-3 py-2 align-top font-mono text-xs">{u.id}</td>
                     <td className="px-3 py-2 align-top">{u.judul}</td>
-                    <td className="px-3 py-2 align-top">{u.statusBima}</td>
+                    <td className="px-3 py-2 align-top">
+                      <span className="border border-slate-400 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800">{u.statusBima}</span>
+                    </td>
                     <td className="px-3 py-2 align-top">
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         {u.statusBima !== "Terkirim" ? (
-                          <Link href={`/bima/pengajuan?proposal=${encodeURIComponent(u.id)}`} className="text-slate-900 underline underline-offset-2">
+                          <Link href={`/bima/pengajuan?proposal=${encodeURIComponent(u.id)}`} className="font-medium text-slate-900 underline underline-offset-2">
                             {u.statusBima === "Draf" ? "Ajukan" : "Ajukan ulang"}
                           </Link>
                         ) : null}
                         {PUNYA_HASIL.has(u.statusBima) ? (
-                          <a href={`/bima/pengajuan/hasil/${encodeURIComponent(u.id)}`} className="text-slate-900 underline underline-offset-2">
+                          <a href={`/bima/pengajuan/hasil/${encodeURIComponent(u.id)}`} className="font-medium text-slate-900 underline underline-offset-2">
                             Lihat hasil pemeriksaan
                           </a>
                         ) : null}
@@ -78,19 +90,12 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
               </tbody>
             </table>
           </div>
-          {!tampilForm ? (
-            <p className="mt-3">
-              <Link href="/bima/pengajuan?baru=1" className="underline underline-offset-2">
-                Buat usulan baru
-              </Link>
-            </p>
-          ) : null}
         </div>
       ) : null}
 
       {tampilForm ? (
         <div>
-          <h2 className="mb-2 text-lg font-semibold">{terpilih ? `Ajukan: ${terpilih.id}` : "Usulan baru"}</h2>
+          <h2 className="mb-2 text-lg font-semibold text-slate-900!">{terpilih ? `Ajukan: ${terpilih.id}` : "Usulan baru"}</h2>
           <FormPengajuan
             key={terpilih?.id ?? "baru"}
             skema={skema}

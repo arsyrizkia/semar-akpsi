@@ -24,10 +24,10 @@ import {
 } from "./draf";
 import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
+import { butirTerkunci, PESAN_TERKUNCI } from "./status";
 import { ringkasParameter, validasiButir, type GalatButir, type MasukanButir } from "./parameter";
 import { validasiTanggalBerlaku } from "./tanggal";
 
-export const PESAN_TERKUNCI = "Nilai butir ini berasal dari templat dan hanya dapat diubah melalui jendela J-02 Templat Proposal";
 
 export interface InfoBasis {
   id: string;
@@ -140,7 +140,7 @@ export async function simpanButir(m: MasukanSimpanButir): Promise<HasilSimpanBut
   if (m.butirId) {
     const [b] = await db.select().from(butirCek).where(eq(butirCek.id, m.butirId));
     if (!b) return { ok: false, galat: {}, pesan: "Butir tidak ditemukan. Muat ulang halaman." };
-    if (b.asal === "templat") return { ok: false, terkunci: true, galat: {}, pesan: PESAN_TERKUNCI }; // 4a
+    if (butirTerkunci(b.asal)) return { ok: false, terkunci: true, galat: {}, pesan: PESAN_TERKUNCI }; // 4a
     sasaran = b;
   }
 
@@ -185,7 +185,7 @@ export async function simpanButir(m: MasukanSimpanButir): Promise<HasilSimpanBut
 /** Cek 4a tanpa menyimpan apa pun: apakah tombol "Ubah" boleh membuka panel butir. */
 export async function periksaKunciButir(butirId: string): Promise<{ terkunci: boolean; pesan?: string }> {
   const [b] = await getDb().select().from(butirCek).where(eq(butirCek.id, butirId));
-  return b?.asal === "templat" ? { terkunci: true, pesan: PESAN_TERKUNCI } : { terkunci: false };
+  return b && butirTerkunci(b.asal) ? { terkunci: true, pesan: PESAN_TERKUNCI } : { terkunci: false };
 }
 
 export type HasilNonaktifkan = { ok: true; kode: string } | { ok: false; terkunci?: boolean; pesan: string };
@@ -195,7 +195,7 @@ export async function nonaktifkanButir(m: { skemaId: string; butirId: string; pe
   const db = getDb();
   const [b] = await db.select().from(butirCek).where(eq(butirCek.id, m.butirId));
   if (!b) return { ok: false, pesan: "Butir tidak ditemukan. Muat ulang halaman." };
-  if (b.asal === "templat") return { ok: false, terkunci: true, pesan: PESAN_TERKUNCI };
+  if (butirTerkunci(b.asal)) return { ok: false, terkunci: true, pesan: PESAN_TERKUNCI };
   return db.transaction(async (tx) => {
     const draf = await pastikanDrafBasis(tx, m.skemaId, m.pelaku.id);
     const target = b.basisAturanId === draf.id ? b : await cariButirDenganKode(tx, draf.id, b.kode, "manual");

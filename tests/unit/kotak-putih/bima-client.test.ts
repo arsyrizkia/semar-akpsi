@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): diturunkan dari spesifikasi metode; menjalankan setiap cabang/jalur.
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: klien BIMA tiruan (percobaan ulang otomatis maksimal 2 kali, NFR 4.4) yang dipanggil Method Specification MS-01 pada tarikDariBima; dijalankan terhadap stub.
 import { describe, expect, it } from "vitest";
 import { BimaGagalError, buatKlienBima } from "@/lib/bima/client";
 import { buatStubBima } from "../stub/bima";

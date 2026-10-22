@@ -17,7 +17,8 @@ const varian = {
   garis: "border border-sogan-500 bg-white text-sogan-800 hover:bg-sogan-50 disabled:border-sogan-200 disabled:text-sogan-400",
 } as const;
 
-const ukuran = { sm: "h-8 px-3 text-sm", md: "h-10 px-4 text-sm", lg: "h-11 px-5 text-base" } as const;
+/** Layar sentuh (pointer kasar) memakai target minimal 44 px; penunjuk halus tetap padat untuk tabel kerja. */
+const ukuran = { sm: "h-8 pointer-coarse:h-11 px-3 text-sm", md: "h-10 pointer-coarse:h-11 px-4 text-sm", lg: "h-11 px-5 text-base" } as const;
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   varian?: keyof typeof varian;

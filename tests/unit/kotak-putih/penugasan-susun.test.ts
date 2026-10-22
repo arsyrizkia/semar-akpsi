@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): diturunkan dari spesifikasi metode; menjalankan setiap cabang/jalur.
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-04 susunPenugasan (Contract C-13); setiap cabang/jalur.
 import { describe, expect, it } from "vitest";
 import { susunUsulanMurni, type KandidatReviewer, type ProposalPenugasan } from "@/lib/penugasan/aturan";
 
@@ -80,5 +80,45 @@ describe("susunUsulanMurni pada skala nyata (10.000 proposal)", () => {
     const h = susunUsulanMurni(proposal, reviewer, {}, 60);
     expect(Date.now() - mulai).toBeLessThan(5000);
     expect(h.belumDitugaskan.length).toBeGreaterThanOrEqual(10_000 - 60 * 130);
+  });
+});
+
+describe("susunUsulanMurni: cabang tambahan (MS-04)", () => {
+  it("KP-susunUsulanMurni-08: tanpa proposal tidak menghasilkan penugasan maupun kekurangan", () => {
+    const h = susunUsulanMurni([], [rev("r1", "A")], {}, 3);
+    expect(h).toEqual({ penugasan: [], belumDitugaskan: [], beban: { r1: 0 } });
+  });
+
+  it("KP-susunUsulanMurni-09: tanpa reviewer semua proposal belum ditugaskan", () => {
+    const h = susunUsulanMurni([prop("p1", "A"), prop("p2", "B")], [], {}, 3);
+    expect(h.penugasan).toEqual([]);
+    expect(h.belumDitugaskan.sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("KP-susunUsulanMurni-10: institusi dinormalisasi (huruf besar dan spasi tepi) saat memilih reviewer layak", () => {
+    const h = susunUsulanMurni([prop("p1", "  universitas a ")], [rev("r1", "Universitas A"), rev("r2", "Universitas B")], {}, 3);
+    expect(h.penugasan).toEqual([{ proposalId: "p1", reviewerId: "r2" }]);
+  });
+
+  it("KP-susunUsulanMurni-11: kapasitas sisa nol (semua reviewer penuh oleh beban awal) melewati jalur penambah", () => {
+    const h = susunUsulanMurni([prop("p1", "Z")], [rev("r1", "A"), rev("r2", "B")], { r1: 2, r2: 2 }, 2);
+    expect(h.penugasan).toEqual([]);
+    expect(h.belumDitugaskan).toEqual(["p1"]);
+  });
+
+  it("KP-susunUsulanMurni-12: setelah 25 kegagalan jalur penambah beruntun sisa proposal langsung dilaporkan kekurangan", () => {
+    // 30 proposal berinstitusi B hanya cocok dengan r1 (kapasitas 2); r2 (institusi B) masih longgar tetapi tidak layak.
+    const proposal = Array.from({ length: 30 }, (_, i) => prop(`p${String(i).padStart(2, "0")}`, "B"));
+    const h = susunUsulanMurni(proposal, [rev("r1", "A"), rev("r2", "B")], {}, 2);
+    expect(h.penugasan).toHaveLength(2);
+    expect(h.belumDitugaskan).toHaveLength(28);
+    expect(h.beban.r1).toBe(2);
+  });
+
+  it("KP-susunUsulanMurni-13: beban akhir memuat beban awal reviewer yang tidak mendapat proposal baru", () => {
+    const h = susunUsulanMurni([prop("p1", "A")], [rev("r1", "A"), rev("r2", "B"), rev("r3", "C")], { r1: 1, r3: 2 }, 5);
+    expect(h.beban.r1).toBe(1);
+    expect(h.beban.r2).toBe(1); // beban paling sedikit dan institusi beda: r2
+    expect(h.beban.r3).toBe(2);
   });
 });

@@ -57,6 +57,7 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | MS-11 | terbitkan (9a, arsipkan, turunkanButirCek) | C-02 | `templat/layanan.ts:{terbitkan, gantiTemplatBerlaku, arsipkan, nonaktifkanTurunanLama}`, `seed-butir.ts:turunkanButirDariTemplat` | — |
 | MS-12 | validasiTanggalBerlaku | C-08 | `aturan/tanggal.ts:validasiTanggalBerlaku` | — |
 | MS-13 | cekKataKunci | C-17 | `pemeriksa/deterministik/pemeriksa.ts:cekKataKunci` | — |
+| MS-14 | uraikanAturanHitung / validasiButir | C-06 | `aturan/parameter.ts:{uraikanAturanHitung, validasiButir}` | — |
 
 ## 3. Contracts
 
@@ -671,9 +672,24 @@ Semua spesifikasi: Programmer "Kelompok AKPSI (prototipe)", Date Due 2026-10-22,
 | Algorithm Specification | SET mentah = trim(dokumen.kataKunci ATAU "")<br>SET namaPemisah = nama pemisah (`;` titik koma, `,` koma, `\|` garis tegak) ATAU pemisah dikutip<br>[J1] IF mentah kosong THEN RETURN Gagal "kata kunci tidak ditemukan di naskah"<br>SET daftar = mentah dipecah pada pemisah, tiap item di-trim, item kosong dibuang<br>[J2] IF jumlah daftar = jumlah THEN RETURN Lolos<br>SET petunjuk = ""<br>[J3] IF jumlah daftar = 1 DAN mentah memuat koma atau baris baru DAN pemisah ≠ "," THEN petunjuk = "; tanda pemisah yang dipakai bukan <namaPemisah>"<br>[J4] RETURN Gagal (jumlah terbaca, jumlah diminta, petunjuk) |
 | Misc. Notes | Empat jalur. Uji batas: 4, 5 (J2), 6 item; pemisah tertinggal di ujung (tetap 5, J2); pemisah koma saat diminta titik koma (J3 lalu J4); spasi ganda dan item kosong antara dua pemisah (`"a;;b"`) dibuang sehingga dihitung dua item; duplikat dihitung terpisah. |
 
+### MS-14 uraikanAturanHitung / validasiButir
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID / Contract ID | `uraikanAturanHitung` dan `validasiButir` / ButirCek / MS-14 / C-06 |
+| Programmer / Date Due / Language | Kelompok AKPSI (prototipe) / 2026-10-23 / TypeScript |
+| Triggers/Events | "Simpan Butir" pada M-02 (UC-02 langkah 4 sampai 5) |
+| Arguments Received | `uraikanAturanHitung(teks: string, bagian: string)`; `validasiButir(m: MasukanButir)` |
+| Messages Sent & Arguments Passed | `uraikanAturanHitung(aturan, m.bagian)` → `HasilUrai`; tabel `PEMERIKSA_PER_TIPE` dan `KOMPONEN_PER_TIPE` |
+| Arguments Returned | `HasilUrai = {ok: true; parameter} \| {ok: false; pesan}`; `HasilValidasiButir = {ok: true; nilai} \| {ok: false; galat}` |
+| Algorithm Specification | `uraikanAturanHitung`: SET t = huruf kecil(teks)<br>[J1] IF t memuat "kata kunci" THEN SET jumlah = angka 1 sampai 2 digit pertama ATAU kata satu..sepuluh ATAU 0; [J1a] IF jumlah = 0 THEN RETURN galat "Sebutkan jumlah kata kunci…"; SET pemisah = ";" bila memuat "titik koma", "," bila memuat "koma", selain itu ";"; RETURN kata_kunci<br>[J2] IF t memuat "jumlah referensi\|pustaka\|rujukan" THEN RETURN jumlah_referensi_sama<br>[J3] IF t memuat "pustaka" DAN "urut" THEN RETURN pustaka_berurutan<br>[J4] IF t memuat "sitasi" ATAU "kutipan" THEN RETURN sitasi_bernomor<br>[J5] IF t memuat "diagram alir" THEN RETURN (bagian kosong ? galat "Pilih bagian…" : diagram_alir)<br>[J6] IF t memuat "judul" DAN ("sama" ATAU "identik") THEN RETURN judul_sama<br>[J7] IF t memuat "struktur", "templat sesuai", atau "urutan bagian" THEN RETURN struktur_judul<br>[J8] IF t memuat "terisi" ATAU "tidak kosong" THEN RETURN (bagian kosong ? galat : bagian_terisi)<br>[J9] RETURN galat "Aturan Hitung belum dikenali sistem."<br>`validasiButir`: SET kode, deskripsi = trim<br>[K1] IF kode kosong THEN galat.kode ELSE [K2] IF kode tidak cocok `^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$` THEN galat.kode<br>[K3] IF deskripsi kosong THEN galat.deskripsi; [K4] IF jenis bukan dua nilai baku THEN galat.jenis<br>[K5] IF jenis = deterministik: IF aturanHitung kosong THEN galat; ELSE uraikan; IF gagal THEN galat; ELSE IF tanpa galat lain THEN RETURN nilai (pemeriksa, komponen dari tabel tipe)<br>[K6] ELSE IF jenis = semantik: IF pertanyaan kosong THEN galat; IF bagian kosong THEN galat; IF tanpa galat THEN RETURN nilai (lampiran opsional)<br>[K7] RETURN {ok: false, galat} |
+| Misc. Notes | Urutan pengujian J1 sampai J8 menentukan hasil bila beberapa kata kunci muncul bersamaan; uji putih memakai satu kasus per jalur dan kasus bentrok. Kode 20 karakter sah (K2), 21 tidak sah. Diuji `KP-uraikanAturanHitung-01..05` dan `KP-validasiButir-01..07`. |
+
 ## 5. Tambahan
 
-Tidak ada ID tambahan (C-32 dan seterusnya, MS-14 dan seterusnya) yang diperlukan: seluruh metode uji pada daftar tetap terpetakan ke fungsi implementasi, dan `buatDokumenTemplat` (C-31, MS-10) sudah ada di `templat/dokumen.ts`. Fungsi yang tidak punya kontrak sendiri karena merupakan pembantu: `normalisasiJudul`, `normalisasiJudulProposal`, `nomorSitasi`, `entriPustaka`, `periksaSatuButir` (pengarah per butir; cabang bawaan "butir tanpa parameter terstruktur" dan "tipe tidak dikenali" Gagal, layak diuji putih bersama C-16 sampai C-20), `bersihkanKomponen`, `komponenLengkap`, dan `validasiKoreksi` (termasuk dalam C-26). Bila perakit uji membutuhkan kontrak sendiri untuk `periksaSatuButir`, usulan ID: C-32 `ButirCek.periksa` (seq-uc06 `periksa(teksBagian)`).
+Hanya MS-14 yang ditambahkan (C-06 sebelumnya tanpa spesifikasi metode); ID C-32 dan seterusnya tidak diperlukan: seluruh metode uji pada daftar tetap terpetakan ke fungsi implementasi, dan `buatDokumenTemplat` (C-31, MS-10) sudah ada di `templat/dokumen.ts`. Fungsi yang tidak punya kontrak sendiri karena merupakan pembantu: `normalisasiJudul`, `normalisasiJudulProposal`, `nomorSitasi`, `entriPustaka`, `periksaSatuButir` (pengarah per butir; cabang bawaan "butir tanpa parameter terstruktur" dan "tipe tidak dikenali" Gagal, layak diuji putih bersama C-16 sampai C-20), `bersihkanKomponen`, `komponenLengkap`, dan `validasiKoreksi` (termasuk dalam C-26). Bila perakit uji membutuhkan kontrak sendiri untuk `periksaSatuButir`, usulan ID: C-32 `ButirCek.periksa` (seq-uc06 `periksa(teksBagian)`).
+
+Fungsi murni baru pada putaran 22 Okt 2026 dan kontrak induknya: `putuskanTerbitkan` dan `transisiTemplat` (`templat/status.ts`, bagian dari MS-11 dan C-02/C-04; state machine TemplatProposal Draf, Terbit, Arsip); `transisiButir` dan `butirTerkunci` (`aturan/status.ts`, C-07 dan C-06 Q5); `susunBarisUji` dan `ringkasPerContoh` (`aturan/uji.ts`, C-10); `bersihkanIsianDraf` (`templat/kelengkapan.ts`, C-01); `transisiPenugasan` dan `bolehDipindahkan` (`penugasan/status.ts`, C-14/C-15); `periodeDitutup`, `ringkasStatusPenetapan`, dan penomoran halaman (`penugasan/periode.ts`, C-11); `tandaiPerluDitinjau` dan `pilahButirDitandai` (`pemantauan/status-butir.ts`, C-30); `ringkasKeputusan`, `ringkasRekomendasi`, dan transisi penilaian (`penilaian/status.ts`, C-26 sampai C-28).
 
 ## 6. Selisih antara naskah dan kode yang ditemukan
 

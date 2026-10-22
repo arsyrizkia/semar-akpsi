@@ -1,78 +1,89 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LogoSemar } from "@/components/merek";
-import { Alert, Badge, JudulHalaman, Panel } from "@/components/ui";
 import { desc } from "drizzle-orm";
+import { LogoSemar } from "@/components/merek";
+import { Alert, Bagian, KepalaHalaman, KeadaanKosong, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { getDb } from "@/db";
 import { logAudit } from "@/db/schema";
 import { formatWaktu } from "@/lib/utils";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { modeLlm } from "@/lib/llm/konfigurasi";
-import { KATALOG_JENDELA, alamatSkenario } from "@/lib/demo/katalog";
+import { KATALOG_JENDELA, alamatPindah, alamatSkenario } from "@/lib/demo/katalog";
 import { KontrolDemo } from "./kontrol-demo";
 
-export const metadata: Metadata = { title: "Demo", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Pusat Demo", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-interface Kartu {
+interface BarisUc {
   kode: string;
   judul: string;
   peran: string;
-  jendela: string;
+  layar: string;
   catatan?: string;
 }
 
-const UC: Kartu[] = [
-  { kode: "UC-01", judul: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", jendela: "J-02" },
-  { kode: "UC-01-S1", judul: "Mengelola templat proposal: skema belum punya templat (S-1)", peran: "Tim Kerja (pengelola)", jendela: "J-02", catatan: "Skema contoh tanpa templat" },
-  { kode: "UC-02", judul: "Mengelola aturan pemeriksaan", peran: "Tim Kerja (pengelola)", jendela: "J-03" },
-  { kode: "UC-03", judul: "Menugaskan reviewer", peran: "Tim Kerja DPPM", jendela: "J-04" },
-  { kode: "UC-04", judul: "Memantau kesesuaian penilaian", peran: "Tim Kerja DPPM", jendela: "J-05" },
-  { kode: "UC-05", judul: "Mengajukan proposal", peran: "Pengusul", jendela: "BIMA tiruan, J-06" },
-  { kode: "UC-06", judul: "Memeriksa butir deterministik", peran: "Sistem (di dalam UC-05)", jendela: "J-06", catatan: "Memakai proposal yang gagal jumlah kata" },
-  { kode: "UC-07", judul: "Melakukan pemeriksaan akhir", peran: "Reviewer", jendela: "J-07, J-08" },
-  { kode: "UC-08", judul: "Mengoreksi rekomendasi sistem", peran: "Reviewer (di dalam UC-07)", jendela: "J-08" },
-  { kode: "UC-09", judul: "Memeriksa butir semantik", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Hasil LLM mode tiruan" },
-  { kode: "UC-09-S1", judul: "Memeriksa butir semantik: kutipan LLM tidak ditemukan (S-1)", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Perlu diperiksa manual" },
-  { kode: "UC-09-S2", judul: "Memeriksa butir semantik: LLM tidak merespons (S-2)", peran: "Sistem (latar belakang); pendukung: Layanan LLM", jendela: "J-08", catatan: "Belum ada rekomendasi" },
+const UC: BarisUc[] = [
+  { kode: "UC-01", judul: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", layar: "J-02, J-02b" },
+  { kode: "UC-01-S1", judul: "Mengelola templat: skema belum punya templat (S-1)", peran: "Tim Kerja (pengelola)", layar: "J-02", catatan: "Skema contoh tanpa templat" },
+  { kode: "UC-02", judul: "Mengelola aturan pemeriksaan", peran: "Tim Kerja (pengelola)", layar: "J-03, J-03b" },
+  { kode: "UC-03", judul: "Menugaskan reviewer", peran: "Tim Kerja DPPM", layar: "J-04, J-04b" },
+  { kode: "UC-04", judul: "Memantau kesesuaian penilaian", peran: "Tim Kerja DPPM", layar: "J-05, J-05b" },
+  { kode: "UC-05", judul: "Mengajukan proposal", peran: "Pengusul", layar: "BIMA, J-06" },
+  { kode: "UC-06", judul: "Memeriksa butir deterministik", peran: "Sistem (di dalam UC-05)", layar: "J-06", catatan: "Proposal yang gagal jumlah kata" },
+  { kode: "UC-07", judul: "Melakukan pemeriksaan akhir", peran: "Reviewer", layar: "J-07, J-08, J-08b" },
+  { kode: "UC-08", judul: "Mengoreksi rekomendasi sistem", peran: "Reviewer (di dalam UC-07)", layar: "J-08" },
+  { kode: "UC-09", judul: "Memeriksa butir semantik", peran: "Sistem; pendukung: Layanan LLM", layar: "J-08", catatan: "Hasil LLM mode tiruan" },
+  { kode: "UC-09-S1", judul: "Semantik: kutipan LLM tidak ditemukan (S-1)", peran: "Sistem; pendukung: Layanan LLM", layar: "J-08", catatan: "Perlu diperiksa manual" },
+  { kode: "UC-09-S2", judul: "Semantik: LLM tidak merespons (S-2)", peran: "Sistem; pendukung: Layanan LLM", layar: "J-08", catatan: "Belum ada rekomendasi" },
 ];
 
 /** Judul dan kondisi mengikuti Tabel use scenario Bab 10.1 (us-05a..us-07c). */
-const SKENARIO: Kartu[] = [
-  { kode: "UC-05a", judul: "Proposal terkirim pada pengajuan pertama", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Semua butir lolos (Terkirim)" },
-  { kode: "UC-05b", judul: "Proposal ditahan lalu terkirim setelah diperbaiki", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan (Metode melebihi batas), lalu Ajukan ulang dengan naskah perbaikan (Terkirim V2)" },
-  { kode: "UC-05c", judul: "Proposal ditahan lalu ditolak karena masa pengusulan ditutup", peran: "Pengusul", jendela: "BIMA, J-06", catatan: "Ditahan, tutup masa di BIMA, Ajukan ulang (Ditolak, 3a)" },
-  { kode: "UC-07a", judul: "Menyetujui seluruh rekomendasi", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Tanpa koreksi, lalu Simpan Permanen" },
-  { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Mulai dari J-07 (Periksa), lalu Tidak Setuju pada satu butir (UC-08)" },
-  { kode: "UC-07c", judul: "Menyimpan sementara lalu melanjutkan", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Langkah 3-4 (isi sebagian, Simpan Sementara) disiapkan otomatis: Draf sudah terisi" },
-  { kode: "UC-07c-awal", judul: "Menyimpan sementara lalu melanjutkan: dari awal", peran: "Reviewer", jendela: "J-07, J-08", catatan: "Mulai dari label Baru; Simpan Sementara diperagakan sendiri" },
+const SKENARIO: BarisUc[] = [
+  { kode: "UC-05a", judul: "Proposal terkirim pada pengajuan pertama", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Semua butir lolos (Terkirim)" },
+  { kode: "UC-05b", judul: "Proposal ditahan lalu terkirim setelah diperbaiki", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Ditahan (Metode melebihi batas), lalu Ajukan ulang dengan naskah perbaikan (Terkirim V2)" },
+  { kode: "UC-05c", judul: "Proposal ditahan lalu ditolak karena masa pengusulan ditutup", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Ditahan, tutup masa di BIMA, Ajukan ulang (Ditolak, 3a)" },
+  { kode: "UC-07a", judul: "Menyetujui seluruh rekomendasi", peran: "Reviewer", layar: "J-07, J-08", catatan: "Tanpa koreksi, lalu Simpan Permanen" },
+  { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", layar: "J-07, J-08", catatan: "Mulai dari J-07 (Periksa), lalu Tidak Setuju pada satu butir (UC-08)" },
+  { kode: "UC-07c", judul: "Menyimpan sementara lalu melanjutkan", peran: "Reviewer", layar: "J-07, J-08", catatan: "Draf sudah terisi (langkah 3-4 disiapkan otomatis)" },
+  { kode: "UC-07c-awal", judul: "Menyimpan sementara lalu melanjutkan: dari awal", peran: "Reviewer", layar: "J-07, J-08", catatan: "Mulai dari label Baru; Simpan Sementara diperagakan sendiri" },
 ];
 
-function DaftarKartu({ daftar }: { daftar: Kartu[] }) {
+const kelasTautanKecil = "inline-flex min-h-8 items-center rounded-md border border-sogan-300 bg-white px-2.5 text-xs font-medium text-sogan-800 transition-colors hover:bg-sogan-50";
+
+function TabelUc({ judul, daftar }: { judul: string; daftar: BarisUc[] }) {
   return (
-    <ul className="grid gap-3 md:grid-cols-3">
-      {daftar.map((k) => (
-        <li key={k.kode}>
-          <a
-            href={`/demo/mulai?k=${k.kode}`}
-            rel="nofollow"
-            data-kode={k.kode}
-            className="block h-full rounded-lg border border-sogan-200 bg-krem p-4 hover:border-emas-500 hover:bg-emas-50 focus-visible:outline-3 focus-visible:outline-emas-500"
-          >
-            <span className="flex items-center justify-between gap-2">
-              <Badge warna="emas">{k.kode}</Badge>
-              <span className="text-xs text-sogan-600">{k.jendela}</span>
-            </span>
-            <span className="mt-2 block font-semibold text-sogan-900">{k.judul}</span>
-            <span className="mt-1 block text-xs text-sogan-600">
-              {k.peran}
-              {k.catatan ? ` - ${k.catatan}` : ""}
-            </span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <Table aria-label={judul}>
+      <THead>
+        <TR>
+          <TH>Kode</TH>
+          <TH>Use case</TH>
+          <TH className="hidden md:table-cell">Peran</TH>
+          <TH className="hidden sm:table-cell">Layar</TH>
+          <TH>
+            <span className="sr-only">Tindakan</span>
+          </TH>
+        </TR>
+      </THead>
+      <TBody>
+        {daftar.map((k) => (
+          <TR key={k.kode}>
+            <TD className="whitespace-nowrap font-mono text-xs font-semibold text-sogan-700">{k.kode}</TD>
+            <TD>
+              {k.judul}
+              {k.catatan ? <span className="block text-xs text-abu-600">{k.catatan}</span> : null}
+            </TD>
+            <TD className="hidden text-xs text-abu-700 md:table-cell">{k.peran}</TD>
+            <TD className="hidden whitespace-nowrap text-xs text-abu-700 sm:table-cell">{k.layar}</TD>
+            <TD className="text-right">
+              <a href={`/demo/mulai?k=${k.kode}`} rel="nofollow" data-kode={k.kode} className={kelasTautanKecil} aria-label={`Pasang skenario ${k.kode}: ${k.judul}`}>
+                Pasang
+              </a>
+            </TD>
+          </TR>
+        ))}
+      </TBody>
+    </Table>
   );
 }
 
@@ -82,100 +93,117 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
   const log = await getDb().select().from(logAudit).orderBy(desc(logAudit.id)).limit(20);
   return (
     <>
+      <a href="#isi" className="sr-only-fokus fixed left-2 top-2 z-[60] rounded-md bg-white px-3 py-2 text-sm font-semibold text-sogan-900 focus:not-sr-only">Lewati ke isi</a>
       <header className="latar-kawung text-krem">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/" aria-label="SEMAR, ke halaman awal"><LogoSemar /></Link>
-          <Link href="/masuk" className="text-sm font-semibold text-emas-100 underline underline-offset-2">Masuk sebagai Tim Kerja atau Reviewer</Link>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <Link href="/masuk" aria-label="SEMAR, ke halaman masuk">
+            <LogoSemar />
+          </Link>
+          <Link href="/masuk" className="text-sm font-semibold text-emas-100 underline underline-offset-2">
+            Masuk sebagai Tim Kerja atau Reviewer
+          </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <JudulHalaman
-          kode="DEMO"
+      <main id="isi" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <KepalaHalaman
           judul="Pusat Demo"
-          deskripsi="Siapkan data, atur masa pengusulan, lalu lompat ke jendela mana pun dengan sesi peran yang sesuai. Navigator demo (tombol mengambang di kiri bawah setiap halaman SEMAR dan BIMA tiruan) berpindah antar-jendela dan antar-skenario keadaan."
+          keterangan="Pindah layar tidak mengubah data. Pasang skenario menyiapkan data, lalu membuka layarnya."
+          aksi={
+            <span className="text-xs text-abu-600">
+              Mode LLM: <strong className="font-semibold text-sogan-800">{modeLlm()}</strong>
+            </span>
+          }
         />
-        {galat ? <Alert jenis="galat" judul="Jalan pintas gagal" className="mb-5">{galat === "kode" ? "Kode jalan pintas tidak dikenal." : galat}</Alert> : null}
-        <div className="space-y-6">
-          <Panel judul="Kendali demo">
-            <KontrolDemo masa={pengaturan.masaPengusulan} />
-            <p className="mt-4 text-xs text-sogan-600">
-              Mode LLM: <strong>{modeLlm()}</strong>. Data, akun, dan institusi adalah rekaan. BIMA adalah simulasi, bukan sistem resmi.
-            </p>
-          </Panel>
-          <Panel judul="Skenario keadaan per jendela">
-            <p className="mb-3 text-sm text-sogan-700">
-              Sama dengan Navigator demo: setiap tautan menyiapkan data, memasang sesi peran, lalu membuka jendela dalam keadaan itu.
-            </p>
-            <div className="space-y-4">
+        {galat ? (
+          <Alert jenis="galat" judul="Jalan pintas gagal" className="mb-6">
+            {galat === "kode" ? "Kode jalan pintas tidak dikenal." : galat}
+          </Alert>
+        ) : null}
+
+        <Bagian judul="Kendali data demo">
+          <KontrolDemo masa={pengaturan.masaPengusulan} />
+        </Bagian>
+
+        <Bagian judul="Layar dan skenario">
+          <Table aria-label="Layar SEMAR dan BIMA tiruan">
+            <THead>
+              <TR>
+                <TH>Layar</TH>
+                <TH className="hidden md:table-cell">Peran</TH>
+                <TH>Pindah layar (data tetap)</TH>
+                <TH>Pasang skenario (menyiapkan data)</TH>
+              </TR>
+            </THead>
+            <TBody>
               {KATALOG_JENDELA.map((j) => (
-                <div key={j.kode}>
-                  <p className="mb-1 text-sm font-semibold text-sogan-900">
-                    <span className="font-mono text-emas-700">{j.kode}</span> {j.nama} <span className="font-normal text-sogan-600">({j.peran})</span>
-                  </p>
-                  <ul className="flex flex-wrap gap-2">
-                    {j.skenario.map((sk) => (
-                      <li key={sk.id}>
-                        <a
-                          href={alamatSkenario(j.kode, sk.id)}
-                          rel="nofollow"
-                          data-skenario-kartu={`${j.kode}/${sk.id}`}
-                          title={sk.ringkas}
-                          className="inline-block rounded-md border border-sogan-200 bg-krem px-3 py-1 text-xs hover:border-emas-500 hover:bg-emas-50 focus-visible:outline-3 focus-visible:outline-emas-500"
-                        >
-                          {sk.nama}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <TR key={j.kode}>
+                  <TD className="whitespace-nowrap">
+                    <span className={j.induk ? "pl-4" : undefined}>
+                      <span className="font-mono text-xs font-semibold text-sogan-700">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
+                    </span>
+                  </TD>
+                  <TD className="hidden text-xs text-abu-700 md:table-cell">{j.peran}</TD>
+                  <TD>
+                    <a href={alamatPindah(j.kode)} rel="nofollow" data-pindah={j.kode} className={kelasTautanKecil}>
+                      Buka layar
+                    </a>
+                  </TD>
+                  <TD>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {j.skenario.map((sk) => (
+                        <li key={sk.id}>
+                          <a href={alamatSkenario(j.kode, sk.id)} rel="nofollow" data-skenario-kartu={`${j.kode}/${sk.id}`} title={sk.ringkas} className={kelasTautanKecil}>
+                            {sk.nama}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </TD>
+                </TR>
               ))}
-            </div>
-          </Panel>
-          <Panel judul="Jalan pintas use case">
-            <p className="mb-3 text-sm text-sogan-700">Setiap kartu menyiapkan data yang diperlukan, memasang sesi peran, dan membuka jendela awalnya.</p>
-            <DaftarKartu daftar={UC} />
-          </Panel>
-          <Panel judul="Enam skenario">
-            <p className="mb-3 text-sm text-sogan-700">
-              Keenam kartu mengikuti use scenario Bab 10.1: UC-05 a/b/c (terkirim; ditahan lalu terkirim; ditahan lalu ditolak) dan UC-07 a/b/c (menyetujui seluruh rekomendasi; mengoreksi rekomendasi yang keliru; menyimpan sementara lalu melanjutkan). Varian hasil semantik ada pada kartu UC-09 S-1 dan S-2.
-            </p>
-            <DaftarKartu daftar={SKENARIO} />
-          </Panel>
-          <Panel judul="Log audit (hanya baca)">
-            <p className="mb-3 text-sm text-sogan-700">
-              20 entri terakhir. Tidak ada tombol ubah atau hapus: basis data menolak UPDATE dan DELETE pada tabel ini lewat pemicu (NFR 3.3).
-            </p>
-            {log.length === 0 ? (
-              <p className="text-sm text-sogan-600">Belum ada entri.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-sogan-200 text-sogan-700">
-                      <th className="py-1 pr-3">Waktu</th>
-                      <th className="py-1 pr-3">Aktor</th>
-                      <th className="py-1 pr-3">Aksi</th>
-                      <th className="py-1">Objek</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {log.map((l) => (
-                      <tr key={l.id} className="border-b border-sogan-100">
-                        <td className="whitespace-nowrap py-1 pr-3">{formatWaktu(l.waktu)}</td>
-                        <td className="py-1 pr-3">{l.aktor}</td>
-                        <td className="py-1 pr-3 font-mono">{l.aksi}</td>
-                        <td className="py-1 font-mono">{l.objek}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-          <p className="text-xs text-sogan-600">
-            Akun demo: dppm-pengelola, dppm-anggota, pengusul-1..3, reviewer-1..6. Pemetaan lengkap: docs/peta-uc-jendela.md.
-          </p>
-        </div>
+            </TBody>
+          </Table>
+        </Bagian>
+
+        <Bagian judul="Use case">
+          <TabelUc judul="Jalan pintas use case" daftar={UC} />
+        </Bagian>
+
+        <Bagian judul="Enam skenario Bab 10.1">
+          <TabelUc judul="Skenario use scenario" daftar={SKENARIO} />
+        </Bagian>
+
+        <Bagian judul="Log audit (hanya baca)">
+          {log.length === 0 ? (
+            <KeadaanKosong judul="Belum ada entri log audit" />
+          ) : (
+            <Table aria-label="20 entri log audit terakhir" tinggiMaks="22rem">
+              <THead>
+                <TR>
+                  <TH>Waktu</TH>
+                  <TH>Aktor</TH>
+                  <TH>Aksi</TH>
+                  <TH>Objek</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {log.map((l) => (
+                  <TR key={l.id}>
+                    <TD className="angka whitespace-nowrap text-xs">{formatWaktu(l.waktu)}</TD>
+                    <TD className="text-xs">{l.aktor}</TD>
+                    <TD className="font-mono text-xs">{l.aksi}</TD>
+                    <TD className="font-mono text-xs break-all">{l.objek}</TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+          <p className="mt-2 text-xs text-abu-600">20 entri terakhir; basis data menolak UPDATE dan DELETE pada tabel ini (NFR 3.3).</p>
+        </Bagian>
+
+        <p className="mt-8 border-t border-sogan-200 pt-4 text-xs text-abu-600">
+          Akun demo: dppm-pengelola, dppm-anggota, pengusul-1..3, reviewer-1..6. Data, akun, dan institusi adalah rekaan; BIMA adalah simulasi, bukan sistem resmi.
+        </p>
       </main>
     </>
   );

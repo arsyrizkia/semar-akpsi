@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak, spesifikasi, dan real use case, tanpa melihat isi metode.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-06 ButirCek.aturParameter/ubahParameter (uraikanAturanHitung, validasiButir), Contract C-08 BasisAturan.validasiTanggalBerlaku (8a); CRC ButirCek dan BasisAturan.
 import { describe, expect, it } from "vitest";
 import { MASUKAN_BUTIR_KOSONG, ringkasParameter, uraikanAturanHitung, validasiButir } from "@/lib/aturan/parameter";
 import { PESAN_TANGGAL_DI_TENGAH_MASA, hariWib, uraiTanggalIsian, validasiTanggalBerlaku } from "@/lib/aturan/tanggal";

@@ -15,6 +15,8 @@ export interface OpsiSkemaBima {
   nama: string;
   /** nama lampiran wajib menurut templat terbit skema */
   lampiranWajib: string[];
+  /** ada templat Terbit untuk skema ini (tombol "Unduh Templat" hanya bila ada) */
+  adaTemplat: boolean;
 }
 
 export async function daftarSkemaBima(): Promise<OpsiSkemaBima[]> {
@@ -28,7 +30,7 @@ export async function daftarSkemaBima(): Promise<OpsiSkemaBima[]> {
       .where(and(eq(templatProposal.skemaId, s.id), eq(templatProposal.status, "Terbit")))
       .orderBy(desc(templatProposal.versi))
       .limit(1);
-    hasil.push({ kode: s.kode, nama: s.namaSkema, lampiranWajib: t?.lampiranWajib ?? [] });
+    hasil.push({ kode: s.kode, nama: s.namaSkema, lampiranWajib: t?.lampiranWajib ?? [], adaTemplat: Boolean(t) });
   }
   return hasil;
 }

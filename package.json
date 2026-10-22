@@ -14,7 +14,8 @@
     "e2e": "tsx e2e/jalankan.ts",
     "contoh:proposal": "tsx scripts/buat-proposal-contoh.ts",
     "test:coverage": "vitest run --coverage",
-    "laporan-uji": "tsx scripts/laporan-uji.ts"
+    "laporan-uji": "tsx scripts/laporan-uji.ts",
+    "rencana-uji": "tsx scripts/rencana-uji.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

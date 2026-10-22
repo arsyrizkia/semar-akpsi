@@ -1,88 +1,94 @@
 import type { Metadata } from "next";
-import { Alert, JudulHalaman } from "@/components/ui";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Badge, KeadaanKosong, KepalaHalaman, Table, TBody, TD, TH, THead, TR, kelasTombol } from "@/components/ui";
 import { wajibTimKerja } from "@/lib/auth";
-import {
-  UKURAN_HALAMAN_USULAN,
-  ambilKandidatPengganti,
-  ambilPeriodeTerbaru,
-  ambilSebaranBeban,
-  ambilUsulan,
-  hitungPenugasan,
-  hitungPerluDitugaskan,
-} from "@/lib/penugasan/layanan";
-import { masaPengusulanBerjalan } from "@/lib/waktu";
-import { PapanPenugasan } from "./papan-penugasan";
+import { daftarPeriodeDitutup } from "@/lib/penugasan/layanan";
+import { ringkasStatusPenetapan, type StatusPenetapan } from "@/lib/penugasan/periode";
+import { ambilPeriodeAktif } from "@/lib/waktu";
+import { formatAngka, formatTanggal } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "J-04 Penugasan Reviewer" };
 export const dynamic = "force-dynamic";
-/** Susun dan Tetapkan pada skala 10.000 proposal berjalan sebagai server action halaman ini. */
-export const maxDuration = 300;
 
-const tanggal = new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "Asia/Jakarta" });
-
-const angkaHalaman = (v: string | string[] | undefined) => {
-  const n = Number.parseInt(Array.isArray(v) ? v[0] : (v ?? "1"), 10);
-  return Number.isFinite(n) && n > 0 ? n : 1;
+const warnaPenetapan: Record<StatusPenetapan, "netral" | "emas" | "daun" | "sogan"> = {
+  "Tidak ada proposal": "netral",
+  "Belum disusun": "netral",
+  "Usulan menunggu penetapan": "emas",
+  "Sebagian ditetapkan": "emas",
+  "Seluruhnya ditetapkan": "daun",
 };
 
-/** J-04 Penugasan Reviewer, UC-03. Semua Tim Kerja DPPM (pengelola dan anggota) dapat membukanya. */
-export default async function Halaman({ searchParams }: { searchParams: Promise<{ hal?: string; halT?: string }> }) {
+/** J-04 Penugasan Reviewer (UC-03 s.1): periode yang masa pengusulannya ditutup. Susun, pindah, dan tetapkan ada di J-04b. */
+export default async function Halaman({ searchParams }: { searchParams: Promise<{ susun?: string }> }) {
   await wajibTimKerja();
   const sp = await searchParams;
-  const periode = await ambilPeriodeTerbaru();
-  if (!periode) {
-    return (
-      <>
-        <JudulHalaman kode="J-04" judul="Penugasan Reviewer" />
-        <Alert jenis="info">Belum ada periode seleksi.</Alert>
-      </>
-    );
+  // Tautan skenario demo lama (?susun=1) langsung membuka J-04b periode aktif dengan penyusunan otomatis.
+  if (sp.susun === "1") {
+    const aktif = await ambilPeriodeAktif();
+    if (aktif) redirect(`/tim-kerja/penugasan/${aktif.id}?susun=1`);
   }
-  const ditutup = !(await masaPengusulanBerjalan());
-  const [totalUsulan, totalDitetapkan, perluDitugaskan] = await Promise.all([
-    hitungPenugasan(periode.id, "Diusulkan"),
-    hitungPenugasan(periode.id, "Ditetapkan"),
-    hitungPerluDitugaskan(periode.id),
-  ]);
-  const jumlahHalamanUsulan = Math.max(1, Math.ceil(totalUsulan / UKURAN_HALAMAN_USULAN));
-  const jumlahHalamanDitetapkan = Math.max(1, Math.ceil(totalDitetapkan / UKURAN_HALAMAN_USULAN));
-  const halaman = Math.min(angkaHalaman(sp.hal), jumlahHalamanUsulan);
-  const halamanT = Math.min(angkaHalaman(sp.halT), jumlahHalamanDitetapkan);
-  const [usulan, ditetapkan, sebaran, kandidat] = await Promise.all([
-    ambilUsulan(periode.id, "Diusulkan", { halaman }),
-    ambilUsulan(periode.id, "Ditetapkan", { halaman: halamanT }),
-    ambilSebaranBeban(periode.id, periode.batasBebanReviewer),
-    ambilKandidatPengganti(periode.id),
-  ]);
+  const { periode, jumlahBerjalan } = await daftarPeriodeDitutup();
 
   return (
     <>
-      <JudulHalaman
+      <KepalaHalaman
         kode="J-04"
         judul="Penugasan Reviewer"
-        deskripsi="Susun usulan penugasan sesudah masa pengusulan ditutup: reviewer dari institusi berbeda dengan beban merata. Tinjau, pindahkan bila perlu, lalu tetapkan."
+        keterangan="Pilih periode yang masa pengusulannya sudah ditutup untuk menyusun dan menetapkan penugasan."
+        remah={[{ label: "Penugasan Reviewer" }]}
       />
-      <PapanPenugasan
-        periode={{
-          id: periode.id,
-          nama: periode.nama,
-          tanggalTutup: tanggal.format(periode.tanggalTutup),
-          batas: periode.batasBebanReviewer,
-          ditutup,
-        }}
-        usulan={usulan}
-        totalUsulan={totalUsulan}
-        halaman={halaman}
-        jumlahHalaman={jumlahHalamanUsulan}
-        ditetapkan={ditetapkan}
-        totalDitetapkan={totalDitetapkan}
-        halamanT={halamanT}
-        jumlahHalamanT={jumlahHalamanDitetapkan}
-        ukuranHalaman={UKURAN_HALAMAN_USULAN}
-        perluDitugaskan={perluDitugaskan}
-        sebaran={sebaran}
-        kandidat={kandidat}
-      />
+      {periode.length === 0 ? (
+        <KeadaanKosong judul="Belum ada periode yang masa pengusulannya ditutup">
+          {jumlahBerjalan > 0
+            ? `${jumlahBerjalan} periode masih menerima pengusulan. Di prototipe, tutup masa pengusulan lewat Pusat Demo atau navigator demo.`
+            : "Belum ada periode seleksi."}
+        </KeadaanKosong>
+      ) : (
+        <>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Periode Seleksi</TH>
+                <TH>Tanggal Tutup</TH>
+                <TH angka>Terkirim</TH>
+                <TH angka>Belum Ditugaskan</TH>
+                <TH>Status Penetapan</TH>
+                <TH>
+                  <span className="sr-only">Aksi</span>
+                </TH>
+              </TR>
+            </THead>
+            <TBody>
+              {periode.map((p) => {
+                const status = ringkasStatusPenetapan(p);
+                return (
+                  <TR key={p.id}>
+                    <TD>
+                      <Link href={`/tim-kerja/penugasan/${p.id}`} className="font-semibold text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                        {p.nama}
+                      </Link>
+                    </TD>
+                    <TD>{formatTanggal(p.tanggalTutup)}</TD>
+                    <TD angka>{formatAngka(p.terkirim)}</TD>
+                    <TD angka>{formatAngka(p.belumDitugaskan)}</TD>
+                    <TD>
+                      <Badge warna={warnaPenetapan[status]}>{status}</Badge>
+                      {p.diusulkan > 0 ? <span className="ml-2 text-xs text-sogan-700">{formatAngka(p.diusulkan)} usulan</span> : null}
+                    </TD>
+                    <TD className="text-right">
+                      <Link href={`/tim-kerja/penugasan/${p.id}`} className={kelasTombol("sekunder", "sm")}>
+                        Buka Usulan
+                      </Link>
+                    </TD>
+                  </TR>
+                );
+              })}
+            </TBody>
+          </Table>
+          {jumlahBerjalan > 0 ? <p className="mt-3 text-xs text-sogan-700">{jumlahBerjalan} periode lain masih menerima pengusulan dan belum tampil di sini.</p> : null}
+        </>
+      )}
     </>
   );
 }

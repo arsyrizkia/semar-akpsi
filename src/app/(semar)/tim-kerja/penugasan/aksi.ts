@@ -10,6 +10,7 @@ import type { HasilPilihReviewer } from "@/lib/kontrak/tipe";
 import type { HasilPindahAksi, HasilSusunAksi, HasilTetapkanAksi } from "./tipe";
 
 const JALUR = "/tim-kerja/penugasan";
+const segarkan = () => revalidatePath(JALUR, "layout");
 const skemaUuid = z.string().uuid();
 
 /** UC-03 s.2-5, S-1: "Susun Usulan Penugasan". */
@@ -18,13 +19,13 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
   const periodeId = skemaUuid.safeParse(data.get("periodeId"));
   const batas = Number(String(data.get("batas") ?? "").trim());
   if (!periodeId.success) return { galat: "Periode tidak dikenali." };
-  if (!Number.isInteger(batas) || batas < 1) return { galat: "Isi \"Batas Beban per Reviewer\" dengan bilangan bulat minimal 1." };
+  if (!Number.isInteger(batas) || batas < 1) return { galat: "Isi “Batas Beban per Reviewer” dengan bilangan bulat minimal 1." };
   try {
     const mulai = Date.now();
     await catatLogAudit({ aktor: sesi.akun.idBima, aksi: "minta_susun_penugasan", objek: `periode:${periodeId.data}`, rincian: { batas } });
     const hasil = await susunPenugasan(periodeId.data, batas);
     const durasiMs = Date.now() - mulai;
-    revalidatePath(JALUR);
+    segarkan();
     if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan, batasDipakai: batas, durasiMs };
     return { berhasil: true, jumlahUsulan: hasil.jumlahUsulan, durasiMs };
   } catch (e) {
@@ -39,10 +40,10 @@ export async function aksiPindah(penugasanId: string, reviewerBaruId: string): P
   const sesi = await wajibTimKerja();
   const a = skemaUuid.safeParse(penugasanId);
   const b = skemaUuid.safeParse(reviewerBaruId);
-  if (!a.success || !b.success) return { diterima: false, syaratDilanggar: [], galat: "Pilih \"Reviewer Pengganti\" terlebih dahulu." };
+  if (!a.success || !b.success) return { diterima: false, syaratDilanggar: [], galat: "Pilih “Reviewer Pengganti” terlebih dahulu." };
   try {
     const hasil: HasilPilihReviewer = await pilihReviewer(a.data, b.data, sesi.akun.idBima);
-    revalidatePath(JALUR);
+    segarkan();
     return { diterima: hasil.diterima, syaratDilanggar: hasil.syaratDilanggar };
   } catch (e) {
     return { diterima: false, syaratDilanggar: [], galat: e instanceof Error ? e.message : "Pemindahan gagal disimpan." };
@@ -58,11 +59,11 @@ export async function aksiTetapkan(periodeId: string): Promise<HasilTetapkanAksi
     const mulai = Date.now();
     const { jumlah } = await tetapkanPenugasan(id.data, sesi.akun.idBima);
     const durasiMs = Date.now() - mulai;
-    revalidatePath(JALUR);
+    segarkan();
     if (jumlah === 0) return { berhasil: false, galat: "Belum ada usulan penugasan yang dapat ditetapkan." };
     return { berhasil: true, jumlah, durasiMs };
   } catch (e) {
-    revalidatePath(JALUR);
+    segarkan();
     if (e instanceof BimaGagalError) {
       return { berhasil: false, gagalBima: true, galat: `Penugasan gagal dikirim ke BIMA: ${e.message}` };
     }

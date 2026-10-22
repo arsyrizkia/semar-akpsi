@@ -2,28 +2,30 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useEffect, useState, useTransition } from "react";
 import { Lock, Plus } from "lucide-react";
-import { Alert, Badge, BarKeyakinan, Button, Field, Input, Panel, Select, StatusBadge, Table, TBody, TD, TH, Textarea, THead, TR } from "@/components/ui";
+import { Alert, Badge, Bagian, Button, Isian, KepalaHalaman, KotakCentang, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
 import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
-import type { ButirTampil, HasilUji, TampilanAturan } from "@/lib/aturan/layanan";
-import type { PeriodePilihan } from "@/lib/templat/layanan";
+import { butirTerkunci, PESAN_TERKUNCI } from "@/lib/aturan/status";
+import type { ButirTampil, TampilanAturan } from "@/lib/aturan/layanan";
+import type { PeriodePilihan, SkemaPilihan } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
-import { aksiNonaktifkan, aksiPeriksaKunci, aksiSimpanButir, aksiSimpanVersi, aksiUji } from "./aksi";
+import { aksiNonaktifkan, aksiSimpanButir, aksiSimpanVersi } from "./aksi";
 
 interface Props {
+  skema: SkemaPilihan[];
   skemaId: string;
-  namaSkema: string;
+  periodeDaftar: PeriodePilihan[];
   periode: PeriodePilihan;
   tampilan: TampilanAturan;
   bagianPilihan: string[];
   lampiranPilihan: string[];
   masaBerjalan: boolean;
+  /** kode butir yang disorot lewat ?sorot= */
+  sorotAwal: string | null;
 }
 
-type Panelbutir = { mode: "tambah" } | { mode: "ubah"; butir: ButirTampil } | null;
-type Uji = ({ ok: true } & HasilUji) | null;
+type ModalButir = { mode: "tambah" } | { mode: "ubah"; butir: ButirTampil } | null;
 
 const dariButir = (b: ButirTampil): MasukanButir => ({
   jenis: b.jenis,
@@ -36,181 +38,206 @@ const dariButir = (b: ButirTampil): MasukanButir => ({
   lampiran: b.lampiran ?? "",
 });
 
-export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilihan, lampiranPilihan, masaBerjalan }: Props) {
+/** Setelah galat tampil, fokus ke isian bertanda pertama (menunggu render selesai). */
+const fokusGalatPertama = (selektor: string) => setTimeout(() => document.querySelector<HTMLElement>(`${selektor} [aria-invalid="true"]`)?.focus(), 50);
+
+const kodeDariHash = (h: string) => (h.startsWith("#butir-") ? decodeURIComponent(h.slice(7)) : null);
+
+export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, bagianPilihan, lampiranPilihan, masaBerjalan, sorotAwal }: Props) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();
-  const [panel, setPanel] = useState<Panelbutir>(null);
+  const { nyata, draf, butir } = tampilan;
+  const dasar = draf ?? nyata;
+  const namaSkema = skema.find((s) => s.id === skemaId)?.namaSkema ?? "";
+
+  const [modalButir, setModalButir] = useState<ModalButir>(null); // M-02
   const [masukan, setMasukan] = useState<MasukanButir>(MASUKAN_BUTIR_KOSONG);
   const [galat, setGalat] = useState<GalatButir>({});
-  const [terkunci, setTerkunci] = useState<string | null>(null);
-  const [uji, setUji] = useState<Uji>(null);
-  const [sedangUji, setSedangUji] = useState(false);
+  const [galatModal, setGalatModal] = useState<string | null>(null);
+  const [nonaktif, setNonaktif] = useState<ButirTampil | null>(null); // M-03
+  const [galatNonaktif, setGalatNonaktif] = useState<string | null>(null);
+  const [terkunci, setTerkunci] = useState(false); // M-04
+  const [modalVersi, setModalVersi] = useState(false); // M-05
   const [tanggal, setTanggal] = useState("");
   const [galatVersi, setGalatVersi] = useState<string | null>(null);
   const [berhasilVersi, setBerhasilVersi] = useState<{ versi: number; tanggal: string } | null>(null);
-  const [galatUmum, setGalatUmum] = useState<string | null>(null);
-  const [tampilNonaktif, setTampilNonaktif] = useState(false);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const terkunciRef = useRef<HTMLDivElement | null>(null);
+  const [sorot, setSorot] = useState<string | null>(sorotAwal);
+  const [tampilNonaktif, setTampilNonaktif] = useState(() => butir.some((b) => b.kode === sorotAwal && b.status === "Nonaktif"));
 
-  // Umpan balik harus terlihat di tempat aksi: gulir ke panel isian / pesan 4a begitu muncul, lalu fokuskan isian pertama.
+  // kode butir dapat ditaut lewat #butir-KODE: sorot barisnya dan gulir ke sana
   useEffect(() => {
-    if (!panel) return;
-    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    panelRef.current?.querySelector<HTMLElement>("input:not([disabled]), textarea, select")?.focus({ preventScroll: true });
-  }, [panel]);
+    const dariUrl = () => {
+      const k = kodeDariHash(window.location.hash);
+      if (k) setSorot(k);
+    };
+    dariUrl();
+    window.addEventListener("hashchange", dariUrl);
+    return () => window.removeEventListener("hashchange", dariUrl);
+  }, []);
   useEffect(() => {
-    if (terkunci) terkunciRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [terkunci]);
+    if (sorot) document.getElementById(`butir-${sorot}`)?.scrollIntoView({ block: "center" });
+  }, [sorot]);
 
-  const { nyata, draf, butir } = tampilan;
-  const dasar = draf ?? nyata;
-
-  function ubahMasukan(ubah: Partial<MasukanButir>) {
-    setMasukan((m) => ({ ...m, ...ubah }));
-  }
+  const ubahMasukan = (ubah: Partial<MasukanButir>) => setMasukan((m) => ({ ...m, ...ubah }));
 
   function bukaTambah() {
-    setTerkunci(null);
     setGalat({});
+    setGalatModal(null);
     setMasukan(MASUKAN_BUTIR_KOSONG);
-    setPanel({ mode: "tambah" });
+    setModalButir({ mode: "tambah" });
   }
 
   function klikUbah(b: ButirTampil) {
-    setGalatUmum(null);
-    mulai(async () => {
-      const r = await aksiPeriksaKunci(b.id);
-      if (!r.ok) return setGalatUmum(r.pesan);
-      if (r.terkunci) {
-        // 4a: panel isian tidak dibuka
-        setPanel(null);
-        setTerkunci(r.pesan ?? "");
-        return;
-      }
-      setTerkunci(null);
-      setGalat({});
-      setMasukan(dariButir(b));
-      setPanel({ mode: "ubah", butir: b });
-    });
+    if (butirTerkunci(b.asal)) return setTerkunci(true); // 4a: panel butir tidak dibuka
+    setGalat({});
+    setGalatModal(null);
+    setMasukan(dariButir(b));
+    setModalButir({ mode: "ubah", butir: b });
   }
 
-  function simpanButir() {
-    setGalatUmum(null);
+  function simpanButir(e: React.FormEvent) {
+    e.preventDefault();
+    setGalatModal(null);
     mulai(async () => {
-      const r = await aksiSimpanButir(skemaId, panel?.mode === "ubah" ? panel.butir.id : null, masukan);
+      const r = await aksiSimpanButir(skemaId, modalButir?.mode === "ubah" ? modalButir.butir.id : null, masukan);
       if (r.ok && "butirId" in r) {
-        setGalat({});
-        setPanel(null);
-        toast.success(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
-        setUji(null);
+        setModalButir(null);
+        beriTahu.sukses(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
+        setSorot(r.kode);
         router.refresh();
         return;
       }
       if ("terkunci" in r && r.terkunci) {
-        setPanel(null);
-        setTerkunci(r.pesan ?? "");
+        setModalButir(null);
+        setTerkunci(true);
         return;
       }
       if ("galat" in r) setGalat(r.galat);
-      const pesan = "pesan" in r ? r.pesan : undefined;
-      if (pesan) setGalatUmum(pesan);
+      if ("pesan" in r && r.pesan) setGalatModal(r.pesan);
+      fokusGalatPertama("#form-butir");
     });
   }
 
-  function nonaktifkan(b: ButirTampil) {
-    setGalatUmum(null);
+  function konfirmasiNonaktif() {
+    if (!nonaktif) return;
+    setGalatNonaktif(null);
     mulai(async () => {
-      const r = await aksiNonaktifkan(skemaId, b.id);
+      const r = await aksiNonaktifkan(skemaId, nonaktif.id);
       if (!r.ok) {
-        if ("terkunci" in r && r.terkunci) return setTerkunci(r.pesan);
-        return setGalatUmum(r.pesan);
+        if ("terkunci" in r && r.terkunci) {
+          setNonaktif(null);
+          return setTerkunci(true);
+        }
+        return setGalatNonaktif(r.pesan);
       }
-      toast.success(`Butir ${r.kode} dinonaktifkan pada versi yang sedang disusun.`);
-      setUji(null);
+      setNonaktif(null);
+      beriTahu.sukses(`Butir ${r.kode} dinonaktifkan pada versi yang sedang disusun.`);
       router.refresh();
     });
   }
 
-  async function jalankanUji() {
-    setGalatUmum(null);
-    setSedangUji(true);
-    try {
-      const r = await aksiUji(skemaId, periode.id);
-      if (!r.ok) setGalatUmum(r.pesan);
-      else setUji(r);
-    } finally {
-      setSedangUji(false);
-    }
-  }
-
-  function simpanVersi() {
+  function simpanVersi(e: React.FormEvent) {
+    e.preventDefault();
     setGalatVersi(null);
-    setBerhasilVersi(null);
     mulai(async () => {
       const r = await aksiSimpanVersi(skemaId, periode.id, tanggal);
-      if (!r.ok) return setGalatVersi(r.pesan);
+      if (!r.ok) {
+        // 8a: ditolak di dalam modal, basis aturan tidak berubah
+        setGalatVersi(r.pesan);
+        fokusGalatPertama("#form-versi");
+        return;
+      }
       if ("versi" in r) {
+        setModalVersi(false);
         setBerhasilVersi({ versi: r.versi, tanggal: r.tanggalBerlaku });
         setTanggal("");
-        setUji(null);
+        beriTahu.sukses(`Basis aturan versi ${r.versi} tersimpan.`);
         router.refresh();
       }
     });
   }
 
-  // tabel hasil uji: butir (urut seperti tabel) x contoh
-  const barisUji = uji
-    ? butir
-        .filter((b) => b.status !== "Nonaktif")
-        .map((b) => ({ b, sel: uji.contoh.map((c) => c.deterministik.find((h) => h.kode === b.kode) ?? c.semantik.find((h) => h.kode === b.kode) ?? null) }))
-        .filter((x) => x.sel.some(Boolean))
-    : [];
+  const urlTemplat = `/tim-kerja/templat?skema=${skemaId}`;
+  const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}`;
+  const jumlahNonaktif = butir.filter((b) => b.status === "Nonaktif").length;
+  const kelasDaftar = (b: ButirTampil) => (b.status === "Perlu ditinjau" ? "bg-emas-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
 
   return (
     <>
-      <Panel
-        judul={`Butir Cek: ${namaSkema}`}
-        className="mb-6"
+      <KepalaHalaman
+        kode="J-03"
+        judul="Aturan Pemeriksaan"
+        keterangan="Butir cek per skema dan periode seleksi."
+        remah={[{ label: "Aturan Pemeriksaan" }]}
         aksi={
-          <Button varian="emas" onClick={bukaTambah} disabled={sibuk}>
-            <Plus aria-hidden className="size-4" /> Tambah Butir
-          </Button>
+          <>
+            {dasar ? (
+              <Link href={urlUji} className={kelasTombol("sekunder")}>
+                Uji pada Contoh
+              </Link>
+            ) : (
+              <Button varian="sekunder" disabled>
+                Uji pada Contoh
+              </Button>
+            )}
+            <Button varian="sekunder" onClick={bukaTambah} disabled={sibuk}>
+              <Plus aria-hidden className="size-4" /> Tambah Butir
+            </Button>
+            <Button onClick={() => (setGalatVersi(null), setModalVersi(true))} disabled={sibuk || !draf} title={draf ? undefined : "Belum ada perubahan untuk disimpan sebagai versi baru"}>
+              Simpan Versi
+            </Button>
+          </>
+        }
+      />
+
+      <form method="get" className="mb-6 flex flex-wrap items-end gap-4">
+        <Pilihan label="Skema Pendanaan" name="skema" defaultValue={skemaId} className="w-full max-w-xs">
+          {skema.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.namaSkema}
+            </option>
+          ))}
+        </Pilihan>
+        <Pilihan label="Periode Seleksi" name="periode" defaultValue={periode.id} className="w-full max-w-md">
+          {periodeDaftar.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nama}
+            </option>
+          ))}
+        </Pilihan>
+        <Button type="submit" varian="sekunder">
+          Tampilkan
+        </Button>
+      </form>
+
+      {berhasilVersi ? (
+        <Alert jenis="sukses" judul="Basis aturan versi baru tersimpan" className="mb-6">
+          Basis aturan versi {berhasilVersi.versi} tersimpan dan berlaku mulai {formatTanggal(berhasilVersi.tanggal)}.
+        </Alert>
+      ) : null}
+
+      <Bagian
+        judul={`Butir Cek ${namaSkema}`}
+        aksi={
+          jumlahNonaktif > 0 ? (
+            <KotakCentang id="tampil-nonaktif" label={`Tampilkan butir nonaktif (${jumlahNonaktif})`} checked={tampilNonaktif} onCheckedChange={(v) => setTampilNonaktif(v === true)} />
+          ) : undefined
         }
       >
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-sogan-700">
+        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sogan-700">
           {nyata ? (
             <span>
-              Basis aturan berlaku: versi {nyata.versi}, berlaku sejak {formatTanggal(nyata.tanggalBerlaku)}.
+              Basis aturan berlaku: versi {nyata.versi}, sejak {formatTanggal(nyata.tanggalBerlaku)}.
             </span>
           ) : (
             <span>Skema ini belum memiliki basis aturan.</span>
           )}
-          {draf ? <Badge warna="emas">Versi {draf.versi} sedang disusun (belum berlaku)</Badge> : null}
-        </div>
+          {draf ? <Badge warna="emas">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
+          <Link href={urlTemplat} className="font-semibold text-sogan-800 underline underline-offset-2">
+            Templat Proposal {namaSkema}
+          </Link>
+        </p>
 
-        {terkunci ? (
-          <div ref={terkunciRef}>
-          <Alert jenis="peringatan" className="mb-4">
-            <p>{terkunci}</p>
-            <Button asChild ukuran="sm" varian="emas" className="mt-3">
-              <Link href={`/tim-kerja/templat?skema=${skemaId}`}>Buka Templat Proposal</Link>
-            </Button>
-          </Alert>
-          </div>
-        ) : null}
-        {galatUmum ? (
-          <Alert jenis="galat" className="mb-4">
-            {galatUmum}
-          </Alert>
-        ) : null}
-
-        {butir.some((b) => b.status === "Nonaktif") ? (
-          <label className="mb-3 flex items-center gap-2 text-sm text-sogan-800">
-            <input type="checkbox" checked={tampilNonaktif} onChange={(e) => setTampilNonaktif(e.target.checked)} />
-            Tampilkan butir nonaktif ({butir.filter((b) => b.status === "Nonaktif").length})
-          </label>
-        ) : null}
         <Table>
           <THead>
             <TR>
@@ -228,236 +255,237 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
           <TBody>
             {butir.length === 0 ? (
               <TR>
-                <TD colSpan={7} className="py-6 text-center text-sogan-600">
-                  Belum ada butir cek. Terbitkan templat di J-02 atau tekan &quot;Tambah Butir&quot;.
+                <TD colSpan={7} className="py-6 text-center text-sogan-700">
+                  Belum ada butir cek. Terbitkan templat di Templat Proposal atau tekan &ldquo;Tambah Butir&rdquo;.
                 </TD>
               </TR>
             ) : null}
-            {butir.filter((b) => tampilNonaktif || b.status !== "Nonaktif").map((b) => (
-              <TR key={b.id} className={b.status === "Perlu ditinjau" ? "bg-emas-100 hover:bg-emas-100" : b.status === "Nonaktif" ? "text-sogan-700" : undefined}>
-                <TD className="whitespace-nowrap font-mono text-xs font-semibold">{b.kode}</TD>
-                <TD className="min-w-48">{b.deskripsi}</TD>
-                <TD className="capitalize">{b.jenis}</TD>
-                <TD className="whitespace-nowrap">
-                  {b.asal === "templat" ? (
-                    <span className="inline-flex items-center gap-1" title="Nilai butir ini terkunci; ubah lewat J-02 Templat Proposal">
-                      <Lock aria-label="Terkunci" className="size-4 text-sogan-600" /> templat
-                    </span>
-                  ) : (
-                    "manual"
-                  )}
-                </TD>
-                <TD className="min-w-56 max-w-md text-xs text-sogan-800">{b.ringkasan}</TD>
-                <TD>
-                  <StatusBadge status={b.status} />
-                  {b.ditandaiPemantauan ? <span className="mt-1 block text-xs text-sogan-600">ditandai pemantauan</span> : null}
-                </TD>
-                <TD className="whitespace-nowrap">
-                  {b.status !== "Nonaktif" ? (
-                    <span className="flex gap-1">
-                      <Button varian="garis" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk}>
-                        Ubah
-                      </Button>
-                      {b.asal === "manual" ? (
-                        <Button varian="hantu" ukuran="sm" onClick={() => nonaktifkan(b)} disabled={sibuk}>
-                          Nonaktifkan
+            {butir
+              .filter((b) => tampilNonaktif || b.status !== "Nonaktif" || b.kode === sorot)
+              .map((b) => (
+                <TR key={b.id} id={`butir-${b.kode}`} tersorot={sorot === b.kode} className={`scroll-mt-24 ${kelasDaftar(b) ?? ""}`}>
+                  <TD className="whitespace-nowrap font-mono text-xs font-semibold">
+                    <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline" translate="no">
+                      {b.kode}
+                    </a>
+                  </TD>
+                  <TD className="min-w-48">{b.deskripsi}</TD>
+                  <TD className="capitalize">{b.jenis}</TD>
+                  <TD className="whitespace-nowrap">
+                    {butirTerkunci(b.asal) ? (
+                      <Link href={urlTemplat} className="inline-flex items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat Templat Proposal">
+                        <Lock aria-hidden className="size-4 text-sogan-700" /> templat<span className="sr-only"> (terkunci)</span>
+                      </Link>
+                    ) : (
+                      "manual"
+                    )}
+                  </TD>
+                  <TD className="min-w-56 max-w-md text-xs text-sogan-800">{b.ringkasan}</TD>
+                  <TD>
+                    <LencanaStatus status={b.status} />
+                    {b.ditandaiPemantauan ? (
+                      <Link href="/tim-kerja/pemantauan" className="mt-1 block text-xs text-sogan-700 underline underline-offset-2">
+                        ditandai di Pemantauan
+                      </Link>
+                    ) : null}
+                  </TD>
+                  <TD className="whitespace-nowrap">
+                    {b.status !== "Nonaktif" ? (
+                      <span className="flex justify-end gap-1">
+                        <Button varian="sekunder" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk} aria-label={`Ubah butir ${b.kode}`}>
+                          Ubah
                         </Button>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </TD>
-              </TR>
-            ))}
+                        {!butirTerkunci(b.asal) ? (
+                          <Button
+                            varian="hantu"
+                            ukuran="sm"
+                            onClick={() => (setGalatNonaktif(null), setNonaktif(b))}
+                            disabled={sibuk}
+                            aria-label={`Nonaktifkan butir ${b.kode}`}
+                          >
+                            Nonaktifkan
+                          </Button>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </TD>
+                </TR>
+              ))}
           </TBody>
         </Table>
-      </Panel>
+      </Bagian>
 
-      {panel ? (
-        <div ref={panelRef}>
-        <Panel judul={panel.mode === "tambah" ? "Tambah Butir" : `Ubah Butir ${panel.butir.kode}`} className="mb-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Kode" htmlFor="b-kode" galat={galat.kode}>
-              <Input id="b-kode" value={masukan.kode} disabled={panel.mode === "ubah"} aria-invalid={galat.kode ? true : undefined} onChange={(e) => ubahMasukan({ kode: e.target.value })} />
-            </Field>
-            <Field label="Jenis" htmlFor="b-jenis" galat={galat.jenis}>
-              <Select id="b-jenis" value={masukan.jenis} disabled={panel.mode === "ubah"} aria-invalid={galat.jenis ? true : undefined} onChange={(e) => ubahMasukan({ jenis: e.target.value as MasukanButir["jenis"] })}>
-                <option value="">Pilih jenis</option>
-                <option value="deterministik">Deterministik</option>
-                <option value="semantik">Semantik</option>
-              </Select>
-            </Field>
-            <Field label="Deskripsi" htmlFor="b-deskripsi" galat={galat.deskripsi} className="md:col-span-2">
-              <Input id="b-deskripsi" value={masukan.deskripsi} aria-invalid={galat.deskripsi ? true : undefined} onChange={(e) => ubahMasukan({ deskripsi: e.target.value })} />
-            </Field>
-
-            {masukan.jenis === "deterministik" ? (
-              <>
-                <Field label="Aturan Hitung" htmlFor="b-aturan" galat={galat.aturanHitung} petunjuk={CONTOH_ATURAN_HITUNG} className="md:col-span-2">
-                  <Input id="b-aturan" value={masukan.aturanHitung} aria-invalid={galat.aturanHitung ? true : undefined} onChange={(e) => ubahMasukan({ aturanHitung: e.target.value })} />
-                </Field>
-                <Field label="Bagian yang Diperiksa" htmlFor="b-bagian-d" galat={galat.bagian} petunjuk="Hanya perlu untuk aturan yang bergantung pada satu bagian (mis. diagram alir, bagian terisi).">
-                  <Select id="b-bagian-d" value={masukan.bagian} aria-invalid={galat.bagian ? true : undefined} onChange={(e) => ubahMasukan({ bagian: e.target.value })}>
-                    <option value="">(tidak ada)</option>
-                    {bagianPilihan.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </>
-            ) : null}
-
-            {masukan.jenis === "semantik" ? (
-              <>
-                <Field label="Pertanyaan Pemeriksaan" htmlFor="b-tanya" galat={galat.pertanyaan} className="md:col-span-2">
-                  <Textarea id="b-tanya" value={masukan.pertanyaan} aria-invalid={galat.pertanyaan ? true : undefined} onChange={(e) => ubahMasukan({ pertanyaan: e.target.value })} />
-                </Field>
-                <Field label="Contoh Jawaban" htmlFor="b-contoh" className="md:col-span-2">
-                  <Textarea id="b-contoh" value={masukan.contohJawaban} onChange={(e) => ubahMasukan({ contohJawaban: e.target.value })} />
-                </Field>
-                <Field label="Bagian yang Diperiksa" htmlFor="b-bagian-s" galat={galat.bagian}>
-                  <Select id="b-bagian-s" value={masukan.bagian} aria-invalid={galat.bagian ? true : undefined} onChange={(e) => ubahMasukan({ bagian: e.target.value })}>
-                    <option value="">Pilih bagian</option>
-                    {bagianPilihan.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Lampiran yang Diperiksa" htmlFor="b-lampiran" petunjuk="Kosongkan bila yang diperiksa adalah teks bagian.">
-                  <Select id="b-lampiran" value={masukan.lampiran} onChange={(e) => ubahMasukan({ lampiran: e.target.value })}>
-                    <option value="">(tidak ada)</option>
-                    {lampiranPilihan.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </>
-            ) : null}
-          </div>
-          <div className="mt-5 flex gap-3">
-            <Button onClick={simpanButir} disabled={sibuk}>
-              Simpan Butir
-            </Button>
-            <Button varian="garis" onClick={() => setPanel(null)}>
+      {/* M-02 Form Butir (Tambah/Ubah) */}
+      <Modal
+        kode="M-02"
+        ukuran="lg"
+        buka={modalButir !== null}
+        saatUbah={(b) => !sibuk && !b && setModalButir(null)}
+        judul={modalButir?.mode === "ubah" ? `Ubah Butir ${modalButir.butir.kode}` : "Tambah Butir"}
+        kaki={
+          <>
+            <Button varian="sekunder" onClick={() => setModalButir(null)} disabled={sibuk}>
               Batal
             </Button>
-          </div>
-        </Panel>
-        </div>
-      ) : null}
+            <Button type="submit" form="form-butir" memuat={sibuk}>
+              Simpan Butir
+            </Button>
+          </>
+        }
+      >
+        <form id="form-butir" onSubmit={simpanButir} noValidate className="grid gap-4 md:grid-cols-2">
+          {galatModal ? (
+            <p role="alert" className="rounded-md border-l-4 border-bata-600 bg-bata-100 px-3 py-2 font-medium text-bata-700 md:col-span-2">
+              {galatModal}
+            </p>
+          ) : null}
+          <Isian label="Kode" name="kode" autoComplete="off" spellCheck={false} wajib value={masukan.kode} disabled={modalButir?.mode === "ubah"} galat={galat.kode} onChange={(e) => ubahMasukan({ kode: e.target.value })} />
+          <Pilihan label="Jenis" name="jenis" wajib value={masukan.jenis} disabled={modalButir?.mode === "ubah"} galat={galat.jenis} onChange={(e) => ubahMasukan({ jenis: e.target.value as MasukanButir["jenis"] })}>
+            <option value="">Pilih jenis</option>
+            <option value="deterministik">Deterministik</option>
+            <option value="semantik">Semantik</option>
+          </Pilihan>
+          <Isian label="Deskripsi" name="deskripsi" autoComplete="off" wajib className="md:col-span-2" value={masukan.deskripsi} galat={galat.deskripsi} onChange={(e) => ubahMasukan({ deskripsi: e.target.value })} />
 
-      <Panel judul="Uji dan Simpan" className="mb-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button varian="garis" onClick={jalankanUji} disabled={sedangUji || !dasar}>
-            {sedangUji ? "Menguji..." : "Uji pada Contoh"}
-          </Button>
-          <p className="text-sm text-sogan-700">Menerapkan butir pada contoh proposal yang tersimpan di sistem (data contoh sementara).</p>
-        </div>
+          {masukan.jenis === "deterministik" ? (
+            <>
+              <Isian
+                label="Aturan Hitung"
+                name="aturan-hitung"
+                autoComplete="off"
+                wajib
+                className="md:col-span-2"
+                value={masukan.aturanHitung}
+                galat={galat.aturanHitung}
+                petunjuk={CONTOH_ATURAN_HITUNG}
+                onChange={(e) => ubahMasukan({ aturanHitung: e.target.value })}
+              />
+              <Pilihan
+                label="Bagian yang Diperiksa"
+                name="bagian"
+                value={masukan.bagian}
+                galat={galat.bagian}
+                petunjuk="Hanya perlu untuk aturan yang bergantung pada satu bagian, misalnya diagram alir atau bagian terisi."
+                onChange={(e) => ubahMasukan({ bagian: e.target.value })}
+              >
+                <option value="">(tidak ada)</option>
+                {bagianPilihan.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Pilihan>
+            </>
+          ) : null}
 
-        {uji ? (
-          <div className="mt-5">
-            <h3 className="text-lg font-semibold text-sogan-800">Hasil Uji</h3>
-            {uji.semuaContoh ? <Alert jenis="info" className="my-2">Skema ini belum memiliki contoh sendiri, sehingga semua contoh proposal dipakai.</Alert> : null}
-            {uji.peringatan.map((p) => (
-              <Alert key={p} jenis="peringatan" className="my-2">
-                {p}
-              </Alert>
-            ))}
-            {barisUji.length === 0 ? (
-              <p className="mt-2 text-sm text-sogan-600">Tidak ada hasil untuk ditampilkan.</p>
-            ) : (
-              <div className="mt-3">
-                <Table>
-                  <THead>
-                    <TR>
-                      <TH>Butir</TH>
-                      {uji.contoh.map((c) => (
-                        <TH key={c.dokumenKode}>{c.dokumenNama}</TH>
-                      ))}
-                    </TR>
-                  </THead>
-                  <TBody>
-                    {barisUji.map(({ b, sel }) => (
-                      <TR key={b.id}>
-                        <TD className="min-w-44">
-                          <span className="font-mono text-xs font-semibold">{b.kode}</span>
-                          <span className="block text-xs text-sogan-700">{b.deskripsi}</span>
-                        </TD>
-                        {sel.map((h, i) => (
-                          <TD key={uji.contoh[i].dokumenKode} className="min-w-48">
-                            {h ? <SelHasil h={h} /> : <span className="text-sogan-400">-</span>}
-                          </TD>
-                        ))}
-                      </TR>
-                    ))}
-                  </TBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        ) : null}
+          {masukan.jenis === "semantik" ? (
+            <>
+              <Isian label="Pertanyaan Pemeriksaan" name="pertanyaan" multibaris wajib className="md:col-span-2" value={masukan.pertanyaan} galat={galat.pertanyaan} onChange={(e) => ubahMasukan({ pertanyaan: e.target.value })} />
+              <Isian label="Contoh Jawaban" name="contoh-jawaban" multibaris className="md:col-span-2" value={masukan.contohJawaban} onChange={(e) => ubahMasukan({ contohJawaban: e.target.value })} />
+              <Pilihan label="Bagian yang Diperiksa" name="bagian" wajib value={masukan.bagian} galat={galat.bagian} onChange={(e) => ubahMasukan({ bagian: e.target.value })}>
+                <option value="">Pilih bagian</option>
+                {bagianPilihan.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Pilihan>
+              <Pilihan label="Lampiran yang Diperiksa" name="lampiran" petunjuk="Kosongkan bila yang diperiksa adalah teks bagian." value={masukan.lampiran} onChange={(e) => ubahMasukan({ lampiran: e.target.value })}>
+                <option value="">(tidak ada)</option>
+                {lampiranPilihan.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Pilihan>
+            </>
+          ) : null}
+        </form>
+      </Modal>
 
-        <hr className="my-6 border-sogan-100" />
-        {berhasilVersi ? (
-          <Alert jenis="sukses" className="mb-4" judul="Basis aturan versi baru tersimpan">
-            Basis aturan versi {berhasilVersi.versi} tersimpan dan berlaku mulai {formatTanggal(berhasilVersi.tanggal)}.
-          </Alert>
+      {/* M-03 Konfirmasi Nonaktifkan */}
+      <ModalKonfirmasi
+        kode="M-03"
+        buka={nonaktif !== null}
+        saatUbah={(b) => !sibuk && !b && setNonaktif(null)}
+        judul="Konfirmasi Nonaktifkan"
+        labelKonfirmasi="Nonaktifkan"
+        bahaya
+        memuat={sibuk}
+        galat={galatNonaktif}
+        saatKonfirmasi={konfirmasiNonaktif}
+      >
+        {nonaktif ? (
+          <>
+            <p>
+              Butir <span className="font-mono font-semibold" translate="no">{nonaktif.kode}</span>: {nonaktif.deskripsi}
+            </p>
+            <p className="mt-2 text-sogan-700">
+              Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.
+            </p>
+          </>
         ) : null}
-        {galatVersi ? (
-          <Alert jenis="galat" className="mb-4">
-            {galatVersi}
-          </Alert>
-        ) : null}
-        <div className="flex flex-wrap items-end gap-4">
-          <Field
+      </ModalKonfirmasi>
+
+      {/* M-04 Butir turunan templat (4a) */}
+      <Modal
+        kode="M-04"
+        ukuran="sm"
+        buka={terkunci}
+        saatUbah={setTerkunci}
+        judul="Butir Turunan Templat"
+        kaki={
+          <>
+            <Button varian="sekunder" onClick={() => setTerkunci(false)}>
+              Tutup
+            </Button>
+            <Link href={urlTemplat} className={kelasTombol("utama")}>
+              Buka Templat Proposal
+            </Link>
+          </>
+        }
+      >
+        <p>{PESAN_TERKUNCI}</p>
+      </Modal>
+
+      {/* M-05 Simpan Versi (8a ditolak di dalam modal) */}
+      <Modal
+        kode="M-05"
+        buka={modalVersi}
+        saatUbah={(b) => !sibuk && setModalVersi(b)}
+        judul="Simpan Versi"
+        kaki={
+          <>
+            <Button varian="sekunder" onClick={() => setModalVersi(false)} disabled={sibuk}>
+              Batal
+            </Button>
+            <Button type="submit" form="form-versi" memuat={sibuk}>
+              Simpan Versi
+            </Button>
+          </>
+        }
+      >
+        <form id="form-versi" onSubmit={simpanVersi} noValidate className="space-y-4">
+          <p className="text-sogan-700">
+            Basis aturan versi {draf?.versi ?? "baru"} untuk {namaSkema}, periode {periode.nama}.
+          </p>
+          <Isian
             label="Tanggal Berlaku"
-            htmlFor="tgl-berlaku"
-            className="w-full max-w-xs"
+            name="tanggal-berlaku"
+            type="date"
+            wajib
+            autoComplete="off"
+            value={tanggal}
+            galat={galatVersi}
             petunjuk={
               masaBerjalan
                 ? `Masa pengusulan sedang berjalan (${formatTanggal(periode.tanggalBuka)} sampai ${formatTanggal(periode.tanggalTutup)}): pilih tanggal di luar rentang itu.`
                 : undefined
             }
-          >
-            <Input id="tgl-berlaku" type="date" value={tanggal} aria-invalid={galatVersi ? true : undefined} onChange={(e) => setTanggal(e.target.value)} />
-          </Field>
-          <Button onClick={simpanVersi} disabled={sibuk || !draf}>
-            Simpan Versi
-          </Button>
-          {!draf ? <p className="pb-2 text-sm text-sogan-600">Belum ada perubahan untuk disimpan sebagai versi baru.</p> : null}
-        </div>
-      </Panel>
-
+            onChange={(e) => setTanggal(e.target.value)}
+          />
+        </form>
+      </Modal>
     </>
-  );
-}
-
-type Sel = NonNullable<HasilUji["contoh"][number]["deterministik"][number] | HasilUji["contoh"][number]["semantik"][number]>;
-
-function SelHasil({ h }: { h: Sel }) {
-  if ("angkaPembukti" in h) {
-    return (
-      <div className="space-y-1">
-        <StatusBadge status={h.status} />
-        <p className="text-xs">{h.angkaPembukti}</p>
-        {h.batasDilanggar ? <p className="text-xs text-bata-700">{h.batasDilanggar}</p> : null}
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <span className="flex flex-wrap items-center gap-1">
-        <StatusBadge status={h.status} />
-        {h.tiruan ? <Badge>tiruan</Badge> : null}
-      </span>
-      {h.kutipan ? <p className="text-xs italic">&ldquo;{h.kutipan}&rdquo;</p> : null}
-      {h.alasanSistem ? <p className="text-xs text-sogan-700">{h.alasanSistem}</p> : null}
-      {h.tingkatKeyakinan != null ? <BarKeyakinan nilai={h.tingkatKeyakinan} /> : null}
-    </div>
   );
 }

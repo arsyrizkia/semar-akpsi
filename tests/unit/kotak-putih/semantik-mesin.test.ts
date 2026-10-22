@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): diturunkan dari spesifikasi metode; menjalankan setiap cabang/jalur.
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-06 periksaSemantik, MS-07 cocokkanKutipan, MS-08 siapkanTeksTanpaIdentitas; Layanan LLM diganti stub.
 import { describe, expect, it } from "vitest";
 import type { ButirCek, DokumenPeriksa } from "@/lib/kontrak/tipe";
 import { kirimPermintaanTiruan, type JawabanLlm, type PenyediaLlm } from "@/lib/pemeriksa/semantik/llm";

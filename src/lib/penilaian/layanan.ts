@@ -6,6 +6,8 @@ import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { getDb, type Db } from "@/db";
 import {
   bagianTemplat,
+  berkasVersi,
+  bimaBerkas,
   butirCek,
   hasilPemeriksaan,
   keputusanKomponen,
@@ -22,7 +24,8 @@ import { bima } from "@/lib/bima/client";
 import { KOMPONEN_BORANG, type Keputusan, type ParameterButir, type StatusHasilSemantik } from "@/lib/kontrak/tipe";
 import { cariKutipan, ambilBerdasarkanNama } from "@/lib/pemeriksa/semantik/teks";
 import { pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
-import type { BarisDaftarPenugasan, ButirTampil, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks } from "./tipe";
+import { bolehUbahPenilaian } from "./status";
+import type { BarisDaftarPenugasan, BerkasTampil, ButirTampil, DataKeputusan, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks } from "./tipe";
 import {
   PESAN_KOMPONEN_BELUM_LENGKAP,
   bersihkanKomponen,
@@ -150,12 +153,13 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
   // pembacaan yang saling bebas dijalankan serempak (NFR 2.3: J-08 terbuka paling lama 3 detik)
   const [[prop], [versi]] = await ulangSekali(() => Promise.all([ambilProposal(), db.select().from(versiProposal).where(eq(versiProposal.id, idVersi))]));
 
-  const [daftarBagian, pen, semuaHasil, semantik] = await ulangSekali(() => Promise.all([
+  const [daftarBagian, pen, semuaHasil, semantik, berkas] = await ulangSekali(() => Promise.all([
     versi.templatId ? db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan)) : Promise.resolve([]),
     pastikanPenilaian(penugasan.id),
     ambilHasilPemeriksaan(idVersi),
     // rekomendasi harus sudah ada saat reviewer membuka (UC-07 langkah 1); bila belum, jadwalkan tanpa menunggu
     pastikanSemantikBerjalan(idVersi),
+    daftarBerkasProposal(prop.p.idProposal, versi.berkasId),
   ]));
 
   // tab: bagian menurut urutan templat, lalu lampiran
@@ -211,6 +215,68 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     deterministik: { total: det.length, lolos: det.filter((r) => r.h.status === "Lolos").length, gagal: det.filter((r) => r.h.status === "Gagal").length },
     semantik,
     penilaian: penilaianTampil,
+    berkas,
+  };
+}
+
+/** Naskah (versi SEMAR; cadangan: naskah di BIMA) dan lampiran di BIMA. Hanya metadata, tanpa isi berkas. */
+async function daftarBerkasProposal(idProposal: string, berkasVersiId: string | null): Promise<BerkasTampil[]> {
+  const db = getDb();
+  const [naskahVersi, bima] = await Promise.all([
+    berkasVersiId
+      ? db.select({ id: berkasVersi.id, nama: berkasVersi.nama, ukuran: berkasVersi.ukuran }).from(berkasVersi).where(eq(berkasVersi.id, berkasVersiId))
+      : Promise.resolve([]),
+    db
+      .select({ id: bimaBerkas.id, nama: bimaBerkas.nama, ukuran: bimaBerkas.ukuran, peran: bimaBerkas.peran, namaLampiran: bimaBerkas.namaLampiran })
+      .from(bimaBerkas)
+      .where(eq(bimaBerkas.proposalId, idProposal))
+      .orderBy(asc(bimaBerkas.dibuatPada)),
+  ]);
+  const hasil: BerkasTampil[] = naskahVersi.map((b) => ({ id: b.id, nama: b.nama, ukuran: b.ukuran, peran: "naskah", namaLampiran: null }));
+  for (const b of bima) {
+    if (b.peran === "lampiran") hasil.push({ id: b.id, nama: b.nama, ukuran: b.ukuran, peran: "lampiran", namaLampiran: b.namaLampiran });
+    else if (naskahVersi.length === 0 && !hasil.some((x) => x.peran === "naskah")) hasil.push({ id: b.id, nama: b.nama, ukuran: b.ukuran, peran: "naskah", namaLampiran: null });
+  }
+  return hasil;
+}
+
+/** Bahan J-08b: penilaian tersimpan, ringkasan butir semantik, dan hasil deterministik. Tidak memanggil LLM. */
+export async function muatKeputusan(penugasan: Penugasan): Promise<DataKeputusan> {
+  const db = getDb();
+  const idVersi = await bukaVersiDinilai(penugasan);
+  const [[prop], [versi], pen, semuaHasil] = await ulangSekali(() =>
+    Promise.all([
+      db
+        .select({ p: proposal, skema: skemaPendanaan.namaSkema })
+        .from(proposal)
+        .innerJoin(skemaPendanaan, eq(skemaPendanaan.id, proposal.skemaId))
+        .where(eq(proposal.id, penugasan.proposalId)),
+      db.select({ kode: versiProposal.kode }).from(versiProposal).where(eq(versiProposal.id, idVersi)),
+      pastikanPenilaian(penugasan.id),
+      ambilHasilPemeriksaan(idVersi),
+    ]),
+  );
+  const [koreksi, komponenRows] = await ulangSekali(() =>
+    Promise.all([
+      db.select({ hasilId: koreksiRekomendasi.hasilId }).from(koreksiRekomendasi).where(eq(koreksiRekomendasi.penilaianId, pen.id)),
+      db.select().from(keputusanKomponen).where(eq(keputusanKomponen.penilaianId, pen.id)),
+    ]),
+  );
+  const dikoreksi = new Set(koreksi.map((k) => k.hasilId));
+  const det = semuaHasil.filter((r) => r.h.jenis === "deterministik");
+  return {
+    penugasanId: penugasan.id,
+    label: penugasan.label,
+    proposal: { idProposal: prop.p.idProposal, judul: prop.p.judul, skema: prop.skema, kodeVersi: versi.kode },
+    penilaian: {
+      id: pen.id,
+      status: pen.status,
+      umpanBalik: pen.komentar ?? "",
+      komponen: Object.fromEntries(komponenRows.map((r) => [r.komponen, r.keputusan])),
+      terkirimKeBima: pen.dikirimKeBimaPada !== null,
+    },
+    butir: semuaHasil.filter((r) => r.h.jenis === "semantik").map((r) => ({ status: r.h.status as StatusHasilSemantik, dikoreksi: dikoreksi.has(r.h.id) })),
+    deterministik: { total: det.length, lolos: det.filter((r) => r.h.status === "Lolos").length, gagal: det.filter((r) => r.h.status === "Gagal").length },
   };
 }
 
@@ -227,7 +293,7 @@ export async function catatKoreksi(
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
   const db = getDb();
   const pen = await pastikanPenilaian(penugasanId);
-  if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
+  if (!bolehUbahPenilaian(pen.status)) return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
   if (!UUID.test(hasilId)) return { ok: false, galat: "Butir tidak ditemukan" };
   const [h] = await db.select().from(hasilPemeriksaan).where(eq(hasilPemeriksaan.id, hasilId));
   const versiNilai = akses.penugasan.versiId;
@@ -306,7 +372,7 @@ export async function simpanSementara(
   const akses = await bukaProposal(penugasanId, akun);
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
   const pen = await pastikanPenilaian(penugasanId);
-  if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
+  if (!bolehUbahPenilaian(pen.status)) return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
   await simpanNilai(pen.id, isian.umpanBalik ?? "", bersihkanKomponen(isian.komponen), "Draf");
   await getDb().update(penugasanReviewer).set({ label: "Draf" }).where(eq(penugasanReviewer.id, penugasanId));
   return { ok: true };
@@ -378,7 +444,7 @@ export async function simpanPermanen(
   const akses = await bukaProposal(penugasanId, akun);
   if (!akses.ok) return { ok: false, galat: akses.kode === 403 ? "Akses ditolak" : "Penugasan tidak ditemukan" };
   const pen = await pastikanPenilaian(penugasanId);
-  if (pen.status === "Final") return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
+  if (!bolehUbahPenilaian(pen.status)) return { ok: false, galat: "Penilaian sudah final dan tidak dapat diubah" };
   const komponen = bersihkanKomponen(isian.komponen);
   if (!komponenLengkap(komponen)) return { ok: false, galat: PESAN_KOMPONEN_BELUM_LENGKAP };
 

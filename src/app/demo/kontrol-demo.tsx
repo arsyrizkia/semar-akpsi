@@ -1,51 +1,65 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui";
+import { Button, ModalKonfirmasi, beriTahu } from "@/components/ui";
 import { resetDemo, setSakelarMasa } from "./aksi";
 
+/** Kendali data demo: Reset & isi data demo (lewat modal konfirmasi) dan sakelar masa pengusulan. Hasil aksi lewat notifikasi. */
 export function KontrolDemo({ masa }: { masa: "berjalan" | "ditutup" }) {
-  const [pesan, setPesan] = useState<{ ok: boolean; teks: string } | null>(null);
+  const [saatIni, setSaatIni] = useState(masa);
+  const [konfirmasi, setKonfirmasi] = useState(false);
   const [sibuk, mulai] = useTransition();
 
-  function jalankan(kerja: () => Promise<{ ok: boolean; pesan: string }>) {
-    setPesan(null);
+  function jalankan(kerja: () => Promise<{ ok: boolean; pesan: string }>, sesudah?: () => void) {
     mulai(async () => {
       const r = await kerja();
-      setPesan({ ok: r.ok, teks: r.pesan });
+      (r.ok ? beriTahu.sukses : beriTahu.galat)(r.pesan);
+      if (r.ok) sesudah?.();
+      setKonfirmasi(false);
     });
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          varian="bahaya"
-          disabled={sibuk}
-          onClick={() => {
-            if (window.confirm("Semua data demo (kecuali log audit) akan dihapus dan diisi ulang. Basis data ini dipakai bersama. Lanjutkan?")) jalankan(resetDemo);
-          }}
-        >
-          Reset &amp; isi data demo
-        </Button>
-        <span className="text-sm text-sogan-700">Mengosongkan semua data kecuali log audit, lalu mengisi ulang data contoh.</span>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button varian="bahaya" disabled={sibuk} onClick={() => setKonfirmasi(true)}>
+            Reset &amp; isi data demo
+          </Button>
+          <span className="text-xs text-abu-600">Mengosongkan semua data kecuali log audit, lalu mengisi ulang data contoh.</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sakelar masa pengusulan">
+          <span className="text-sm font-semibold text-sogan-800">Masa pengusulan</span>
+          {(["berjalan", "ditutup"] as const).map((m) => (
+            <Button
+              key={m}
+              ukuran="sm"
+              varian={saatIni === m ? "utama" : "sekunder"}
+              disabled={sibuk}
+              aria-pressed={saatIni === m}
+              onClick={() => jalankan(() => setSakelarMasa(m), () => setSaatIni(m))}
+            >
+              {m}
+            </Button>
+          ))}
+          <span className="text-xs text-abu-600">
+            Saat ini: <strong data-testid="masa-saat-ini" className="font-semibold text-sogan-800">{saatIni}</strong>
+          </span>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Sakelar masa pengusulan">
-        <span className="font-semibold text-sogan-800">Masa pengusulan:</span>
-        <Button varian={masa === "berjalan" ? "utama" : "garis"} disabled={sibuk} aria-pressed={masa === "berjalan"} onClick={() => jalankan(() => setSakelarMasa("berjalan"))}>
-          berjalan
-        </Button>
-        <Button varian={masa === "ditutup" ? "utama" : "garis"} disabled={sibuk} aria-pressed={masa === "ditutup"} onClick={() => jalankan(() => setSakelarMasa("ditutup"))}>
-          ditutup
-        </Button>
-        <span className="text-sm text-sogan-700">Saat ini: <strong data-testid="masa-saat-ini">{masa}</strong></span>
-      </div>
-      {sibuk ? <p role="status" className="text-sm text-sogan-700">Memproses...</p> : null}
-      {pesan ? (
-        <p role={pesan.ok ? "status" : "alert"} className={pesan.ok ? "text-sm font-semibold text-daun-700" : "text-sm font-semibold text-bata-700"}>
-          {pesan.teks}
-        </p>
-      ) : null}
+
+      <ModalKonfirmasi
+        buka={konfirmasi}
+        saatUbah={(b) => !sibuk && setKonfirmasi(b)}
+        judul="Reset & isi data demo"
+        kode="DEMO"
+        labelKonfirmasi="Reset sekarang"
+        bahaya
+        memuat={sibuk}
+        saatKonfirmasi={() => jalankan(resetDemo)}
+      >
+        <p>Semua data demo kecuali log audit akan dihapus lalu diisi ulang. Basis data ini dipakai bersama oleh lokal dan produksi.</p>
+      </ModalKonfirmasi>
     </div>
   );
 }

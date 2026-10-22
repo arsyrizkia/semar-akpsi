@@ -20,11 +20,12 @@ const masukan = z.object({
 export async function aksiTandaiButir(periodeId: string, skemaId: string, kode: string[]): Promise<HasilTandaiAksi> {
   const sesi = await wajibTimKerja();
   const ok = masukan.safeParse({ periodeId, skemaId, kode });
-  if (!ok.success) return { ditandai: [], galat: "Pilih minimal satu butir dengan mencentang \"Perlu Diperbaiki\"." };
-  if (!ok.data.kode.length) return { ditandai: [], galat: "Pilih minimal satu butir dengan mencentang \"Perlu Diperbaiki\"." };
+  if (!ok.success) return { ditandai: [], galat: "Pilih minimal satu butir dengan mencentang “Perlu Diperbaiki”." };
+  if (!ok.data.kode.length) return { ditandai: [], galat: "Pilih minimal satu butir dengan mencentang “Perlu Diperbaiki”." };
   try {
     const { ditandai } = await tandaiButir(ok.data.skemaId, ok.data.periodeId, ok.data.kode, sesi.akun.id, sesi.akun.idBima);
     revalidatePath("/tim-kerja/pemantauan");
+    revalidatePath("/tim-kerja/proposal", "layout");
     revalidatePath("/tim-kerja/aturan");
     return { ditandai };
   } catch (e) {

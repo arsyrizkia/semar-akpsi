@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): setiap cabang potongPerBagian (seq-uc05).
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-01 potongPerBagian (Contract C-21); setiap cabang.
 import { describe, expect, it } from "vitest";
 import type { BagianTemplatDto } from "@/lib/kontrak/tipe";
 import type { BlokTeks } from "@/lib/pengajuan/ekstraksi";

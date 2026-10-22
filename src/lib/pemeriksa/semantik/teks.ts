@@ -44,14 +44,19 @@ export function siapkanTeksTanpaIdentitas(teks: string, identitas: IdentitasPeng
   return hasil;
 }
 
+const KELAS_KUTIP: Record<string, string> = { "'": "['\u2018\u2019]", "\u2018": "['\u2018\u2019]", "\u2019": "['\u2018\u2019]", '"': '["\u201C\u201D]', "\u201C": '["\u201C\u201D]', "\u201D": '["\u201C\u201D]' };
+
+/** Satu token kutipan menjadi pola: tanda kutip lurus dan lengkung dianggap sama, karakter lain persis. */
+const polaToken = (t: string) => [...t].map((c) => KELAS_KUTIP[c] ?? escapeRegex(c)).join("");
+
 /**
- * Mencari kutipan secara persis di teks (UC-09 langkah 7). Perbedaan spasi/baris baru diabaikan;
- * huruf besar-kecil dan tanda baca dibedakan. Mengembalikan rentang di teks asli, atau null.
+ * Mencari kutipan di teks (UC-09 langkah 7). Perbedaan spasi/baris baru dan tanda kutip lurus/lengkung diabaikan;
+ * huruf besar-kecil dan tanda baca lain dibedakan. Mengembalikan rentang di teks asli, atau null.
  */
 export function cariKutipan(teks: string, kutipan: string | null | undefined): { mulai: number; akhir: number } | null {
   const token = (kutipan ?? "").trim().split(/\s+/).filter(Boolean);
   if (token.length === 0 || !teks) return null;
-  const pola = token.map(escapeRegex).join("\\s+");
+  const pola = token.map(polaToken).join("\\s+");
   const m = new RegExp(pola).exec(teks);
   return m ? { mulai: m.index, akhir: m.index + m[0].length } : null;
 }

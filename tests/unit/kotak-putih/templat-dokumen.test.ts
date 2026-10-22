@@ -1,4 +1,4 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): setiap cabang generator templat (.docx).
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-10 buatDokumenTemplat (Contract C-31); setiap cabang generator templat (.docx).
 import { describe, expect, it } from "vitest";
 import mammoth from "mammoth";
 import { bagianDokumen, buatDokumenTemplat, panduanBagian } from "@/lib/templat/dokumen";

@@ -1,4 +1,4 @@
-// Uji kotak hitam: menu sidebar per peran (NFR 5.1, docs/arah-perbaikan-2026-10-22.md).
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Class Diagram Akun (peran Tim Kerja, Reviewer, Pengusul) dan NFR 5.1; menu sidebar per peran (tambahan prototipe).
 import { describe, expect, it } from "vitest";
 import { itemAktif, menuUntukPeran } from "@/lib/menu";
 

@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak, spesifikasi, dan real use case, tanpa melihat isi metode.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-03 TemplatProposal.turunkanButirCek (turunkanButirDariTemplat), Contract C-25 (ambang keyakinan butir semantik), CRC Penilaian/VersiProposal untuk pembangkit contoh; sesi SSO menurut docs/KONTRAK.md (tambahan prototipe).
 import { describe, expect, it } from "vitest";
 import { AMBANG_KEYAKINAN } from "@/lib/kontrak/tipe";
 import { tingkatKeyakinan } from "@/components/ui/bar-keyakinan";

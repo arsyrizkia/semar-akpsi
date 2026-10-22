@@ -25,6 +25,7 @@ import { bima, type RingkasanProposalBima } from "../bima/client";
 import { antrekanPemeriksaanSemantik } from "../kontrak";
 import { jalankanPemeriksaanDeterministik } from "../pemeriksa/deterministik";
 import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "../waktu";
+import { adalahPengajuanPertama, hitungMasaPengusulan, statusSetelahPemeriksaan, transisiProposal } from "./aturan";
 import { ekstrakNaskah, ekstrakTeksLampiran } from "./ekstraksi";
 import { potongTeks } from "./potong";
 import type { KlaimPengajuan } from "./token";
@@ -56,8 +57,7 @@ export async function ambilPeriodeBerjalan(): Promise<Periode> {
  */
 export async function cekMasaPengusulan(periode: Periode): Promise<{ berjalan: boolean; tanggalTutup: Date }> {
   const sekarang = await waktuDemo();
-  const dalamRentang = sekarang >= periode.tanggalBuka && sekarang <= periode.tanggalTutup;
-  return { berjalan: dalamRentang && (await masaPengusulanBerjalan()), tanggalTutup: periode.tanggalTutup };
+  return { berjalan: hitungMasaPengusulan(sekarang, periode.tanggalBuka, periode.tanggalTutup, await masaPengusulanBerjalan()), tanggalTutup: periode.tanggalTutup };
 }
 
 /**
@@ -174,7 +174,7 @@ export async function mulaiPengajuan(klaim: KlaimPengajuan, pengusul: Akun, jadw
     .values({ aktor: pengusul.idBima, aksi: "pengajuan.diterima", objek: klaim.jti, rincian: { idProposal: klaim.idProposal } })
     .returning({ id: logAudit.id });
   const [pertama] = await db.select({ id: min(logAudit.id) }).from(logAudit).where(and(eq(logAudit.aksi, "pengajuan.diterima"), eq(logAudit.objek, klaim.jti)));
-  if (pertama.id !== saya.id) return { status: "duplikat", proposalId: await idProposalSemar(klaim.idProposal) };
+  if (!adalahPengajuanPertama(pertama.id, saya.id)) return { status: "duplikat", proposalId: await idProposalSemar(klaim.idProposal) };
 
   const periode = await ambilPeriodeBerjalan();
   const [ada] = await db.select().from(proposal).where(eq(proposal.idProposal, klaim.idProposal));
@@ -292,11 +292,11 @@ export async function prosesPengajuan(proposalId: string): Promise<void> {
     if (p.judul !== dariBima.ringkasan.judul) await db.update(proposal).set({ judul: dariBima.ringkasan.judul }).where(eq(proposal.id, p.id));
 
     const hasil = await jalankanPemeriksaanDeterministik(versi.id);
-    if (hasil.semuaLolos) {
+    if (statusSetelahPemeriksaan(hasil.jumlahGagal) === "Terkirim") {
       await catatTerkirim(p.id, versi.id);
     } else {
       // S-1: pengiriman ditahan; versi tidak masuk antrean semantik
-      await db.update(proposal).set({ status: "Ditahan" }).where(eq(proposal.id, p.id));
+      await db.update(proposal).set({ status: transisiProposal("Sedang diperiksa", "ada-gagal") }).where(eq(proposal.id, p.id));
       await catatLogAudit({
         aktor: "sistem",
         aksi: "pengajuan.ditahan",
@@ -313,7 +313,7 @@ export async function prosesPengajuan(proposalId: string): Promise<void> {
       .from(versiProposal)
       .where(and(eq(versiProposal.proposalId, p.id), eq(versiProposal.statusPemeriksaan, "Selesai")))
       .limit(1);
-    await db.update(proposal).set({ status: selesai.length ? "Ditahan" : "Belum diajukan" }).where(eq(proposal.id, p.id));
+    await db.update(proposal).set({ status: transisiProposal("Sedang diperiksa", "galat", selesai.length > 0) }).where(eq(proposal.id, p.id));
     await catatLogAudit({ aktor: "sistem", aksi: "pengajuan.gagal", objek: p.idProposal, rincian: { galat } });
   }
 }

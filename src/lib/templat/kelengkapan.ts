@@ -54,3 +54,24 @@ export function periksaKelengkapan(m: MasukanKelengkapan): HasilKelengkapan {
 export function bagianTersimpan(b: BarisBagianMentah): { nama: string; batasKata: number | null; wajib: boolean } {
   return { nama: b.nama.trim(), batasKata: b.tanpaBatas ? null : Number(b.batas.trim()), wajib: b.wajib };
 }
+
+export interface IsianDrafBersih {
+  bagian: { nama: string; batasKata: number | null; wajib: boolean }[];
+  lampiran: string[];
+  periodeBerlakuId: string | null;
+}
+
+/**
+ * Isian yang boleh disimpan sebagai Draf walau belum lengkap ("Simpan Draf", "Unduh Pratinjau (.docx)").
+ * Baris tanpa nama dan lampiran kosong dibuang (tidak membawa informasi); batas kata yang tidak valid menjadi tanpa batas
+ * (kelengkapan penuh tetap diperiksa saat "Terbitkan", periksaKelengkapan).
+ */
+export function bersihkanIsianDraf(m: MasukanKelengkapan): IsianDrafBersih {
+  return {
+    bagian: m.bagian
+      .filter((b) => b.nama.trim() !== "")
+      .map((b) => ({ nama: b.nama.trim(), batasKata: b.tanpaBatas || !batasKataValid(b.batas) ? null : Number(b.batas.trim()), wajib: b.wajib })),
+    lampiran: m.lampiran.map((l) => l.trim()).filter((l) => l !== ""),
+    periodeBerlakuId: m.periodeBerlakuId || null,
+  };
+}

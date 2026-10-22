@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475): diturunkan dari kontrak, spesifikasi, dan real use case, tanpa melihat isi metode.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-01 TemplatProposal.periksaKelengkapan (S-2 isian ditandai); CRC TemplatProposal.
 import { describe, expect, it } from "vitest";
 import { bagianTersimpan, batasKataValid, periksaKelengkapan } from "@/lib/templat/kelengkapan";
 

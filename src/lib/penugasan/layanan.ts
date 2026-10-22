@@ -9,9 +9,11 @@ import { akun, penugasanReviewer, periodeSeleksi, proposal, skemaPendanaan, vers
 import { pastikanAkunMassal } from "@/lib/auth";
 import { bima, BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
-import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA } from "@/lib/waktu";
+import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
 import { periksaSyarat, susunUsulanMurni } from "./aturan";
+import { bolehDipindahkan } from "./status";
+import { periodeDitutup, type HitungPeriode } from "./periode";
 
 /** Baris per perintah INSERT massal (dikirim sebagai satu array JSON, jadi tidak dibatasi jumlah parameter). */
 const UKURAN_SISIP = 5000;
@@ -62,6 +64,15 @@ export async function hitungPenugasan(periodeId: string, status: "Diusulkan" | "
     .select({ n: sql<number>`count(*)::int` })
     .from(penugasanReviewer)
     .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, status)));
+  return n;
+}
+
+/** Jumlah reviewer berbeda pada usulan (status Diusulkan) satu periode: bahan ringkasan M-07. */
+export async function hitungReviewerUsulan(periodeId: string): Promise<number> {
+  const [{ n }] = await getDb()
+    .select({ n: sql<number>`count(distinct ${penugasanReviewer.reviewerId})::int` })
+    .from(penugasanReviewer)
+    .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, "Diusulkan")));
   return n;
 }
 
@@ -256,7 +267,7 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string,
   const db = getDb();
   const [pn] = await db.select().from(penugasanReviewer).where(eq(penugasanReviewer.id, penugasanId));
   if (!pn) throw new Error("Penugasan tidak ditemukan.");
-  if (pn.status !== "Diusulkan") {
+  if (!bolehDipindahkan(pn.status)) {
     return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Penugasan sudah ditetapkan dan tidak dapat dipindahkan."] };
   }
   const [pr] = await db.select().from(proposal).where(eq(proposal.id, pn.proposalId));
@@ -390,7 +401,87 @@ export async function ambilKandidatPengganti(periodeId: string): Promise<Kandida
     .sort((a, b) => a.nama.localeCompare(b.nama));
 }
 
-/** Periode untuk J-04: periode aktif pengaturan demo (skenario skala nyata) atau periode terbaru menurut tahun. */
+export interface RingkasanPeriode extends HitungPeriode {
+  id: string;
+  nama: string;
+  tahun: number;
+  tanggalBuka: Date;
+  tanggalTutup: Date;
+  batasBeban: number;
+  ditutup: boolean;
+}
+
+/** Satu periode beserta ringkasan penetapannya (J-04b), atau null bila id tidak dikenal. */
+export async function ambilRingkasanPeriode(periodeId: string): Promise<RingkasanPeriode | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(periodeId)) return null;
+  const db = getDb();
+  const [p] = await db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
+  if (!p) return null;
+  const [terkirim, belumDitugaskan, diusulkan, ditetapkan, berjalan, sekarang] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(proposal).where(and(eq(proposal.periodeId, periodeId), eq(proposal.status, "Terkirim"))),
+    hitungPerluDitugaskan(periodeId),
+    hitungPenugasan(periodeId, "Diusulkan"),
+    hitungPenugasan(periodeId, "Ditetapkan"),
+    masaPengusulanBerjalan(),
+    waktuDemo(),
+  ]);
+  return {
+    id: p.id,
+    nama: p.nama,
+    tahun: p.tahun,
+    tanggalBuka: p.tanggalBuka,
+    tanggalTutup: p.tanggalTutup,
+    batasBeban: p.batasBebanReviewer,
+    terkirim: terkirim[0].n,
+    belumDitugaskan,
+    diusulkan,
+    ditetapkan,
+    ditutup: periodeDitutup({ tanggalTutup: p.tanggalTutup, sekarang, masaBerjalan: berjalan }),
+  };
+}
+
+/**
+ * Daftar J-04 (UC-03 s.1): periode yang masa pengusulannya sudah ditutup beserta ringkasan (jumlah Terkirim, belum ditugaskan,
+ * usulan, ditetapkan). Dihitung dengan empat kueri GROUP BY, bukan per periode. `jumlahBerjalan` = periode yang belum ditutup.
+ */
+export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriode[]; jumlahBerjalan: number }> {
+  const db = getDb();
+  const [semua, berjalan, sekarang] = await Promise.all([
+    db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)),
+    masaPengusulanBerjalan(),
+    waktuDemo(),
+  ]);
+  const [terkirim, belum, penugasan] = await Promise.all([
+    db.select({ periodeId: proposal.periodeId, n: sql<number>`count(*)::int` }).from(proposal).where(eq(proposal.status, "Terkirim")).groupBy(proposal.periodeId),
+    db
+      .select({ periodeId: proposal.periodeId, n: sql<number>`count(*)::int` })
+      .from(proposal)
+      .where(sql`${proposal.status} = 'Terkirim' AND ${proposal.id} NOT IN (SELECT pr.proposal_id FROM penugasan_reviewer pr WHERE pr.status <> 'Diusulkan')`)
+      .groupBy(proposal.periodeId),
+    db
+      .select({ periodeId: penugasanReviewer.periodeId, status: penugasanReviewer.status, n: sql<number>`count(*)::int` })
+      .from(penugasanReviewer)
+      .groupBy(penugasanReviewer.periodeId, penugasanReviewer.status),
+  ]);
+  const ambil = (daftar: { periodeId: string; n: number }[], id: string) => daftar.find((d) => d.periodeId === id)?.n ?? 0;
+  const tugas = (id: string, status: string) => penugasan.find((x) => x.periodeId === id && x.status === status)?.n ?? 0;
+  const semuaRingkas = semua.map((p): RingkasanPeriode => ({
+    id: p.id,
+    nama: p.nama,
+    tahun: p.tahun,
+    tanggalBuka: p.tanggalBuka,
+    tanggalTutup: p.tanggalTutup,
+    batasBeban: p.batasBebanReviewer,
+    terkirim: ambil(terkirim, p.id),
+    belumDitugaskan: ambil(belum, p.id),
+    diusulkan: tugas(p.id, "Diusulkan"),
+    ditetapkan: tugas(p.id, "Ditetapkan") + tugas(p.id, "Selesai"),
+    ditutup: periodeDitutup({ tanggalTutup: p.tanggalTutup, sekarang, masaBerjalan: berjalan }),
+  }));
+  return { periode: semuaRingkas.filter((p) => p.ditutup), jumlahBerjalan: semuaRingkas.filter((p) => !p.ditutup).length };
+}
+
+/** Periode untuk J-04 (lama): periode aktif pengaturan demo (skenario skala nyata) atau periode terbaru menurut tahun. */
 export const ambilPeriodeTerbaru = ambilPeriodeAktif;
 
 /* ------------------------------ metode seq-uc03 ------------------------------ */

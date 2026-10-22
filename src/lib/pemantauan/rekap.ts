@@ -14,6 +14,8 @@ export interface BarisGagal {
 
 export interface BarisNilai {
   hasilId: string;
+  /** id baris proposal (untuk tautan ke J-05b); opsional supaya uji murni tidak perlu mengisinya */
+  proposalId?: string;
   butirKode: string;
   judulProposal: string;
   rekomendasi: "Memenuhi" | "Tidak memenuhi" | null;
@@ -50,6 +52,7 @@ export interface BarisKesesuaian {
 }
 
 export interface ContohRincian {
+  proposalId?: string;
   judulProposal: string;
   rekomendasi: string | null;
   statusSistem: string;
@@ -134,6 +137,7 @@ export function rekapKesesuaian(gagal: BarisGagal[], nilai: BarisNilai[], butir:
     }
     /* ambilRincian / ambilContoh (S-1): koreksi lebih dulu, lalu yang disetujui */
     rincian[kode] = [...koreksi, ...baris.filter((n) => !n.koreksi)].slice(0, BATAS_CONTOH_RINCIAN).map((n) => ({
+      proposalId: n.proposalId,
       judulProposal: n.judulProposal,
       rekomendasi: n.rekomendasi,
       statusSistem: n.status,

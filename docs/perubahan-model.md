@@ -63,3 +63,15 @@ Dicatat sesuai keputusan 4 (`docs/keputusan.md`). Skema lengkap: `src/db/schema.
 | `proposal`, `versi_proposal` | 10.000 proposal Terkirim berkode `SKL-2026-NNNNN`, masing-masing satu versi V1 berteks kosong, dibuat set-based (`generate_series`). `hasil_pemeriksaan` per butir tidak dibuat untuk proposal ini (status Terkirim = semua butir lolos). | Kecepatan pembuatan dan ukuran basis data; bukti per butir diperagakan pada proposal skenario kecil. | Tidak perlu |
 | `bima_kotak_masuk` (indeks) | **Indeks unik parsial baru** `bima_kotak_masuk_kunci_uq` pada `(jenis, (payload->>'kunci')) WHERE (payload->>'kunci') IS NOT NULL` (dideklarasikan di `schema.ts` dan dipasang idempoten oleh `scripts/pasang-trigger.ts`, yang lebih dulu membuang duplikat lama). Penerimaan penugasan memakai `INSERT ... SELECT ... ON CONFLICT DO NOTHING` per kelompok 500; keputusan memakai `ON CONFLICT DO NOTHING` juga. | Idempotensi di tingkat basis data: percobaan ulang klien yang berjalan bersamaan dengan permintaan pertama (batas waktu 10 dtk) tidak menggandakan baris. Mempercepat anti-join lama. | Bab 9 (khusus prototipe) |
 
+
+## Putaran perombakan layar dan modal (22 Okt 2026)
+
+**Tidak ada perubahan skema** (`npm run db:push` tidak dijalankan pada putaran ini). Penambahan perilaku yang perlu diketahui:
+
+| Hal | Perubahan | Alasan | Bab yang perlu disesuaikan |
+|---|---|---|---|
+| `log_audit` | Aksi baru `templat.draf-simpan` (Simpan Draf di J-02b) dan `templat.unduh` (unduhan templat). | Jejak audit (NFR 3.3). | Tidak perlu |
+| `templat_proposal` (draf) | Draf yang disimpan sebelum lengkap membuang baris bagian tanpa nama dan lampiran kosong, dan batas kata tidak sah menjadi "Tanpa batas" (`bersihkanIsianDraf`). Pemeriksaan penuh tetap berjalan saat Terbitkan. | Pratinjau .docx tidak boleh memuat judul kosong. | Bab 10 UC-01 s.4-7 |
+| `butir_cek.status` | Transisi dipusatkan di `src/lib/aturan/status.ts` (Draf, Aktif, Perlu ditinjau, Nonaktif; Nonaktif keadaan akhir) dan penguncian butir turunan templat (pesan 4a). Penandaan dari J-05 lewat `tandaiPerluDitinjau` (hanya butir Aktif). | State machine ButirCek diuji KH-statusButir dan KH-butirTerkunci. | Tidak perlu |
+| `penugasan_reviewer.status` | Transisi dipusatkan di `src/lib/penugasan/status.ts` (Diusulkan, Ditetapkan, Selesai; hanya Diusulkan boleh dipindahkan). | KH-StatusPenugasan. | Tidak perlu |
+| `penilaian.status` | Transisi dipusatkan di `src/lib/penilaian/status.ts` (Draf, Final; Final tidak dapat diubah). | KH-penilaianStatus. | Tidak perlu |

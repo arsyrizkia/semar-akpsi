@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { NavigatorDemo } from "@/components/layout/navigator-demo";
@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: { default: "SEMAR", template: "%s · SEMAR" },
   description: "Sistem Evaluasi Mandiri dan Asisten Reviewer: prototipe pemeriksaan administratif proposal penelitian.",
 };
+
+/** Warna bilah peramban sama dengan latar halaman (krem). */
+export const viewport: Viewport = { themeColor: "#faf7f1", colorScheme: "light" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
