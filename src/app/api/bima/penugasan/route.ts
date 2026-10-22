@@ -4,6 +4,7 @@ import { tolakBilaKunciSalah } from "@/lib/bima/api";
 import { terimaPenugasanDariSemar } from "@/lib/bima/servis";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const skema = z.object({
   periodeId: z.string().optional(),

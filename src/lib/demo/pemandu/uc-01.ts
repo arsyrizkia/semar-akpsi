@@ -1,4 +1,4 @@
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 /** Langkah real use case UC-01 Mengelola templat proposal (Bab 10.2.1) untuk PanelPemandu di J-02. */
 export const LANGKAH_UC01: LangkahPemandu[] = [

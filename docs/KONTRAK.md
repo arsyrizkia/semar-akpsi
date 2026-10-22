@@ -79,7 +79,7 @@ data/contoh/                    data contoh sementara (JSON)
 | `antrekanPemeriksaanSemantik(versiId)` | D | buat baris `job_semantik`; dipanggil C setelah `catatTerkirim` |
 | `jalankanPemeriksaanSemantik(versiId)` | D | UC-09; simpan hasil semantik |
 | `nilaiSemantikTeks(dokumen, butir[])` | D | tanpa DB; dipakai UC-09 dan Uji pada Contoh (A) |
-| `susunPenugasan(periodeId, batasBeban)` / `pilihReviewer(penugasanId, reviewerBaruId)` | B | UC-03 |
+| `susunPenugasan(periodeId, batasBeban)` (hasil memuat `jumlahUsulan`; `usulan` hanya halaman pertama, sisanya lewat `ambilUsulan(periodeId, status, { halaman })`) / `pilihReviewer(penugasanId, reviewerBaruId)` | B | UC-03 |
 | `catatLogAudit({aktor, aksi, objek?, rincian?})` | fondasi (nyata) | append-only |
 
 Stub awal melempar `Error("belum diimplementasi: <nama>")`.
@@ -109,7 +109,7 @@ Skema parameter butir (`butir_cek.parameter`): `ParameterButir` di `tipe.ts` (ba
 ## Komponen UI bertema
 
 `@/components/ui`: `Button` (varian utama/emas/garis/hantu/bahaya, `asChild`), `Input`, `Textarea`, `Select` (native), `Field` (label + galat; isian invalid memakai `aria-invalid="true"` → bingkai merah), `Checkbox`, `RadioGroup`/`RadioItem`, `Tabs*`, `Dialog`, `Tooltip`, `Panel`, `JudulHalaman`, `Alert` (info/sukses/peringatan/galat), `Table/THead/TBody/TR/TH/TD`, `Badge`, `StatusBadge` (peta semua status baku), `BarKeyakinan` + `tingkatKeyakinan` (ambang contoh 0,8/0,5). Toast: `import { toast } from "sonner"` (Toaster sudah di layout root).
-`@/components/layout/panel-pemandu`: `PanelPemandu({ kode, judul, langkah:[{nomor, teks, alternatif?}], aktifNomor? })` (bisa disembunyikan). `@/components/merek`: `SemarIlustrasi`, `LambangSemar`, `LogoSemar`. Kelas CSS `latar-kawung` dan `latar-kawung-terang` untuk motif kawung. Token warna Tailwind: `sogan-*`, `emas-*`, `krem`, `daun-*`, `bata-*`.
+`@/components/layout/navigator-demo`: `NavigatorDemo` (dipasang sekali di root layout; katalog di `@/lib/demo/katalog`). Panel pemandu langkah lama (`PanelPemandu`) sudah dihapus; tipe `LangkahPemandu` ada di `@/lib/demo/pemandu/tipe`. `@/components/merek`: `SemarIlustrasi`, `LambangSemar`, `LogoSemar`. Kelas CSS `latar-kawung` dan `latar-kawung-terang` untuk motif kawung. Token warna Tailwind: `sogan-*`, `emas-*`, `krem`, `daun-*`, `bata-*`.
 
 ## Data contoh (seed)
 

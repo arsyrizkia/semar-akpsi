@@ -171,24 +171,9 @@ const hariIni = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-async function buka(page: Page, url: string, tungguTeks?: string) {
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  if (tungguTeks) await adaTeks(page, tungguTeks, 60_000);
-}
-
-/** Memastikan PanelPemandu untuk kode tertentu ada di jendela (membukanya bila disembunyikan), lalu menyembunyikannya lagi. */
-async function pemanduTampil(page: Page, kode: string, namaFoto?: string) {
-  if ((await page.$("button[aria-label='Tampilkan panduan']")) || (await jumlahTombol(page, "Tampilkan panduan")) > 0) await klik(page, "Tampilkan panduan");
-  await page.waitForSelector(`aside[aria-label="Panduan langkah ${kode}"]`, { timeout: 10_000 }).catch(() => {
-    throw new Error(`PanelPemandu ${kode} tidak tampil`);
-  });
-  // bawaan panel ciut (tidak menutupi isi jendela): buka dulu untuk memeriksa daftar langkah
-  const bukaPanel = await page.$("aside button[aria-label='Buka panduan']");
-  if (bukaPanel) await bukaPanel.click();
-  const jumlahLangkah = await page.$$eval(`aside[aria-label="Panduan langkah ${kode}"] li`, (l) => l.length);
-  yakin(jumlahLangkah >= 5, `PanelPemandu ${kode} hanya berisi ${jumlahLangkah} langkah`);
-  if (namaFoto) await foto(page, namaFoto);
-  await page.click("button[aria-label='Sembunyikan panduan']");
+async function buka(page: Page, url: string, tungguTeks?: string, ms = 60_000) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: Math.max(120_000, ms) });
+  if (tungguTeks) await adaTeks(page, tungguTeks, ms);
 }
 
 /** Status pada J-06 ("Status pengajuan [Terkirim|Ditahan|Ditolak]"); menunggu sampai pemeriksaan selesai. */
@@ -255,14 +240,6 @@ async function utama() {
   const page = await peramban.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   page.setDefaultTimeout(30_000);
-  // panduan disembunyikan supaya tidak menutupi klik dan teksnya tidak tercampur ke pemeriksaan; diuji khusus lewat pemanduTampil
-  await page.evaluateOnNewDocument(() => {
-    try {
-      if (!localStorage.getItem("semar:pemandu")) localStorage.setItem("semar:pemandu", "sembunyi");
-    } catch {
-      /* abaikan */
-    }
-  });
   page.on("dialog", (d) => void d.accept()); // konfirmasi Reset & isi data demo
   page.on("console", (m) => {
     if (m.type() === "error") galatKonsol.push(m.text());
@@ -334,7 +311,6 @@ async function utama() {
       yakin(t.includes("Kembali ke BIMA"), "tombol Kembali ke BIMA tidak tampil");
       const statusSel = await page.$$eval("table tbody td", (tds) => tds.map((td) => (td.textContent ?? "").trim()).filter((x) => x === "Lolos" || x === "Gagal"));
       yakin(statusSel.length >= 10 && !statusSel.includes("Gagal"), `semua butir seharusnya Lolos (${statusSel.length} butir)`);
-      await pemanduTampil(page, "UC-05", "j06-pemandu-uc05");
       await foto(page, "j06-terkirim");
       c("J-06 menampilkan Terkirim, daftar butir Lolos, Bukti Pengiriman, Kembali ke BIMA");
     });
@@ -419,7 +395,6 @@ async function utama() {
       yakin(/butir cek draf dibuat/.test(t), "jumlah butir draf tidak ditampilkan");
       yakin((await jumlahTombol(page, "Buka Aturan Pemeriksaan")) === 1, "tombol Buka Aturan Pemeriksaan tidak ada");
       await foto(page, "j02-terbit");
-      await pemanduTampil(page, "UC-01");
       c("jalur utama: templat versi baru terbit, jumlah butir draf dan tombol Buka Aturan Pemeriksaan tampil");
     });
 
@@ -460,7 +435,6 @@ async function utama() {
       yakin(!adaNonaktifkan, "butir templat tidak boleh punya tombol Nonaktifkan");
       await brs.evaluate((tr) => ([...tr.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Ubah") as HTMLButtonElement).click());
       await adaTeks(page, "Nilai butir ini berasal dari templat dan hanya dapat diubah melalui jendela J-02 Templat Proposal");
-      await pemanduTampil(page, "UC-02");
       yakin((await jumlahTombol(page, "Buka Templat Proposal")) >= 1, "tombol Buka Templat Proposal tidak ada");
       yakin((await page.$("#b-kode")) === null, "panel butir tidak boleh terbuka pada 4a");
       await foto(page, "j03-4a");
@@ -505,7 +479,6 @@ async function utama() {
     await skenario("UC-03: menugaskan reviewer (jalur utama, S-1, S-2)", page, async (c) => {
       await buka(page, url("/demo/mulai?k=UC-03"), "Susun Usulan Penugasan");
       await foto(page, "j04-awal");
-      await pemanduTampil(page, "UC-03");
       // S-1: batas 1 -> kekurangan
       await isi(page, "#batas", "1");
       await klik(page, "Susun Usulan Penugasan");
@@ -568,7 +541,6 @@ async function utama() {
       const t = await teksHalaman(page);
       for (const s of ["kesesuaian per butir", "% disetujui", "butir dengan koreksi tertinggi"]) yakin(t.toLowerCase().includes(s), `bagian "${s}" tidak tampil`);
       await foto(page, "j05-pemantauan");
-      await pemanduTampil(page, "UC-04");
       c("tiga bagian laporan tampil");
       // S-1: Rincian Butir
       const pemicu = await page.evaluateHandle(() => {
@@ -629,7 +601,6 @@ async function utama() {
       const j07 = await teksHalaman(page);
       yakin(j07.includes("Baru"), "label Baru tidak tampil di J-07");
       await foto(page, "j07-daftar-penugasan");
-      await pemanduTampil(page, "UC-07");
       yakin((await jumlahTombol(page, "Periksa")) >= 1, "tombol Periksa tidak ada");
       // jendela J-08 untuk penugasan skenario (daftar J-07 reviewer-2 juga memuat penugasan dari UC-03)
       await buka(page, url("/demo/mulai?k=UC-07a&j08=1"), "Butir Semantik");
@@ -736,8 +707,326 @@ async function utama() {
       await buka(page, url("/demo/mulai?k=UC-09"), "Butir Semantik");
       yakin(page.url().includes("/reviewer/pemeriksaan/"), "UC-09 tidak membuka J-08");
       c("UC-08 dan UC-09 membuka J-08 langsung");
-      await pemanduTampil(page, "UC-07", "j08-pemandu");
-      c("PanelPemandu tampil di J-08");
+      yakin((await page.$("aside[aria-label^='Panduan langkah']")) === null, "panel langkah lama masih tampil");
+      c("panel langkah lama tidak ada lagi; navigator menggantikannya");
+    });
+
+    /* ---- Navigator demo ---- */
+    const bukaNavigator = async () => {
+      if (!(await page.$("[data-testid=navigator-panel]"))) await page.click("[data-testid=navigator-pil]");
+      await page.waitForSelector("[data-testid=navigator-panel]", { timeout: 10_000 });
+    };
+    const ciutkanNavigator = async () => {
+      if (await page.$("[data-testid=navigator-panel]")) await page.click("[aria-label='Ciutkan navigator demo']");
+      await page.waitForSelector("[data-testid=navigator-pil]", { timeout: 10_000 });
+    };
+    /** Memilih jendela atau skenario lewat navigator dan menunggu halaman tujuan terbuka. */
+    const lewatNavigator = async (selektor: string, tungguTeks: string, ms = 120_000) => {
+      await bukaNavigator();
+      await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: ms }), page.click(`[data-testid=navigator-panel] ${selektor}`)]);
+      await adaTeks(page, tungguTeks, ms);
+      await ciutkanNavigator(); // teks navigator tidak boleh tercampur ke pemeriksaan teks halaman
+    };
+    const teksPanel = (judul: string) =>
+      page.evaluate((j) => {
+        const h = [...document.querySelectorAll("h2")].find((e) => e.textContent?.trim() === j);
+        return h?.closest("section")?.textContent ?? "";
+      }, judul);
+    const aktifNavigator = () => page.$eval("[data-testid=navigator-aktif]", (e) => e.textContent ?? "");
+
+    await skenario("Navigator demo: pindah antar-jendela dan peran dipasang otomatis", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-02"), "Aturan Pemeriksaan");
+      // 1. pil ada di jendela, ciut bawaan, tidak berisi daftar jendela
+      yakin((await page.$("[data-testid=navigator-pil]")) !== null, "pil navigator tidak ada di J-03");
+      yakin((await page.$("[data-testid=navigator-panel]")) === null, "navigator seharusnya ciut bawaan");
+      // 2. terbuka: 10 jendela (J-01..J-08 + 2 halaman BIMA), jendela aktif ditandai
+      await bukaNavigator();
+      const jendela = await page.$$eval("[data-testid=navigator-panel] [data-jendela]", (e) => e.map((x) => x.getAttribute("data-jendela")));
+      yakin(jendela.length === 10 && jendela.includes("J-01") && jendela.includes("J-08") && jendela.includes("BIMA-1") && jendela.includes("BIMA-2"), `daftar jendela salah: ${jendela}`);
+      const aktif = await page.$eval("[data-testid=navigator-panel] [aria-current=page]", (e) => e.getAttribute("data-jendela"));
+      yakin(aktif === "J-03", `jendela aktif seharusnya J-03, bukan ${aktif}`);
+      await foto(page, "navigator-terbuka-j03");
+      c("navigator memuat 10 jendela dan menandai J-03 sebagai jendela yang dibuka");
+
+      // 3. pindah jendela: peran dipasang otomatis
+      await lewatNavigator("[data-jendela='J-04']", "Susun Usulan Penugasan");
+      yakin(page.url().includes("/tim-kerja/penugasan"), "J-04 tidak terbuka");
+      await lewatNavigator("[data-jendela='J-07']", "Daftar Penugasan");
+      yakin(page.url().includes("/reviewer/penugasan") && (await teksHalaman(page)).includes("Dr. Intan Maharani"), "J-07 tidak terbuka sebagai reviewer");
+      c("J-04 terbuka sebagai Tim Kerja; J-07 terbuka sebagai reviewer (Dr. Intan Maharani) tanpa login manual");
+      await lewatNavigator("[data-jendela='J-06']", "Status pengajuan");
+      yakin(page.url().includes("/pengusul/hasil/"), "J-06 tidak terbuka");
+      await lewatNavigator("[data-jendela='J-05']", "Pemantauan Kesesuaian");
+      await lewatNavigator("[data-jendela='J-02']", "Templat Proposal");
+      await lewatNavigator("[data-jendela='J-08']", "Butir Semantik");
+      yakin(page.url().includes("/reviewer/pemeriksaan/"), "J-08 tidak terbuka");
+      await lewatNavigator("[data-jendela='BIMA-1']", "Pengajuan proposal");
+      await lewatNavigator("[data-jendela='BIMA-2']", "Kotak masuk");
+      await lewatNavigator("[data-jendela='J-01']", "Masuk dengan akun BIMA");
+      yakin(page.url().includes("/masuk"), "J-01 belum masuk tidak terbuka");
+      yakin((await page.$("[data-testid=navigator-pil]")) !== null, "navigator tidak tampil di halaman Masuk");
+      c("semua jendela J-01..J-08 dan dua halaman BIMA dapat dibuka dari navigator");
+    });
+
+    await skenario("Navigator demo: J-04 kosong versus berisi data, skenario aktif ditampilkan", page, async (c) => {
+      await buka(page, url("/demo/mulai?j=J-04&s=kosong"), "Susun Usulan Penugasan");
+      await ciutkanNavigator();
+      const awal = await teksPanel("Usulan Penugasan");
+      yakin(awal.includes("Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini."), "pesan kosong pertama tidak tampil");
+      yakin(awal.includes("Tidak ada usulan yang menunggu penetapan."), "pesan kosong kedua tidak tampil");
+      yakin((await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "")).includes("Kosong"), "pil tidak menampilkan skenario aktif");
+      await foto(page, "j04-kosong");
+      c("skenario Kosong: kedua pesan keadaan kosong tampil dan pil menyebut skenario aktif");
+
+      await bukaNavigator();
+      yakin((await aktifNavigator()).includes("J-04 · Kosong"), "panel tidak menyebut skenario aktif");
+      const aktifKosong = await page.$eval("[data-skenario=kosong]", (e) => e.getAttribute("aria-pressed"));
+      yakin(aktifKosong === "true", "tombol skenario Kosong tidak ditandai aktif");
+      const jumlahSkenario = await page.$$eval("[data-testid=navigator-panel] [data-skenario]", (e) => e.length);
+      yakin(jumlahSkenario === 6, `J-04 seharusnya 6 skenario, ada ${jumlahSkenario}`);
+      await foto(page, "navigator-skenario-j04");
+
+      await lewatNavigator("[data-skenario='siap-kecil']", "Susun Usulan Penugasan");
+      const siap = await teksPanel("Usulan Penugasan");
+      yakin(/\d+ proposal Terkirim belum punya penugasan tetap/.test(siap), "keadaan siap-kecil tidak menampilkan proposal yang perlu ditugaskan");
+      yakin(!siap.includes("Tidak ada proposal Terkirim yang masih perlu ditugaskan"), "keadaan berisi seharusnya tidak menampilkan pesan kosong");
+      c("pindah ke skenario siap-kecil: pesan kosong hilang, jumlah proposal siap disusun tampil");
+
+      await lewatNavigator("[data-skenario='menunggu']", "Usulan Penugasan");
+      await page.waitForFunction(() => document.querySelectorAll("table tbody tr").length >= 4, { timeout: 30_000 });
+      yakin((await teksPanel("Usulan Penugasan")).includes("usulan menunggu penetapan"), "usulan menunggu penetapan tidak tampil");
+      await foto(page, "j04-menunggu");
+      c("skenario menunggu: tabel Usulan Penugasan terisi");
+
+      await lewatNavigator("[data-skenario='kekurangan']", "Kekurangan Reviewer", 180_000);
+      await foto(page, "j04-kekurangan-navigator");
+      c("skenario kekurangan: Susun otomatis dan panel Kekurangan Reviewer tampil");
+
+      await lewatNavigator("[data-skenario='ditetapkan']", "Penugasan yang Sudah Ditetapkan", 180_000);
+      yakin((await teksPanel("Penugasan yang Sudah Ditetapkan")).includes("penugasan sudah ditetapkan"), "ringkasan penugasan ditetapkan tidak tampil");
+      await foto(page, "j04-ditetapkan-navigator");
+      c("skenario ditetapkan: penugasan yang sudah ditetapkan tampil");
+      await buka(page, url("/bima/kotak-masuk"), "Kotak masuk");
+      yakin((await teksHalaman(page)).includes("Penugasan reviewer"), "kotak masuk BIMA kosong sesudah ditetapkan");
+      c("kotak masuk BIMA memuat penugasan dari skenario ditetapkan");
+    });
+
+    await skenario("Navigator demo: skenario di J-01, J-02, J-03, J-05, J-06, J-07, J-08, BIMA", page, async (c) => {
+      // J-01
+      await buka(page, url("/demo/mulai?j=J-01&s=belum-masuk"), "Masuk dengan akun BIMA");
+      await lewatNavigator("[data-skenario='anggota']", "Penugasan Reviewer");
+      const menu = await page.$eval("nav[aria-label='Menu Tim Kerja DPPM']", (e) => e.textContent ?? "");
+      yakin(!menu.includes("Templat Proposal") && menu.includes("Penugasan Reviewer") && menu.includes("Pemantauan Kesesuaian"), `menu anggota salah: ${menu}`);
+      await buka(page, url("/demo/mulai?j=J-01&s=reviewer"), "Daftar Penugasan");
+      c("J-01: belum masuk, masuk sebagai anggota (menu J-04/J-05 saja), masuk sebagai reviewer (J-07)");
+      // J-02
+      await buka(page, url("/demo/mulai?j=J-02&s=tanpa-templat"), "Skema ini belum memiliki templat");
+      await lewatNavigator("[data-skenario='masa-berjalan']", "Templat Proposal");
+      await lewatNavigator("[data-skenario='draf-tersimpan']", "Templat Proposal");
+      yakin((await jumlahTombol(page, "Terbitkan")) >= 1, "draf tersimpan tidak dibuka (tombol Terbitkan tidak ada)");
+      c("J-02: tanpa templat (S-1), masa berjalan (9a), draf tersimpan dibuka kembali");
+      // J-03
+      await buka(page, url("/demo/mulai?j=J-03&s=perlu-ditinjau"), "Butir Cek", 90_000);
+      yakin((await teksHalaman(page)).includes("Perlu ditinjau"), "butir Perlu ditinjau tidak tampil di J-03");
+      await foto(page, "j03-perlu-ditinjau-navigator");
+      await lewatNavigator("[data-skenario='normal']", "Butir Cek", 90_000);
+      yakin(!(await teksHalaman(page)).includes("Perlu ditinjau"), "skenario normal J-03 seharusnya tanpa butir Perlu ditinjau");
+      c("J-03: butir Perlu ditinjau muncul pada skenario khusus dan hilang pada skenario normal");
+      // J-05
+      await buka(page, url("/demo/mulai?j=J-05&s=belum-final"), "Belum ada penilaian final untuk periode dan skema ini.", 90_000);
+      await foto(page, "j05-belum-final");
+      await lewatNavigator("[data-skenario='contoh']", "Butir Deterministik Paling Sering Gagal", 120_000);
+      yakin(!(await teksHalaman(page)).includes("Belum ada penilaian final untuk periode dan skema ini."), "J-05 contoh seharusnya memuat penilaian final");
+      c("J-05: belum ada penilaian final lalu data pemantauan contoh");
+      // J-06
+      await buka(page, url("/demo/mulai?j=J-06&s=terkirim"), "Bukti Pengiriman");
+      yakin((await tungguStatusPengajuan(page)) === "Terkirim", "J-06 terkirim");
+      await lewatNavigator("[data-skenario='ditahan']", "Pengiriman ditahan");
+      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "J-06 ditahan");
+      await foto(page, "j06-ditahan-navigator");
+      await lewatNavigator("[data-skenario='ditolak']", "Pengajuan ditolak");
+      yakin((await tungguStatusPengajuan(page)) === "Ditolak", "J-06 ditolak");
+      await lewatNavigator("[data-skenario='diperiksa']", "Pemeriksaan sedang berjalan");
+      c("J-06: Terkirim, Ditahan, Ditolak, dan Sedang diperiksa");
+      // J-07
+      await buka(page, url("/demo/mulai?j=J-07&s=kosong"), "Belum ada proposal yang ditugaskan kepada Anda.");
+      await lewatNavigator("[data-skenario='baru']", "Periksa");
+      yakin((await teksHalaman(page)).includes("Baru"), "J-07 baru tanpa label Baru");
+      await lewatNavigator("[data-skenario='draf']", "Periksa");
+      yakin((await teksHalaman(page)).includes("Draf"), "J-07 draf tanpa label Draf");
+      await lewatNavigator("[data-skenario='selesai']", "Selesai");
+      yakin((await jumlahTombol(page, "Periksa")) >= 1, "J-07 selesai tanpa tombol Periksa");
+      c("J-07: kosong, Baru, Draf, Selesai");
+      // J-08
+      await buka(page, url("/demo/mulai?j=J-08&s=final"), "Penilaian final: semua isian hanya dapat dibaca.");
+      yakin((await jumlahTombol(page, "Simpan Permanen")) === 0, "J-08 final tidak boleh punya tombol Simpan Permanen");
+      await foto(page, "j08-final-navigator");
+      await lewatNavigator("[data-skenario='perlu-manual']", "Butir Semantik");
+      yakin(await cariTekSemuaTab(page, "Perlu diperiksa manual"), "J-08 perlu-manual tanpa label Perlu diperiksa manual");
+      await lewatNavigator("[data-skenario='belum-rekomendasi']", "Butir Semantik");
+      yakin(await cariTekSemuaTab(page, "Belum ada rekomendasi"), "J-08 tanpa label Belum ada rekomendasi");
+      await lewatNavigator("[data-skenario='draf']", "Butir Semantik");
+      yakin((await jumlahTombol(page, "Simpan Permanen")) === 1, "J-08 draf seharusnya masih dapat disimpan permanen");
+      await lewatNavigator("[data-skenario='normal']", "Butir Semantik");
+      c("J-08: final hanya-baca, perlu diperiksa manual, belum ada rekomendasi, draf, normal");
+      // BIMA
+      await buka(page, url("/demo/mulai?j=BIMA-1&s=ditahan"), "Pengajuan proposal");
+      yakin((await jumlahTombol(page, "Ajukan Usulan")) >= 1, "BIMA pengajuan tanpa tombol Ajukan Usulan");
+      c("BIMA tiruan: halaman pengajuan membuka draf siap diajukan");
+    });
+
+    await skenario("Navigator demo: sakelar masa pengusulan, papan ketik, dan ciut", page, async (c) => {
+      await buka(page, url("/demo/mulai?j=J-04&s=siap-kecil"), "Susun Usulan Penugasan");
+      await bukaNavigator();
+      await page.click("[data-testid=navigator-panel] [data-masa=berjalan]");
+      await page.waitForFunction(() => document.querySelector("[data-testid=navigator-panel] [data-masa=berjalan]")?.getAttribute("aria-pressed") === "true", { timeout: 20_000 });
+      await page.waitForFunction(() => document.body.innerText.includes("Masa pengusulan berjalan"), { timeout: 20_000 });
+      await page.click("[data-testid=navigator-panel] [data-masa=ditutup]");
+      await page.waitForFunction(() => document.querySelector("[data-testid=navigator-panel] [data-masa=ditutup]")?.getAttribute("aria-pressed") === "true", { timeout: 20_000 });
+      await page.waitForFunction(() => document.body.innerText.includes("Masa pengusulan ditutup"), { timeout: 20_000 });
+      c("sakelar masa pengusulan di navigator mengganti keadaan J-04 (berjalan lalu ditutup)");
+      // papan ketik: Esc menciutkan, Alt+Shift+N membuka, fokus pindah ke panel
+      await page.focus("[data-testid=navigator-panel] [data-jendela]");
+      await page.keyboard.press("Escape");
+      await page.waitForSelector("[data-testid=navigator-pil]", { timeout: 10_000 });
+      yakin((await page.$("[data-testid=navigator-panel]")) === null, "Esc tidak menciutkan navigator");
+      await page.keyboard.down("Alt");
+      await page.keyboard.down("Shift");
+      await page.keyboard.press("KeyN");
+      await page.keyboard.up("Shift");
+      await page.keyboard.up("Alt");
+      await page.waitForSelector("[data-testid=navigator-panel]", { timeout: 10_000 });
+      const fokusDiPanel = await page.evaluate(() => document.querySelector("[data-testid=navigator-panel]")?.contains(document.activeElement));
+      yakin(fokusDiPanel, "fokus tidak pindah ke panel navigator");
+      await page.keyboard.press("Tab");
+      const fokusTombol = await page.evaluate(() => document.activeElement?.tagName);
+      yakin(fokusTombol === "BUTTON", `Tab seharusnya menjangkau tombol, bukan ${fokusTombol}`);
+      c("papan ketik: Esc menciutkan, Alt+Shift+N membuka, fokus pindah ke panel, Tab menjangkau tombol");
+      // tidak menutupi tombol utama
+      await ciutkanNavigator();
+      const tumpang = await page.evaluate(() => {
+        const pil = document.querySelector("[data-testid=navigator-pil]")!.getBoundingClientRect();
+        return [...document.querySelectorAll("main button")]
+          .filter((b) => {
+            const r = b.getBoundingClientRect();
+            return r.width > 0 && r.bottom > 0 && r.top < innerHeight && !(r.right < pil.left || r.left > pil.right || r.bottom < pil.top || r.top > pil.bottom);
+          })
+          .map((b) => b.textContent?.trim());
+      });
+      yakin(tumpang.length === 0, `pil navigator menutupi tombol: ${tumpang.join(", ")}`);
+      await foto(page, "navigator-ciut");
+      c("navigator ciut tidak menutupi tombol utama di J-04 (viewport 1440x900)");
+    });
+
+    /* ---- J-04 skala nyata ---- */
+    await skenario("J-04 skala nyata: 10.000 proposal (S-1, susun, halaman, sebaran, tetapkan, kotak masuk BIMA)", page, async (c) => {
+      const lama = (mulai: number) => ((Date.now() - mulai) / 1000).toFixed(1);
+      let t = Date.now();
+      await buka(page, url("/demo/mulai?j=J-04&s=skala"), "Susun Usulan Penugasan");
+      c(`menyiapkan skenario skala nyata (buka J-04): ${lama(t)} dtk`);
+      const awal = await teksPanel("Usulan Penugasan");
+      yakin(/10\.000 proposal Terkirim belum punya penugasan tetap/.test(awal), `J-04 skala tidak memuat 10.000 proposal: ${awal.slice(0, 120)}`);
+      yakin((await page.$eval("#batas", (e) => (e as HTMLInputElement).value)) === "100", "batas beban bawaan seharusnya 100");
+      yakin((await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "")).includes("Skala nyata"), "pil tidak menyebut skenario skala nyata");
+      await foto(page, "j04-skala-awal");
+
+      // S-1: batas 60 x ±124 reviewer < 10.000
+      await isi(page, "#batas", "60");
+      t = Date.now();
+      await klik(page, "Susun Usulan Penugasan");
+      await adaTeks(page, "Kekurangan Reviewer", 120_000);
+      c(`S-1 batas 60: panel Kekurangan Reviewer tampil (${lama(t)} dtk)`);
+      await foto(page, "j04-skala-s1");
+
+      // jalur utama: batas 100 membagi seluruh 10.000
+      await isi(page, "#batas", "100");
+      t = Date.now();
+      await klik(page, "Susun Usulan Penugasan");
+      await adaTeks(page, "Usulan penugasan disusun untuk 10.000 proposal", 240_000);
+      const waktuSusun = lama(t);
+      const pesanSusun = await page.evaluate(() => document.body.innerText.match(/Waktu proses di server: [\d,]+ detik/)?.[0] ?? "");
+      c(`Susun Usulan Penugasan 10.000 proposal: ${waktuSusun} dtk dari klik sampai pesan (${pesanSusun})`);
+      await page.waitForFunction(() => document.querySelector("[data-testid=ringkasan-usulan]")?.textContent?.includes("10.000 usulan menunggu penetapan"), { timeout: 60_000 });
+      // tabel berhalaman: 50 baris + keterangan, bukan 10.000 baris
+      const baris = await page.evaluate(() => {
+        const tabel = [...document.querySelectorAll("table")].find((x) => x.querySelector("thead")?.textContent?.includes("Judul Proposal"))!;
+        return tabel.querySelectorAll("tbody tr").length;
+      });
+      yakin(baris === 50, `tabel usulan seharusnya 50 baris per halaman, ada ${baris}`);
+      const ket1 = await page.$eval("[data-testid=keterangan-hal]", (e) => e.textContent ?? "");
+      yakin(ket1.includes("Baris 1-50 dari 10.000") && ket1.includes("halaman 1 dari 200"), `keterangan halaman salah: ${ket1}`);
+      // setiap baris: institusi pengusul berbeda dengan institusi reviewer
+      const sama = await page.evaluate(() => {
+        const tabel = [...document.querySelectorAll("table")].find((x) => x.querySelector("thead")?.textContent?.includes("Judul Proposal"))!;
+        return [...tabel.querySelectorAll("tbody tr")].filter((tr) => {
+          const td = [...tr.querySelectorAll("td")].map((x) => x.textContent?.trim());
+          return td[2] === td[4];
+        }).length;
+      });
+      yakin(sama === 0, `${sama} baris halaman pertama memakai reviewer dari institusi pengusul`);
+      // sebaran semua reviewer
+      const sebaran = await page.$eval("[data-testid=ringkasan-sebaran]", (e) => e.textContent ?? "");
+      const m = sebaran.match(/(\d+) reviewer bersedia; jumlah proposal per reviewer terendah (\d+), tertinggi (\d+)/);
+      yakin(m && Number(m[1]) >= 120 && Number(m[3]) <= 100 && Number(m[3]) - Number(m[2]) <= 2, `sebaran beban tidak merata: ${sebaran}`);
+      const barisSebaran = await page.evaluate(() => {
+        const tabel = [...document.querySelectorAll("table")].find((x) => x.querySelector("thead")?.textContent?.includes("Jumlah Proposal"))!;
+        return tabel.querySelectorAll("tbody tr").length;
+      });
+      yakin(barisSebaran === Number(m![1]), `Sebaran Beban menampilkan ${barisSebaran} baris, bukan ${m![1]}`);
+      c(`tabel Usulan Penugasan 50 baris dari 10.000 (halaman 1 dari 200); Sebaran Beban ${barisSebaran} reviewer, ${sebaran}`);
+      await foto(page, "j04-skala-usulan");
+
+      // halaman berikutnya (navigasi sisi server)
+      t = Date.now();
+      await klik(page, "Berikutnya");
+      await page.waitForFunction(() => document.querySelector("[data-testid=keterangan-hal]")?.textContent?.includes("Baris 51-100 dari 10.000"), { timeout: 60_000 });
+      c(`halaman 2 usulan terbuka dalam ${lama(t)} dtk`);
+      await foto(page, "j04-skala-halaman-2");
+
+      // tetapkan: klaim atomik + kirim ke BIMA per kelompok 500
+      t = Date.now();
+      await klik(page, "Tetapkan Penugasan");
+      await adaTeks(page, "Penugasan telah ditetapkan dan tercatat di BIMA (10.000 proposal)", 280_000);
+      const waktuTetapkan = lama(t);
+      const pesanTetapkan = await page.evaluate(() => [...document.body.innerText.matchAll(/Waktu proses di server: [\d,]+ detik/g)].pop()?.[0] ?? "");
+      c(`Tetapkan Penugasan 10.000 proposal: ${waktuTetapkan} dtk dari klik sampai pesan (${pesanTetapkan})`);
+      await page.waitForFunction(() => document.querySelector("[data-testid=ringkasan-ditetapkan]")?.textContent?.includes("10.000 penugasan sudah ditetapkan"), { timeout: 60_000 });
+      yakin((await teksPanel("Usulan Penugasan")).includes("Tidak ada usulan yang menunggu penetapan."), "sesudah ditetapkan seharusnya tidak ada usulan menunggu");
+      await foto(page, "j04-skala-ditetapkan");
+
+      // kotak masuk BIMA: ringkasan, bukan 10.000 baris
+      await buka(page, url("/bima/kotak-masuk"), "Ringkasan");
+      const total = await page.$eval("[data-testid=total-penugasan]", (e) => e.textContent ?? "");
+      yakin(total === "10.000", `kotak masuk BIMA menerima ${total} penugasan, bukan 10.000`);
+      const barisKotak = await page.$$eval("table tbody tr", (r) => r.length);
+      yakin(barisKotak === 100, `kotak masuk seharusnya menampilkan 100 pesan terbaru, ada ${barisKotak}`);
+      await foto(page, "bima-kotak-masuk-skala");
+      c("kotak masuk BIMA: 10.000 penugasan diterima tanpa ganda, ringkasan + 100 pesan terbaru");
+      c(`CATATAN WAKTU: susun ${waktuSusun} dtk, tetapkan ${waktuTetapkan} dtk (klik sampai pesan, lokal ke Neon)`);
+    });
+
+    await skenario("Skenario kecil tidak terpengaruh data skala nyata", page, async (c) => {
+      const t = Date.now();
+      await buka(page, url("/demo/mulai?j=J-04&s=siap-kecil"), "Susun Usulan Penugasan");
+      const waktu = ((Date.now() - t) / 1000).toFixed(1);
+      const panel = await teksPanel("Usulan Penugasan");
+      yakin(/(^|\D)\d proposal Terkirim belum punya penugasan tetap/.test(panel), `skenario kecil memuat data skala: ${panel.slice(0, 160)}`);
+      const sebaran = await page.$eval("[data-testid=ringkasan-sebaran]", (e) => e.textContent ?? "");
+      yakin(/^[1-9]\d? reviewer bersedia/.test(sebaran), `reviewer skala nyata ikut tampil di skenario kecil: ${sebaran}`);
+      c(`skenario siap-kecil sesudah skala nyata: ${waktu} dtk; ${sebaran.slice(0, 40)}`);
+      await foto(page, "j04-siap-kecil-sesudah-skala");
+    });
+
+    /* ---- akhir: basis data bersih ---- */
+    await skenario("Akhir: Reset & isi data demo (basis data bersih)", page, async (c) => {
+      await buka(page, url("/demo"), "Pusat Demo");
+      await klik(page, "Reset & isi data demo");
+      await adaTeks(page, "Data demo direset dan diisi ulang.", 240_000);
+      await atur("berjalan");
+      const n = await page.$$eval("[data-skenario-kartu]", (e) => e.length);
+      yakin(n >= 35, `kartu skenario di /demo hanya ${n}`);
+      yakin((await page.$("[data-testid=navigator-pil]")) === null, "navigator tidak boleh tampil di /demo");
+      c(`reset selesai; /demo memuat ${n} kartu skenario per jendela dan tanpa navigator mengambang`);
     });
   } finally {
     await peramban.close();

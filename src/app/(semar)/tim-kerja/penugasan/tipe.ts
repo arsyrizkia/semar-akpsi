@@ -5,6 +5,8 @@ export interface HasilSusunAksi {
   kekurangan?: number;
   jumlahUsulan?: number;
   berhasil?: boolean;
+  /** lama menyusun di server, milidetik */
+  durasiMs?: number;
 }
 
 export interface HasilPindahAksi {
@@ -16,6 +18,8 @@ export interface HasilPindahAksi {
 export interface HasilTetapkanAksi {
   berhasil: boolean;
   jumlah?: number;
+  /** lama menetapkan dan mengirim ke BIMA di server, milidetik */
+  durasiMs?: number;
   galat?: string;
   /** true bila kegagalan berasal dari API BIMA (tampilkan "Kirim ulang") */
   gagalBima?: boolean;

@@ -3,7 +3,7 @@
  * Prototipe hanya memiliki satu periode berjalan: sakelar masaPengusulan adalah penentu tunggal
  * apakah pengusulan dianggap berjalan atau ditutup; geserHari menggeser tampilan/perhitungan tanggal.
  */
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
 import { pengaturanDemo, periodeSeleksi } from "@/db/schema";
 
@@ -25,7 +25,7 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
   if (ubah.masaPengusulan) {
     // Sakelar masa menggeser tanggalTutup periode berjalan supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
     // dengan statusnya: "ditutup" = tanggalTutup semenit lalu (hari ini); "berjalan" = tanggalTutup dua pekan lagi.
-    const [p] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+    const [p] = await db.select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
     if (p) {
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
@@ -46,4 +46,26 @@ export async function waktuDemo(): Promise<Date> {
 /** true bila masa pengusulan sedang berjalan (cekMasaPengusulan / masaPengusulanBerjalan). */
 export async function masaPengusulanBerjalan(): Promise<boolean> {
   return (await ambilPengaturanDemo()).masaPengusulan === "berjalan";
+}
+
+export type PeriodeSeleksi = typeof periodeSeleksi.$inferSelect;
+
+/** Awalan nama periode skenario skala nyata; periode ini disembunyikan dari pilihan periode jendela lain. */
+export const NAMA_PERIODE_SKALA = "Skala Nyata";
+
+/** Periode yang dibuka J-04: periodeAktifId pada pengaturan demo bila ada, selain itu periode terbaru. */
+export async function ambilPeriodeAktif(): Promise<PeriodeSeleksi | null> {
+  const db = getDb();
+  const { periodeAktifId } = await ambilPengaturanDemo();
+  if (periodeAktifId) {
+    const [p] = await db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeAktifId));
+    if (p) return p;
+  }
+  const [terbaru] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+  return terbaru ?? null;
+}
+
+export async function setPeriodeAktif(periodeId: string | null) {
+  await ambilPengaturanDemo();
+  await getDb().update(pengaturanDemo).set({ periodeAktifId: periodeId, diperbaruiPada: new Date() }).where(eq(pengaturanDemo.id, 1));
 }

@@ -1,30 +1,56 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { pastikanAkunDariBima } from "@/lib/auth";
-import { COOKIE_BIMA, COOKIE_SEMAR, buatSesiBima, buatSesiSemar, opsiCookie } from "@/lib/sesi";
-import { siapkanJalanPintas, type KodeJalanPintas } from "@/lib/demo/skenario";
+import { COOKIE_BIMA, COOKIE_SEMAR, DURASI_SESI_DETIK, buatSesiBima, buatSesiSemar, opsiCookie } from "@/lib/sesi";
+import { COOKIE_SKENARIO, cariJendela, cariSkenario, skenarioBawaan } from "@/lib/demo/katalog";
+import { siapkanJalanPintas, siapkanSkenario, type HasilSkenario, type KodeJalanPintas } from "@/lib/demo/skenario";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+/** Skenario skala nyata membuat 10.000 proposal pada pemakaian pertama. */
+export const maxDuration = 300;
 
 const KODE = new Set<string>([
   "UC-01", "UC-02", "UC-03", "UC-04", "UC-05", "UC-06", "UC-07", "UC-08", "UC-09",
   "UC-05a", "UC-05b", "UC-05c", "UC-07a", "UC-07b", "UC-07c", "UC-07c-awal", "UC-01-S1", "UC-09-S1", "UC-09-S2",
 ]);
 
-/** Jalan pintas /demo (parameter j08=1 pada skenario UC-07 membuka J-08 langsung, tanpa lewat daftar J-07): menyiapkan data skenario, memasang sesi peran yang sesuai (SEMAR dan BIMA), lalu membuka jendela awal. */
+/**
+ * Pintu masuk navigator dan kartu /demo.
+ *  - `?j=J-04&s=skala`: skenario keadaan jendela (navigator); tanpa `s` dipakai skenario bawaan jendela itu.
+ *  - `?k=UC-03` (dan `&j08=1`): jalan pintas use case lama (kartu /demo).
+ * Menyiapkan data, memasang sesi peran yang sesuai (SEMAR dan BIMA), mencatat skenario aktif di cookie `semar_skenario`
+ * (dibaca navigator), lalu membuka jendela tujuan.
+ */
 export async function GET(req: NextRequest) {
-  const kode = req.nextUrl.searchParams.get("k") ?? "";
-  if (!KODE.has(kode)) return NextResponse.redirect(new URL("/demo?galat=kode", req.url), 303);
+  const kode = req.nextUrl.searchParams.get("k");
+  const kodeJendela = req.nextUrl.searchParams.get("j");
   try {
-    const hasil = await siapkanJalanPintas(kode as KodeJalanPintas, { langsungJ08: req.nextUrl.searchParams.get("j08") === "1" });
-    const akun = await pastikanAkunDariBima(hasil.akun);
-    if (!akun) throw new Error(`akun ${hasil.akun} tidak ada`);
+    let hasil: HasilSkenario;
+    let skenarioAktif: string | null = null;
+    if (kodeJendela) {
+      const jendela = cariJendela(kodeJendela);
+      const id = req.nextUrl.searchParams.get("s") ?? skenarioBawaan(kodeJendela)?.id ?? "";
+      if (!jendela || !cariSkenario(kodeJendela, id)) return NextResponse.redirect(new URL("/demo?galat=kode", req.url), 303);
+      hasil = await siapkanSkenario(kodeJendela, id);
+      skenarioAktif = `${kodeJendela}/${id}`;
+    } else {
+      if (!kode || !KODE.has(kode)) return NextResponse.redirect(new URL("/demo?galat=kode", req.url), 303);
+      hasil = await siapkanJalanPintas(kode as KodeJalanPintas, { langsungJ08: req.nextUrl.searchParams.get("j08") === "1" });
+    }
     // catatan skenario ditampilkan sebagai banner di jendela tujuan (komponen CatatanSkenario)
     const tujuan = new URL(hasil.tujuan, req.url);
     tujuan.searchParams.set("catatan", hasil.catatan);
     const res = NextResponse.redirect(tujuan, 303);
-    res.cookies.set(COOKIE_SEMAR, await buatSesiSemar(akun.idBima), opsiCookie);
-    res.cookies.set(COOKIE_BIMA, await buatSesiBima(akun.idBima), opsiCookie);
+    if (hasil.akun) {
+      const akun = await pastikanAkunDariBima(hasil.akun);
+      if (!akun) throw new Error(`akun ${hasil.akun} tidak ada`);
+      res.cookies.set(COOKIE_SEMAR, await buatSesiSemar(akun.idBima), opsiCookie);
+      res.cookies.set(COOKIE_BIMA, await buatSesiBima(akun.idBima), opsiCookie);
+    } else {
+      res.cookies.delete(COOKIE_SEMAR);
+      res.cookies.delete(COOKIE_BIMA);
+    }
+    if (skenarioAktif) res.cookies.set(COOKIE_SKENARIO, skenarioAktif, { ...opsiCookie, httpOnly: false, maxAge: DURASI_SESI_DETIK });
+    else res.cookies.delete(COOKIE_SKENARIO);
     return res;
   } catch (e) {
     const pesan = e instanceof Error ? e.message : "gagal menyiapkan skenario";

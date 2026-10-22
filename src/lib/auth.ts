@@ -5,7 +5,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { akun, bimaAkun } from "@/db/schema";
 import { COOKIE_SEMAR, verifikasiSesiSemar } from "./sesi";
@@ -38,6 +38,45 @@ export async function pastikanAkunDariBima(idBima: string): Promise<Akun | null>
     .values({ idBima: b.idBima, ...nilai })
     .onConflictDoUpdate({ target: akun.idBima, set: nilai })
     .returning();
+  return hasil;
+}
+
+/** Versi massal pastikanAkunDariBima: satu SELECT dan satu upsert per 500 akun (skenario skala nyata: ratusan reviewer). */
+export async function pastikanAkunMassal(idBimaList: string[]): Promise<Akun[]> {
+  const db = getDb();
+  const hasil: Akun[] = [];
+  for (let i = 0; i < idBimaList.length; i += 500) {
+    const b = await db.select().from(bimaAkun).where(inArray(bimaAkun.idBima, idBimaList.slice(i, i + 500)));
+    if (!b.length) continue;
+    const baris = await db
+      .insert(akun)
+      .values(
+        b.map((x) => ({
+          idBima: x.idBima,
+          nama: x.nama,
+          peran: x.peran,
+          hakAkses: x.hakAkses,
+          institusi: x.institusi,
+          nomorInduk: x.nomorInduk,
+          bersedia: x.bersedia,
+          bidang: x.bidang,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: akun.idBima,
+        set: {
+          nama: sql`excluded.nama`,
+          peran: sql`excluded.peran`,
+          hakAkses: sql`excluded.hak_akses`,
+          institusi: sql`excluded.institusi`,
+          nomorInduk: sql`excluded.nomor_induk`,
+          bersedia: sql`excluded.bersedia`,
+          bidang: sql`excluded.bidang`,
+        },
+      })
+      .returning();
+    hasil.push(...baris);
+  }
   return hasil;
 }
 

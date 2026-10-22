@@ -1,5 +1,5 @@
 /** Langkah real use case UC-03 Menugaskan reviewer, untuk PanelPemandu (sumber: Bab 10, Tabel ruc-03). */
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 export const kodeUc03 = "UC-03";
 export const judulUc03 = "Menugaskan reviewer";

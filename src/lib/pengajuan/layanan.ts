@@ -4,7 +4,7 @@
  * potongTeks/potongPerBagian/ambilTeksBagian (potong.ts), jalankanPemeriksaan(deterministik), catatTerkirim.
  * SEMAR memanggil BIMA hanya lewat @/lib/bima/client (ulang otomatis maksimal 2 kali, NFR 4.4).
  */
-import { and, asc, desc, eq, inArray, lt, max, min, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, max, min, ne, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   bagianTemplat,
@@ -24,7 +24,7 @@ import { simpanBerkas } from "../berkas";
 import { bima, type RingkasanProposalBima } from "../bima/client";
 import { antrekanPemeriksaanSemantik } from "../kontrak";
 import { jalankanPemeriksaanDeterministik } from "../pemeriksa/deterministik";
-import { masaPengusulanBerjalan, waktuDemo } from "../waktu";
+import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "../waktu";
 import { ekstrakNaskah, ekstrakTeksLampiran } from "./ekstraksi";
 import { potongTeks } from "./potong";
 import type { KlaimPengajuan } from "./token";
@@ -40,7 +40,12 @@ export const BATAS_PEMERIKSAAN_MS = 125_000; // NFR 2.1: 2 menit, ditambah jeda 
 
 /** Prototipe hanya memiliki satu periode berjalan: periode terbaru. */
 export async function ambilPeriodeBerjalan(): Promise<Periode> {
-  const [p] = await getDb().select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+  const [p] = await getDb()
+    .select()
+    .from(periodeSeleksi)
+    .where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`))
+    .orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka))
+    .limit(1);
   if (!p) throw new Error("belum ada periode seleksi");
   return p;
 }

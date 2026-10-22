@@ -20,11 +20,13 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
   if (!periodeId.success) return { galat: "Periode tidak dikenali." };
   if (!Number.isInteger(batas) || batas < 1) return { galat: "Isi \"Batas Beban per Reviewer\" dengan bilangan bulat minimal 1." };
   try {
+    const mulai = Date.now();
     await catatLogAudit({ aktor: sesi.akun.idBima, aksi: "minta_susun_penugasan", objek: `periode:${periodeId.data}`, rincian: { batas } });
     const hasil = await susunPenugasan(periodeId.data, batas);
+    const durasiMs = Date.now() - mulai;
     revalidatePath(JALUR);
-    if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan };
-    return { berhasil: true, jumlahUsulan: hasil.usulan.length };
+    if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan, durasiMs };
+    return { berhasil: true, jumlahUsulan: hasil.jumlahUsulan, durasiMs };
   } catch (e) {
     if (e instanceof MasaBelumDitutupError) return { galat: e.message };
     if (e instanceof BimaGagalError) return { galat: `Daftar reviewer dari BIMA tidak dapat diambil: ${e.message}. Tekan "Susun Usulan Penugasan" untuk mencoba lagi.` };
@@ -53,10 +55,12 @@ export async function aksiTetapkan(periodeId: string): Promise<HasilTetapkanAksi
   const id = skemaUuid.safeParse(periodeId);
   if (!id.success) return { berhasil: false, galat: "Periode tidak dikenali." };
   try {
+    const mulai = Date.now();
     const { jumlah } = await tetapkanPenugasan(id.data, sesi.akun.idBima);
+    const durasiMs = Date.now() - mulai;
     revalidatePath(JALUR);
     if (jumlah === 0) return { berhasil: false, galat: "Belum ada usulan penugasan yang dapat ditetapkan." };
-    return { berhasil: true, jumlah };
+    return { berhasil: true, jumlah, durasiMs };
   } catch (e) {
     revalidatePath(JALUR);
     if (e instanceof BimaGagalError) {

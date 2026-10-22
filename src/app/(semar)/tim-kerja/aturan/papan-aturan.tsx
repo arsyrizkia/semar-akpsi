@@ -6,8 +6,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Lock, Plus } from "lucide-react";
 import { Alert, Badge, BarKeyakinan, Button, Field, Input, Panel, Select, StatusBadge, Table, TBody, TD, TH, Textarea, THead, TR } from "@/components/ui";
-import { PanelPemandu } from "@/components/layout/panel-pemandu";
-import { LANGKAH_UC02 } from "@/lib/demo/pemandu/uc-02";
 import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
 import type { ButirTampil, HasilUji, TampilanAturan } from "@/lib/aturan/layanan";
 import type { PeriodePilihan } from "@/lib/templat/layanan";
@@ -435,7 +433,6 @@ export function PapanAturan({ skemaId, namaSkema, periode, tampilan, bagianPilih
         </div>
       </Panel>
 
-      <PanelPemandu kode="UC-02" judul="Mengelola aturan pemeriksaan" langkah={LANGKAH_UC02} />
     </>
   );
 }

@@ -53,3 +53,13 @@ Dicatat sesuai keputusan 4 (`docs/keputusan.md`). Skema lengkap: `src/db/schema.
 | Payload BIMA `kunci` (r2) | Payload penugasan dan keputusan ke BIMA memuat `kunci` opsional (id penugasan/penilaian). BIMA tiruan melewati insert bila kunci sudah ada. | Idempotensi pengiriman ulang tanpa mengubah skema. | Bab 9 (khusus prototipe) |
 | Baris r2 untuk SEMAR_LLM_TIRUAN_SKENARIO | Baris lama tentang skenario UC-07 a/b/c yang memasang variabel env sementara sudah digantikan `OpsiNilai.skenario` pada kartu UC-09 S-1/S-2 (sejak r1). | Aman untuk permintaan serentak. | Tidak perlu |
 
+## Penambahan navigator demo dan skala nyata (22 Okt 2026)
+
+| Kelas / tabel | Perubahan | Alasan | Bab yang perlu disesuaikan |
+|---|---|---|---|
+| `pengaturan_demo.periode_aktif_id` | Kolom baru (uuid, boleh kosong, tanpa kunci asing). Bila terisi, J-04 membuka periode itu; bila kosong, periode terbaru menurut tahun. Diisi hanya oleh skenario J-04 "Skala nyata"; semua skenario lain mengosongkannya. | Data 10.000 proposal ditaruh pada periode tersendiri supaya skenario lain tidak ikut menanggungnya. Khusus prototipe. | Tidak perlu |
+| `periode_seleksi` (periode "Skala Nyata 2026 (10.000 proposal)") | Satu baris periode tambahan, dibuat oleh skenario skala nyata, tanggal buka lebih awal dari periode utama. Namanya berawalan "Skala Nyata"; pilihan periode di J-02, J-03, J-05, `ambilPeriodeBerjalan`, dan sakelar masa mengecualikannya. | Isolasi data massal; dihapus oleh Reset (TRUNCATE). | Tidak perlu |
+| `akun`, `bima_akun`, `bima_reviewer` | Skenario skala nyata menambah 130 reviewer (`rvw-skala-NNN`, kesediaan bervariasi: setiap ke-11 tidak bersedia) dan 400 pengusul (`pgs-skala-NNNN`, hanya di `akun`). Pada skenario lain reviewer massal diset tidak bersedia (tidak dihapus). | Kumpulan reviewer dan pengusul realistis dari 40 institusi rekaan. | Tidak perlu |
+| `proposal`, `versi_proposal` | 10.000 proposal Terkirim berkode `SKL-2026-NNNNN`, masing-masing satu versi V1 berteks kosong, dibuat set-based (`generate_series`). `hasil_pemeriksaan` per butir tidak dibuat untuk proposal ini (status Terkirim = semua butir lolos). | Kecepatan pembuatan dan ukuran basis data; bukti per butir diperagakan pada proposal skenario kecil. | Tidak perlu |
+| `bima_kotak_masuk.payload.kunci` | Pengiriman penugasan ke BIMA per kelompok 500 dengan satu `INSERT ... SELECT` yang membuang kunci kembar dan kunci yang sudah ada (idempoten). | Menerima 10.000 penugasan dalam hitungan detik. | Bab 9 (khusus prototipe) |
+

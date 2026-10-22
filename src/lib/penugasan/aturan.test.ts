@@ -54,6 +54,34 @@ describe("susunUsulanMurni (UC-03 langkah 4)", () => {
   });
 });
 
+describe("susunUsulanMurni pada skala nyata (10.000 proposal)", () => {
+  const institusi = Array.from({ length: 40 }, (_, i) => `Institusi ${i}`);
+  const reviewer = Array.from({ length: 130 }, (_, i) => rev(`r${String(i).padStart(3, "0")}`, institusi[i % 40]));
+  const proposal = Array.from({ length: 10_000 }, (_, i) => prop(`p${String(i).padStart(5, "0")}`, institusi[(i * 17 + (i % 3) * 5) % 40]));
+
+  it("membagi seluruh proposal dengan beda institusi, beban rata, dan cepat (< 3 dtk)", () => {
+    const mulai = Date.now();
+    const h = susunUsulanMurni(proposal, reviewer, {}, 100);
+    const lama = Date.now() - mulai;
+    expect(lama).toBeLessThan(3000);
+    expect(h.belumDitugaskan).toEqual([]);
+    expect(h.penugasan).toHaveLength(10_000);
+    const instRev = new Map(reviewer.map((r) => [r.id, r.institusi]));
+    const instProp = new Map(proposal.map((p) => [p.id, p.institusiPengusul]));
+    for (const x of h.penugasan) expect(instRev.get(x.reviewerId)).not.toBe(instProp.get(x.proposalId));
+    const beban = Object.values(h.beban);
+    expect(Math.max(...beban)).toBeLessThanOrEqual(100);
+    expect(Math.max(...beban) - Math.min(...beban)).toBeLessThanOrEqual(3);
+  });
+
+  it("S-1 cepat bila batas diturunkan di bawah kapasitas (60 x 130 < 10.000)", () => {
+    const mulai = Date.now();
+    const h = susunUsulanMurni(proposal, reviewer, {}, 60);
+    expect(Date.now() - mulai).toBeLessThan(5000);
+    expect(h.belumDitugaskan.length).toBeGreaterThanOrEqual(10_000 - 60 * 130);
+  });
+});
+
 describe("periksaSyarat (S-2.2)", () => {
   it("meloloskan reviewer beda institusi dengan beban di bawah batas", () => {
     expect(periksaSyarat({ institusiPengusul: "A", reviewer: { institusi: "B", bersedia: true }, bebanSaatIni: 2, batas: 3 })).toEqual([]);

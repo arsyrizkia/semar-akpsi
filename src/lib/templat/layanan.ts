@@ -3,11 +3,11 @@
  * ambilTemplatBerlaku, aturBagian, tetapkanPeriodeBerlaku, periksaKelengkapan, terbitkan (cekPengusulanBerjalan,
  * gantiTemplatBerlaku, arsipkan, nonaktifkan), turunkanButirCek.
  */
-import { and, desc, eq, inArray, max } from "drizzle-orm";
+import { and, desc, eq, inArray, max, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposal } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
-import { masaPengusulanBerjalan, waktuDemo } from "@/lib/waktu";
+import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import type { BagianTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
@@ -51,7 +51,7 @@ export async function daftarSkema(): Promise<SkemaPilihan[]> {
 }
 
 export async function daftarPeriode(): Promise<PeriodePilihan[]> {
-  const baris = await getDb().select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun));
+  const baris = await getDb().select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun));
   return baris.map((p) => ({
     id: p.id,
     nama: p.nama,

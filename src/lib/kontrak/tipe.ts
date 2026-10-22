@@ -156,7 +156,10 @@ export interface SebaranBeban {
 
 export interface HasilSusunPenugasan {
   periodeId: string;
+  /** Halaman pertama usulan (skala besar: sisanya dibaca berhalaman lewat ambilUsulan) */
   usulan: BarisUsulanPenugasan[];
+  /** Jumlah seluruh usulan yang disusun */
+  jumlahUsulan: number;
   sebaran: SebaranBeban[];
   /** > 0 bila reviewer kurang (S-1): proposal yang belum dapat ditugaskan */
   jumlahBelumDitugaskan: number;

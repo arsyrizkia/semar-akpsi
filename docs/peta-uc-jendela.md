@@ -1,6 +1,6 @@
 # Peta use case ke jendela
 
-Sumber langkah: `docs/sumber/bab10-use-scenario-real-use-case.md` (real use case). Nomor langkah di tabel adalah nomor real use case; S- adalah *SubFlow*, Nx adalah *Alternate Flow*. Jalan pintas: halaman `/demo` (kartu UC dan skenario) atau alamat `/demo/mulai?k=<kode>` (tambahkan `&j08=1` pada UC-07a/c untuk membuka J-08 langsung; UC-07b, UC-08, dan UC-09-S1/S2 selalu membuka J-08). Setiap jalan pintas menyiapkan data, memasang sesi peran yang sesuai, lalu membuka jendela awal. PanelPemandu di setiap jendela memuat langkah real use case (`src/lib/demo/pemandu/`).
+Sumber langkah: `docs/sumber/bab10-use-scenario-real-use-case.md` (real use case). Nomor langkah di tabel adalah nomor real use case; S- adalah *SubFlow*, Nx adalah *Alternate Flow*. Jalan pintas: halaman `/demo` (kartu UC dan skenario) atau alamat `/demo/mulai?k=<kode>` (tambahkan `&j08=1` pada UC-07a/c untuk membuka J-08 langsung; UC-07b, UC-08, dan UC-09-S1/S2 selalu membuka J-08). Setiap jalan pintas menyiapkan data, memasang sesi peran yang sesuai, lalu membuka jendela awal. **Navigator demo** (tombol mengambang kiri bawah di setiap halaman SEMAR dan BIMA tiruan, bawaan ciut; Alt+Shift+N membuka, Esc menciutkan) menggantikan panel langkah real use case: ia berpindah antar-jendela dan antar-skenario keadaan (katalog di bawah) lewat `/demo/mulai?j=<jendela>&s=<skenario>`. Data langkah real use case tetap di `src/lib/demo/pemandu/` sebagai dokumentasi, tidak lagi ditampilkan.
 
 ## Jendela
 
@@ -15,6 +15,31 @@ Sumber langkah: `docs/sumber/bab10-use-scenario-real-use-case.md` (real use case
 | J-07 | Daftar Penugasan | Reviewer | `/reviewer/penugasan` |
 | J-08 | Pemeriksaan Proposal | Reviewer | `/reviewer/pemeriksaan/[penugasanId]` (data JSON: `.../data`) |
 | BIMA | Halaman BIMA tiruan | Semua (simulasi) | `/bima/masuk`, `/bima/pengajuan`, `/bima/kotak-masuk` |
+
+## Katalog skenario per jendela (Navigator demo)
+
+Alamat: `/demo/mulai?j=<kode jendela>&s=<id skenario>`; tanpa `s` (berpindah jendela dari navigator) dipakai skenario bawaan: `siap-kecil` untuk J-04, `contoh` untuk J-05, `baru` untuk J-07, selain itu skenario pertama. Setiap skenario menyiapkan data (idempoten, tanpa reset), memasang sesi peran yang sesuai (SEMAR dan BIMA), mencatat skenario aktif di cookie `semar_skenario` (ditampilkan di pil dan panel navigator), lalu membuka jendela. Kode di `src/lib/demo/katalog.ts` (daftar) dan `src/lib/demo/skenario.ts:siapkanSkenario` (penyiap). Sakelar masa pengusulan juga ada di navigator. Daftar yang sama tampil di `/demo` ("Skenario keadaan per jendela").
+
+| Jendela (peran) | Skenario (id) dan keadaan yang disiapkan |
+|---|---|
+| J-01 Masuk | `belum-masuk` sesi dihapus, halaman Masuk; `pengelola` sesi pengelola, mendarat di J-02; `anggota` sesi anggota, mendarat di J-04 (menu J-04 dan J-05); `reviewer` sesi reviewer-2, mendarat di J-07 |
+| J-02 Templat Proposal (pengelola) | `normal` templat PD berlaku, masa ditutup; `tanpa-templat` skema PK tanpa templat (S-1); `masa-berjalan` Terbitkan menyimpan draf (9a); `draf-tersimpan` draf versi berikutnya sudah ada |
+| J-03 Aturan Pemeriksaan (pengelola) | `normal` tabel butir PD, masa ditutup; `perlu-ditinjau` satu butir manual berstatus Perlu ditinjau (dari UC-04); `uji-tanggal` masa berjalan, tanggal berlaku di tengah masa ditolak (8a). Mendarat langsung di tabel butir (skema dan periode terpilih) |
+| J-04 Penugasan Reviewer (Tim Kerja) | `kosong` tidak ada proposal Terkirim yang perlu ditugaskan dan tidak ada usulan ("Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini." dan "Tidak ada usulan yang menunggu penetapan."); `siap-kecil` enam proposal Terkirim, batas beban 3; `menunggu` usulan sudah disusun (batas 3) dan belum ditetapkan; `kekurangan` batas beban 1, Susun ditekan otomatis (`?susun=1`) sehingga panel Kekurangan Reviewer (S-1) tampil; `ditetapkan` usulan sudah ditetapkan dan ada di kotak masuk BIMA; `skala` **10.000 proposal Terkirim** (lihat di bawah) |
+| J-05 Pemantauan (Tim Kerja) | `belum-final` penilaian Final dihapus (hanya butir deterministik gagal tampil); `contoh` proposal Ditahan dan penilaian Final dengan koreksi reviewer |
+| J-06 Hasil Pemeriksaan (pengusul) | `terkirim` semua butir lolos, bukti pengiriman; `ditahan` Metode melebihi batas; `ditolak` masa ditutup (3a); `diperiksa` pemeriksaan sedang berjalan (lewat 2 menit berubah menjadi galat batas waktu NFR 2.1) |
+| J-07 Daftar Penugasan (reviewer) | `kosong` reviewer-6 tanpa penugasan; `baru` PRP-2026-0004 berlabel Baru; `draf` penilaian sebagian tersimpan; `selesai` penilaian final terkirim ke BIMA |
+| J-08 Pemeriksaan Proposal (reviewer-2) | `normal` hasil semantik normal; `perlu-manual` kutipan tidak ditemukan (S-1); `belum-rekomendasi` LLM tidak merespons (S-2); `draf` tiga komponen dan umpan balik terisi; `final` Simpan Permanen sudah dilakukan, isian hanya-baca |
+| BIMA Pengajuan (pengusul) | `lolos` PRP-2026-0001; `ditahan` PRP-2026-0002 (Metode melebihi batas); `ditolak` PRP-2026-0003 (tutup masa lalu ajukan ulang) |
+| BIMA Kotak masuk | `normal` ringkasan (jumlah penugasan, penerima, penerima terbanyak) dan 100 pesan terbaru |
+
+### J-04 skala nyata (10.000 proposal)
+
+- **Data** (`src/lib/demo/skala.ts`): periode tersendiri "Skala Nyata 2026 (10.000 proposal)" dengan masa pengusulan ditutup; 10.000 proposal Terkirim (`SKL-2026-NNNNN`, satu versi V1 tiap proposal) dari 400 pengusul di 40 institusi rekaan; 130 reviewer rekaan (setiap reviewer ke-11 tidak bersedia, sisanya 119 ditambah 5 reviewer contoh = ±124 bersedia). Dibuat set-based sekali (±5 dtk); pemakaian berikutnya hanya mengosongkan penugasan dan kotak masuk hasil percobaan sebelumnya. Reset menghapusnya.
+- **Isolasi**: J-04 membuka periode ini hanya bila `pengaturan_demo.periode_aktif_id` menunjuknya. Semua skenario lain mengosongkan penunjuk itu dan menonaktifkan reviewer massal (dua UPDATE murah), sehingga skenario kecil tidak melihat data skala.
+- **Batas beban bawaan 100** (rentang naskah 30-200): ±124 reviewer x 100 = ±12.400 kapasitas, cukup untuk 10.000 (beban merata 80-81 per reviewer). Batas 60 memicu S-1 (kapasitas 7.440 < 10.000).
+- **Antarmuka**: Usulan Penugasan dan Penugasan yang Sudah Ditetapkan berhalaman 50 baris (parameter `hal` dan `halT`, penomoran di server) dengan ringkasan total; Sebaran Beban memuat semua reviewer (tabel dapat digulir) dengan ringkasan terendah/tertinggi/rata-rata; pesan hasil menyebut waktu proses di server.
+- **Kinerja**: algoritma `susunUsulanMurni` menghitung reviewer layak sekali per institusi dan melewati jalur penambah bila kapasitas kurang; penyimpanan usulan satu `INSERT ... SELECT` dari array JSON per 5.000 baris; `tetapkanPenugasan` mengklaim dengan satu `UPDATE ... RETURNING` lalu mengirim ke BIMA per kelompok 500 (lima kelompok serentak, ulang otomatis maksimal 2 kali per kelompok oleh klien; kunci = id penugasan sehingga BIMA membuang duplikat). Kelompok yang gagal dikembalikan ke Diusulkan ("Kirim ulang"), kelompok yang sudah diterima tetap Ditetapkan. J-04 `maxDuration` 300 dtk.
 
 ## UC ke jendela, langkah, dan rute
 
@@ -56,22 +81,39 @@ Nama fungsi servis sama dengan metode sequence (keputusan 5). Alias (`export con
 
 Catatan r2: alias nominal yang tidak pernah dipanggil dengan namanya sendiri (satu fungsi memikul beberapa pesan sequence): aturBagian, aturKetentuan, tetapkanPeriodeBerlaku (= simpanIsian); basisAturanBerlaku, ubahParameter; tetapkan, mencatatPenugasan, terimaProposal (= tetapkanPenugasan); hitungTingkatKoreksi, ambilStatus, ambilAlasan, ambilRincian, ambilContoh (= susunLaporan); tandaiPerluDitinjau; periksaDeterministik, periksa, ambilTeksBagian; nilaiSemantik, periksaSemantik. `aturParameter` hanya komentar. `pilihReviewer` hanya melayani S-2 (susunPenugasan memakai `susunUsulanMurni`). Penolakan 4a UC-02 berjalan lewat `periksaKunciButir`. Kartu jalan pintas: UC-07b kini mendarat di J-07, UC-07c-awal mulai dari label Baru.
 
-## Bukti (tangkapan layar e2e, run penuh r2)
+## Bukti (tangkapan layar e2e, run penuh 22 Okt 2026)
 
-Run penuh `npm run e2e` pada kode r2, 19 dari 19 skenario lulus (`docs/bukti-e2e/laporan.md`; salinan dari `e2e/hasil/` yang di-.gitignore). Nomor = awalan berkas PNG di `docs/bukti-e2e/`.
+Run penuh `npm run e2e` (`SEMAR_IZINKAN_DB_PRODUKSI=1`, tanpa `DATABASE_URL_UJI`), 26 dari 26 skenario lulus (`docs/bukti-e2e/laporan.md`; salinan dari `e2e/hasil/` yang di-.gitignore). Nomor = awalan berkas PNG di `docs/bukti-e2e/`. Run diakhiri dengan "Reset & isi data demo".
 
 | UC / langkah atau alternatif | PNG |
 |---|---|
-| UC-05 langkah 1 (BIMA), 2 (J-06 sedang diperiksa), 11 (Terkirim, bukti pengiriman) | 05, 06, 07 |
-| UC-05 S-1.2 (Ditahan), S-1.3/S-1.4 (ajukan ulang menjadi Terkirim V2) | 08, 09 |
-| UC-05 3a (Ditahan lalu Ditolak, pesan 3a.2) | 10, 11 |
-| UC-01 langkah 3-10, S-2, 9a, S-1 | 12, 13, 14, 15, 16 |
-| UC-02 langkah 3-8, 4a, 8a | 17, 18, 19, 20, 21 |
-| UC-03 langkah 2-8, S-1, S-2 | 22, 23, 24, 25, 26, 27 |
-| UC-04 langkah 3-7, S-1, label di J-03 | 28, 29, 30 |
-| UC-07a (tanpa koreksi, Simpan Permanen) | 31, 34 |
-| UC-07c (Draf, dimuat ulang) | 32, 33, 38 |
-| UC-07b / UC-08 (koreksi, S-1 alasan kosong, 4a) | 35, 36, 37, 39 |
-| UC-09 S-1, S-2 | 40, 41 |
-| NFR 3.1 (403 reviewer lain) | 42 |
-| PanelPemandu di J-08 | 43 |
+| UC-05 langkah 1 (BIMA), 11 (J-06 Terkirim, bukti pengiriman) | 05, 06 |
+| UC-05 S-1.2 (Ditahan), S-1.3/S-1.4 (ajukan ulang menjadi Terkirim V2) | 07, 08 |
+| UC-05 3a (Ditahan lalu Ditolak, pesan 3a.2) | 09, 10 |
+| UC-01 langkah 3-10, S-2, 9a, S-1 | 11, 12, 13, 14, 15 |
+| UC-02 langkah 3-8, 4a, 8a | 16, 17, 18, 19, 20 |
+| UC-03 langkah 2-8, S-1, S-2, kotak masuk BIMA | 21, 22, 23, 24, 25, 26 |
+| UC-04 langkah 3-7, S-1, label di J-03 | 27, 28, 29 |
+| UC-07a (tanpa koreksi, Simpan Permanen) | 30, 33 |
+| UC-07c (Draf, dimuat ulang) | 31, 32, 37 |
+| UC-07b / UC-08 (koreksi, S-1 alasan kosong, 4a) | 34, 35, 36, 38 |
+| UC-09 S-1, S-2 | 39, 40 |
+| NFR 3.1 (403 reviewer lain) | 41 |
+| Navigator demo terbuka (J-03), skenario J-04, navigator ciut tidak menutupi tombol | 42, 44, 52 |
+| Skenario J-04: kosong, usulan menunggu, kekurangan reviewer (S-1), sudah ditetapkan | 43, 45, 46, 47 |
+| Skenario J-03 butir Perlu ditinjau, J-05 belum ada penilaian final, J-06 Ditahan, J-08 final hanya-baca | 48, 49, 50, 51 |
+| J-04 skala nyata 10.000: awal, S-1 (batas 60), usulan berhalaman + sebaran, halaman 2, sudah ditetapkan | 53, 54, 55, 56, 57 |
+| Kotak masuk BIMA berisi 10.000 penugasan (ringkasan + 100 terbaru); skenario kecil sesudah skala nyata | 58, 59 |
+
+## Hasil ukur J-04 skala nyata (10.000 proposal, 22 Okt 2026)
+
+Lokal (`next start` di laptop) ke Neon `ap-southeast-1` dengan jeda jaringan laptop ke basis data ±250 ms per pernyataan; waktu server dari `log_audit` (`susun_penugasan`, `tetapkan_penugasan`) dan dari pesan di J-04. Rincian dan hasil produksi ada di ringkasan pekerjaan dan `docs/bukti-e2e/laporan.md`.
+
+| Langkah | Waktu |
+|---|---|
+| Pembuatan data massal pertama (periode, 130 reviewer, 400 pengusul, 10.000 proposal + versi, VACUUM ANALYZE) | ±6 dtk di server (10-13 dtk dari buka J-04 di peramban) |
+| Pemakaian berikutnya (kosongkan penugasan dan kotak masuk, VACUUM) | ±3,5 dtk |
+| Susun Usulan Penugasan, 10.000 proposal, batas 100 | 6,3-8,3 dtk di server (langkah: daftar reviewer BIMA 0,7 dtk, salin akun 1,0-1,2 dtk, baca proposal 1,4 dtk, algoritma 0,3 dtk, simpan usulan 2,9-4,2 dtk); sekali terukur 16,6 dtk karena simpan usulan 13 dtk (jeda tulis Neon) |
+| S-1 (batas 60: 2.560 proposal kekurangan) | 3-4 dtk di server |
+| Tetapkan Penugasan, 10.000 proposal, 20 kelompok x 500 | 4,6-6,5 dtk di server (klaim 1,3 dtk, kirim ke BIMA 3,3-5,2 dtk) |
+| Pindah ke halaman 2 usulan | ±2 dtk |

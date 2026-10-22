@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Alert, Button, JudulHalaman, Panel, StatusBadge, TBody, TD, TH, THead, TR, Table } from "@/components/ui";
-import { PanelPemandu } from "@/components/layout/panel-pemandu";
 import { wajibReviewer } from "@/lib/auth";
-import { langkahUc07, judulUc07 } from "@/lib/demo/pemandu/uc-07";
 import { daftarPenugasanReviewer } from "@/lib/penilaian/layanan";
 
 export const metadata: Metadata = { title: "Daftar Penugasan (J-07)" };
@@ -53,7 +51,6 @@ export default async function Halaman() {
           </Table>
         )}
       </Panel>
-      <PanelPemandu kode="UC-07" judul={judulUc07} langkah={langkahUc07} aktifNomor="2" />
     </>
   );
 }

@@ -22,8 +22,6 @@ import {
   TabsTrigger,
   Textarea,
 } from "@/components/ui";
-import { PanelPemandu } from "@/components/layout/panel-pemandu";
-import { langkahJ08 } from "@/lib/demo/pemandu/j08";
 import { JENIS_KEKELIRUAN, KOMPONEN_BORANG, type Keputusan } from "@/lib/kontrak/tipe";
 import { cariKutipan } from "@/lib/pemeriksa/semantik/teks";
 import type { ButirTampil, DataPemeriksaan, KoreksiTampil } from "@/lib/penilaian/tipe";
@@ -73,7 +71,6 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
     if (terpilih && tandaRef.current) tandaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [terpilih, tabAktif]);
 
-  const aktifNomor = final ? "12" : koreksiBuka ? (galatKoreksi.alasan ? "UC-08·S-1" : "UC-08·4") : terpilih ? "6" : "4";
 
   function pilihButir(id: string) {
     setTerpilih(id);
@@ -475,7 +472,6 @@ export function PemeriksaanKlien({ data }: { data: DataPemeriksaan }) {
           ) : null}
         </Panel>
       </div>
-      <PanelPemandu kode="UC-07" judul="Melakukan pemeriksaan akhir" langkah={langkahJ08} aktifNomor={aktifNomor} />
     </>
   );
 }

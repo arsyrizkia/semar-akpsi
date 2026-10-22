@@ -64,21 +64,27 @@ export interface PayloadPenugasan {
 export async function terimaPenugasanDariSemar(p: PayloadPenugasan) {
   const db = getDb();
   if (!p.penugasan.length) return { diterima: 0 };
-  // idempoten: pengiriman ulang (ulang otomatis klien atau "Kirim ulang") tidak menambah baris ganda untuk kunci yang sama
-  const baru = [];
-  for (const x of p.penugasan) {
-    if (!x.kunci || !(await sudahAda("penugasan", x.kunci))) baru.push(x);
-  }
-  if (!baru.length) return { diterima: 0, duplikat: p.penugasan.length };
-  await db.insert(bimaKotakMasuk).values(
-    baru.map((x) => ({
-      jenis: "penugasan",
-      idProposal: x.idProposal,
-      penerimaIdBima: x.reviewerIdBima,
-      payload: { ...x, periodeId: p.periodeId ?? null },
-    })),
-  );
-  return { diterima: baru.length };
+  // idempoten: pengiriman ulang (ulang otomatis klien atau "Kirim ulang") tidak menambah baris ganda untuk kunci yang sama.
+  // Kunci kembar di dalam satu kelompok dibuang di sini; kunci yang sudah ada di kotak masuk dibuang oleh anti-join di SQL.
+  // Satu pernyataan INSERT ... SELECT per kelompok (500 penugasan) supaya penerimaan skala 10.000 tetap cepat.
+  const lihat = new Set<string>();
+  const elemen = p.penugasan
+    .filter((x) => {
+      if (!x.kunci) return true;
+      if (lihat.has(x.kunci)) return false;
+      lihat.add(x.kunci);
+      return true;
+    })
+    .map((x) => ({ ...x, periodeId: p.periodeId ?? null }));
+  const hasil = await db.execute(sql`
+    INSERT INTO bima_kotak_masuk (jenis, id_proposal, penerima_id_bima, payload)
+    SELECT 'penugasan', e->>'idProposal', e->>'reviewerIdBima', e
+    FROM jsonb_array_elements(${JSON.stringify(elemen)}::jsonb) AS e
+    WHERE (e->>'kunci') IS NULL
+       OR (e->>'kunci') NOT IN (SELECT k.payload->>'kunci' FROM bima_kotak_masuk k WHERE k.jenis = 'penugasan' AND k.payload->>'kunci' IS NOT NULL)
+    RETURNING 1`);
+  const diterima = (hasil as unknown as { rows: unknown[] }).rows.length;
+  return { diterima, duplikat: p.penugasan.length - diterima };
 }
 
 export interface PayloadKeputusan {
@@ -108,4 +114,38 @@ export async function perbaruiStatusProposalBima(idProposal: string, statusBima:
 
 export async function daftarKotakMasuk(batas = 100) {
   return getDb().select().from(bimaKotakMasuk).orderBy(desc(bimaKotakMasuk.diterimaPada)).limit(batas);
+}
+
+export interface RingkasanKotakMasuk {
+  totalPenugasan: number;
+  totalKeputusan: number;
+  jumlahPenerima: number;
+  /** penerima dengan penugasan terbanyak */
+  penerimaTeratas: { penerimaIdBima: string; nama: string | null; jumlah: number }[];
+}
+
+/** Ringkasan kotak masuk (hitungan di basis data) supaya halaman tetap ringan walau berisi ribuan penugasan. */
+export async function ringkasanKotakMasuk(): Promise<RingkasanKotakMasuk> {
+  const db = getDb();
+  const [jumlah] = await db
+    .select({
+      penugasan: sql<number>`count(*) filter (where ${bimaKotakMasuk.jenis} = 'penugasan')::int`,
+      keputusan: sql<number>`count(*) filter (where ${bimaKotakMasuk.jenis} = 'keputusan')::int`,
+      penerima: sql<number>`count(distinct ${bimaKotakMasuk.penerimaIdBima}) filter (where ${bimaKotakMasuk.jenis} = 'penugasan')::int`,
+    })
+    .from(bimaKotakMasuk);
+  const teratas = await db
+    .select({ penerimaIdBima: bimaKotakMasuk.penerimaIdBima, nama: bimaAkun.nama, jumlah: sql<number>`count(*)::int` })
+    .from(bimaKotakMasuk)
+    .leftJoin(bimaAkun, eq(bimaAkun.idBima, bimaKotakMasuk.penerimaIdBima))
+    .where(eq(bimaKotakMasuk.jenis, "penugasan"))
+    .groupBy(bimaKotakMasuk.penerimaIdBima, bimaAkun.nama)
+    .orderBy(desc(sql`count(*)`), bimaKotakMasuk.penerimaIdBima)
+    .limit(5);
+  return {
+    totalPenugasan: jumlah.penugasan,
+    totalKeputusan: jumlah.keputusan,
+    jumlahPenerima: jumlah.penerima,
+    penerimaTeratas: teratas.map((t) => ({ penerimaIdBima: t.penerimaIdBima ?? "-", nama: t.nama, jumlah: t.jumlah })),
+  };
 }

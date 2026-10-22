@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { jalankanSeed } from "@/lib/seed";
-import { ubahPengaturanDemo } from "@/lib/waktu";
+import { ambilPengaturanDemo, ubahPengaturanDemo } from "@/lib/waktu";
 import { catatLogAudit } from "@/lib/audit";
 
 export async function resetDemo(): Promise<{ ok: boolean; pesan: string }> {
@@ -22,4 +22,9 @@ export async function setSakelarMasa(nilai: "berjalan" | "ditutup"): Promise<{ o
   await catatLogAudit({ aktor: "demo", aksi: "demo.sakelar_masa", objek: "pengaturan_demo", rincian: { masaPengusulan: nilai } });
   revalidatePath("/demo");
   return { ok: true, pesan: `Masa pengusulan: ${nilai}.` };
+}
+
+/** Keadaan sakelar masa pengusulan untuk NavigatorDemo. */
+export async function ambilMasaPengusulan(): Promise<"berjalan" | "ditutup"> {
+  return (await ambilPengaturanDemo()).masaPengusulan;
 }

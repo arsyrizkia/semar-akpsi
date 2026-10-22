@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Field, Input, Panel, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
-import { PanelPemandu } from "@/components/layout/panel-pemandu";
-import { LANGKAH_UC01 } from "@/lib/demo/pemandu/uc-01";
 import { periksaKelengkapan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
 import type { PeriodePilihan, SkemaPilihan, TemplatTampil } from "@/lib/templat/layanan";
 import { aksiSusunVersiBaru, aksiTerbitkan } from "./aksi";
@@ -340,7 +338,6 @@ export function PapanTemplat(props: Props) {
         </Panel>
       ) : null}
 
-      <PanelPemandu kode="UC-01" judul="Mengelola templat proposal" langkah={LANGKAH_UC01} aktifNomor={pesan?.jenis === "terbit" ? "10" : pesan?.jenis === "draf" ? "9a" : draf ? "5" : "3"} />
     </>
   );
 }

@@ -8,6 +8,7 @@ import { logAudit } from "@/db/schema";
 import { formatWaktu } from "@/lib/utils";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { modeLlm } from "@/lib/llm/konfigurasi";
+import { KATALOG_JENDELA, alamatSkenario } from "@/lib/demo/katalog";
 import { KontrolDemo } from "./kontrol-demo";
 
 export const metadata: Metadata = { title: "Demo" };
@@ -90,7 +91,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
         <JudulHalaman
           kode="DEMO"
           judul="Pusat Demo"
-          deskripsi="Siapkan data, atur masa pengusulan, lalu lompat ke jendela mana pun dengan sesi peran yang sesuai. Panel pemandu di setiap jendela menampilkan langkah real use case."
+          deskripsi="Siapkan data, atur masa pengusulan, lalu lompat ke jendela mana pun dengan sesi peran yang sesuai. Navigator demo (tombol mengambang di kiri bawah setiap halaman SEMAR dan BIMA tiruan) berpindah antar-jendela dan antar-skenario keadaan."
         />
         {galat ? <Alert jenis="galat" judul="Jalan pintas gagal" className="mb-5">{galat === "kode" ? "Kode jalan pintas tidak dikenal." : galat}</Alert> : null}
         <div className="space-y-6">
@@ -99,6 +100,34 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
             <p className="mt-4 text-xs text-sogan-600">
               Mode LLM: <strong>{modeLlm()}</strong>. Data, akun, dan institusi adalah rekaan. BIMA adalah simulasi, bukan sistem resmi.
             </p>
+          </Panel>
+          <Panel judul="Skenario keadaan per jendela">
+            <p className="mb-3 text-sm text-sogan-700">
+              Sama dengan Navigator demo: setiap tautan menyiapkan data, memasang sesi peran, lalu membuka jendela dalam keadaan itu.
+            </p>
+            <div className="space-y-4">
+              {KATALOG_JENDELA.map((j) => (
+                <div key={j.kode}>
+                  <p className="mb-1 text-sm font-semibold text-sogan-900">
+                    <span className="font-mono text-emas-700">{j.kode}</span> {j.nama} <span className="font-normal text-sogan-600">({j.peran})</span>
+                  </p>
+                  <ul className="flex flex-wrap gap-2">
+                    {j.skenario.map((sk) => (
+                      <li key={sk.id}>
+                        <a
+                          href={alamatSkenario(j.kode, sk.id)}
+                          data-skenario-kartu={`${j.kode}/${sk.id}`}
+                          title={sk.ringkas}
+                          className="inline-block rounded-md border border-sogan-200 bg-krem px-3 py-1 text-xs hover:border-emas-500 hover:bg-emas-50 focus-visible:outline-3 focus-visible:outline-emas-500"
+                        >
+                          {sk.nama}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </Panel>
           <Panel judul="Jalan pintas use case">
             <p className="mb-3 text-sm text-sogan-700">Setiap kartu menyiapkan data yang diperlukan, memasang sesi peran, dan membuka jendela awalnya.</p>

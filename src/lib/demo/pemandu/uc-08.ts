@@ -1,4 +1,4 @@
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 /** Langkah real use case UC-08 Mengoreksi rekomendasi sistem (Bab 10.2.8). Nomor diberi awalan "UC-08·" agar tidak bentrok dengan UC-07. */
 export const judulUc08 = "Mengoreksi rekomendasi sistem";

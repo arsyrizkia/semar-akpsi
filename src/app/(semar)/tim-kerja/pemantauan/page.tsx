@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Alert, Button, Field, JudulHalaman, Panel, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
-import { PanelPemandu } from "@/components/layout/panel-pemandu";
 import { wajibTimKerja } from "@/lib/auth";
-import { judulUc04, kodeUc04, langkahUc04 } from "@/lib/demo/pemandu/uc04";
 import { daftarPeriode, daftarSkema, susunLaporan } from "@/lib/pemantauan/layanan";
 import { formatPersen } from "@/lib/pemantauan/rekap";
 import { LaporanKoreksi } from "./laporan-koreksi";
@@ -139,7 +137,6 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
           <LaporanKoreksi periodeId={periode.id} skemaId={skema.id} baris={laporan.koreksiTertinggi} rincian={laporan.rincian} />
         </div>
       )}
-      <PanelPemandu kode={kodeUc04} judul={judulUc04} langkah={langkahUc04} aktifNomor={laporan ? "3" : "2"} />
     </>
   );
 }

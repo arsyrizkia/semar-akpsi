@@ -4,7 +4,7 @@
  * Fungsi ini dirancang dapat diulang tanpa Reset (pulihkanDrafBima memulihkan naskah BIMA, jalan pintas UC-04 mengembalikan butir
  * terkoreksi ke Aktif, UC-07 memulihkan penugasan PRP-2026-0004); tidak mereset seluruh basis data; reset penuh hanya lewat tombol "Reset & isi data demo".
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import * as s from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
@@ -16,7 +16,10 @@ import { KOMPONEN_BORANG } from "@/lib/kontrak/tipe";
 import { jalankan as jalankanSemantik } from "@/lib/pemeriksa/semantik/jalankan";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@/lib/pengajuan/layanan";
-import { ubahPengaturanDemo } from "@/lib/waktu";
+import { susunPenugasan, tetapkanPenugasan } from "@/lib/penugasan/layanan";
+import { susunVersiBaru } from "@/lib/templat/layanan";
+import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
+import { nonaktifkanReviewerSkala, siapkanSkalaNyata } from "./skala";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -51,7 +54,7 @@ async function idBimaBerikut(): Promise<string> {
  * Membuat proposal beserta versi pertamanya langsung di SEMAR (tanpa melewati BIMA), lalu menjalankan pemeriksaan
  * deterministik sungguhan. Lolos semua -> Terkirim (+ antrean semantik Menunggu); ada Gagal -> Ditahan.
  */
-export async function buatProposalDemo(opsi: { varian: VarianContoh; pengusulIdBima: string; sufiks: string }) {
+export async function buatProposalDemo(opsi: { varian: VarianContoh; pengusulIdBima: string; sufiks: string; idTetap?: string }) {
   const db = getDb();
   const periode = await ambilPeriodeBerjalan();
   const [skema] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
@@ -61,8 +64,10 @@ export async function buatProposalDemo(opsi: { varian: VarianContoh; pengusulIdB
 
   const def = susunContoh(opsi.varian);
   const judul = `${def.judul} (${opsi.sufiks})`;
-  const id = await idBimaBerikut();
-  await db.insert(s.bimaProposal).values({ id, judul, skemaKode: "PD", pengusulIdBima: opsi.pengusulIdBima, statusBima: "Diajukan ke SEMAR", kataKunci: def.kataKunci });
+  const id = opsi.idTetap ?? (await idBimaBerikut());
+  if (!opsi.idTetap) {
+    await db.insert(s.bimaProposal).values({ id, judul, skemaKode: "PD", pengusulIdBima: opsi.pengusulIdBima, statusBima: "Diajukan ke SEMAR", kataKunci: def.kataKunci });
+  }
 
   const berkas = await simpanBerkas({ ruang: "semar", nama: `${id}-V1.docx`, tipe: DOCX, bytes: await buatDocx(def), peran: "naskah" });
   const [p] = await db
@@ -110,17 +115,52 @@ async function idAkun(idBima: string): Promise<string> {
 
 const PENGUSUL_SIKLUS = ["pengusul-1", "pengusul-2", "pengusul-3", "pengusul-1", "pengusul-2", "pengusul-3"] as const;
 
-/** Memastikan ada paling sedikit `jumlah` proposal Terkirim yang belum punya penugasan (bahan UC-03). */
+/**
+ * Mengembalikan proposal klon demo yang sudah ditugaskan (Ditetapkan/Diusulkan, belum dinilai) menjadi belum ditugaskan, beserta pesan
+ * penugasannya di kotak masuk BIMA, supaya skenario J-04 selalu mulai bersih tanpa menumpuk proposal baru. PRP-2026-0004 (siap-reviewer),
+ * penugasan yang sudah dinilai, dan data skala nyata tidak disentuh.
+ */
+async function daurUlangPenugasanKlon() {
+  const db = getDb();
+  const periode = await ambilPeriodeBerjalan();
+  await db.execute(sql`
+    DELETE FROM penugasan_reviewer pr USING proposal p
+    WHERE pr.proposal_id = p.id AND pr.periode_id = ${periode.id} AND p.id_proposal <> 'PRP-2026-0004'
+      AND pr.status IN ('Diusulkan', 'Ditetapkan') AND NOT EXISTS (SELECT 1 FROM penilaian pl WHERE pl.penugasan_id = pr.id)`);
+  await db.execute(sql`
+    DELETE FROM bima_kotak_masuk
+    WHERE jenis = 'penugasan' AND id_proposal <> 'PRP-2026-0004' AND id_proposal NOT LIKE 'SKL-%'
+      AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr JOIN proposal p ON p.id = pr.proposal_id WHERE p.id_proposal = bima_kotak_masuk.id_proposal)`);
+}
+
+/** Memastikan ada paling sedikit `jumlah` proposal Terkirim (periode utama) yang belum punya penugasan (bahan UC-03). */
 async function pastikanProposalBelumDitugaskan(jumlah: number) {
   const db = getDb();
-  await db.delete(s.penugasanReviewer).where(eq(s.penugasanReviewer.status, "Diusulkan"));
+  const periode = await ambilPeriodeBerjalan();
+  await daurUlangPenugasanKlon();
   const [{ n }] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(s.proposal)
-    .where(sql`${s.proposal.status} = 'Terkirim' AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = ${s.proposal.id})`);
+    .where(sql`${s.proposal.periodeId} = ${periode.id} AND ${s.proposal.status} = 'Terkirim' AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = ${s.proposal.id})`);
   for (let i = n; i < jumlah; i++) {
     await buatProposalDemo({ varian: i % 2 === 0 ? "a" : "d", pengusulIdBima: PENGUSUL_SIKLUS[i % PENGUSUL_SIKLUS.length], sufiks: `kelompok ${i + 1}` });
   }
+}
+
+/** J-04 "Kosong": tidak ada proposal Terkirim tanpa penugasan dan tidak ada usulan (periode utama). */
+async function kosongkanProposalBelumDitugaskan() {
+  const db = getDb();
+  const periode = await ambilPeriodeBerjalan();
+  await daurUlangPenugasanKlon();
+  await db.delete(s.penugasanReviewer).where(and(eq(s.penugasanReviewer.periodeId, periode.id), eq(s.penugasanReviewer.status, "Diusulkan")));
+  const dihapus = await db.execute(sql`
+    DELETE FROM proposal WHERE periode_id = ${periode.id} AND status = 'Terkirim'
+      AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = proposal.id)
+    RETURNING id_proposal`);
+  const ids = (dihapus as unknown as { rows: { id_proposal: string }[] }).rows.map((r) => r.id_proposal);
+  // proposal BIMA 0001..0003 kembali menjadi Draf supaya dapat diajukan lagi; klon demo dibiarkan
+  const dasar = ids.filter((i) => /^PRP-2026-000[1-3]$/.test(i));
+  if (dasar.length) await db.update(s.bimaProposal).set({ statusBima: "Draf" }).where(inArray(s.bimaProposal.id, dasar));
 }
 
 /* ------------------------------ UC-04 ------------------------------ */
@@ -284,6 +324,9 @@ async function bersihkanDrafTemplat() {
 /* ------------------------------ pintu masuk ------------------------------ */
 
 export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsungJ08?: boolean } = {}): Promise<HasilSiapkan> {
+  // skenario skala nyata J-04 tidak boleh bocor: periode J-04 kembali ke periode utama dan reviewer massal tidak bersedia lagi
+  await setPeriodeAktif(null);
+  await nonaktifkanReviewerSkala();
   switch (kode) {
     case "UC-01-S1": {
       const skemaId = await pastikanSkemaTanpaTemplat();
@@ -358,4 +401,278 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
       };
     }
   }
+}
+
+/* ======================================================================================================
+ * Navigator demo: skenario KEADAAN per jendela (katalog di katalog.ts). Setiap skenario menyiapkan data, menyebut akun yang
+ * dimasukkan (null = hapus sesi), dan jendela tujuan. Penyiap UC-xx di atas dipakai ulang.
+ * ====================================================================================================== */
+
+export interface HasilSkenario {
+  /** idBima akun yang dimasukkan; null = sesi dihapus */
+  akun: string | null;
+  tujuan: string;
+  catatan: string;
+}
+
+const dariJalanPintas = (h: HasilSiapkan): HasilSkenario => h;
+
+/** Penugasan milik reviewer-2 (PRP-2026-0004) dijadikan penilaian Final yang sudah terkirim ke BIMA: label Selesai. */
+async function finalkanPenilaian(penugasanId: string) {
+  const db = getDb();
+  const [pl] = await db
+    .insert(s.penilaian)
+    .values({
+      penugasanId,
+      status: "Final",
+      komentar: "Seluruh komponen borang sudah memenuhi; naskah jelas dan terstruktur.",
+      nilai: `${KOMPONEN_BORANG.length} dari ${KOMPONEN_BORANG.length} komponen Memenuhi`,
+      dikirimKeBimaPada: new Date(),
+    })
+    .returning();
+  await db.insert(s.keputusanKomponen).values(KOMPONEN_BORANG.map((k) => ({ penilaianId: pl.id, komponen: k, keputusan: "Memenuhi" as const })));
+  await db.update(s.penugasanReviewer).set({ status: "Selesai", label: "Selesai" }).where(eq(s.penugasanReviewer.id, penugasanId));
+}
+
+/** Butir yang ditandai Perlu ditinjau kembali Aktif (keadaan J-03 "normal"). */
+async function pulihkanButirDitinjau() {
+  const periode = await ambilPeriodeBerjalan();
+  const [skemaPd] = await getDb().select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+  const basis = await ambilAturanBerlaku(periode.id, skemaPd.id);
+  await getDb()
+    .update(s.butirCek)
+    .set({ status: "Aktif", ditandaiOleh: null, ditandaiPada: null })
+    .where(and(eq(s.butirCek.basisAturanId, basis.id), eq(s.butirCek.status, "Perlu ditinjau")));
+  return { periode, skemaPd, basis };
+}
+
+async function tujuanAturan(): Promise<string> {
+  const periode = await ambilPeriodeBerjalan();
+  const [skemaPd] = await getDb().select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+  return `/tim-kerja/aturan?skema=${skemaPd.id}&periode=${periode.id}`;
+}
+
+async function tujuanPemantauan(): Promise<string> {
+  const periode = await ambilPeriodeBerjalan();
+  const [skemaPd] = await getDb().select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+  return `/tim-kerja/pemantauan?skema=${skemaPd.id}&periode=${periode.id}`;
+}
+
+/** J-06: proposal milik pengusul pada slot PRP-2026-000N dalam keadaan tertentu. */
+async function siapkanJ06(keadaan: "terkirim" | "ditahan" | "ditolak" | "diperiksa"): Promise<HasilSkenario> {
+  const db = getDb();
+  const nomorSlot = keadaan === "ditahan" ? 2 : keadaan === "ditolak" ? 3 : 1;
+  const id = await pulihkanDrafBima(nomorSlot as 1 | 2 | 3);
+  const pengusul = `pengusul-${nomorSlot}`;
+  const periode = await ambilPeriodeBerjalan();
+  if (keadaan === "terkirim" || keadaan === "ditahan") {
+    await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
+    await buatProposalDemo({ varian: keadaan === "terkirim" ? "a" : "b", pengusulIdBima: pengusul, sufiks: keadaan, idTetap: id });
+    return {
+      akun: pengusul,
+      tujuan: `/pengusul/hasil/${id}`,
+      catatan: keadaan === "terkirim" ? "Semua butir deterministik lolos (Terkirim)." : "Bagian Metode melebihi batas kata (Ditahan); butir gagal paling atas.",
+    };
+  }
+  const [skemaPd] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+  const [pengusulAkun] = await db.select().from(s.akun).where(eq(s.akun.idBima, pengusul));
+  const def = susunContoh("a");
+  if (keadaan === "ditolak") {
+    await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+    await db.insert(s.proposal).values({ idProposal: id, judul: def.judul, skemaId: skemaPd.id, periodeId: periode.id, pengusulId: pengusulAkun.id, status: "Ditolak" });
+    await catatLogAudit({ aktor: pengusul, aksi: "pengajuan.ditolak", objek: id, rincian: { alasan: "masa pengusulan ditutup" } });
+    return { akun: pengusul, tujuan: `/pengusul/hasil/${id}`, catatan: "Masa pengusulan sudah ditutup: pengajuan Ditolak (3a), tanpa daftar butir." };
+  }
+  // sedang diperiksa: proposal tercatat, pemeriksaan belum selesai
+  await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
+  await db.insert(s.proposal).values({ idProposal: id, judul: def.judul, skemaId: skemaPd.id, periodeId: periode.id, pengusulId: pengusulAkun.id, status: "Sedang diperiksa" });
+  await db.update(s.bimaProposal).set({ statusBima: "Diajukan ke SEMAR" }).where(eq(s.bimaProposal.id, id));
+  await catatLogAudit({ aktor: pengusul, aksi: "pengajuan.mulai", objek: id });
+  return { akun: pengusul, tujuan: `/pengusul/hasil/${id}`, catatan: "Pemeriksaan ditampilkan sedang berjalan. Bila dibiarkan lebih dari dua menit halaman menampilkan galat batas waktu (NFR 2.1)." };
+}
+
+/**
+ * Menyiapkan satu skenario keadaan bagi satu jendela (navigator demo, rute /demo/mulai?j=&s=). Idempoten dan tidak mereset basis data.
+ */
+export async function siapkanSkenario(kodeJendela: string, id: string): Promise<HasilSkenario> {
+  const db = getDb();
+  const kunci = `${kodeJendela}/${id}`;
+
+  // skala nyata mengaktifkan periode sendiri; semua skenario lain mengembalikan periode utama dan menonaktifkan reviewer massal
+  if (kunci === "J-04/skala") {
+    const h = await siapkanSkalaNyata();
+    const detik = (h.waktuBuatMs / 1000).toFixed(1);
+    return {
+      akun: "dppm-pengelola",
+      tujuan: "/tim-kerja/penugasan",
+      catatan: `Skala nyata: 10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100 (turunkan ke 60 untuk memicu S-1). ${h.dibuatBaru ? `Data massal baru dibuat dalam ${detik} dtk.` : "Data massal sudah ada; penugasan lama dikosongkan."}`,
+    };
+  }
+  await setPeriodeAktif(null);
+  await nonaktifkanReviewerSkala();
+
+  switch (kunci) {
+    /* J-01 */
+    case "J-01/belum-masuk":
+      return { akun: null, tujuan: "/masuk", catatan: "Sesi dihapus: belum masuk." };
+    case "J-01/pengelola":
+      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/templat", catatan: "Masuk sebagai Tim Kerja pengelola; J-01 mengarahkan ke J-02." };
+    case "J-01/anggota":
+      return { akun: "dppm-anggota", tujuan: "/tim-kerja/penugasan", catatan: "Masuk sebagai Tim Kerja anggota; J-01 mengarahkan ke J-04 (menu hanya J-04 dan J-05)." };
+    case "J-01/reviewer":
+      return { akun: "reviewer-2", tujuan: "/reviewer/penugasan", catatan: "Masuk sebagai Reviewer; J-01 mengarahkan ke J-07." };
+
+    /* J-02 */
+    case "J-02/normal":
+      return dariJalanPintas(await siapkanJalanPintas("UC-01"));
+    case "J-02/tanpa-templat":
+      return dariJalanPintas(await siapkanJalanPintas("UC-01-S1"));
+    case "J-02/masa-berjalan": {
+      await bersihkanDrafTemplat();
+      await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
+      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/templat", catatan: "Masa pengusulan berjalan: Terbitkan menyimpan templat sebagai draf untuk periode berikutnya (9a)." };
+    }
+    case "J-02/draf-tersimpan": {
+      await bersihkanDrafTemplat();
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      const [skemaPd] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+      const pengelola = await idAkun("dppm-pengelola");
+      await susunVersiBaru(skemaPd.id, { id: pengelola, idBima: "dppm-pengelola" });
+      return { akun: "dppm-pengelola", tujuan: `/tim-kerja/templat?skema=${skemaPd.id}`, catatan: "Draf versi berikutnya sudah tersimpan dan dibuka kembali." };
+    }
+
+    /* J-03 */
+    case "J-03/normal": {
+      await pulihkanButirDitinjau();
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      return { akun: "dppm-pengelola", tujuan: await tujuanAturan(), catatan: "Masa pengusulan ditutup; nyalakan sakelar berjalan untuk alternatif 8a." };
+    }
+    case "J-03/perlu-ditinjau": {
+      const { basis } = await pulihkanButirDitinjau();
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      const [kandidat] = await db
+        .select({ id: s.butirCek.id })
+        .from(s.butirCek)
+        .where(and(eq(s.butirCek.basisAturanId, basis.id), eq(s.butirCek.asal, "manual"), eq(s.butirCek.status, "Aktif")))
+        .orderBy(s.butirCek.urutan)
+        .limit(1);
+      if (kandidat) {
+        await db.update(s.butirCek).set({ status: "Perlu ditinjau", ditandaiOleh: await idAkun("dppm-pengelola"), ditandaiPada: new Date() }).where(eq(s.butirCek.id, kandidat.id));
+      }
+      return { akun: "dppm-pengelola", tujuan: await tujuanAturan(), catatan: "Satu butir manual ditandai Perlu ditinjau dari J-05 (UC-04) dan disorot pada tabel." };
+    }
+    case "J-03/uji-tanggal": {
+      await pulihkanButirDitinjau();
+      await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
+      return { akun: "dppm-pengelola", tujuan: await tujuanAturan(), catatan: "Masa pengusulan berjalan: Tanggal Berlaku di antara tanggal buka dan tutup ditolak (8a)." };
+    }
+
+    /* J-04 */
+    case "J-04/kosong": {
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      await kosongkanProposalBelumDitugaskan();
+      return {
+        akun: "dppm-pengelola",
+        tujuan: "/tim-kerja/penugasan",
+        catatan: "Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini. Tidak ada usulan yang menunggu penetapan.",
+      };
+    }
+    case "J-04/siap-kecil":
+    case "J-04/menunggu":
+    case "J-04/kekurangan":
+    case "J-04/ditetapkan": {
+      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
+      await pastikanProposalBelumDitugaskan(6);
+      const periode = await ambilPeriodeBerjalan();
+      if (id === "siap-kecil") {
+        await tetapkanBatas(periode.id, 3);
+        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Enam proposal Terkirim siap disusun; batas beban 3 menyusun usulan, batas 1 memicu S-1." };
+      }
+      if (id === "kekurangan") {
+        await tetapkanBatas(periode.id, 1);
+        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan?susun=1", catatan: "Batas beban 1: Susun Usulan Penugasan ditekan otomatis dan menampilkan Kekurangan Reviewer (S-1)." };
+      }
+      await susunPenugasan(periode.id, 3);
+      if (id === "menunggu") {
+        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Usulan penugasan (batas beban 3) sudah disusun dan menunggu penetapan." };
+      }
+      await tetapkanPenugasan(periode.id, "dppm-pengelola");
+      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Penugasan sudah ditetapkan dan tercatat di kotak masuk BIMA; reviewer menerimanya berlabel Baru di J-07." };
+    }
+
+    /* J-05 */
+    case "J-05/contoh": {
+      await pastikanDataPemantauan();
+      return { akun: "dppm-pengelola", tujuan: await tujuanPemantauan(), catatan: "Tersedia proposal Ditahan dan penilaian Final dengan koreksi reviewer." };
+    }
+    case "J-05/belum-final": {
+      const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.proposal).where(eq(s.proposal.status, "Ditahan"));
+      if (n < 2) await pastikanDataPemantauanDitahan();
+      await db.execute(sql`
+        WITH h AS (DELETE FROM penilaian WHERE status = 'Final' RETURNING penugasan_id)
+        UPDATE penugasan_reviewer SET status = 'Ditetapkan', label = 'Baru' WHERE id IN (SELECT penugasan_id FROM h)`);
+      return { akun: "dppm-pengelola", tujuan: await tujuanPemantauan(), catatan: "Belum ada penilaian final; hanya butir deterministik yang gagal pada pengajuan yang tampil." };
+    }
+
+    /* J-06 */
+    case "J-06/terkirim":
+    case "J-06/ditahan":
+    case "J-06/ditolak":
+    case "J-06/diperiksa":
+      return siapkanJ06(id as "terkirim" | "ditahan" | "ditolak" | "diperiksa");
+
+    /* J-07 */
+    case "J-07/kosong":
+      return { akun: "reviewer-6", tujuan: "/reviewer/penugasan", catatan: "Reviewer-6 (tidak bersedia pada periode ini) belum punya penugasan." };
+    case "J-07/baru": {
+      await siapkanPemeriksaanReviewer("normal");
+      return { akun: "reviewer-2", tujuan: "/reviewer/penugasan", catatan: "PRP-2026-0004 berlabel Baru." };
+    }
+    case "J-07/draf": {
+      const { penugasanId } = await siapkanPemeriksaanReviewer("normal");
+      await siapkanDrafSebagian(penugasanId);
+      return { akun: "reviewer-2", tujuan: "/reviewer/penugasan", catatan: "Penilaian sebagian tersimpan: label Draf." };
+    }
+    case "J-07/selesai": {
+      const { penugasanId } = await siapkanPemeriksaanReviewer("normal");
+      await finalkanPenilaian(penugasanId);
+      return { akun: "reviewer-2", tujuan: "/reviewer/penugasan", catatan: "Penilaian final sudah tersimpan dan terkirim ke BIMA: semua penugasan Selesai." };
+    }
+
+    /* J-08 */
+    case "J-08/normal":
+      return dariJalanPintas(await siapkanJalanPintas("UC-08"));
+    case "J-08/perlu-manual":
+      return dariJalanPintas(await siapkanJalanPintas("UC-09-S1"));
+    case "J-08/belum-rekomendasi":
+      return dariJalanPintas(await siapkanJalanPintas("UC-09-S2"));
+    case "J-08/draf":
+      return dariJalanPintas(await siapkanJalanPintas("UC-07c", { langsungJ08: true }));
+    case "J-08/final": {
+      const { penugasanId } = await siapkanPemeriksaanReviewer("normal");
+      await finalkanPenilaian(penugasanId);
+      return { akun: "reviewer-2", tujuan: `/reviewer/pemeriksaan/${penugasanId}`, catatan: "Penilaian sudah Simpan Permanen: isian hanya-baca." };
+    }
+
+    /* BIMA tiruan */
+    case "BIMA-1/lolos":
+      return dariJalanPintas(await siapkanJalanPintas("UC-05a"));
+    case "BIMA-1/ditahan":
+      return dariJalanPintas(await siapkanJalanPintas("UC-05b"));
+    case "BIMA-1/ditolak":
+      return dariJalanPintas(await siapkanJalanPintas("UC-05c"));
+    case "BIMA-2/normal":
+      return { akun: "dppm-pengelola", tujuan: "/bima/kotak-masuk", catatan: "Kotak masuk BIMA tiruan: penugasan dan keputusan yang diterima dari SEMAR." };
+  }
+  throw new Error(`skenario tidak dikenal: ${kunci}`);
+}
+
+async function tetapkanBatas(periodeId: string, batas: number) {
+  await getDb().update(s.periodeSeleksi).set({ batasBebanReviewer: batas }).where(eq(s.periodeSeleksi.id, periodeId));
+}
+
+/** Dua proposal Ditahan (butir deterministik gagal) tanpa membuat penilaian Final. */
+async function pastikanDataPemantauanDitahan() {
+  await buatProposalDemo({ varian: "b", pengusulIdBima: "pengusul-2", sufiks: "ditahan 1" });
+  await buatProposalDemo({ varian: "c", pengusulIdBima: "pengusul-3", sufiks: "ditahan 2" });
 }

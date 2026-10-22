@@ -1,4 +1,4 @@
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 /** Langkah real use case UC-09 Memeriksa butir semantik (Bab 10.2.9), proses latar belakang. */
 export const judulUc09 = "Memeriksa butir semantik";

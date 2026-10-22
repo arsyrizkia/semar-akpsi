@@ -1,4 +1,4 @@
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 /** Langkah real use case UC-06 Memeriksa butir deterministik (docs/sumber/bab10, 10.2.6). */
 export const LANGKAH_UC06: LangkahPemandu[] = [

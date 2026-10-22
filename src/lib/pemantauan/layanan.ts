@@ -2,7 +2,7 @@
  * UC-04 Memantau kesesuaian penilaian: ambilAturanBerlaku, rekapKesesuaian, ambilStatus, ambilAlasan, tandaiButir,
  * tandaiPerluDitinjau, ambilRincian, ambilContoh (nama mengikuti seq-uc04.puml).
  */
-import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, notLike, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   akun,
@@ -18,10 +18,11 @@ import {
   versiProposal,
 } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
+import { NAMA_PERIODE_SKALA } from "@/lib/waktu";
 import { rekapKesesuaian, type BarisGagal, type BarisNilai, type HasilRekap, type InfoButir } from "./rekap";
 
 export async function daftarPeriode() {
-  return getDb().select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
+  return getDb().select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
 }
 
 export async function daftarSkema() {

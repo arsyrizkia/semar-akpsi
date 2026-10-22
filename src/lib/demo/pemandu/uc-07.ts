@@ -1,4 +1,4 @@
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 /** Langkah real use case UC-07 Melakukan pemeriksaan akhir (Bab 10.2.7). */
 export const judulUc07 = "Melakukan pemeriksaan akhir";

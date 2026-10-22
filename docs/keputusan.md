@@ -40,6 +40,8 @@ membantu DPPM memeriksa proposal penelitian secara administratif.
 10. **Demo:**
     - `/demo` menyediakan reset dan seed, jalan pintas UC-01..UC-09, dan 6 skenario (UC-05 a/b/c, UC-07 a/b/c).
     - Ada sakelar "masa pengusulan berjalan/ditutup".
-    - Ada panel pemandu langkah *real use case* yang bisa disembunyikan.
+    - Navigator demo mengambang di semua halaman SEMAR dan BIMA tiruan (kiri bawah, bawaan ciut, Alt+Shift+N): pindah
+      antar-jendela J-01..J-08 dan halaman BIMA tiruan, pindah antar-skenario keadaan jendela yang dibuka, dan mengganti
+      masa pengusulan. Menggantikan panel pemandu langkah *real use case* (data langkah tetap di `src/lib/demo/pemandu/`).
 11. Bahasa antarmuka: Bahasa Indonesia.
 12. Commit tanpa atribusi AI (tanpa baris Co-Authored-By atau Generated-with).

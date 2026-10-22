@@ -1,5 +1,5 @@
 /** Langkah real use case UC-04 Memantau kesesuaian penilaian, untuk PanelPemandu (sumber: Bab 10, Tabel ruc-04). */
-import type { LangkahPemandu } from "@/components/layout/panel-pemandu";
+import type { LangkahPemandu } from "./tipe";
 
 export const kodeUc04 = "UC-04";
 export const judulUc04 = "Memantau kesesuaian penilaian";
