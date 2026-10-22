@@ -56,7 +56,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
         <KeadaanKosong judul="Belum ada periode atau skema">Pemantauan muncul sesudah ada periode seleksi dan skema pendanaan.</KeadaanKosong>
       ) : (
         <>
-          <p className="mb-6 text-sm text-sogan-700">
+          <p className="mb-6 text-sm text-primer-700">
             {periode.nama}, {skema.namaSkema}
             {laporan.basis ? ` (basis aturan versi ${laporan.basis.versi})` : " (belum ada basis aturan)"}. Dihitung dari{" "}
             <span className="angka">{formatAngka(laporan.jumlahPenilaianFinal)}</span> hasil pemeriksaan semantik pada penilaian final.
@@ -64,7 +64,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
 
           <Bagian judul="Butir Deterministik Paling Sering Gagal">
             {laporan.gagalPerButir.length === 0 ? (
-              <p className="text-sm text-sogan-700">Tidak ada butir deterministik yang gagal pada pengajuan di periode dan skema ini.</p>
+              <p className="text-sm text-primer-700">Tidak ada butir deterministik yang gagal pada pengajuan di periode dan skema ini.</p>
             ) : (
               <Table>
                 <THead>
@@ -83,13 +83,13 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
                     <TR key={b.kode}>
                       <TD className="max-w-xs">
                         {sesi.pengelola ? (
-                          <Link href={tautanButir(b.kode)} className="font-semibold text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                          <Link href={tautanButir(b.kode)} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
                             {b.kode}
                           </Link>
                         ) : (
                           <span className="font-semibold">{b.kode}</span>
                         )}
-                        <p className="text-xs text-sogan-700">{b.deskripsi}</p>
+                        <p className="text-xs text-primer-700">{b.deskripsi}</p>
                       </TD>
                       {laporan.institusi.map((i) => (
                         <TD key={i} angka>

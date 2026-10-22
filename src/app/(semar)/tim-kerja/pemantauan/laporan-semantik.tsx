@@ -87,7 +87,7 @@ export function LaporanSemantik({
       <Link
         href={alamat(kode)}
         scroll={false}
-        className="text-left text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600"
+        className="text-left text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600"
         aria-label={`Rincian butir ${kode}: ${deskripsi}`}
       >
         {deskripsi}
@@ -96,18 +96,18 @@ export function LaporanSemantik({
   );
   const kodeButir = (kode: string) =>
     pengelola ? (
-      <Link href={tautanJ03(kode)} className="font-mono text-xs font-semibold text-sogan-700 underline-offset-2 hover:underline" title="Buka butir ini di Aturan Pemeriksaan (J-03)">
+      <Link href={tautanJ03(kode)} className="font-mono text-xs font-semibold text-primer-700 underline-offset-2 hover:underline" title="Buka butir ini di Aturan Pemeriksaan (J-03)">
         {kode}
       </Link>
     ) : (
-      <span className="font-mono text-xs font-semibold text-sogan-700">{kode}</span>
+      <span className="font-mono text-xs font-semibold text-primer-700">{kode}</span>
     );
 
   return (
     <>
       <Bagian judul="Kesesuaian per Butir">
         {kesesuaian.length === 0 ? (
-          <p className="text-sm text-sogan-700">Belum ada penilaian final untuk periode dan skema ini.</p>
+          <p className="text-sm text-primer-700">Belum ada penilaian final untuk periode dan skema ini.</p>
         ) : (
           <>
             <Table>
@@ -137,7 +137,7 @@ export function LaporanSemantik({
                 ))}
               </TBody>
             </Table>
-            <p className="mt-2 text-xs text-sogan-700">
+            <p className="mt-2 text-xs text-primer-700">
               Rekomendasi yang tidak dikoreksi dihitung disetujui. Butir deterministik tidak muncul di sini karena reviewer tidak mengoreksinya.
             </p>
           </>
@@ -153,7 +153,7 @@ export function LaporanSemantik({
         }
       >
         {koreksi.length === 0 ? (
-          <p className="text-sm text-sogan-700">Belum ada koreksi reviewer pada penilaian final untuk periode dan skema ini.</p>
+          <p className="text-sm text-primer-700">Belum ada koreksi reviewer pada penilaian final untuk periode dan skema ini.</p>
         ) : (
           <>
             <Table>
@@ -177,7 +177,7 @@ export function LaporanSemantik({
                       </TD>
                       <TD angka>
                         {persen(b.tingkatKoreksi)}
-                        <p className="text-xs text-sogan-700">
+                        <p className="text-xs text-primer-700">
                           {b.jumlahKoreksi} dari {b.jumlah} hasil
                         </p>
                       </TD>
@@ -185,7 +185,7 @@ export function LaporanSemantik({
                         <ul className="space-y-1.5">
                           {b.alasan.map((a, i) => (
                             <li key={i} className="text-xs">
-                              <Badge warna="netral">{a.jenisKekeliruan || "Tanpa jenis"}</Badge> <span className="text-sogan-700">menjadi {a.keputusanReviewer}:</span> {a.alasan}
+                              <Badge warna="netral">{a.jenisKekeliruan || "Tanpa jenis"}</Badge> <span className="text-primer-700">menjadi {a.keputusanReviewer}:</span> {a.alasan}
                             </li>
                           ))}
                         </ul>
@@ -195,9 +195,9 @@ export function LaporanSemantik({
                         {b.butirId && b.status === "Aktif" ? (
                           <KotakCentang id={`perbaiki-${b.kode}`} label="Perlu Diperbaiki" checked={dipilih.has(b.kode)} onCheckedChange={(v) => alih(b.kode, v === true)} />
                         ) : sudahDitandai ? (
-                          <span className="text-xs text-sogan-700">Sudah ditandai</span>
+                          <span className="text-xs text-primer-700">Sudah ditandai</span>
                         ) : (
-                          <span className="text-xs text-sogan-600">-</span>
+                          <span className="text-xs text-primer-600">-</span>
                         )}
                       </TD>
                     </TR>
@@ -212,7 +212,7 @@ export function LaporanSemantik({
                 </p>
               ) : null}
               {hasil?.ditandai.length && pengelola ? (
-                <p className="mt-3 text-sm text-sogan-800">
+                <p className="mt-3 text-sm text-primer-800">
                   Butir ditandai tampil disorot di J-03.{" "}
                   <Link href={`/tim-kerja/aturan?skema=${skemaId}&periode=${periodeId}`} className={kelasTombol("hantu", "sm")}>
                     Buka Aturan Pemeriksaan
@@ -238,28 +238,28 @@ export function LaporanSemantik({
       >
         <ul className="space-y-4">
           {(butirTerbuka ? rincian[butirTerbuka] : []).map((c, i) => (
-            <li key={i} className="border-b border-sogan-100 pb-4 last:border-0">
+            <li key={i} className="border-b border-primer-100 pb-4 last:border-0">
               {c.proposalId ? (
-                <Link href={`/tim-kerja/proposal/${c.proposalId}`} className="font-semibold text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                <Link href={`/tim-kerja/proposal/${c.proposalId}`} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
                   {c.judulProposal}
                 </Link>
               ) : (
-                <p className="font-semibold text-sogan-800">{c.judulProposal}</p>
+                <p className="font-semibold text-primer-800">{c.judulProposal}</p>
               )}
               <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr]">
-                <dt className="text-sogan-700">Rekomendasi sistem</dt>
+                <dt className="text-primer-700">Rekomendasi sistem</dt>
                 <dd>
                   {c.rekomendasi ?? c.statusSistem} {c.tiruan ? <Badge>tiruan</Badge> : null}
                 </dd>
-                <dt className="text-sogan-700">Kutipan</dt>
+                <dt className="text-primer-700">Kutipan</dt>
                 <dd>{c.kutipan ? <q>{c.kutipan}</q> : "-"}</dd>
-                <dt className="text-sogan-700">Keputusan reviewer</dt>
+                <dt className="text-primer-700">Keputusan reviewer</dt>
                 <dd>
                   {c.keputusanReviewer} {c.dikoreksi ? <StatusBadge status="Dikoreksi reviewer" /> : null}
                 </dd>
                 {c.alasanKoreksi ? (
                   <>
-                    <dt className="text-sogan-700">Alasan koreksi</dt>
+                    <dt className="text-primer-700">Alasan koreksi</dt>
                     <dd>{c.alasanKoreksi}</dd>
                   </>
                 ) : null}

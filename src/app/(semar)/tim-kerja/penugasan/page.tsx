@@ -11,11 +11,11 @@ import { formatAngka, formatTanggal } from "@/lib/utils";
 export const metadata: Metadata = { title: "J-04 Penugasan Reviewer" };
 export const dynamic = "force-dynamic";
 
-const warnaPenetapan: Record<StatusPenetapan, "netral" | "emas" | "daun" | "sogan"> = {
+const warnaPenetapan: Record<StatusPenetapan, "netral" | "peringatan" | "daun"> = {
   "Tidak ada proposal": "netral",
   "Belum disusun": "netral",
-  "Usulan menunggu penetapan": "emas",
-  "Sebagian ditetapkan": "emas",
+  "Usulan menunggu penetapan": "peringatan",
+  "Sebagian ditetapkan": "peringatan",
   "Seluruhnya ditetapkan": "daun",
 };
 
@@ -65,7 +65,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 return (
                   <TR key={p.id}>
                     <TD>
-                      <Link href={`/tim-kerja/penugasan/${p.id}`} className="font-semibold text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                      <Link href={`/tim-kerja/penugasan/${p.id}`} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
                         {p.nama}
                       </Link>
                     </TD>
@@ -74,7 +74,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                     <TD angka>{formatAngka(p.belumDitugaskan)}</TD>
                     <TD>
                       <Badge warna={warnaPenetapan[status]}>{status}</Badge>
-                      {p.diusulkan > 0 ? <span className="ml-2 text-xs text-sogan-700">{formatAngka(p.diusulkan)} usulan</span> : null}
+                      {p.diusulkan > 0 ? <span className="ml-2 text-xs text-primer-700">{formatAngka(p.diusulkan)} usulan</span> : null}
                     </TD>
                     <TD className="text-right">
                       <Link href={`/tim-kerja/penugasan/${p.id}`} className={kelasTombol("sekunder", "sm")}>
@@ -86,7 +86,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
               })}
             </TBody>
           </Table>
-          {jumlahBerjalan > 0 ? <p className="mt-3 text-xs text-sogan-700">{jumlahBerjalan} periode lain masih menerima pengusulan dan belum tampil di sini.</p> : null}
+          {jumlahBerjalan > 0 ? <p className="mt-3 text-xs text-primer-700">{jumlahBerjalan} periode lain masih menerima pengusulan dan belum tampil di sini.</p> : null}
         </>
       )}
     </>

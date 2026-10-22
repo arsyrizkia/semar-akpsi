@@ -3,15 +3,14 @@ import { cn } from "@/lib/utils";
 
 const warna = {
   netral: "bg-abu-100 text-abu-700 border-abu-200",
-  emas: "bg-emas-50 text-emas-700 border-emas-300",
+  peringatan: "bg-peringatan-50 text-peringatan-700 border-peringatan-300",
   daun: "bg-daun-100 text-daun-700 border-daun-500/50",
   bata: "bg-bata-100 text-bata-700 border-bata-500/50",
-  sogan: "bg-sogan-700 text-krem border-sogan-800",
 } as const;
 
 export type WarnaBadge = keyof typeof warna;
 
-const ikonWarna: Partial<Record<WarnaBadge, LucideIcon>> = { daun: Check, bata: X, emas: AlertTriangle, netral: Minus };
+const ikonWarna: Partial<Record<WarnaBadge, LucideIcon>> = { daun: Check, bata: X, peringatan: AlertTriangle, netral: Minus };
 
 export function Badge({ warna: w = "netral", className, ...props }: React.HTMLAttributes<HTMLSpanElement> & { warna?: WarnaBadge }) {
   return (
@@ -28,24 +27,24 @@ const petaStatus: Record<string, WarnaBadge> = {
   Terbit: "daun",
   Arsip: "netral",
   Aktif: "daun",
-  "Perlu ditinjau": "emas",
+  "Perlu ditinjau": "peringatan",
   Nonaktif: "netral",
   "Belum diajukan": "netral",
-  "Sedang diperiksa": "emas",
+  "Sedang diperiksa": "peringatan",
   Terkirim: "daun",
-  Ditahan: "emas",
+  Ditahan: "peringatan",
   Ditolak: "bata",
   Lolos: "daun",
   Gagal: "bata",
   Memenuhi: "daun",
   "Tidak memenuhi": "bata",
-  "Perlu diperiksa manual": "emas",
+  "Perlu diperiksa manual": "peringatan",
   "Belum ada rekomendasi": "netral",
   Diusulkan: "netral",
-  Ditetapkan: "sogan",
+  Ditetapkan: "daun",
   Selesai: "daun",
-  Baru: "emas",
-  "Dikoreksi reviewer": "sogan",
+  Baru: "peringatan",
+  "Dikoreksi reviewer": "netral",
   tiruan: "netral",
 };
 
@@ -53,7 +52,7 @@ export const warnaStatus = (status: string): WarnaBadge => petaStatus[status] ??
 
 /**
  * Lencana status terpadu: warna + ikon kecil + teks (status tidak pernah hanya warna).
- * Lolos/Memenuhi hijau daun, Gagal/Tidak memenuhi merah bata, Perlu ditinjau emas, selebihnya abu hangat.
+ * Lolos/Memenuhi hijau daun, Gagal/Tidak memenuhi merah bata, Perlu ditinjau kuning peringatan, selebihnya abu netral. Biru merek tidak dipakai sebagai warna status supaya tidak tertukar dengan aksi.
  */
 export function LencanaStatus({ status, className }: { status: string; className?: string }) {
   const w = warnaStatus(status);

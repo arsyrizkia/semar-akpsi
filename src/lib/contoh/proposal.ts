@@ -1,20 +1,24 @@
 /**
  * Pembangkit proposal contoh (semua rekaan, berlabel "contoh sementara").
  * Dipakai skrip scripts/buat-proposal-contoh.ts dan seed (tanpa akses berkas disk, aman di Vercel).
+ * Struktur naskah mengikuti Isian Substansi Proposal (bagian A-H, skema Penelitian Dasar): Judul, Ringkasan, Kata Kunci, Pendahuluan,
+ * Metode, Hasil yang Diharapkan, Jadwal Penelitian, Daftar Pustaka; di DOCX tiap bagian berjudul berhuruf, berkalimat petunjuk resmi,
+ * dan isiannya dibungkus tanda kurung siku seperti berkas BIMA. Nama dan isi rekaan; tidak ada data dari PDF contoh asli.
  *
  * Varian:
  *  a = lolos semua butir deterministik
- *  b = gagal jumlah kata di satu bagian (Metode melebihi batas)
+ *  b = gagal jumlah kata di satu bagian (Metode melebihi batas 1.000 kata)
  *  c = gagal kata kunci (4, bukan 5) dan sitasi (9 referensi, 7 dikutip)
  *  d = seperti a, topik lain; dipakai skenario reviewer (sudah Terkirim)
  *  e = naskah perbaikan varian b: topik dan judul sama, bagian Metode dalam batas (dipakai UC-05b "terkirim setelah diperbaiki")
  */
 import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { PENGANTAR_ISIAN_SUBSTANSI, bagianBawaan, judulBerhuruf, petunjukResmi } from "../templat/isian-substansi";
 
 export type VarianContoh = "a" | "b" | "c" | "d" | "e";
 
-export const BAGIAN_CONTOH = ["Ringkasan", "Pendahuluan", "Tinjauan Pustaka", "Metode", "Hasil yang Diharapkan", "Kata Kunci", "Daftar Pustaka"] as const;
+export const BAGIAN_CONTOH = ["Judul", "Ringkasan", "Kata Kunci", "Pendahuluan", "Metode", "Hasil yang Diharapkan", "Jadwal Penelitian", "Daftar Pustaka"] as const;
 export const LAMPIRAN_CONTOH = ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"] as const;
 
 interface Topik {
@@ -182,21 +186,11 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
     [
       `Latar belakang. Persoalan ${t.objek} di ${t.lokasi} semakin penting karena ${t.masalah} [1]. Kajian terdahulu menunjukkan bahwa kebutuhan akan solusi yang terukur terus meningkat [2].`,
       `Rumusan masalah. Bagaimana ${t.objek} dapat dikaji dengan ${t.metode} sehingga hasilnya dapat dipertanggungjawabkan dan dipakai oleh ${t.mitra}? Pendekatan pemecahan masalah ditempuh melalui tiga tahap: pengumpulan data, pengembangan model, dan validasi bersama mitra [3].`,
-      `State of the art dan kebaruan. Penelitian yang ada belum menyatukan kebutuhan lapangan dengan ketelitian metode. Kebaruan penelitian ini adalah ${t.kebaruan}.`,
-      `Peta jalan. Tahun pertama berfokus pada pengumpulan data dan pembangunan dasar model. Tahun kedua berfokus pada pengujian lapangan dan penyebarluasan hasil. Setelah itu, hasil diarahkan menuju penerapan oleh mitra.`,
+      `State of the art dan kebaruan. Landasan kajian mengenai ${t.objek} berangkat dari temuan yang menegaskan pentingnya ketelitian pengukuran [4]. Pendekatan ${t.metode} telah dilaporkan memberikan hasil yang baik pada kondisi serupa [5]. Kajian terbaru memperlihatkan keterbatasan pada ketersediaan data dan keterulangan hasil [6], sementara kajian lain menyoroti kebutuhan pengguna akhir yang kerap terabaikan [7]. Ketua pengusul telah menerbitkan artikel yang relevan dengan topik ini${jumlahDikutip >= 8 ? " [8]" : ""}. Penelitian yang ada belum menyatukan kebutuhan lapangan dengan ketelitian metode. Kebaruan penelitian ini adalah ${t.kebaruan}.`,
+      `Peta jalan. Tahun pertama berfokus pada pengumpulan data dan pembangunan dasar model. Tahun kedua berfokus pada pengujian lapangan dan penyebarluasan hasil. Tahun ketiga hingga kelima hasil diarahkan menuju penerapan oleh mitra dan perluasan ke wilayah lain.`,
     ],
-    920,
-    [1, 2, 3],
-  );
-
-  const tinjauan = susunTeks(
-    t,
-    [
-      `Landasan teori mengenai ${t.objek} berangkat dari kajian yang menegaskan pentingnya ketelitian pengukuran [4]. Pendekatan ${t.metode} telah dilaporkan memberikan hasil yang baik pada kondisi serupa [5].`,
-      `Kajian terbaru memperlihatkan keterbatasan pada ketersediaan data dan keterulangan hasil [6]. Kajian lain menyoroti kebutuhan pengguna akhir yang kerap terabaikan [7]. Ketua pengusul telah menerbitkan artikel yang relevan dengan topik ini${jumlahDikutip >= 8 ? " [8]" : ""}.`,
-    ],
-    920,
-    [4, 5, 6, 7, 8].filter((n) => n <= jumlahDikutip),
+    900,
+    [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n <= jumlahDikutip),
   );
 
   const metode = susunTeks(
@@ -206,16 +200,28 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
       `Gambar 1. Diagram alir penelitian (contoh sementara).`,
       `Pembagian tugas. Ketua pengusul bertanggung jawab atas perancangan model dan penulisan artikel. ${SIAPA[1]} menangani pengumpulan data. ${SIAPA[2]} menangani pengujian dan analisis. ${t.mitra} menyediakan lokasi, data pendukung, dan masukan atas kebutuhan pengguna.`,
     ],
-    gagalKata ? 1340 : 1100,
+    gagalKata ? 1240 : 880,
     [2, 6],
   );
 
   const hasil = susunTeks(
     t,
     [`Hasil yang diharapkan berupa ${t.luaran}. Seluruh luaran akan diserahkan kepada ${t.mitra} sebagai bahan penerapan [3].`],
-    400,
+    300,
     [3],
   );
+
+  const jadwal = [
+    "Tahun ke-1",
+    `1. Pengumpulan data dan inventarisasi ${t.objek} (bulan 1 sampai 4)`,
+    `2. Pengembangan awal model dengan ${t.metode} (bulan 3 sampai 8)`,
+    "3. Pengujian tahap pertama bersama mitra (bulan 7 sampai 10)",
+    "4. Penyusunan artikel dan laporan kemajuan (bulan 10 sampai 12)",
+    "Tahun ke-2",
+    "1. Penyempurnaan model dan pengujian lapangan (bulan 1 sampai 6)",
+    "2. Penyerahan luaran kepada mitra dan penyebarluasan (bulan 7 sampai 10)",
+    "3. Penyusunan artikel akhir dan laporan akhir (bulan 10 sampai 12)",
+  ].join("\n");
 
   const pustaka = daftarPustaka(t, jumlahPustaka).join("\n");
 
@@ -243,12 +249,13 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
     judul: t.judul,
     kataKunci,
     bagian: {
+      Judul: t.judul,
       Ringkasan: ringkasan,
+      "Kata Kunci": kataKunci,
       Pendahuluan: pendahuluan,
-      "Tinjauan Pustaka": tinjauan,
       Metode: metode,
       "Hasil yang Diharapkan": hasil,
-      "Kata Kunci": kataKunci,
+      "Jadwal Penelitian": jadwal,
       "Daftar Pustaka": pustaka,
     },
     jumlahPustaka,
@@ -258,16 +265,29 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
   };
 }
 
+/** Isi bagian dibungkus "[ ... ]" seperti berkas BIMA: sebaris bila isi pertama bukan sitasi "[1]", selain itu di baris sendiri. */
+function bungkusIsian(baris: string[]): string[] {
+  if (baris.length === 0) return ["[ ]"];
+  if (baris[0].startsWith("[")) return ["[", ...baris, "]"];
+  const hasil = [...baris];
+  hasil[0] = `[${hasil[0]}`;
+  hasil[hasil.length - 1] = `${hasil[hasil.length - 1]}]`;
+  return hasil;
+}
+
 export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
+  const batas = new Map(bagianBawaan("dasar").map((b) => [b.nama, b.batasKata]));
   const anak: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(def.judul)] }),
+    new Paragraph({ children: [new TextRun({ text: "Isian Substansi Proposal", bold: true, size: 36 })] }),
+    new Paragraph({ children: [new TextRun({ text: "SKEMA PENELITIAN DASAR (PENELITIAN DASAR FUNDAMENTAL DAN PENELITIAN KERJA SAMA ANTAR PERGURUAN TINGGI)", bold: true })] }),
+    new Paragraph({ children: [new TextRun(PENGANTAR_ISIAN_SUBSTANSI)] }),
   ];
-  for (const nama of BAGIAN_CONTOH) {
-    anak.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(nama)] }));
-    for (const baris of def.bagian[nama].split("\n")) {
-      if (baris.trim()) anak.push(new Paragraph({ children: [new TextRun(baris)] }));
-    }
-  }
+  BAGIAN_CONTOH.forEach((nama, i) => {
+    anak.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(judulBerhuruf(i, nama))] }));
+    anak.push(new Paragraph({ children: [new TextRun({ text: petunjukResmi(nama, batas.get(nama) ?? null) ?? "", italics: true })] }));
+    const baris = def.bagian[nama].split("\n").filter((b) => b.trim());
+    for (const b of bungkusIsian(baris)) anak.push(new Paragraph({ children: [new TextRun(b)] }));
+  });
   const doc = new Document({
     creator: "SEMAR (contoh sementara)",
     title: def.judul,

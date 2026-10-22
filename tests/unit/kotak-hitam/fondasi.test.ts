@@ -34,7 +34,7 @@ describe("sesi dan token", () => {
 });
 
 describe("proposal contoh", () => {
-  const batas: Record<string, number> = { Ringkasan: 300, Pendahuluan: 1000, "Tinjauan Pustaka": 1000, Metode: 1200, "Hasil yang Diharapkan": 500 };
+  const batas: Record<string, number> = { Judul: 20, Ringkasan: 300, Pendahuluan: 1000, Metode: 1000 };
   const kata = (v: "a" | "b" | "c" | "d") => {
     const d = susunContoh(v);
     return { d, lewat: Object.entries(batas).filter(([b, m]) => hitungKataContoh(d.bagian[b]) > m).map(([b]) => b) };

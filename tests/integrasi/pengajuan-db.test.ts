@@ -100,7 +100,7 @@ describe.skipIf(!ada)("UC-05 dan UC-06 pada basis data", () => {
     const d = (await ambilStatusPengajuan(ID[1], dari("pengusul-2").id))!;
     expect(d.proposal.status).toBe("Ditahan");
     expect(d.hasil[0]).toMatchObject({ kode: "KTA-04", status: "Gagal", bagian: "Metode" });
-    expect(d.hasil[0].batasDilanggar).toContain("batas 1.200 kata");
+    expect(d.hasil[0].batasDilanggar).toContain("batas 1.000 kata");
     expect(d.hasil.slice(1).every((h) => h.status === "Lolos")).toBe(true);
     const [semantik] = await getDb().select().from(hasilPemeriksaan).where(eq(hasilPemeriksaan.versiId, d.versi!.id)).limit(1);
     expect(semantik?.jenis).toBe("deterministik");

@@ -179,7 +179,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
   const skemaPD = skemaBaris.find((x) => x.kode === "PD")!;
   const varian: { v: VarianContoh; label: string; ket: string; pengusul?: string }[] = [
     { v: "a", label: "Contoh A - lolos semua", ket: "Semua butir deterministik lolos.", pengusul: "pengusul-1" },
-    { v: "b", label: "Contoh B - gagal jumlah kata", ket: "Bagian Metode melebihi batas 1.200 kata.", pengusul: "pengusul-2" },
+    { v: "b", label: "Contoh B - gagal jumlah kata", ket: "Bagian Metode melebihi batas 1.000 kata.", pengusul: "pengusul-2" },
     { v: "c", label: "Contoh C - gagal kata kunci dan sitasi", ket: "Kata kunci 4 (bukan 5); 9 referensi tetapi 7 dikutip.", pengusul: "pengusul-3" },
   ];
   const definisi: Record<string, DefinisiContoh> = {};

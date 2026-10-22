@@ -6,7 +6,7 @@ import { Check, ChevronDown, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const dasarInput =
-  "w-full rounded-md border border-sogan-400 bg-white px-3 text-sogan-900 placeholder:text-sogan-500 focus-visible:outline-emas-500 disabled:bg-abu-100 disabled:text-abu-600 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 aria-[invalid=true]:bg-bata-100/40";
+  "w-full rounded-md border border-primer-400 bg-white px-3 text-primer-900 placeholder:text-primer-600 focus-visible:outline-primer-400 disabled:bg-abu-100 disabled:text-abu-600 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 aria-[invalid=true]:bg-bata-100/40";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(dasarInput, "h-10", className)} {...props} />;
@@ -23,13 +23,13 @@ export function Select({ className, children, ...props }: React.SelectHTMLAttrib
       <select className={cn(dasarInput, "h-10 appearance-none pr-9", className)} {...props}>
         {children}
       </select>
-      <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-sogan-600" />
+      <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-primer-600" />
     </span>
   );
 }
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn("mb-1 block text-sm font-semibold text-sogan-800", className)} {...props} />;
+  return <label className={cn("mb-1 block text-sm font-semibold text-primer-800", className)} {...props} />;
 }
 
 /** Pembungkus isian: label, petunjuk, dan pesan galat (bingkai merah dipasang lewat aria-invalid pada isian). */
@@ -52,7 +52,7 @@ export function Field({
     <div className={className}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      {petunjuk && !galat ? <p className="mt-1 text-xs text-sogan-600">{petunjuk}</p> : null}
+      {petunjuk && !galat ? <p className="mt-1 text-xs text-primer-600">{petunjuk}</p> : null}
       {galat ? (
         <p role="alert" className="mt-1 text-sm font-medium text-bata-600">
           {galat}
@@ -72,7 +72,7 @@ export function Checkbox({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <RCheckbox.Root
         id={id}
-        className="flex size-5 cursor-pointer items-center justify-center rounded-sm border border-sogan-500 bg-white aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 data-[state=checked]:bg-sogan-700 data-[state=checked]:text-krem"
+        className="flex size-5 cursor-pointer items-center justify-center rounded-sm border border-primer-500 bg-white aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600 data-[state=checked]:bg-primer-700 data-[state=checked]:text-latar"
         {...props}
       >
         <RCheckbox.Indicator>
@@ -80,7 +80,7 @@ export function Checkbox({
         </RCheckbox.Indicator>
       </RCheckbox.Root>
       {label ? (
-        <label htmlFor={id} className="text-sm text-sogan-900">
+        <label htmlFor={id} className="text-sm text-primer-900">
           {label}
         </label>
       ) : null}
@@ -98,13 +98,13 @@ export function RadioItem({ id, value, label }: { id: string; value: string; lab
       <RRadio.Item
         id={id}
         value={value}
-        className="flex size-5 items-center justify-center rounded-full border border-sogan-500 bg-white data-[state=checked]:border-sogan-700"
+        className="flex size-5 items-center justify-center rounded-full border border-primer-500 bg-white data-[state=checked]:border-primer-700"
       >
         <RRadio.Indicator>
-          <Circle aria-hidden className="size-3 fill-sogan-700 text-sogan-700" />
+          <Circle aria-hidden className="size-3 fill-primer-700 text-primer-700" />
         </RRadio.Indicator>
       </RRadio.Item>
-      <label htmlFor={id} className="text-sm text-sogan-900">
+      <label htmlFor={id} className="text-sm text-primer-900">
         {label}
       </label>
     </span>
@@ -124,7 +124,7 @@ interface DasarIsian {
 function Penanda({ id, label, wajib, petunjuk, galat, children, className }: DasarIsian & { id: string; children: React.ReactNode }) {
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-sogan-800">
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-primer-800">
         {label}
         {wajib ? <span aria-hidden className="ml-0.5 text-bata-600">*</span> : null}
       </label>
@@ -134,7 +134,7 @@ function Penanda({ id, label, wajib, petunjuk, galat, children, className }: Das
           {galat}
         </p>
       ) : petunjuk ? (
-        <p id={`${id}-petunjuk`} className="mt-1 text-xs text-sogan-600">
+        <p id={`${id}-petunjuk`} className="mt-1 text-xs text-primer-600">
           {petunjuk}
         </p>
       ) : null}

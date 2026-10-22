@@ -81,10 +81,10 @@ describe("UC-06 pada tiga proposal contoh", () => {
     const def = susunContoh("b");
     const hasil = periksaDeterministikTeks(dokumenDariContoh("b"), butirPD(), konteksPD).find((h) => h.kode === "KTA-04")!;
     const n = kataTanpaKeterangan(def.bagian.Metode);
-    expect(n).toBeGreaterThan(1200);
+    expect(n).toBeGreaterThan(1000);
     expect(hasil.bagian).toBe("Metode");
-    expect(hasil.angkaPembukti).toBe(`${fmt(n)} kata dari batas 1.200 (lebih ${fmt(n - 1200)} kata)`);
-    expect(hasil.batasDilanggar).toBe(`Bagian "Metode": batas 1.200 kata, ditemukan ${fmt(n)} kata`);
+    expect(hasil.angkaPembukti).toBe(`${fmt(n)} kata dari batas 1.000 (lebih ${fmt(n - 1000)} kata)`);
+    expect(hasil.batasDilanggar).toBe(`Bagian "Metode": batas 1.000 kata, ditemukan ${fmt(n)} kata`);
   });
 
   it("KH-periksaDeterministikTeks-03: contoh C: kata kunci (4 dari 5) dan jumlah referensi (9 entri, 7 dikutip) gagal", () => {
@@ -185,15 +185,15 @@ describe("cekLampiran dan struktur judul", () => {
     expect(h.angkaPembukti).toContain('"Artikel Ketua Pengusul"');
     expect(cekLampiran(d, konteksPD, "Surat Pernyataan Mitra").status).toBe("Lolos");
   });
-  it("KH-cekLampiranStruktur-02: judul bagian dengan penomoran tetap dikenali", () => {
-    const d = { ...dokumenDariContoh("a"), judulBagianDitemukan: ["1. Ringkasan", "2. Pendahuluan", "3. Tinjauan Pustaka", "4. Metode", "5. Hasil yang Diharapkan", "Kata Kunci", "Daftar Pustaka"] };
+  it("KH-cekLampiranStruktur-02: judul bagian berhuruf Isian Substansi (A. JUDUL ... H. DAFTAR PUSTAKA) dikenali", () => {
+    const d = { ...dokumenDariContoh("a"), judulBagianDitemukan: ["A. JUDUL", "B. RINGKASAN", "C. KATA KUNCI", "D. PENDAHULUAN", "E. METODE", "F. HASIL YANG DIHARAPKAN", "G. JADWAL PENELITIAN", "H. DAFTAR PUSTAKA"] };
     expect(cocokkanStrukturJudul(d, konteksPD, { tipe: "struktur_judul" }).status).toBe("Lolos");
   });
   it("KH-cekLampiranStruktur-03: bagian hilang dan urutan salah gagal", () => {
-    const d = { ...dokumenDariContoh("a"), judulBagianDitemukan: ["Ringkasan", "Metode", "Pendahuluan", "Tinjauan Pustaka", "Hasil yang Diharapkan", "Kata Kunci"] };
+    const d = { ...dokumenDariContoh("a"), judulBagianDitemukan: ["Judul", "Ringkasan", "Kata Kunci", "Metode", "Pendahuluan", "Hasil yang Diharapkan", "Tinjauan Pustaka"] };
     const h = cocokkanStrukturJudul(d, konteksPD, { tipe: "struktur_judul" });
     expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain('belum ada: "Daftar Pustaka"');
+    expect(h.angkaPembukti).toContain('belum ada: "Jadwal Penelitian", "Daftar Pustaka"');
     expect(h.angkaPembukti).toContain("urutan tidak sesuai");
   });
   it("KH-cekLampiranStruktur-04: judul beda dari BIMA gagal, perbedaan huruf besar dan tanda baca lolos", () => {

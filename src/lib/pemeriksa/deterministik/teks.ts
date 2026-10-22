@@ -7,12 +7,12 @@ export function fmt(n: number): string {
 
 /**
  * Normalisasi judul bagian untuk pencocokan: huruf kecil, nomor/penomoran di depan dibuang
- * ("1. Pendahuluan", "BAB II Metode", "2.1) Metode"), tanda baca di ujung dan spasi ganda dibuang.
+ * ("1. Pendahuluan", "BAB II Metode", "2.1) Metode", "A. JUDUL" pada Isian Substansi), tanda baca di ujung dan spasi ganda dibuang.
  */
 export function normalisasiJudul(s: string): string {
   return s
     .toLowerCase()
-    .replace(/^\s*(?:bab\s+[ivxl\d]+\s*[.:)\-–]?\s*|\d+(?:\.\d+)*\s*[.)]?\s+|[ivxl]+\s*[.)]\s+)/i, "")
+    .replace(/^\s*(?:bab\s+[ivxl\d]+\s*[.:)\-–]?\s*|\d+(?:\.\d+)*\s*[.)]?\s+|[ivxl]+\s*[.)]\s+|[a-z]\s*[.)]\s+)/i, "")
     .replace(/[:.\-–\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();

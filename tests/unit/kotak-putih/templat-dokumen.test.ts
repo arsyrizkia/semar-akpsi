@@ -6,15 +6,19 @@ import { bagianDokumen, buatDokumenTemplat, panduanBagian } from "@/lib/templat/
 const skema = { kode: "PT", namaSkema: "Penelitian Terapan" };
 
 describe("panduanBagian (cabang)", () => {
-  it("KP-panduanBagian-01: Kata Kunci memakai panduan pemisah titik koma", () => {
-    expect(panduanBagian({ nama: "Kata Kunci", batasKata: null, wajib: true })).toMatch(/titik koma/);
+  it("KP-panduanBagian-01: bagian Isian Substansi memakai kalimat petunjuk resmi; Kata Kunci menyebut titik koma", () => {
+    expect(panduanBagian({ nama: "Kata Kunci", batasKata: null, wajib: true })).toBe("Isian 5 kata kunci yang dipisahkan dengan tanda titik koma (;)");
   });
-  it("KP-panduanBagian-02: Daftar Pustaka memakai panduan urutan sitasi (nama dinormalisasi, penomoran diabaikan)", () => {
-    expect(panduanBagian({ nama: "6. Daftar Pustaka", batasKata: null, wajib: false })).toMatch(/berurutan sesuai nomor sitasi.*opsional/);
+  it("KP-panduanBagian-02: nama dinormalisasi (penomoran/huruf diabaikan) dan angka batas diisi dari batas kata bagian", () => {
+    expect(panduanBagian({ nama: "6. Daftar Pustaka", batasKata: null, wajib: false })).toMatch(/^Sitasi disusun dan ditulis berdasarkan sistem nomor/);
+    expect(panduanBagian({ nama: "D. Pendahuluan", batasKata: 1500, wajib: true })).toContain("tidak lebih dari 1500 kata");
   });
-  it("KP-panduanBagian-03: batas kata null menjadi tanpa batas; angka diformat Indonesia", () => {
+  it("KP-panduanBagian-02b: atribut petunjuk pada bagian lebih diutamakan daripada petunjuk resmi turunan nama", () => {
+    expect(panduanBagian({ nama: "Metode", batasKata: 1000, wajib: true, petunjuk: "Petunjuk khusus." })).toBe("Petunjuk khusus.");
+  });
+  it("KP-panduanBagian-03: bagian di luar Isian Substansi: batas kata null menjadi tanpa batas; angka diformat Indonesia", () => {
     expect(panduanBagian({ nama: "Lain", batasKata: null, wajib: true })).toBe("Panduan: tanpa batas kata. Bagian wajib.");
-    expect(panduanBagian({ nama: "Lain", batasKata: 1500, wajib: true })).toBe("Panduan: maksimal 1.500 kata. Bagian wajib.");
+    expect(panduanBagian({ nama: "Lain", batasKata: 1500, wajib: false })).toBe("Panduan: maksimal 1.500 kata. Bagian opsional.");
   });
 });
 

@@ -40,13 +40,19 @@ membantu DPPM memeriksa proposal penelitian secara administratif.
 10. **Demo:**
     - `/demo` menyediakan reset dan seed, jalan pintas UC-01..UC-09, dan 6 skenario (UC-05 a/b/c, UC-07 a/b/c).
     - Ada sakelar "masa pengusulan berjalan/ditutup".
-    - Navigator demo mengambang di semua halaman SEMAR dan BIMA tiruan (kiri bawah, bawaan ciut, Alt+Shift+N): pindah
+    - Navigator demo mengambang di semua halaman SEMAR dan BIMA tiruan (kanan bawah, bawaan ciut, Alt+Shift+N): pindah
       antar-jendela J-01..J-08 dan halaman BIMA tiruan, pindah antar-skenario keadaan jendela yang dibuka, dan mengganti
       masa pengusulan. Menggantikan panel pemandu langkah *real use case* (data langkah tetap di `src/lib/demo/pemandu/`).
 11. Bahasa antarmuka: Bahasa Indonesia.
 12. Commit tanpa atribusi AI (tanpa baris Co-Authored-By atau Generated-with).
-13. **Tampilan "Sogan tenang" (22 Okt 2026, menggantikan sebagian butir 9).** Font merek dan antarmuka: **Outfit**; tanpa
-    serif. Sogan sebagai primer, emas hanya aksen, kawung hanya di area merek. Desain sistem: `docs/desain-sistem.md`.
+13. **Tampilan "Sogan tenang" dengan palet Kemdiktisaintek (22 Okt 2026, menggantikan sebagian butir 9).** Tata letak alat
+    kerja "Sogan tenang" dan font **Outfit** tetap; tanpa serif. **Warna utama dari palet situs Kemdiktisaintek** (token
+    `primer-*`: teks dan tombol berlabel memakai `#0050AD`/`#003366`, `#1F86FF` hanya untuk elemen besar, ikon, dan garis
+    fokus karena kontrasnya 3,55 : 1; latar lembut `#E7EDFA`; sidebar navy `#002550`). **Sogan dan emas menjadi aksen
+    identitas Semar** (token `merek-semar-*`, `aksen-*`): wordmark, ilustrasi, penanda kecil dan kawung tipis hanya di area
+    merek. Warna status (daun, bata, peringatan) terpisah dari biru merek dan selalu disertai teks atau ikon. Yang dipinjam
+    dari Kemdiktisaintek hanya warna, tanpa logo atau nama; BIMA tiruan tetap abu-slate berlabel "Simulasi BIMA – bukan
+    sistem resmi". Desain sistem dan tabel kontras: `docs/desain-sistem.md`.
     Setiap perubahan antarmuka wajib memakai skill di `.claude/skills/` (lihat `CLAUDE.md`).
 14. **Layar dan modal** mengikuti inventaris J-01..J-08b dan M-01..M-11 di `docs/arah-perbaikan-2026-10-22.md`. Form
     pendek dan konfirmasi berupa modal; isi besar yang berdiri sendiri berupa layar dengan URL sendiri.

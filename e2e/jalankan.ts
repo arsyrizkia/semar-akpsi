@@ -270,6 +270,8 @@ async function unduh(page: Page, href: string): Promise<{ status: number; tipe: 
   if (r.status === 200 && r.tipe.includes("wordprocessingml")) html = (await mammoth.convertToHtml({ buffer: Buffer.from(r.b64, "base64") })).value;
   return { status: r.status, tipe: r.tipe, disposisi: r.disposisi, html, ukuran: r.ukuran };
 }
+/** Judul bagian di templat bergaya Isian Substansi tercetak huruf besar ("I. DAMPAK SOSIAL E2E"), jadi cocokkan tanpa membedakan huruf. */
+const memuatBagian = (html: string, nama: string) => html.toLowerCase().includes(nama.toLowerCase());
 const TIPE_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 /** href tautan unduh pertama yang labelnya diawali teks tertentu. */
 async function hrefUnduh(page: Page, label: string, indeks = 0): Promise<string> {
@@ -1034,7 +1036,7 @@ async function utama() {
       await adaTeks(page, "Pratinjau diunduh dari isian yang baru disimpan.");
       const idTemplat = jalur(page).split("/")[3];
       const pratinjau = await unduh(page, `/api/semar/templat/${idTemplat}/unduh`);
-      yakin(pratinjau.status === 200 && pratinjau.html.includes(BARU), `pratinjau tidak memuat bagian baru (status ${pratinjau.status})`);
+      yakin(pratinjau.status === 200 && memuatBagian(pratinjau.html, BARU), `pratinjau tidak memuat bagian baru (status ${pratinjau.status})`);
       c("J-02b: pratinjau .docx dari draf yang baru disimpan memuat judul bagian baru");
       // 3. M-01 Terbitkan
       await klik(page, "Terbitkan");
@@ -1044,7 +1046,7 @@ async function utama() {
       await adaTeks(page, "telah terbit");
       // 4. unduh templat dari J-02 dan periksa judul bagian (Heading 1)
       const d1 = await unduh(page, await hrefUnduh(page, "Unduh Templat (.docx)"));
-      yakin(d1.status === 200 && new RegExp(`<h1>[^<]*${BARU}`).test(d1.html), `templat .docx tidak memuat judul bagian "${BARU}" sebagai Heading 1`);
+      yakin(d1.status === 200 && new RegExp(`<h1>[^<]*${BARU}`, "i").test(d1.html), `templat .docx tidak memuat judul bagian "${BARU}" sebagai Heading 1`);
       await foto(page, "bolak-balik-j02-terbit");
       c(`J-02: Unduh Templat (.docx) memuat "${BARU}" sebagai judul bagian`);
       // 5. J-03 menampilkan butir turunan baru
@@ -1061,7 +1063,7 @@ async function utama() {
       // 6. BIMA pengajuan: unduh templat terbit, lalu ajukan
       await buka(page, url("/demo/mulai?k=UC-05a"), "Pengajuan proposal");
       const dB = await unduh(page, await hrefUnduh(page, "Unduh Templat"));
-      yakin(dB.status === 200 && dB.html.includes(BARU), "templat di BIMA belum memuat bagian baru");
+      yakin(dB.status === 200 && memuatBagian(dB.html, BARU), "templat di BIMA belum memuat bagian baru");
       await foto(page, "bolak-balik-bima-unduh-templat");
       c("BIMA pengajuan: Unduh Templat memuat bagian baru");
       await ajukan();
@@ -1080,7 +1082,7 @@ async function utama() {
       await page.waitForFunction(() => location.search.includes("versi="), { timeout: 20_000 });
       await adaTeks(page, "(Arsip)");
       const dLama = await unduh(page, await hrefUnduh(page, "Unduh Templat (.docx)"));
-      yakin(dLama.status === 200 && !dLama.html.includes(BARU), "versi arsip seharusnya tidak memuat bagian baru");
+      yakin(dLama.status === 200 && !memuatBagian(dLama.html, BARU), "versi arsip seharusnya tidak memuat bagian baru");
       yakin(versiLama >= 1, "versi lama tidak terbaca");
       await foto(page, "bolak-balik-j02-riwayat");
       c("J-02: Riwayat Versi memuat Terbit dan Arsip; versi Arsip dapat dibuka dan diunduh tanpa bagian baru");

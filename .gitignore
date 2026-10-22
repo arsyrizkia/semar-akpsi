@@ -11,3 +11,6 @@ e2e/hasil/
 .env*.local
 *.tsbuildinfo
 next-env.d.ts
+
+# PDF contoh proposal asli (hanya lokal, jangan di-commit)
+/data/uji-nyata/

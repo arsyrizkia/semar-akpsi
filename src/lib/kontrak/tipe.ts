@@ -69,6 +69,10 @@ export interface BagianTemplatDto {
   nama: string;
   batasKata: number | null;
   wajib: boolean;
+  /** huruf judul pada Isian Substansi ("A".."H"); diturunkan dari urutan bila kosong */
+  huruf?: string | null;
+  /** kalimat petunjuk resmi bagian; diturunkan dari nama bagian (templat/isian-substansi.ts) bila kosong */
+  petunjuk?: string | null;
 }
 
 /** Bahan yang diperiksa. Dipakai pemeriksaan nyata (dari versi_proposal) maupun "Uji pada Contoh" (dokumen_contoh). */

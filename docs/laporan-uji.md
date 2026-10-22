@@ -1,6 +1,6 @@
 # Laporan uji SEMAR
 
-Dibangkitkan otomatis oleh `npm run laporan-uji` pada 23 Oktober 2026 pukul 03.10 WIB. Jangan disunting tangan.
+Dibangkitkan otomatis oleh `npm run laporan-uji` pada 23 Oktober 2026 pukul 04.56 WIB. Jangan disunting tangan.
 
 Pendekatan: uji unit dua jenis menurut Dennis dkk. (2015, hlm. 471-475). *Black box* (KH, `tests/unit/kotak-hitam/`) diturunkan dari kontrak, kartu CRC, *state machine*, dan *real use case*; *white box* (KP, `tests/unit/kotak-putih/`) diturunkan dari spesifikasi metode dan menjalankan setiap cabang; tes integrasi (IT, `tests/integrasi/`) berjalan pada basis data uji dan dilewati bila tidak tersedia. Stub BIMA dan LLM ada di `tests/unit/stub/`.
 
@@ -8,12 +8,12 @@ Pendekatan: uji unit dua jenis menurut Dennis dkk. (2015, hlm. 471-475). *Black 
 
 | Jenis | Lulus | Gagal | Dilewati |
 |---|---:|---:|---:|
-| Kotak hitam (KH) | 263 | 0 | 0 |
-| Kotak putih (KP) | 151 | 0 | 0 |
+| Kotak hitam (KH) | 272 | 0 | 1 |
+| Kotak putih (KP) | 174 | 0 | 0 |
 | Integrasi (IT) | 28 | 0 | 0 |
-| Tanpa ID | 0 | 0 | 0 |
+| Tanpa ID | 32 | 0 | 0 |
 
-Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,9%** (702 dari 781 cabang); ambang minimum 80% (terpenuhi). Pernyataan 96,7%, fungsi 96,8%, baris 96,7%.
+Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **91,3%** (850 dari 931 cabang); ambang minimum 80% (terpenuhi). Pernyataan 97,1%, fungsi 97,2%, baris 97,2%.
 
 ## Cakupan cabang per modul
 
@@ -23,11 +23,11 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | `src/lib/aturan` | 98 / 99 | 99,0% |
 | `src/lib/bima` | 22 / 33 | 66,7% |
 | `src/lib/pemantauan` | 71 / 94 | 75,5% |
-| `src/lib/pemeriksa` | 227 / 256 | 88,7% |
-| `src/lib/pengajuan` | 107 / 112 | 95,5% |
+| `src/lib/pemeriksa` | 246 / 276 | 89,1% |
+| `src/lib/pengajuan` | 222 / 228 | 97,4% |
 | `src/lib/penilaian` | 30 / 30 | 100,0% |
 | `src/lib/penugasan` | 58 / 62 | 93,5% |
-| `src/lib/templat` | 51 / 52 | 98,1% |
+| `src/lib/templat` | 65 / 66 | 98,5% |
 
 ## Hasil aktual per ID
 
@@ -48,10 +48,11 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KH-bolehUnduhBerkasProposal-02 | reviewer hanya bila ditugaskan pada proposal itu | `unduhan-akses.test.ts` | Lulus |
 | KH-bolehUnduhBerkasProposal-03 | pengusul tidak boleh walau punya penugasan palsu | `unduhan-akses.test.ts` | Lulus |
 | KH-buatDokumenTemplat-01 | hasilnya .docx yang valid (ZIP berkepala PK) dan tidak kosong | `templat-dokumen.test.ts` | Lulus |
-| KH-buatDokumenTemplat-02 | terbaca balik, bagian sama dan urutan sama dengan templat | `templat-dokumen.test.ts` | Lulus |
-| KH-buatDokumenTemplat-03 | judul dokumen memuat nama skema; panduan batas kata dan wajib/opsional ada di bawah judul bagian | `templat-dokumen.test.ts` | Lulus |
+| KH-buatDokumenTemplat-02 | terbaca balik, bagian sama dan urutan sama; judul berhuruf A. JUDUL dst.; tempat isian kosong | `templat-dokumen.test.ts` | Lulus |
+| KH-buatDokumenTemplat-03 | berkas memuat kalimat petunjuk resmi (batas dari templat), tempat isian [ … ], judul skema dan lampiran | `templat-dokumen.test.ts` | Lulus |
 | KH-buatDokumenTemplat-04 | bagian Kata Kunci dan Daftar Pustaka ditambahkan bila templat belum memuatnya | `templat-dokumen.test.ts` | Lulus |
 | KH-buatDokumenTemplat-05 | urutan bagian mengikuti nomor urutan, bukan urutan larik masukan | `templat-dokumen.test.ts` | Lulus |
+| KH-buatDokumenTemplat-06 | isian pengusul di bawah petunjuk terbaca balik tanpa petunjuk dan tanpa tanda [ ] | `templat-dokumen.test.ts` | Lulus |
 | KH-butirTerkunci-01 | butir berasal dari templat terkunci, butir manual tidak | `aturan-status.test.ts` | Lulus |
 | KH-butirTerkunci-02 | pesan 4a persis seperti spesifikasi UI | `aturan-status.test.ts` | Lulus |
 | KH-cekKataKunci-01 | tepat lima dipisah titik koma, boleh frasa | `deterministik-pemeriksa.test.ts` | Lulus |
@@ -70,7 +71,7 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KH-cekLampiran-03 | daftar lampiran wajib templat kosong memakai nama butir sebagai satu-satunya wajib | `deterministik-batas.test.ts` | Lulus |
 | KH-cekLampiran-04 | lampiran yang diunggah bernama lain tidak memenuhi | `deterministik-batas.test.ts` | Lulus |
 | KH-cekLampiranStruktur-01 | lampiran belum ada disebut dengan nama | `deterministik-pemeriksa.test.ts` | Lulus |
-| KH-cekLampiranStruktur-02 | judul bagian dengan penomoran tetap dikenali | `deterministik-pemeriksa.test.ts` | Lulus |
+| KH-cekLampiranStruktur-02 | judul bagian berhuruf Isian Substansi (A. JUDUL ... H. DAFTAR PUSTAKA) dikenali | `deterministik-pemeriksa.test.ts` | Lulus |
 | KH-cekLampiranStruktur-03 | bagian hilang dan urutan salah gagal | `deterministik-pemeriksa.test.ts` | Lulus |
 | KH-cekLampiranStruktur-04 | judul beda dari BIMA gagal, perbedaan huruf besar dan tanda baca lolos | `deterministik-pemeriksa.test.ts` | Lulus |
 | KH-cekLampiranStruktur-05 | diagram alir butuh keterangan gambar yang menyebutnya | `deterministik-pemeriksa.test.ts` | Lulus |
@@ -130,6 +131,14 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KH-hitungKata-09 | kata berangka dan tanda baca tetap satu kata per token | `deterministik-batas.test.ts` | Lulus |
 | KH-hitungTingkatKoreksi-01 | tingkat koreksi = koreksi / hasil pada penilaian final per butir | `pemantauan-rekap.test.ts` | Lulus |
 | KH-hitungTingkatKoreksi-02 | tingkat koreksi sama diurutkan menurut jumlah koreksi lalu kode | `pemantauan-rekap.test.ts` | Lulus |
+| KH-isianSubstansi-01 | delapan bagian A-H berurutan dengan judul berhuruf besar | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-02 | batas kata: Judul 20, Ringkasan 300, Pendahuluan 1000 (Dasar) atau 1500 (Terapan), Metode 1000, sisanya tanpa batas | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-03 | seed data/contoh/templat.json sama persis dengan struktur Isian Substansi (Dasar dan Terapan) dan berlabel struktur Isian Substansi | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-04 | kalimat petunjuk resmi per bagian, angka batas diisi dari batas kata bagian | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-05 | batas kata null memakai batas resmi bawaan; bagian di luar Isian Substansi tanpa petunjuk resmi (null) | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-06 | turunan templat Dasar: delapan butir bagian wajib, empat butir batas kata (Judul 20, Ringkasan 300, Pendahuluan 1000, Metode 1000), tiga lampiran | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-07 | turunan templat Terapan: batas Pendahuluan 1500 | `templat-isian-substansi.test.ts` | Lulus |
+| KH-isianSubstansi-08 | setiap bagian yang dirujuk butir katalog ada di templat Dasar dan Terapan; kata kunci tepat 5 dipisah titik koma | `templat-isian-substansi.test.ts` | Lulus |
 | KH-itemAktif-01 | jalur layar dan layar turunannya menandai menu induk | `menu-peran.test.ts` | Lulus |
 | KH-itemAktif-02 | J-05b (rincian proposal) menandai Pemantauan Kesesuaian | `menu-peran.test.ts` | Lulus |
 | KH-itemAktif-03 | awalan serupa tetapi bukan segmen yang sama tidak cocok; jalur asing tidak menandai apa pun | `menu-peran.test.ts` | Lulus |
@@ -171,7 +180,7 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KH-periodeDitutup-02 | satu detik sebelum tanggal tutup = belum ditutup (batas bawah tidak sah) | `penugasan-periode.test.ts` | Lulus |
 | KH-periodeDitutup-03 | satu detik sesudah tanggal tutup = ditutup | `penugasan-periode.test.ts` | Lulus |
 | KH-periodeDitutup-04 | sakelar masa pengusulan berjalan menang walau tanggal sudah lewat (penentu tunggal) | `penugasan-periode.test.ts` | Lulus |
-| KH-potongTeks-01 | memotong naskah contoh menjadi tujuh bagian bertemplat dengan judul dan kata kunci | `pengajuan-ekstraksi.test.ts` | Lulus |
+| KH-potongTeks-01 | memotong naskah contoh menjadi delapan bagian bertemplat (A-H) dengan judul dan kata kunci | `pengajuan-ekstraksi.test.ts` | Lulus |
 | KH-potongTeks-02 | A lolos semua; B hanya KTA-04; C hanya KAT-01 dan SIT-03 (hasil sama dengan jalur murni) | `pengajuan-ekstraksi.test.ts` | Lulus |
 | KH-potongTeks-03 | lampiran yang tidak diunggah membuat butir lampiran gagal | `pengajuan-ekstraksi.test.ts` | Lulus |
 | KH-potongTeks-04 | tabel dan gambar dibuang dari hitungan: HTML dengan tabel dan gambar | `pengajuan-ekstraksi.test.ts` | Lulus |
@@ -273,6 +282,7 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KH-turunkanButirCek-06 | jumlah keluaran sama dengan bagian wajib ditambah bagian berbatas kata ditambah lampiran (Q5) | `templat-turunan.test.ts` | Lulus |
 | KH-turunkanButirCek-07 | semua butir deterministik dan berasal dari templat (Q6); 12 butir menghasilkan nomor dua digit sampai 12 | `templat-turunan.test.ts` | Lulus |
 | KH-turunkanButirCek-08 | nama bagian dengan tanda kutip tetap utuh pada parameter dan deskripsi (nilai janggal) | `templat-turunan.test.ts` | Lulus |
+| KH-ujiNyata-00 | bila data/uji-nyata tidak ada, uji PDF asli dilewati (bukan gagal) | `uji-nyata-isian-substansi.test.ts` | Dilewati |
 | KH-uraikanAturanHitung-01 | kata kunci tepat lima, dipisah titik koma | `aturan-parameter.test.ts` | Lulus |
 | KH-uraikanAturanHitung-02 | sitasi dan daftar pustaka | `aturan-parameter.test.ts` | Lulus |
 | KH-uraikanAturanHitung-03 | aturan yang butuh bagian | `aturan-parameter.test.ts` | Lulus |
@@ -317,6 +327,13 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KP-blokDariHtml-04 | paragraf bergambar menghasilkan penanda gambar lalu teksnya; paragraf hanya gambar tanpa teks | `pengajuan-html-berkas.test.ts` | Lulus |
 | KP-blokDariHtml-05 | entitas bernama, desimal, dan heksadesimal didekode; entitas tidak dikenal dibiarkan | `pengajuan-html-berkas.test.ts` | Lulus |
 | KP-blokDariHtml-06 | judul multibaris digabung satu baris; paragraf kosong tidak menghasilkan blok | `pengajuan-html-berkas.test.ts` | Lulus |
+| KP-buangPetunjuk-01 | baris kosong dan baris 'Panduan: ...' di awal dibuang meski tanpa petunjuk resmi | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-02 | petunjuk kosong (tanpa kata) tidak membuang apa pun | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-03 | baris tanpa kata (mis. tanda baca saja) menghentikan pencocokan; baris yang berbeda juga | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-04 | baris lebih panjang daripada sisa petunjuk (isi menempel pada petunjuk) menghentikan pencocokan | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-05 | angka batas boleh berbeda; salah ketik satu huruf pada kata panjang dimaafkan; kata pendek harus sama | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-06 | petunjuk terbaca sebagian: >= 80% kalimat dibuang; kurang dari itu dibiarkan | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-buangPetunjuk-07 | kata pendek yang berbeda satu huruf bukan salah ketik (panjang kurang dari 5) | `pengajuan-potong-isian.test.ts` | Lulus |
 | KP-buatDokumenTemplat-01 | periode null menulis 'belum ditetapkan'; tanpa lampiran menulis 'Tidak ada lampiran wajib' | `templat-dokumen.test.ts` | Lulus |
 | KP-buatDokumenTemplat-02 | periode terisi menulis nama dan tahun; lampiran bernomor | `templat-dokumen.test.ts` | Lulus |
 | KP-buatDokumenTemplat-03 | periode tanpa tahun tidak menulis tanda kurung | `templat-dokumen.test.ts` | Lulus |
@@ -341,12 +358,18 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KP-ekstrakNaskah-03 | teks lampiran PDF terbaca; berkas rusak menghasilkan teks kosong | `pengajuan-ekstraksi.test.ts` | Lulus |
 | KP-ekstrakTeksLampiran-01 | format tidak dikenal menghasilkan teks kosong, bukan galat | `pengajuan-html-berkas.test.ts` | Lulus |
 | KP-ekstrakTeksLampiran-02 | DOCX rusak ditelan menjadi teks kosong | `pengajuan-html-berkas.test.ts` | Lulus |
+| KP-entriPustaka-01 | baris lanjutan berawalan DOI ('10.1016/...') atau tahun ('2016. doi') bukan entri baru; '[1]teks' rapat tetap entri | `pengajuan-potong-isian.test.ts` | Lulus |
 | KP-hitungKata-01 | baris kosong dilewati (cabang barisTeks menyaring) | `deterministik-cabang.test.ts` | Lulus |
 | KP-hitungKata-02 | baris keterangan Gambar/Tabel/Diagram/Grafik/Bagan/Skema/Foto dilewati | `deterministik-cabang.test.ts` | Lulus |
 | KP-hitungKata-03 | penanda [tabel]/[gambar]/[diagram] dilewati, penanda lain dihitung | `deterministik-cabang.test.ts` | Lulus |
 | KP-hitungKata-04 | kata 'gambar' tanpa nomor di awal baris adalah teks biasa (cabang pola tidak cocok) | `deterministik-cabang.test.ts` | Lulus |
 | KP-hitungKata-05 | fmt memberi titik ribuan dan membulatkan ke bawah | `deterministik-cabang.test.ts` | Lulus |
 | KP-hitungKata-06 | normalisasiJudul membuang penomoran bab, angka, romawi, dan tanda baca di ujung | `deterministik-cabang.test.ts` | Lulus |
+| KP-identitasBima-01 | blok identitas diganti satu penanda sampai judul bagian bernomor berikutnya; NO. DOKUMEN dibuang | `semantik-identitas-bima.test.ts` | Lulus |
+| KP-identitasBima-02 | tanpa blok identitas, hanya baris NO. DOKUMEN yang dibuang; teks lain tidak berubah | `semantik-identitas-bima.test.ts` | Lulus |
+| KP-identitasBima-03 | blok identitas tanpa judul bagian penutup: dibuang sampai akhir teks; A. JUDUL juga menutup blok | `semantik-identitas-bima.test.ts` | Lulus |
+| KP-identitasBima-04 | nomor induk panjang dan nama di atasnya dikumpulkan; baris peran, angka, dan nama pendek diabaikan; tanpa blok: kosong | `semantik-identitas-bima.test.ts` | Lulus |
+| KP-identitasBima-05 | seluruh identitas anggota tim ikut dibuang dari teks lain (pembagian tugas pada Metode), tanpa memberi identitas pengusul | `semantik-identitas-bima.test.ts` | Lulus |
 | KP-jenisBerkas-01 | PDF dikenali dari tanda %PDF; nama .pdf tanpa tanda %PDF ditolak | `pengajuan-html-berkas.test.ts` | Lulus |
 | KP-jenisBerkas-02 | DOCX butuh tanda PK dan tipe atau ekstensi docx | `pengajuan-html-berkas.test.ts` | Lulus |
 | KP-klienBima-01 | berhasil pada percobaan ketiga | `bima-client.test.ts` | Lulus |
@@ -357,13 +380,23 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | KP-klienBima-06 | ambilBerkas mengembalikan bytes dan tipe; berkas tak ada gagal 404 tanpa ulang | `bima-client.test.ts` | Lulus |
 | KP-klienBima-07 | setiap metode memanggil jalur dan metode HTTP yang benar | `bima-client.test.ts` | Lulus |
 | KP-klienBima-08 | ambilProposal mengodekan id pada URL | `bima-client.test.ts` | Lulus |
+| KP-lampiranEkspor-01 | tanpa judul surat, baris tidak berubah | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lampiranEkspor-02 | dipotong pada judul surat berikut kop suratnya (huruf kapital, alamat, baris pendek); pustaka bernomor dan tautan dipertahankan | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lampiranEkspor-03 | kurang dari tiga entri berurutan: daftar tidak dipotong | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lampiranEkspor-04 | entri terakhir dibawa sampai baris penutup (titik, bukan inisial) atau tautan; artikel sesudahnya dibuang | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lampiranEkspor-05 | entri terakhir tanpa penutup dibatasi delapan baris; nomor yang melompat tidak masuk rantai | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lengkapiBagian-01 | atribut huruf dari urutan dan petunjuk dari nama; atribut petunjuk yang sudah ada dipertahankan | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lepasTandaIsian-01 | masukan kosong atau hanya baris kosong menghasilkan larik kosong | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lepasTandaIsian-02 | '[' dan ']' di baris sendiri di awal/akhir dibuang walau pasangannya tidak terbaca; hanya '[' atau ']' menjadi kosong | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lepasTandaIsian-03 | pembuka inline dan penutup seimbang: '[isi' ... 'akhir]' dilepas; penutup yang seimbang ('[4]') dipertahankan | `pengajuan-potong-isian.test.ts` | Lulus |
+| KP-lepasTandaIsian-04 | baris pertama berupa sitasi '[1] ...' bukan tanda isian; placeholder '[ … ]' dan '[...]' menjadi kosong | `pengajuan-potong-isian.test.ts` | Lulus |
 | KP-mintaJawaban-01 | berhasil pada percobaan kedua | `semantik-mesin.test.ts` | Lulus |
 | KP-mintaJawaban-02 | gagal dua kali menghasilkan null (S-2) | `semantik-mesin.test.ts` | Lulus |
 | KP-nilaiSemantikDenganOpsi-01 | hanya butir semantik, urutan terjaga, bagian kosong tanpa memanggil LLM | `semantik-mesin.test.ts` | Lulus |
 | KP-nilaiSemantikDenganOpsi-02 | mode tiruan: kutipan salinan persis dari teks, tiruan true | `semantik-mesin.test.ts` | Lulus |
-| KP-panduanBagian-01 | Kata Kunci memakai panduan pemisah titik koma | `templat-dokumen.test.ts` | Lulus |
-| KP-panduanBagian-02 | Daftar Pustaka memakai panduan urutan sitasi (nama dinormalisasi, penomoran diabaikan) | `templat-dokumen.test.ts` | Lulus |
-| KP-panduanBagian-03 | batas kata null menjadi tanpa batas; angka diformat Indonesia | `templat-dokumen.test.ts` | Lulus |
+| KP-panduanBagian-01 | bagian Isian Substansi memakai kalimat petunjuk resmi; Kata Kunci menyebut titik koma | `templat-dokumen.test.ts` | Lulus |
+| KP-panduanBagian-02 | nama dinormalisasi (penomoran/huruf diabaikan) dan angka batas diisi dari batas kata bagian | `templat-dokumen.test.ts` | Lulus |
+| KP-panduanBagian-03 | bagian di luar Isian Substansi: batas kata null menjadi tanpa batas; angka diformat Indonesia | `templat-dokumen.test.ts` | Lulus |
 | KP-periksaSatuButir-01 | parameter null gagal tertutup | `deterministik-cabang.test.ts` | Lulus |
 | KP-periksaSatuButir-02 | setiap tipe parameter diarahkan ke pemeriksa yang sesuai | `deterministik-cabang.test.ts` | Lulus |
 | KP-periksaSatuButir-03 | tipe parameter tidak dikenal gagal dengan nama tipenya | `deterministik-cabang.test.ts` | Lulus |
@@ -487,4 +520,41 @@ Cakupan cabang `src/lib/**` (kecuali pengecualian di `vitest.config.mts`): **89,
 | IT-templatAturan-05 | Uji pada Contoh tidak melempar galat walau pemeriksa belum tersedia | `templat-aturan-db.test.ts` | Lulus |
 | IT-templatAturan-06 | 8a: tanggal berlaku di tengah masa pengusulan ditolak; di luar rentang disimpan dan semua butir Aktif | `templat-aturan-db.test.ts` | Lulus |
 | IT-templatAturan-07 | templat versi 2: versi lama Arsip, butir turunan lama Nonaktif pada draf, butir baru Draf | `templat-aturan-db.test.ts` | Lulus |
+
+### Tanpa ID (harus nol)
+
+| ID | Kasus | Berkas | Hasil aktual |
+|---|---|---|---|
+| (tanpa ID) | KH-ujiNyata-01 (C-21): bagian A sampai H terpotong, berurutan, dan semuanya berisi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-02 (C-21, C-16): sampul, identitas, anggaran, dan lampiran ekspor BIMA tidak ikut; tanda [ ] dan kalimat petunjuk dibuang | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-03 (C-16): kata per bagian sesudah petunjuk dibuang tidak melebihi batas Isian Substansi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-04 (C-17, C-21): kata kunci tepat lima; PDF 5 memakai koma (menyimpang dari petunjuk titik koma) | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-05 (C-23): teks untuk LLM tidak memuat identitas pengusul ekspor BIMA | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-01 (C-21): bagian A sampai H terpotong, berurutan, dan semuanya berisi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-02 (C-21, C-16): sampul, identitas, anggaran, dan lampiran ekspor BIMA tidak ikut; tanda [ ] dan kalimat petunjuk dibuang | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-03 (C-16): kata per bagian sesudah petunjuk dibuang tidak melebihi batas Isian Substansi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-04 (C-17, C-21): kata kunci tepat lima; PDF 5 memakai koma (menyimpang dari petunjuk titik koma) | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-05 (C-23): teks untuk LLM tidak memuat identitas pengusul ekspor BIMA | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-01 (C-21): bagian A sampai H terpotong, berurutan, dan semuanya berisi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-02 (C-21, C-16): sampul, identitas, anggaran, dan lampiran ekspor BIMA tidak ikut; tanda [ ] dan kalimat petunjuk dibuang | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-03 (C-16): kata per bagian sesudah petunjuk dibuang tidak melebihi batas Isian Substansi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-04 (C-17, C-21): kata kunci tepat lima; PDF 5 memakai koma (menyimpang dari petunjuk titik koma) | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-05 (C-23): teks untuk LLM tidak memuat identitas pengusul ekspor BIMA | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-01 (C-21): bagian A sampai H terpotong, berurutan, dan semuanya berisi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-02 (C-21, C-16): sampul, identitas, anggaran, dan lampiran ekspor BIMA tidak ikut; tanda [ ] dan kalimat petunjuk dibuang | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-03 (C-16): kata per bagian sesudah petunjuk dibuang tidak melebihi batas Isian Substansi | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-04 (C-17, C-21): kata kunci tepat lima; PDF 5 memakai koma (menyimpang dari petunjuk titik koma) | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KH-ujiNyata-05 (C-23): teks untuk LLM tidak memuat identitas pengusul ekspor BIMA | `uji-nyata-isian-substansi.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-01 (J11): judul A. JUDUL ... H. DAFTAR PUSTAKA dikenali; sampul, identitas, anggaran dilewati; judul dokumen = isi bagian Judul | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-02 (J12): variasi spasi dan huruf besar-kecil: 'A.JUDUL', 'b) ringkasan'; teks judul dibakukan menjadi 'A. JUDUL' | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-03 (J13): cukup satu judul berhuruf: bukan mode berhuruf, jadi memakai cara lama (judul dokumen dari blok pertama) | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-04 (J14): mode berhuruf: paragraf bernama bagian tanpa huruf bukan judul; judul gaya Heading tanpa huruf tetap diakui | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-05 (J15): mode berhuruf tanpa bagian Judul pada templat: judul dokumen kosong (sampul tidak dipakai) | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-06 (J16): judul panjang (> 100 karakter) bukan judul bagian; blok bukan paragraf/judul (gambar) tidak dicocokkan | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-07 (J17): kalimat petunjuk terpecah beberapa baris dibuang; isian [ ... ] dilepas; kata kunci multibaris digabung | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-08 (J18): bagian Kata Kunci memakai awalan 'Kata kunci:' pada isian berhuruf | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-09 (J19): hanya bagian terakhir yang dipotong dari lampiran ekspor; bagian Daftar Pustaka dipotong sesudah entri terakhir | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-potongIsian-10 (J20): bagian templat tanpa petunjuk resmi atau kalimat petunjuk dari atribut bagian: atribut dipakai | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-normalisasiJudul-huruf: 'A. JUDUL' menjadi 'judul'; huruf tanpa jarak setelah titik tidak dihapus | `pengajuan-potong-isian.test.ts` | Lulus |
+| (tanpa ID) | KP-panduanBagian-02b: atribut petunjuk pada bagian lebih diutamakan daripada petunjuk resmi turunan nama | `templat-dokumen.test.ts` | Lulus |
 

@@ -76,9 +76,9 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
 
       {!diperiksa && !d.gagal ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-sm font-semibold text-sogan-800">Status pengajuan</span>
+          <span className="text-sm font-semibold text-primer-800">Status pengajuan</span>
           <LencanaStatus status={status} className="text-sm" />
-          <span className="text-sm text-sogan-700">
+          <span className="text-sm text-primer-700">
             {status === "Terkirim" ? "Proposal tercatat terkirim. Semua butir pemeriksaan administratif lolos." : null}
             {status === "Ditahan" ? `${gagalButir.length} butir belum terpenuhi. Perbaiki naskah pada bagian yang ditunjukkan, lalu ajukan kembali dari BIMA.` : null}
           </span>
@@ -151,15 +151,15 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
       {status === "Terkirim" && !diperiksa ? (
         <Bagian judul="Bukti pengiriman">
           <dl className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-[11rem_1fr]">
-            <dt className="font-semibold text-sogan-800">ID Proposal</dt>
+            <dt className="font-semibold text-primer-800">ID Proposal</dt>
             <dd>{p.idProposal}</dd>
-            <dt className="font-semibold text-sogan-800">Judul</dt>
+            <dt className="font-semibold text-primer-800">Judul</dt>
             <dd>{p.judul}</dd>
-            <dt className="font-semibold text-sogan-800">Skema</dt>
+            <dt className="font-semibold text-primer-800">Skema</dt>
             <dd>{d.namaSkema}</dd>
-            <dt className="font-semibold text-sogan-800">Kode versi</dt>
+            <dt className="font-semibold text-primer-800">Kode versi</dt>
             <dd>{d.versi?.kode ?? "-"}</dd>
-            <dt className="font-semibold text-sogan-800">Waktu pencatatan</dt>
+            <dt className="font-semibold text-primer-800">Waktu pencatatan</dt>
             <dd className="angka">{formatWaktu(p.waktuTerkirim)}</dd>
           </dl>
         </Bagian>

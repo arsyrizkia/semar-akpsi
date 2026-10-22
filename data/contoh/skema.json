@@ -1,8 +1,8 @@
 {
-  "label": "contoh sementara",
+  "label": "struktur templat mengikuti Isian Substansi Proposal",
   "skema": [
-    { "kode": "PD", "namaSkema": "Penelitian Dasar", "deskripsi": "Skema pendanaan penelitian dasar (contoh sementara)." },
-    { "kode": "PT", "namaSkema": "Penelitian Terapan", "deskripsi": "Skema pendanaan penelitian terapan (contoh sementara)." }
+    { "kode": "PD", "namaSkema": "Penelitian Dasar", "deskripsi": "Skema pendanaan penelitian dasar; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)." },
+    { "kode": "PT", "namaSkema": "Penelitian Terapan", "deskripsi": "Skema pendanaan penelitian terapan; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)." }
   ],
   "periode": {
     "tahun": 2026,

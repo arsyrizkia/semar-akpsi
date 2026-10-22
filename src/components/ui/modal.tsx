@@ -29,29 +29,29 @@ export function Modal({ buka, saatUbah, judul, deskripsi, ukuran = "md", kaki, c
   return (
     <RDialog.Root open={buka} onOpenChange={saatUbah}>
       <RDialog.Portal>
-        <RDialog.Overlay className="fixed inset-0 z-50 bg-sogan-900/50" />
+        <RDialog.Overlay className="fixed inset-0 z-50 bg-primer-900/50" />
         <RDialog.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-sogan-200 bg-white shadow-[var(--shadow-overlay)]",
+            "fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-primer-200 bg-white shadow-[var(--shadow-overlay)]",
             lebarModal[ukuran],
           )}
         >
-          <header className="flex items-start justify-between gap-3 border-b border-sogan-100 px-5 py-4">
+          <header className="flex items-start justify-between gap-3 border-b border-primer-100 px-5 py-4">
             <div>
               {kode ? <p className="mb-0.5 font-mono text-[11px] font-semibold text-abu-600">{kode}</p> : null}
-              <RDialog.Title className="text-lg font-semibold text-sogan-800">{judul}</RDialog.Title>
+              <RDialog.Title className="text-lg font-semibold text-primer-800">{judul}</RDialog.Title>
               {deskripsi ? (
-                <RDialog.Description className="mt-0.5 text-sm text-sogan-700">{deskripsi}</RDialog.Description>
+                <RDialog.Description className="mt-0.5 text-sm text-primer-700">{deskripsi}</RDialog.Description>
               ) : (
                 <RDialog.Description className="sr-only">{judul}</RDialog.Description>
               )}
             </div>
-            <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-sogan-700 hover:bg-sogan-100">
+            <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-primer-700 hover:bg-primer-100">
               <X aria-hidden className="size-5" />
             </RDialog.Close>
           </header>
           <div className="overflow-y-auto overscroll-contain px-5 py-4 text-sm">{children}</div>
-          {kaki ? <footer className="flex flex-wrap justify-end gap-2 border-t border-sogan-100 bg-krem px-5 py-3">{kaki}</footer> : null}
+          {kaki ? <footer className="flex flex-wrap justify-end gap-2 border-t border-primer-100 bg-latar px-5 py-3">{kaki}</footer> : null}
         </RDialog.Content>
       </RDialog.Portal>
     </RDialog.Root>
@@ -115,24 +115,24 @@ export function Sheet({ buka, saatUbah, judul, deskripsi, children, kaki, kode }
   return (
     <RDialog.Root open={buka} onOpenChange={saatUbah}>
       <RDialog.Portal>
-        <RDialog.Overlay className="fixed inset-0 z-50 bg-sogan-900/40" />
-        <RDialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-sogan-200 bg-white shadow-[var(--shadow-overlay)]">
-          <header className="flex items-start justify-between gap-3 border-b border-sogan-100 px-5 py-4">
+        <RDialog.Overlay className="fixed inset-0 z-50 bg-primer-900/40" />
+        <RDialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-primer-200 bg-white shadow-[var(--shadow-overlay)]">
+          <header className="flex items-start justify-between gap-3 border-b border-primer-100 px-5 py-4">
             <div>
               {kode ? <p className="mb-0.5 font-mono text-[11px] font-semibold text-abu-600">{kode}</p> : null}
-              <RDialog.Title className="text-lg font-semibold text-sogan-800">{judul}</RDialog.Title>
+              <RDialog.Title className="text-lg font-semibold text-primer-800">{judul}</RDialog.Title>
               {deskripsi ? (
-                <RDialog.Description className="mt-0.5 text-sm text-sogan-700">{deskripsi}</RDialog.Description>
+                <RDialog.Description className="mt-0.5 text-sm text-primer-700">{deskripsi}</RDialog.Description>
               ) : (
                 <RDialog.Description className="sr-only">{judul}</RDialog.Description>
               )}
             </div>
-            <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-sogan-700 hover:bg-sogan-100">
+            <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-primer-700 hover:bg-primer-100">
               <X aria-hidden className="size-5" />
             </RDialog.Close>
           </header>
           <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 text-sm">{children}</div>
-          {kaki ? <footer className="flex flex-wrap justify-end gap-2 border-t border-sogan-100 bg-krem px-5 py-3">{kaki}</footer> : null}
+          {kaki ? <footer className="flex flex-wrap justify-end gap-2 border-t border-primer-100 bg-latar px-5 py-3">{kaki}</footer> : null}
         </RDialog.Content>
       </RDialog.Portal>
     </RDialog.Root>

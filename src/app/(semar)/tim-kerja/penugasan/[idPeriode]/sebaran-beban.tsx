@@ -6,11 +6,11 @@ const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 });
 
 /** Tabel "Sebaran Beban": jumlah proposal setiap reviewer yang bersedia terhadap batas (semua reviewer, bukan satu halaman). */
 export function SebaranBebanTabel({ sebaran, batas }: { sebaran: SebaranBeban[]; batas: number }) {
-  if (!sebaran.length) return <p className="text-sm text-sogan-700">Belum ada reviewer yang bersedia di data BIMA.</p>;
+  if (!sebaran.length) return <p className="text-sm text-primer-700">Belum ada reviewer yang bersedia di data BIMA.</p>;
   const jumlah = sebaran.map((s) => s.jumlah);
   return (
     <>
-      <p data-testid="ringkasan-sebaran" className="mb-3 text-sm text-sogan-700">
+      <p data-testid="ringkasan-sebaran" className="mb-3 text-sm text-primer-700">
         {formatAngka(sebaran.length)} reviewer bersedia; proposal per reviewer terendah {Math.min(...jumlah)}, tertinggi {Math.max(...jumlah)}, rata-rata{" "}
         {desimal.format(jumlah.reduce((n, x) => n + x, 0) / sebaran.length)}, batas {batas}.
       </p>
@@ -39,11 +39,11 @@ export function SebaranBebanTabel({ sebaran, batas }: { sebaran: SebaranBeban[];
                     aria-valuemax={s.batas}
                     aria-valuenow={s.jumlah}
                     aria-label={`Beban ${s.namaReviewer}`}
-                    className="h-2 w-full overflow-hidden rounded-sm bg-sogan-100"
+                    className="h-2 w-full overflow-hidden rounded-sm bg-primer-100"
                   >
-                    <div className={s.jumlah > s.batas ? "h-full bg-bata-600" : s.jumlah === s.batas ? "h-full bg-emas-700" : "h-full bg-daun-600"} style={{ width: `${persen}%` }} />
+                    <div className={s.jumlah > s.batas ? "h-full bg-bata-600" : s.jumlah === s.batas ? "h-full bg-peringatan-700" : "h-full bg-daun-600"} style={{ width: `${persen}%` }} />
                   </div>
-                  {keterangan ? <span className="text-xs text-sogan-700">{keterangan}</span> : null}
+                  {keterangan ? <span className="text-xs text-primer-700">{keterangan}</span> : null}
                 </TD>
               </TR>
             );

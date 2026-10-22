@@ -139,7 +139,7 @@ export function PapanUsulan({
         </form>
         <div aria-live="polite">
           {sedangMenyusun ? (
-            <p role="status" className="mt-2 flex items-center gap-2 text-sm font-semibold text-sogan-800">
+            <p role="status" className="mt-2 flex items-center gap-2 text-sm font-semibold text-primer-800">
               <Loader2 aria-hidden className="size-4 animate-spin" /> Menyusun usulan penugasan… Untuk ribuan proposal ini memakan beberapa detik.
             </p>
           ) : null}
@@ -197,7 +197,7 @@ export function PapanUsulan({
           </Button>
         }
       >
-        <p data-testid="ringkasan-usulan" className="mb-3 text-sm text-sogan-700">
+        <p data-testid="ringkasan-usulan" className="mb-3 text-sm text-primer-700">
           {adaUsulan ? (
             <>
               <strong className="angka">{angka.format(totalUsulan)}</strong> usulan menunggu penetapan.{" "}
@@ -226,7 +226,7 @@ export function PapanUsulan({
                 {usulan.map((u) => (
                   <TR key={u.penugasanId}>
                     <TD className="min-w-56 max-w-sm">
-                      <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                      <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
                         {u.judulProposal}
                       </Link>
                     </TD>
@@ -246,7 +246,7 @@ export function PapanUsulan({
             {paginasi}
           </>
         ) : perluDitugaskan > 0 ? (
-          <p className="text-sm text-sogan-700">Belum ada usulan penugasan. Isi batas beban lalu tekan &ldquo;Susun Usulan Penugasan&rdquo;.</p>
+          <p className="text-sm text-primer-700">Belum ada usulan penugasan. Isi batas beban lalu tekan &ldquo;Susun Usulan Penugasan&rdquo;.</p>
         ) : null}
       </Bagian>
 
@@ -311,7 +311,7 @@ export function PapanUsulan({
         <p>
           <strong className="angka">{angka.format(totalUsulan)}</strong> proposal akan ditugaskan kepada <strong className="angka">{angka.format(jumlahReviewerUsulan)}</strong> reviewer.
         </p>
-        <p className="mt-2 text-sogan-700">Penugasan dikirim ke BIMA. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.</p>
+        <p className="mt-2 text-primer-700">Penugasan dikirim ke BIMA. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.</p>
       </ModalKonfirmasi>
     </>
   );

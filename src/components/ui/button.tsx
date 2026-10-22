@@ -4,17 +4,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * Tombol. Varian: utama (satu per layar), sekunder (bergaris), hantu (aksi tersier), bahaya (aksi merusak).
- * `emas` dan `garis` dipertahankan untuk halaman lama (emas = utama, garis = sekunder).
  */
 const varian = {
-  utama: "bg-sogan-700 text-krem hover:bg-sogan-800 disabled:bg-sogan-300 disabled:text-sogan-50",
-  sekunder: "border border-sogan-500 bg-white text-sogan-800 hover:bg-sogan-50 disabled:border-sogan-200 disabled:text-sogan-400",
-  hantu: "bg-transparent text-sogan-700 hover:bg-sogan-100 disabled:text-sogan-300",
+  utama: "bg-primer-700 text-white hover:bg-primer-800 disabled:bg-primer-300 disabled:text-primer-50",
+  sekunder: "border border-primer-500 bg-white text-primer-800 hover:bg-primer-50 disabled:border-primer-200 disabled:text-primer-400",
+  hantu: "bg-transparent text-primer-700 hover:bg-primer-100 disabled:text-primer-300",
   bahaya: "bg-bata-600 text-white hover:bg-bata-700 disabled:bg-bata-100 disabled:text-bata-500",
-  /** @deprecated pakai utama */
-  emas: "bg-sogan-700 text-krem hover:bg-sogan-800 disabled:bg-sogan-300 disabled:text-sogan-50",
-  /** @deprecated pakai sekunder */
-  garis: "border border-sogan-500 bg-white text-sogan-800 hover:bg-sogan-50 disabled:border-sogan-200 disabled:text-sogan-400",
 } as const;
 
 /** Layar sentuh (pointer kasar) memakai target minimal 44 px; penunjuk halus tetap padat untuk tabel kerja. */

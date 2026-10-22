@@ -1,6 +1,7 @@
 /**
  * Penurunan butir cek dari templat untuk seed (turunkanButirCek pada UC-01).
- * Skema parameter sama dengan ParameterButir di kontrak. Agen A boleh membuat versi sendiri di src/lib/templat/**.
+ * Skema parameter sama dengan ParameterButir di kontrak. Bagian Isian Substansi (A-H) menurunkan satu butir bagian wajib per bagian
+ * dan satu butir batas kata per bagian yang berbatas (Judul, Ringkasan, Pendahuluan, Metode); kode batas kata mengikuti urutan bagian.
  */
 import type { ParameterButir } from "./kontrak/tipe";
 
@@ -47,7 +48,7 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
         komponen: "2. Jumlah kata per bagian",
         pemeriksa: "hitungKata",
         parameter: { tipe: "batas_kata", bagian: x.nama, batas: x.batasKata },
-        aturanHitung: `Jumlah kata bagian "${x.nama}" <= ${x.batasKata}; tanpa toleransi; diagram, tabel, dan gambar tidak dihitung.`,
+        aturanHitung: `Jumlah kata bagian "${x.nama}" <= ${x.batasKata}; tanpa toleransi; kalimat petunjuk templat, diagram, tabel, dan gambar tidak dihitung.`,
       });
     }
   }

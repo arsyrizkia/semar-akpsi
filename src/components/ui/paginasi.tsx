@@ -17,9 +17,9 @@ export function Paginasi({ halaman, jumlahHalaman, parameter = "halaman", classN
     p.set(parameter, String(h));
     return `${jalur}?${p.toString()}`;
   };
-  const kelas = "inline-flex h-8 items-center gap-1 rounded-md border border-sogan-300 bg-white px-2.5 text-sm font-medium text-sogan-800 hover:bg-sogan-50";
+  const kelas = "inline-flex h-8 items-center gap-1 rounded-md border border-primer-300 bg-white px-2.5 text-sm font-medium text-primer-800 hover:bg-primer-50";
   return (
-    <nav aria-label="Halaman tabel" className={cn("mt-3 flex items-center justify-between gap-3 text-sm text-sogan-700", className)}>
+    <nav aria-label="Halaman tabel" className={cn("mt-3 flex items-center justify-between gap-3 text-sm text-primer-700", className)}>
       <p className="angka">
         Halaman {halaman} dari {jumlahHalaman}
       </p>

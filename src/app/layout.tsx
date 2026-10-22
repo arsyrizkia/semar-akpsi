@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description: "Sistem Evaluasi Mandiri dan Asisten Reviewer: prototipe pemeriksaan administratif proposal penelitian.",
 };
 
-/** Warna bilah peramban sama dengan latar halaman (krem). */
-export const viewport: Viewport = { themeColor: "#faf7f1", colorScheme: "light" };
+/** Warna bilah peramban sama dengan latar halaman (latar). */
+export const viewport: Viewport = { themeColor: "#F4F7FC", colorScheme: "light" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

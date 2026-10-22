@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, Lock, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronRight, FileText, Loader2, Lock, XCircle } from "lucide-react";
 import {
   Alert,
   BarKeyakinan,
   Bagian,
   Button,
+  Select,
   KepalaHalaman,
   StatusBadge,
   Tabs,
@@ -41,18 +42,42 @@ function simpanDiUrl(tab: string, butirKode: string | null) {
 
 const ukuranBerkas = (b: number) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toLocaleString("id-ID", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
+/** Jumlah butir semantik per bagian; tanda seru (dengan teks bantu) bila ada butir yang harus dibaca sendiri. */
+function LencanaJumlah({ butir, tab }: { butir: ButirTampil[]; tab: string }) {
+  const jumlah = butir.filter((b) => b.tab === tab);
+  if (!jumlah.length) return null;
+  const manual = jumlah.some((b) => perluBacaSendiri(b.status));
+  return (
+    <span className="ml-1 text-xs font-normal angka">
+      ({jumlah.length}
+      {manual ? (
+        <>
+          <span aria-hidden className="ml-0.5 text-bata-700">!</span>
+          <span className="sr-only">, ada butir yang harus dibaca sendiri</span>
+        </>
+      ) : null})
+    </span>
+  );
+}
+
 export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemeriksaan; tabAwal?: string; butirAwal?: string }) {
   const router = useRouter();
   const butirDariUrl = data.butir.find((b) => b.kode === butirAwal) ?? null;
   const [tabAktif, setTabAktif] = useState(() => {
     if (butirDariUrl) return butirDariUrl.tab;
-    return data.tab.some((t) => t.nama === tabAwal) ? (tabAwal as string) : (data.tab[0]?.nama ?? "");
+    if (data.tab.some((t) => t.nama === tabAwal)) return tabAwal as string;
+    // Bagian pertama yang punya butir semantik (Judul biasanya tidak punya), supaya daftar butir tidak kosong saat dibuka.
+    const berButir = data.tab.find((t) => data.butir.some((b) => b.tab === t.nama));
+    return (berButir ?? data.tab[0])?.nama ?? "";
   });
   const [terpilih, setTerpilih] = useState<string | null>(butirDariUrl?.hasilId ?? null);
   const [koreksiLokal, setKoreksiLokal] = useState<Record<string, KoreksiTampil>>({});
   const [butirKoreksi, setButirKoreksi] = useState<string | null>(null); // M-10 terbuka untuk butir ini
   const tandaRef = useRef<HTMLElement | null>(null);
   const final = data.penilaian.status === "Final";
+  const naskah = data.berkas.find((f) => f.peran === "naskah") ?? data.berkas[0] ?? null;
+  const lampiran = data.berkas.filter((f) => f !== naskah);
+  const unduhBerkas = (id: string) => `/api/semar/proposal/${encodeURIComponent(data.proposal.idProposal)}/berkas/${id}`;
 
   const butir: ButirTampil[] = useMemo(() => data.butir.map((b) => ({ ...b, koreksi: koreksiLokal[b.hasilId] ?? b.koreksi })), [data.butir, koreksiLokal]);
   const butirTab = butir.filter((b) => b.tab === tabAktif);
@@ -106,7 +131,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         aksi={lanjut}
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-sogan-700">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primer-700">
         <span className="font-mono text-xs">{data.proposal.idProposal}</span>
         <span>{data.proposal.skema}</span>
         <span>Versi {data.proposal.kodeVersi}</span>
@@ -121,24 +146,45 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         </span>
       </div>
 
-      {data.berkas.length > 0 ? (
-        <Bagian judul="Berkas Proposal" className="mb-6">
-          <ul className="divide-y divide-sogan-100 rounded-md border border-sogan-200 bg-white">
-            {data.berkas.map((f) => (
-              <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-                <span className="min-w-0 break-words">
-                  <span className="font-medium text-sogan-900">{f.nama}</span>
-                  <span className="ml-2 text-xs text-sogan-600">
-                    {f.peran === "naskah" ? "Naskah" : f.namaLampiran ? `Lampiran: ${f.namaLampiran}` : "Lampiran"} · {ukuranBerkas(f.ukuran)}
-                  </span>
-                </span>
-                <TombolUnduh href={`/api/semar/proposal/${encodeURIComponent(data.proposal.idProposal)}/berkas/${f.id}`} ukuran="sm">
-                  Unduh Berkas<span className="sr-only"> {f.nama}</span>
-                </TombolUnduh>
-              </li>
-            ))}
-          </ul>
-        </Bagian>
+      {naskah ? (
+        <section aria-labelledby="judul-berkas" className="mb-4 rounded-md border border-primer-200 bg-white text-sm">
+          <h2 id="judul-berkas" className="sr-only">Berkas Proposal</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+            <FileText aria-hidden className="size-4 shrink-0 text-primer-700" />
+            <span className="min-w-0 break-words">
+              <span className="font-medium text-primer-900">{naskah.nama}</span>
+              <span className="ml-2 text-xs text-primer-700">
+                {naskah.peran === "naskah" ? "Naskah" : "Berkas"} · {ukuranBerkas(naskah.ukuran)}
+              </span>
+            </span>
+            <TombolUnduh href={unduhBerkas(naskah.id)} ukuran="sm" className="ml-auto">
+              Unduh Berkas<span className="sr-only"> {naskah.nama}</span>
+            </TombolUnduh>
+          </div>
+          {lampiran.length > 0 ? (
+            <details className="group border-t border-primer-100">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primer-700 hover:text-primer-900 [&::-webkit-details-marker]:hidden">
+                <ChevronRight aria-hidden className="size-4 transition-transform duration-150 group-open:rotate-90" />
+                Lampiran ({lampiran.length})
+              </summary>
+              <ul className="divide-y divide-primer-100 border-t border-primer-100">
+                {lampiran.map((f) => (
+                  <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <span className="min-w-0 break-words">
+                      <span className="font-medium text-primer-900">{f.nama}</span>
+                      <span className="ml-2 text-xs text-primer-700">
+                        {f.namaLampiran ? `Lampiran: ${f.namaLampiran}` : "Lampiran"} · {ukuranBerkas(f.ukuran)}
+                      </span>
+                    </span>
+                    <TombolUnduh href={unduhBerkas(f.id)} ukuran="sm">
+                      Unduh Berkas<span className="sr-only"> {f.nama}</span>
+                    </TombolUnduh>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </section>
       ) : null}
 
       {!data.semantik.siap ? (
@@ -155,42 +201,44 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         </Alert>
       ) : null}
       {final ? (
-        <p className="mb-6 flex items-center gap-2 text-sm font-semibold text-sogan-700">
+        <p className="mb-6 flex items-center gap-2 text-sm font-semibold text-primer-700">
           <Lock aria-hidden className="size-4" /> Penilaian final: koreksi tidak dapat diubah lagi.
         </p>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[3fr_2fr]">
+      <Tabs value={tabAktif} onValueChange={ubahTab} orientation="vertical" className="grid gap-6 lg:grid-cols-[3fr_2fr] xl:grid-cols-[11rem_minmax(0,1fr)_22rem]">
+        {/* navigasi bagian: daftar vertikal lengket di layar lebar (tidak melipat), pilihan di layar sempit */}
+        <TabsList aria-label="Bagian proposal" className="hidden flex-col flex-nowrap gap-0 border-b-0 border-l border-primer-200 xl:sticky xl:top-4 xl:flex xl:self-start">
+          {data.tab.map((t) => (
+            <TabsTrigger key={t.nama} value={t.nama} className="-ml-px mb-0 w-full whitespace-normal border-b-0 border-l-2 py-2 pl-3 pr-2 text-left leading-snug data-[state=active]:border-primer-400 data-[state=active]:bg-primer-50">
+              {t.nama}
+              <LencanaJumlah butir={butir} tab={t.nama} />
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
         <Bagian judul="Teks Proposal" className="min-w-0">
-          <Tabs value={tabAktif} onValueChange={ubahTab}>
-            <TabsList aria-label="Bagian proposal">
+          <div className="mb-3 xl:hidden">
+            <label htmlFor="pilih-bagian" className="mb-1 block text-xs font-semibold text-primer-700">Bagian proposal</label>
+            <Select id="pilih-bagian" value={tabAktif} onChange={(e) => ubahTab(e.target.value)}>
               {data.tab.map((t) => {
-                const jumlah = butir.filter((b) => b.tab === t.nama);
-                const manual = jumlah.some((b) => perluBacaSendiri(b.status));
+                const jumlah = butir.filter((b) => b.tab === t.nama).length;
                 return (
-                  <TabsTrigger key={t.nama} value={t.nama}>
+                  <option key={t.nama} value={t.nama}>
                     {t.nama}
-                    {jumlah.length ? (
-                      <span className="ml-1 text-xs font-normal angka">
-                        ({jumlah.length}
-                        {manual ? (
-                          <>
-                            <span aria-hidden className="ml-0.5 text-bata-700">!</span>
-                            <span className="sr-only">, ada butir yang harus dibaca sendiri</span>
-                          </>
-                        ) : null})
-                      </span>
-                    ) : null}
-                  </TabsTrigger>
+                    {jumlah ? ` (${jumlah} butir)` : ""}
+                  </option>
                 );
               })}
-            </TabsList>
+            </Select>
+          </div>
+          <div>
             {data.tab.map((t) => {
               const rentang = butirTerpilih?.tab === t.nama ? cariKutipan(t.teks, butirTerpilih.kutipan) : null;
               return (
-                <TabsContent key={t.nama} value={t.nama} className="max-h-[65vh] overflow-y-auto overscroll-contain whitespace-pre-wrap break-words text-[15px] leading-relaxed text-sogan-900">
+                <TabsContent key={t.nama} value={t.nama} className="max-h-[65vh] overflow-y-auto overscroll-contain whitespace-pre-wrap break-words text-[15px] leading-relaxed text-primer-900">
                   {t.teks.trim() === "" ? (
-                    <span className="italic text-sogan-600">Bagian ini tidak ditemukan pada naskah.</span>
+                    <span className="italic text-primer-600">Bagian ini tidak ditemukan pada naskah.</span>
                   ) : rentang ? (
                     <>
                       {t.teks.slice(0, rentang.mulai)}
@@ -198,7 +246,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                         ref={(el) => {
                           tandaRef.current = el;
                         }}
-                        className="rounded bg-emas-300 px-0.5 text-sogan-900 ring-2 ring-emas-500"
+                        className="rounded bg-peringatan-300 px-0.5 text-primer-900 ring-2 ring-peringatan-500"
                       >
                         {t.teks.slice(rentang.mulai, rentang.akhir)}
                       </mark>
@@ -210,29 +258,29 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                 </TabsContent>
               );
             })}
-          </Tabs>
+          </div>
         </Bagian>
 
         <Bagian
           judul="Butir Semantik"
           className="min-w-0 self-start lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:overscroll-contain"
           aksi={
-            <span className="text-xs text-sogan-700 angka">
+            <span className="text-xs text-primer-700 angka">
               {ringkas.total} butir, {ringkas.dikoreksi} dikoreksi
             </span>
           }
         >
           {butirTab.length === 0 ? (
-            <p className="rounded-md border border-dashed border-sogan-300 px-4 py-6 text-center text-sm text-sogan-700">
+            <p className="rounded-md border border-dashed border-primer-300 px-4 py-6 text-center text-sm text-primer-700">
               {data.butir.length === 0 && !data.semantik.siap ? "Menunggu rekomendasi…" : "Tidak ada butir semantik pada tab ini."}
             </p>
           ) : (
-            <ul className="divide-y divide-sogan-100 rounded-md border border-sogan-200 bg-white">
+            <ul className="divide-y divide-primer-100 rounded-md border border-primer-200 bg-white">
               {butirTab.map((b) => {
                 const sendiri = perluBacaSendiri(b.status);
                 const dipilih = terpilih === b.hasilId;
                 return (
-                  <li key={b.hasilId} className={dipilih ? "bg-emas-50 shadow-[inset_3px_0_0_var(--color-emas-500)]" : undefined}>
+                  <li key={b.hasilId} className={dipilih ? "bg-primer-50 shadow-[inset_3px_0_0_var(--color-primer-400)]" : undefined}>
                     <div
                       role="button"
                       tabIndex={0}
@@ -247,12 +295,12 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                       }}
                       className="cursor-pointer space-y-2 px-3 pb-2 pt-3 touch-manipulation"
                     >
-                      <p className="text-sm font-semibold text-sogan-900">
-                        <span className="mr-1.5 font-mono text-xs font-medium text-emas-700">{b.kode}</span>
+                      <p className="text-sm font-semibold text-primer-900">
+                        <span className="mr-1.5 font-mono text-xs font-medium text-primer-700">{b.kode}</span>
                         {b.deskripsi}
                       </p>
                       <p className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="text-xs font-semibold text-sogan-700">{b.koreksi ? "Rekomendasi semula" : "Rekomendasi"}</span>
+                        <span className="text-xs font-semibold text-primer-700">{b.koreksi ? "Rekomendasi semula" : "Rekomendasi"}</span>
                         <span className={b.koreksi ? "opacity-60" : undefined}>
                           <StatusBadge status={b.status} />
                         </span>
@@ -260,22 +308,22 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                         {sendiri ? <span className="text-xs font-semibold text-bata-700">Baca bagian ini sendiri</span> : null}
                       </p>
                       {b.status === "Perlu diperiksa manual" && b.rekomendasi ? (
-                        <p className="text-xs text-sogan-700">Sistem merekomendasikan “{b.rekomendasi}”, tetapi kutipannya belum dapat dipastikan ada di teks.</p>
+                        <p className="text-xs text-primer-700">Sistem merekomendasikan “{b.rekomendasi}”, tetapi kutipannya belum dapat dipastikan ada di teks.</p>
                       ) : null}
                       {b.kutipan ? (
-                        <blockquote className="border-l-4 border-emas-500 pl-3 text-sm italic text-sogan-900">“{b.kutipan}”</blockquote>
+                        <blockquote className="border-l-4 border-primer-400 pl-3 text-sm italic text-primer-900">“{b.kutipan}”</blockquote>
                       ) : sendiri ? null : (
-                        <p className="text-xs text-sogan-600">Tidak ada kutipan pendukung.</p>
+                        <p className="text-xs text-primer-600">Tidak ada kutipan pendukung.</p>
                       )}
                       {b.tingkatKeyakinan !== null ? <BarKeyakinan nilai={b.tingkatKeyakinan} /> : null}
-                      {b.alasanSistem ? <p className="text-xs text-sogan-700">Alasan sistem: {b.alasanSistem}</p> : null}
+                      {b.alasanSistem ? <p className="text-xs text-primer-700">Alasan sistem: {b.alasanSistem}</p> : null}
                       {b.koreksi ? (
-                        <div className="rounded-md bg-sogan-50 p-2 text-sm">
+                        <div className="rounded-md bg-primer-50 p-2 text-sm">
                           <p className="flex flex-wrap items-center gap-2">
                             <StatusBadge status="Dikoreksi reviewer" />
                             <StatusBadge status={b.koreksi.keputusan} />
                           </p>
-                          <p className="mt-1 text-xs text-sogan-700">
+                          <p className="mt-1 text-xs text-primer-700">
                             {b.koreksi.jenisKekeliruan ? `${b.koreksi.jenisKekeliruan}: ` : ""}
                             {b.koreksi.alasan}
                           </p>
@@ -294,12 +342,12 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
               })}
             </ul>
           )}
-          <p className="mt-3 text-xs text-sogan-700">
+          <p className="mt-3 text-xs text-primer-700">
             Butir yang tidak Anda koreksi dianggap disetujui. <span className="angka">{ringkas.disetujui}</span> disetujui, <span className="angka">{ringkas.dikoreksi}</span> dikoreksi
             {ringkas.tanpaRekomendasi ? <>, <span className="angka">{ringkas.tanpaRekomendasi}</span> perlu dibaca sendiri</> : null}.
           </p>
         </Bagian>
-      </div>
+      </Tabs>
 
       {butirDimodal ? (
         <ModalKoreksi

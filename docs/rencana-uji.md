@@ -1,6 +1,6 @@
 # Rencana uji SEMAR
 
-Disusun otomatis oleh `npm run rencana-uji` pada 23 Oktober 2026 pukul 03.10 WIB dari berkas uji dan hasil terakhir (`npm run laporan-uji`, `npm run e2e`). Jangan disunting tangan; ubah komentar kepala atau judul uji pada berkasnya.
+Disusun otomatis oleh `npm run rencana-uji` pada 23 Oktober 2026 pukul 04.56 WIB dari berkas uji dan hasil terakhir (`npm run laporan-uji`, `npm run e2e`). Jangan disunting tangan; ubah komentar kepala atau judul uji pada berkasnya.
 
 Gaya dan istilah mengikuti Dennis, Wixom, dan Tegarden (2015) hlm. 469-475: uji unit *black box* dan *white box*, uji integrasi, dan uji kinerja. Sumber rencana uji persis Gambar 12-4 (hlm. 472).
 
@@ -21,8 +21,8 @@ Jenis kasus pada tiap baris mengikuti hlm. 473 (nilai sah; tidak sah di bawah at
 
 | Jenis | Jumlah uji | Lulus | Gagal | Dilewati |
 |---|---:|---:|---:|---:|
-| Unit *black box* (KH) | 263 | 263 | 0 | 0 |
-| Unit *white box* (KP) | 151 | 151 | 0 | 0 |
+| Unit *black box* (KH) | 272 | 272 | 0 | 0 |
+| Unit *white box* (KP) | 174 | 174 | 0 | 0 |
 | Integrasi basis data (IT) | 28 | 28 | 0 | 0 |
 | Integrasi e2e (skenario) | 29 | 29 | 0 | 0 |
 
@@ -106,7 +106,7 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-cekKataKunci-09 | tipe salah / nilai janggal | hanya spasi atau null dianggap tidak ditemukan | sesuai harapan (0 ms) | Lulus |
 | KH-cekKataKunci-10 | tipe salah / nilai janggal | pemisah berlebih di ujung dan segmen kosong tidak dihitung (nilai janggal tetapi sah) | sesuai harapan (0 ms) | Lulus |
 | KH-cekKataKunci-11 | nilai sah | jumlah diminta lain (tiga, pemisah koma) mengikuti parameter butir | sesuai harapan (0 ms) | Lulus |
-| KH-cocokkanSitasi-07 | nilai sah | sitasi bernomor saja lolos | sesuai harapan (1 ms) | Lulus |
+| KH-cocokkanSitasi-07 | nilai sah | sitasi bernomor saja lolos | sesuai harapan (0 ms) | Lulus |
 | KH-cocokkanSitasi-08 | nilai tidak sah | naskah tanpa satu pun sitasi bernomor gagal | sesuai harapan (0 ms) | Lulus |
 | KH-cocokkanSitasi-09 | nilai sah | nama-tahun dengan 'dkk.' dan 'et al.' terdeteksi | sesuai harapan (0 ms) | Lulus |
 | KH-cocokkanSitasi-10 | nilai tidak sah | jumlah entri sama dengan jumlah nomor dikutip lolos; entri tidak dikutip gagal | sesuai harapan (0 ms) | Lulus |
@@ -131,7 +131,7 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-statusProposal-03 | keadaan dan transisi | transisi yang tidak didefinisikan ditolak (Ditahan tidak bisa langsung Terkirim) | sesuai harapan (0 ms) | Lulus |
 | KH-statusProposal-04 | nilai tidak sah | statusSetelahPemeriksaan: 0 gagal Terkirim, 1 gagal Ditahan | sesuai harapan (0 ms) | Lulus |
 | KH-statusProposal-05 | tipe salah / nilai janggal | jumlah gagal negatif atau pecahan ditolak (tipe salah) | sesuai harapan (0 ms) | Lulus |
-| KH-tokenPengajuan-02 | nilai sah | dua token untuk proposal yang sama memiliki jti berbeda | sesuai harapan (6 ms) | Lulus |
+| KH-tokenPengajuan-02 | nilai sah | dua token untuk proposal yang sama memiliki jti berbeda | sesuai harapan (5 ms) | Lulus |
 | KH-tokenPengajuan-03 | nilai sah | hanya entri audit pertama untuk sebuah jti yang diterima, sisanya duplikat | sesuai harapan (0 ms) | Lulus |
 | KH-tokenPengajuan-04 | tipe salah / nilai janggal | tidak ada entri pembanding (null atau undefined) tidak pernah dianggap pertama | sesuai harapan (0 ms) | Lulus |
 | KH-tokenPengajuan-05 | nilai tidak sah | token berstring kosong, bertanda tangan kunci lain, atau tanpa klaim wajib ditolak | sesuai harapan (0 ms) | Lulus |
@@ -147,7 +147,7 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 |---|---|---|---|---|
 | KH-periksaDeterministikTeks-01 | nilai sah | contoh A: semua butir deterministik lolos | sesuai harapan (4 ms) | Lulus |
 | KH-periksaDeterministikTeks-02 | nilai tidak sah | contoh B: hanya jumlah kata bagian Metode yang gagal, dengan angka pembukti | sesuai harapan (2 ms) | Lulus |
-| KH-periksaDeterministikTeks-03 | nilai tidak sah | contoh C: kata kunci (4 dari 5) dan jumlah referensi (9 entri, 7 dikutip) gagal | sesuai harapan (2 ms) | Lulus |
+| KH-periksaDeterministikTeks-03 | nilai tidak sah | contoh C: kata kunci (4 dari 5) dan jumlah referensi (9 entri, 7 dikutip) gagal | sesuai harapan (1 ms) | Lulus |
 | KH-periksaDeterministikTeks-04 | nilai sah | butir nonaktif/semantik tidak ikut dalam hasil murni | sesuai harapan (1 ms) | Lulus |
 | KH-hitungKata-01 | nilai sah | tidak menghitung tabel, gambar, dan keterangannya | sesuai harapan (0 ms) | Lulus |
 | KH-hitungKata-02 | nilai tidak sah | selaras dengan penghitung pembangkit contoh bila tanpa keterangan | sesuai harapan (0 ms) | Lulus |
@@ -163,10 +163,10 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-cocokkanSitasi-05 | nilai tidak sah | nomor dikutip tanpa entri dilaporkan | sesuai harapan (0 ms) | Lulus |
 | KH-cocokkanSitasi-06 | nilai tidak sah | tanpa Daftar Pustaka gagal | sesuai harapan (0 ms) | Lulus |
 | KH-cekLampiranStruktur-01 | nilai sah | lampiran belum ada disebut dengan nama | sesuai harapan (0 ms) | Lulus |
-| KH-cekLampiranStruktur-02 | nilai sah | judul bagian dengan penomoran tetap dikenali | sesuai harapan (0 ms) | Lulus |
+| KH-cekLampiranStruktur-02 | nilai sah | judul bagian berhuruf Isian Substansi (A. JUDUL ... H. DAFTAR PUSTAKA) dikenali | sesuai harapan (0 ms) | Lulus |
 | KH-cekLampiranStruktur-03 | nilai tidak sah | bagian hilang dan urutan salah gagal | sesuai harapan (0 ms) | Lulus |
 | KH-cekLampiranStruktur-04 | nilai tidak sah | judul beda dari BIMA gagal, perbedaan huruf besar dan tanda baca lolos | sesuai harapan (0 ms) | Lulus |
-| KH-cekLampiranStruktur-05 | nilai sah | diagram alir butuh keterangan gambar yang menyebutnya | sesuai harapan (1 ms) | Lulus |
+| KH-cekLampiranStruktur-05 | nilai sah | diagram alir butuh keterangan gambar yang menyebutnya | sesuai harapan (0 ms) | Lulus |
 | KH-cekLampiranStruktur-06 | nilai tidak sah | butir tanpa parameter gagal tertutup | sesuai harapan (0 ms) | Lulus |
 
 #### `fondasi.test.ts`
@@ -180,9 +180,9 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-tingkatKeyakinan-01 | nilai sah | memetakan ambang 0,8 dan 0,5 | sesuai harapan (1 ms) | Lulus |
 | KH-sesiToken-01 | nilai sah | token SSO dan sesi memiliki audiens berbeda | sesuai harapan (4 ms) | Lulus |
 | KH-sesiToken-02 | nilai sah | jalurAman menolak open redirect | sesuai harapan (0 ms) | Lulus |
-| KH-proposalContoh-01 | batas bawah / atas | a dan d lolos semua batas kata, kata kunci tepat lima | sesuai harapan (2 ms) | Lulus |
-| KH-proposalContoh-02 | nilai tidak sah | b gagal jumlah kata hanya di Metode | sesuai harapan (1 ms) | Lulus |
-| KH-proposalContoh-03 | nilai tidak sah | c gagal kata kunci (4) dan sitasi (9 referensi, 7 dikutip) | sesuai harapan (1 ms) | Lulus |
+| KH-proposalContoh-01 | batas bawah / atas | a dan d lolos semua batas kata, kata kunci tepat lima | sesuai harapan (1 ms) | Lulus |
+| KH-proposalContoh-02 | nilai tidak sah | b gagal jumlah kata hanya di Metode | sesuai harapan (0 ms) | Lulus |
+| KH-proposalContoh-03 | nilai tidak sah | c gagal kata kunci (4) dan sitasi (9 referensi, 7 dikutip) | sesuai harapan (0 ms) | Lulus |
 | KH-proposalContoh-04 | nilai sah | DOCX terbentuk | sesuai harapan (33 ms) | Lulus |
 | KH-turunkanButir-01 | batas bawah / atas | membuat butir bagian wajib, batas kata, dan lampiran | sesuai harapan (0 ms) | Lulus |
 
@@ -262,8 +262,8 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KH-potongTeks-01 | nilai sah | memotong naskah contoh menjadi tujuh bagian bertemplat dengan judul dan kata kunci | sesuai harapan (66 ms) | Lulus |
-| KH-potongTeks-02 | nilai sah | A lolos semua; B hanya KTA-04; C hanya KAT-01 dan SIT-03 (hasil sama dengan jalur murni) | sesuai harapan (85 ms) | Lulus |
+| KH-potongTeks-01 | nilai sah | memotong naskah contoh menjadi delapan bagian bertemplat (A-H) dengan judul dan kata kunci | sesuai harapan (65 ms) | Lulus |
+| KH-potongTeks-02 | nilai sah | A lolos semua; B hanya KTA-04; C hanya KAT-01 dan SIT-03 (hasil sama dengan jalur murni) | sesuai harapan (84 ms) | Lulus |
 | KH-potongTeks-03 | nilai tidak sah | lampiran yang tidak diunggah membuat butir lampiran gagal | sesuai harapan (24 ms) | Lulus |
 | KH-potongTeks-04 | nilai sah | tabel dan gambar dibuang dari hitungan: HTML dengan tabel dan gambar | sesuai harapan (0 ms) | Lulus |
 | KH-potongTeks-05 | nilai sah | judul tingkat 1 di luar templat mengakhiri bagian dan tercatat | sesuai harapan (0 ms) | Lulus |
@@ -335,7 +335,7 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KH-periodeDitutup-01 | batas bawah / atas | tepat pada tanggal tutup dan sakelar ditutup = ditutup (batas sah) | sesuai harapan (6 ms) | Lulus |
+| KH-periodeDitutup-01 | batas bawah / atas | tepat pada tanggal tutup dan sakelar ditutup = ditutup (batas sah) | sesuai harapan (1 ms) | Lulus |
 | KH-periodeDitutup-02 | batas bawah / atas | satu detik sebelum tanggal tutup = belum ditutup (batas bawah tidak sah) | sesuai harapan (0 ms) | Lulus |
 | KH-periodeDitutup-03 | nilai sah | satu detik sesudah tanggal tutup = ditutup | sesuai harapan (0 ms) | Lulus |
 | KH-periodeDitutup-04 | nilai sah | sakelar masa pengusulan berjalan menang walau tanggal sudah lewat (penentu tunggal) | sesuai harapan (0 ms) | Lulus |
@@ -415,11 +415,12 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KH-buatDokumenTemplat-01 | nilai tidak sah | hasilnya .docx yang valid (ZIP berkepala PK) dan tidak kosong | sesuai harapan (29 ms) | Lulus |
-| KH-buatDokumenTemplat-02 | nilai sah | terbaca balik, bagian sama dan urutan sama dengan templat | sesuai harapan (36 ms) | Lulus |
-| KH-buatDokumenTemplat-03 | batas bawah / atas | judul dokumen memuat nama skema; panduan batas kata dan wajib/opsional ada di bawah judul bagian | sesuai harapan (23 ms) | Lulus |
-| KH-buatDokumenTemplat-04 | nilai sah | bagian Kata Kunci dan Daftar Pustaka ditambahkan bila templat belum memuatnya | sesuai harapan (21 ms) | Lulus |
-| KH-buatDokumenTemplat-05 | nilai sah | urutan bagian mengikuti nomor urutan, bukan urutan larik masukan | sesuai harapan (20 ms) | Lulus |
+| KH-buatDokumenTemplat-01 | nilai tidak sah | hasilnya .docx yang valid (ZIP berkepala PK) dan tidak kosong | sesuai harapan (30 ms) | Lulus |
+| KH-buatDokumenTemplat-02 | nilai tidak sah | terbaca balik, bagian sama dan urutan sama; judul berhuruf A. JUDUL dst.; tempat isian kosong | sesuai harapan (39 ms) | Lulus |
+| KH-buatDokumenTemplat-03 | batas bawah / atas | berkas memuat kalimat petunjuk resmi (batas dari templat), tempat isian [ … ], judul skema dan lampiran | sesuai harapan (20 ms) | Lulus |
+| KH-buatDokumenTemplat-04 | nilai sah | bagian Kata Kunci dan Daftar Pustaka ditambahkan bila templat belum memuatnya | sesuai harapan (22 ms) | Lulus |
+| KH-buatDokumenTemplat-05 | nilai sah | urutan bagian mengikuti nomor urutan, bukan urutan larik masukan | sesuai harapan (22 ms) | Lulus |
+| KH-buatDokumenTemplat-06 | nilai tidak sah | isian pengusul di bawah petunjuk terbaca balik tanpa petunjuk dan tanpa tanda [ ] | sesuai harapan (23 ms) | Lulus |
 | KH-namaBerkasTemplat-01 | nilai sah | nama bermakna memuat kode skema, versi, dan status | sesuai harapan (0 ms) | Lulus |
 | KH-namaBerkasTemplat-02 | tipe salah / nilai janggal | kode skema dengan karakter janggal dibersihkan; kode kosong memakai cadangan | sesuai harapan (0 ms) | Lulus |
 | KH-namaBerkasTemplat-03 | tipe salah / nilai janggal | tipe media DOCX baku | sesuai harapan (0 ms) | Lulus |
@@ -436,6 +437,23 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-bersihkanIsianDraf-02 | nilai tidak sah | baris bagian tanpa nama dan lampiran kosong dibuang; draf kosong sah | sesuai harapan (0 ms) | Lulus |
 | KH-bersihkanIsianDraf-03 | batas bawah / atas | batas kata tidak sah (di bawah batas, huruf, desimal) menjadi tanpa batas | sesuai harapan (0 ms) | Lulus |
 | KH-bersihkanIsianDraf-04 | batas bawah / atas | spasi di nama dan batas dipangkas; batas tepat 1 sah (batas bawah) | sesuai harapan (0 ms) | Lulus |
+
+#### `templat-isian-substansi.test.ts`
+
+- **Unit yang diuji:** Isian Substansi Proposal: struktur templat; Isian Substansi Proposal: butir cek turunan dan katalog
+- **Sumber rencana uji:** Sumber: Class Diagram TemplatProposal 1 — 0..* BagianTemplat, Contract C-01/C-31 (struktur Isian Substansi), Contract C-16 hitungKata dan C-17 cekKataKunci (butir turunan); data templat seed data/contoh/templat.json.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KH-isianSubstansi-01 | nilai sah | delapan bagian A-H berurutan dengan judul berhuruf besar | sesuai harapan (1 ms) | Lulus |
+| KH-isianSubstansi-02 | batas bawah / atas | batas kata: Judul 20, Ringkasan 300, Pendahuluan 1000 (Dasar) atau 1500 (Terapan), Metode 1000, sisanya tanpa batas | sesuai harapan (0 ms) | Lulus |
+| KH-isianSubstansi-03 | nilai sah | seed data/contoh/templat.json sama persis dengan struktur Isian Substansi (Dasar dan Terapan) dan berlabel struktur Isian Substansi | sesuai harapan (0 ms) | Lulus |
+| KH-isianSubstansi-04 | batas bawah / atas | kalimat petunjuk resmi per bagian, angka batas diisi dari batas kata bagian | sesuai harapan (1 ms) | Lulus |
+| KH-isianSubstansi-05 | tipe salah / nilai janggal | batas kata null memakai batas resmi bawaan; bagian di luar Isian Substansi tanpa petunjuk resmi (null) | sesuai harapan (0 ms) | Lulus |
+| KH-isianSubstansi-06 | batas bawah / atas | turunan templat Dasar: delapan butir bagian wajib, empat butir batas kata (Judul 20, Ringkasan 300, Pendahuluan 1000, Metode 1000), tiga lampiran | sesuai harapan (1 ms) | Lulus |
+| KH-isianSubstansi-07 | batas bawah / atas | turunan templat Terapan: batas Pendahuluan 1500 | sesuai harapan (0 ms) | Lulus |
+| KH-isianSubstansi-08 | nilai sah | setiap bagian yang dirujuk butir katalog ada di templat Dasar dan Terapan; kata kunci tepat 5 dipisah titik koma | sesuai harapan (0 ms) | Lulus |
 
 #### `templat-kelengkapan.test.ts`
 
@@ -486,6 +504,7 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-turunkanButirCek-07 | nilai sah | semua butir deterministik dan berasal dari templat (Q6); 12 butir menghasilkan nomor dua digit sampai 12 | sesuai harapan (0 ms) | Lulus |
 | KH-turunkanButirCek-08 | tipe salah / nilai janggal | nama bagian dengan tanda kutip tetap utuh pada parameter dan deskripsi (nilai janggal) | sesuai harapan (0 ms) | Lulus |
 
+
 #### `unduhan-akses.test.ts`
 
 - **Unit yang diuji:** bolehUnduhBerkasProposal; dispositionUnduhan dan kepalaUnduhan; bentukNamaBerkas
@@ -511,13 +530,13 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KH-cn-01 | nilai sah | menggabungkan kelas dan membuang nilai palsu | sesuai harapan (5 ms) | Lulus |
+| KH-cn-01 | nilai sah | menggabungkan kelas dan membuang nilai palsu | sesuai harapan (4 ms) | Lulus |
 | KH-cn-02 | nilai sah | kelas Tailwind yang bentrok: yang terakhir menang | sesuai harapan (0 ms) | Lulus |
 | KH-cn-03 | nilai sah | masukan bersyarat berbentuk objek dan larik | sesuai harapan (0 ms) | Lulus |
 | KH-cn-04 | nilai tidak sah | tanpa masukan menghasilkan string kosong | sesuai harapan (0 ms) | Lulus |
 | KH-formatTanggal-01 | nilai tidak sah | tanggal valid ditulis hari bulan tahun menurut WIB; kosong menjadi tanda hubung | sesuai harapan (0 ms) | Lulus |
 | KH-formatWaktu-01 | nilai tidak sah | waktu ditutup dengan WIB; kosong menjadi tanda hubung | sesuai harapan (0 ms) | Lulus |
-| KH-formatAngka-01 | nilai sah | pemisah ribuan titik | sesuai harapan (3 ms) | Lulus |
+| KH-formatAngka-01 | nilai sah | pemisah ribuan titik | sesuai harapan (2 ms) | Lulus |
 
 ## 4. Uji unit *white box* (KP)
 
@@ -586,11 +605,11 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-klienBima-01 | cabang / jalur | berhasil pada percobaan ketiga | sesuai harapan (26 ms) | Lulus |
+| KP-klienBima-01 | cabang / jalur | berhasil pada percobaan ketiga | sesuai harapan (25 ms) | Lulus |
 | KP-klienBima-02 | nilai tidak sah | gagal setelah 3 percobaan total | sesuai harapan (3 ms) | Lulus |
 | KP-klienBima-03 | cabang / jalur | tidak mengulang galat 4xx | sesuai harapan (0 ms) | Lulus |
 | KP-klienBima-04 | cabang / jalur | mengulang galat jaringan | sesuai harapan (2 ms) | Lulus |
-| KP-klienBima-05 | cabang / jalur | stub BIMA memuat reviewer, mengirim penugasan, dan mencatat panggilan | sesuai harapan (3 ms) | Lulus |
+| KP-klienBima-05 | cabang / jalur | stub BIMA memuat reviewer, mengirim penugasan, dan mencatat panggilan | sesuai harapan (2 ms) | Lulus |
 | KP-klienBima-06 | tipe salah / nilai janggal | ambilBerkas mengembalikan bytes dan tipe; berkas tak ada gagal 404 tanpa ulang | sesuai harapan (1 ms) | Lulus |
 | KP-klienBima-07 | cabang / jalur | setiap metode memanggil jalur dan metode HTTP yang benar | sesuai harapan (0 ms) | Lulus |
 | KP-klienBima-08 | cabang / jalur | ambilProposal mengodekan id pada URL | sesuai harapan (0 ms) | Lulus |
@@ -655,9 +674,9 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-ekstrakNaskah-01 | cabang / jalur | PDF: judul bagian dikenali dari nama templat | sesuai harapan (71 ms) | Lulus |
+| KP-ekstrakNaskah-01 | cabang / jalur | PDF: judul bagian dikenali dari nama templat | sesuai harapan (68 ms) | Lulus |
 | KP-ekstrakNaskah-02 | tipe salah / nilai janggal | format tidak dikenal ditolak | sesuai harapan (1 ms) | Lulus |
-| KP-ekstrakNaskah-03 | nilai tidak sah | teks lampiran PDF terbaca; berkas rusak menghasilkan teks kosong | sesuai harapan (19 ms) | Lulus |
+| KP-ekstrakNaskah-03 | nilai tidak sah | teks lampiran PDF terbaca; berkas rusak menghasilkan teks kosong | sesuai harapan (18 ms) | Lulus |
 
 #### `pengajuan-html-berkas.test.ts`
 
@@ -678,6 +697,33 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 | KP-ekstrakTeksLampiran-01 | tipe salah / nilai janggal | format tidak dikenal menghasilkan teks kosong, bukan galat | sesuai harapan (0 ms) | Lulus |
 | KP-ekstrakTeksLampiran-02 | nilai tidak sah | DOCX rusak ditelan menjadi teks kosong | sesuai harapan (1 ms) | Lulus |
 
+#### `pengajuan-potong-isian.test.ts`
+
+- **Unit yang diuji:** buangPetunjuk (cabang); lepasTandaIsian (cabang); buangLampiranEkspor dan potongDaftarPustakaEkspor (cabang); normalisasiJudul: huruf bagian (cabang); entriPustaka: baris lanjutan ekspor BIMA (cabang)
+- **Sumber rencana uji:** Sumber: Method Specification MS-01 potongPerBagian (Contract C-21), cabang baru Isian Substansi: judul berhuruf, melewati sampul/identitas ekspor BIMA, membuang kalimat petunjuk dan tanda [ ], memotong lampiran ekspor, kata kunci multibaris.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KP-buangPetunjuk-01 | nilai tidak sah | baris kosong dan baris 'Panduan: ...' di awal dibuang meski tanpa petunjuk resmi | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-02 | nilai tidak sah | petunjuk kosong (tanpa kata) tidak membuang apa pun | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-03 | nilai tidak sah | baris tanpa kata (mis. tanda baca saja) menghentikan pencocokan; baris yang berbeda juga | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-04 | cabang / jalur | baris lebih panjang daripada sisa petunjuk (isi menempel pada petunjuk) menghentikan pencocokan | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-05 | batas bawah / atas | angka batas boleh berbeda; salah ketik satu huruf pada kata panjang dimaafkan; kata pendek harus sama | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-06 | cabang / jalur | petunjuk terbaca sebagian: >= 80% kalimat dibuang; kurang dari itu dibiarkan | sesuai harapan (0 ms) | Lulus |
+| KP-buangPetunjuk-07 | cabang / jalur | kata pendek yang berbeda satu huruf bukan salah ketik (panjang kurang dari 5) | sesuai harapan (0 ms) | Lulus |
+| KP-lepasTandaIsian-01 | nilai tidak sah | masukan kosong atau hanya baris kosong menghasilkan larik kosong | sesuai harapan (0 ms) | Lulus |
+| KP-lepasTandaIsian-02 | nilai tidak sah | '[' dan ']' di baris sendiri di awal/akhir dibuang walau pasangannya tidak terbaca; hanya '[' atau ']' menjadi kosong | sesuai harapan (0 ms) | Lulus |
+| KP-lepasTandaIsian-03 | cabang / jalur | pembuka inline dan penutup seimbang: '[isi' ... 'akhir]' dilepas; penutup yang seimbang ('[4]') dipertahankan | sesuai harapan (0 ms) | Lulus |
+| KP-lepasTandaIsian-04 | nilai tidak sah | baris pertama berupa sitasi '[1] ...' bukan tanda isian; placeholder '[ … ]' dan '[...]' menjadi kosong | sesuai harapan (0 ms) | Lulus |
+| KP-lampiranEkspor-01 | nilai tidak sah | tanpa judul surat, baris tidak berubah | sesuai harapan (0 ms) | Lulus |
+| KP-lampiranEkspor-02 | cabang / jalur | dipotong pada judul surat berikut kop suratnya (huruf kapital, alamat, baris pendek); pustaka bernomor dan tautan dipertahankan | sesuai harapan (0 ms) | Lulus |
+| KP-lampiranEkspor-03 | cabang / jalur | kurang dari tiga entri berurutan: daftar tidak dipotong | sesuai harapan (0 ms) | Lulus |
+| KP-lampiranEkspor-04 | cabang / jalur | entri terakhir dibawa sampai baris penutup (titik, bukan inisial) atau tautan; artikel sesudahnya dibuang | sesuai harapan (0 ms) | Lulus |
+| KP-lampiranEkspor-05 | batas bawah / atas | entri terakhir tanpa penutup dibatasi delapan baris; nomor yang melompat tidak masuk rantai | sesuai harapan (0 ms) | Lulus |
+| KP-lengkapiBagian-01 | cabang / jalur | atribut huruf dari urutan dan petunjuk dari nama; atribut petunjuk yang sudah ada dipertahankan | sesuai harapan (0 ms) | Lulus |
+| KP-entriPustaka-01 | cabang / jalur | baris lanjutan berawalan DOI ('10.1016/...') atau tahun ('2016. doi') bukan entri baru; '[1]teks' rapat tetap entri | sesuai harapan (0 ms) | Lulus |
+
 #### `pengajuan-potong.test.ts`
 
 - **Unit yang diuji:** potongPerBagian (cabang); potongPerBagian kata kunci (cabang)
@@ -686,7 +732,7 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-potongPerBagian-01 | nilai tidak sah | blok sebelum judul bagian pertama menjadi judul dokumen (baris kosong dilewati) | sesuai harapan (2 ms) | Lulus |
+| KP-potongPerBagian-01 | nilai tidak sah | blok sebelum judul bagian pertama menjadi judul dokumen (baris kosong dilewati) | sesuai harapan (3 ms) | Lulus |
 | KP-potongPerBagian-02 | nilai tidak sah | tanpa satu pun judul bagian, hasil kosong dan judul dokumen dari blok pertama | sesuai harapan (0 ms) | Lulus |
 | KP-potongPerBagian-03 | cabang / jalur | paragraf pendek yang isinya nama bagian (mis. PDF) dikenali sebagai judul | sesuai harapan (0 ms) | Lulus |
 | KP-potongPerBagian-04 | cabang / jalur | paragraf lebih dari 80 karakter bernama sama dengan bagian bukan judul | sesuai harapan (0 ms) | Lulus |
@@ -707,15 +753,15 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-susunUsulanMurni-01 | cabang / jalur | tidak pernah memilih reviewer dari institusi pengusul | sesuai harapan (8 ms) | Lulus |
+| KP-susunUsulanMurni-01 | cabang / jalur | tidak pernah memilih reviewer dari institusi pengusul | sesuai harapan (9 ms) | Lulus |
 | KP-susunUsulanMurni-02 | batas bawah / atas | meratakan beban dan tidak melampaui batas | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-03 | cabang / jalur | memperhitungkan beban awal (penugasan yang sudah ditetapkan) | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-04 | cabang / jalur | S-1: melaporkan proposal yang belum dapat ditugaskan bila reviewer kurang | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-05 | nilai tidak sah | S-1: proposal tanpa reviewer berinstitusi berbeda tidak dapat ditugaskan | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-06 | cabang / jalur | menggeser proposal lain bila greedy buntu (jalur penambah) | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-07 | cabang / jalur | hasil deterministik untuk masukan yang sama | sesuai harapan (0 ms) | Lulus |
-| KP-susunUsulanMurniSkala-01 | cabang / jalur | membagi seluruh proposal dengan beda institusi, beban rata, dan cepat (< 3 dtk) | sesuai harapan (100 ms) | Lulus |
-| KP-susunUsulanMurniSkala-02 | batas bawah / atas | S-1 cepat bila batas diturunkan di bawah kapasitas (60 x 130 < 10.000) | sesuai harapan (43 ms) | Lulus |
+| KP-susunUsulanMurniSkala-01 | cabang / jalur | membagi seluruh proposal dengan beda institusi, beban rata, dan cepat (< 3 dtk) | sesuai harapan (98 ms) | Lulus |
+| KP-susunUsulanMurniSkala-02 | batas bawah / atas | S-1 cepat bila batas diturunkan di bawah kapasitas (60 x 130 < 10.000) | sesuai harapan (42 ms) | Lulus |
 | KP-susunUsulanMurni-08 | nilai tidak sah | tanpa proposal tidak menghasilkan penugasan maupun kekurangan | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-09 | nilai tidak sah | tanpa reviewer semua proposal belum ditugaskan | sesuai harapan (0 ms) | Lulus |
 | KP-susunUsulanMurni-10 | cabang / jalur | institusi dinormalisasi (huruf besar dan spasi tepi) saat memilih reviewer layak | sesuai harapan (0 ms) | Lulus |
@@ -731,20 +777,34 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-periksaSemantik-01 | cabang / jalur | sukses pada percobaan pertama: Memenuhi dengan kutipan dan keyakinan, satu panggilan | sesuai harapan (3 ms) | Lulus |
+| KP-periksaSemantik-01 | cabang / jalur | sukses pada percobaan pertama: Memenuhi dengan kutipan dan keyakinan, satu panggilan | sesuai harapan (2 ms) | Lulus |
 | KP-periksaSemantik-02 | batas bawah / atas | batas waktu pada percobaan pertama lalu sukses: percobaan 2, hasil normal | sesuai harapan (2 ms) | Lulus |
-| KP-periksaSemantik-03 | batas bawah / atas | batas waktu dua kali: Belum ada rekomendasi tanpa rekomendasi, kutipan, dan keyakinan; alasan memuat galat terakhir | sesuai harapan (1 ms) | Lulus |
+| KP-periksaSemantik-03 | batas bawah / atas | batas waktu dua kali: Belum ada rekomendasi tanpa rekomendasi, kutipan, dan keyakinan; alasan memuat galat terakhir | sesuai harapan (2 ms) | Lulus |
 | KP-periksaSemantik-04 | cabang / jalur | kutipan palsu: Perlu diperiksa manual, kutipan dibuang, rekomendasi semula tetap tercatat | sesuai harapan (0 ms) | Lulus |
 | KP-periksaSemantik-05 | cabang / jalur | kutipan dengan tanda kutip lurus dan spasi berbeda tetap dikenali (tidak jatuh ke Perlu diperiksa manual) | sesuai harapan (0 ms) | Lulus |
-| KP-periksaSemantik-06 | nilai tidak sah | Tidak memenuhi tanpa kutipan diterima; satu butir gagal tidak menggagalkan butir lain (pekerja bersamaan) | sesuai harapan (1 ms) | Lulus |
+| KP-periksaSemantik-06 | nilai tidak sah | Tidak memenuhi tanpa kutipan diterima; satu butir gagal tidak menggagalkan butir lain (pekerja bersamaan) | sesuai harapan (2 ms) | Lulus |
 | KP-periksaSemantik-07 | cabang / jalur | skenario paksa tiruan 'kutipan-salah' berlaku pada butir pertama saja | sesuai harapan (0 ms) | Lulus |
-| KP-periksaSemantik-08 | cabang / jalur | skenario paksa tiruan 'tidak-merespons' menghasilkan Belum ada rekomendasi dan label tiruan | sesuai harapan (1 ms) | Lulus |
+| KP-periksaSemantik-08 | cabang / jalur | skenario paksa tiruan 'tidak-merespons' menghasilkan Belum ada rekomendasi dan label tiruan | sesuai harapan (2 ms) | Lulus |
 | KP-cariKutipan-01 | tipe salah / nilai janggal | cabang token kosong (null, undefined, spasi) dan teks kosong mengembalikan null | sesuai harapan (0 ms) | Lulus |
 | KP-cariKutipan-02 | cabang / jalur | cabang cocok mengembalikan mulai dan akhir; tanda kutip tunggal lengkung kiri/kanan setara apostrof | sesuai harapan (0 ms) | Lulus |
 | KP-cariKutipan-03 | cabang / jalur | cabang tidak cocok: huruf besar-kecil dibedakan | sesuai harapan (0 ms) | Lulus |
 | KP-siapkanTeksTanpaIdentitas-03 | tipe salah / nilai janggal | identitas lain (mis. email) dibuang; nilai kosong, null, dan lebih pendek dari tiga huruf dilewati | sesuai harapan (0 ms) | Lulus |
 | KP-siapkanTeksTanpaIdentitas-04 | nilai tidak sah | varian nama: tanpa gelar depan dan belakang dibuang walau teks hanya memuat varian itu; yang terpanjang diganti lebih dulu | sesuai harapan (0 ms) | Lulus |
 | KP-siapkanTeksTanpaIdentitas-05 | nilai tidak sah | nama tanpa koma dan tanpa gelar menghasilkan satu varian | sesuai harapan (0 ms) | Lulus |
+
+#### `semantik-identitas-bima.test.ts`
+
+- **Unit yang diuji:** buangIdentitasBima (cabang); kumpulkanIdentitasBima dan siapkanTeksTanpaIdentitas (cabang)
+- **Sumber rencana uji:** Sumber: Method Specification MS-08 siapkanTeksTanpaIdentitas (Contract C-23), cabang ekspor BIMA: pembuangan bagian "2. IDENTITAS PENGUSUL", baris NO. DOKUMEN, dan pengumpulan identitas anggota tim.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KP-identitasBima-01 | cabang / jalur | blok identitas diganti satu penanda sampai judul bagian bernomor berikutnya; NO. DOKUMEN dibuang | sesuai harapan (2 ms) | Lulus |
+| KP-identitasBima-02 | nilai tidak sah | tanpa blok identitas, hanya baris NO. DOKUMEN yang dibuang; teks lain tidak berubah | sesuai harapan (0 ms) | Lulus |
+| KP-identitasBima-03 | nilai tidak sah | blok identitas tanpa judul bagian penutup: dibuang sampai akhir teks; A. JUDUL juga menutup blok | sesuai harapan (0 ms) | Lulus |
+| KP-identitasBima-04 | nilai tidak sah | nomor induk panjang dan nama di atasnya dikumpulkan; baris peran, angka, dan nama pendek diabaikan; tanpa blok: kosong | sesuai harapan (1 ms) | Lulus |
+| KP-identitasBima-05 | nilai tidak sah | seluruh identitas anggota tim ikut dibuang dari teks lain (pembagian tugas pada Metode), tanpa memberi identitas pengusul | sesuai harapan (1 ms) | Lulus |
 
 #### `semantik-mesin.test.ts`
 
@@ -775,15 +835,15 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| KP-panduanBagian-01 | cabang / jalur | Kata Kunci memakai panduan pemisah titik koma | sesuai harapan (1 ms) | Lulus |
-| KP-panduanBagian-02 | cabang / jalur | Daftar Pustaka memakai panduan urutan sitasi (nama dinormalisasi, penomoran diabaikan) | sesuai harapan (0 ms) | Lulus |
-| KP-panduanBagian-03 | tipe salah / nilai janggal | batas kata null menjadi tanpa batas; angka diformat Indonesia | sesuai harapan (0 ms) | Lulus |
+| KP-panduanBagian-01 | cabang / jalur | bagian Isian Substansi memakai kalimat petunjuk resmi; Kata Kunci menyebut titik koma | sesuai harapan (1 ms) | Lulus |
+| KP-panduanBagian-02 | batas bawah / atas | nama dinormalisasi (penomoran/huruf diabaikan) dan angka batas diisi dari batas kata bagian | sesuai harapan (0 ms) | Lulus |
+| KP-panduanBagian-03 | tipe salah / nilai janggal | bagian di luar Isian Substansi: batas kata null menjadi tanpa batas; angka diformat Indonesia | sesuai harapan (0 ms) | Lulus |
 | KP-bagianDokumen-01 | nilai tidak sah | tanpa bagian sama sekali hanya berisi dua bagian wajib dengan urutan 1 dan 2 | sesuai harapan (0 ms) | Lulus |
 | KP-bagianDokumen-02 | cabang / jalur | hanya satu yang kurang: hanya itu yang ditambahkan, nomor urut melanjutkan yang terbesar | sesuai harapan (0 ms) | Lulus |
 | KP-bagianDokumen-03 | cabang / jalur | masukan tidak diubah (tidak ada efek samping) | sesuai harapan (0 ms) | Lulus |
-| KP-buatDokumenTemplat-01 | tipe salah / nilai janggal | periode null menulis 'belum ditetapkan'; tanpa lampiran menulis 'Tidak ada lampiran wajib' | sesuai harapan (42 ms) | Lulus |
-| KP-buatDokumenTemplat-02 | cabang / jalur | periode terisi menulis nama dan tahun; lampiran bernomor | sesuai harapan (20 ms) | Lulus |
-| KP-buatDokumenTemplat-03 | nilai tidak sah | periode tanpa tahun tidak menulis tanda kurung | sesuai harapan (19 ms) | Lulus |
+| KP-buatDokumenTemplat-01 | tipe salah / nilai janggal | periode null menulis 'belum ditetapkan'; tanpa lampiran menulis 'Tidak ada lampiran wajib' | sesuai harapan (41 ms) | Lulus |
+| KP-buatDokumenTemplat-02 | cabang / jalur | periode terisi menulis nama dan tahun; lampiran bernomor | sesuai harapan (19 ms) | Lulus |
+| KP-buatDokumenTemplat-03 | nilai tidak sah | periode tanpa tahun tidak menulis tanda kurung | sesuai harapan (17 ms) | Lulus |
 
 #### `templat-status.test.ts`
 
@@ -814,8 +874,8 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-basisData-01 | nilai tidak sah | berkas: simpan dan ambil (adaptor bytea bila tanpa token Blob) | sesuai harapan (2162 ms) | Lulus |
-| IT-basisData-02 | nilai sah | log_audit: hanya bisa ditambah | sesuai harapan (3395 ms) | Lulus |
+| IT-basisData-01 | nilai tidak sah | berkas: simpan dan ambil (adaptor bytea bila tanpa token Blob) | sesuai harapan (2199 ms) | Lulus |
+| IT-basisData-02 | nilai sah | log_audit: hanya bisa ditambah | sesuai harapan (3401 ms) | Lulus |
 
 #### `idempotensi.test.ts`
 
@@ -825,9 +885,9 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-idempotensi-01 | nilai sah | kotak masuk BIMA: kunci yang sama tidak menambah baris ganda (keputusan dan penugasan) | sesuai harapan (2304 ms) | Lulus |
-| IT-idempotensi-02 | nilai sah | kotak masuk BIMA: dua permintaan serentak untuk kelompok yang sama menghasilkan satu baris per kunci | sesuai harapan (3152 ms) | Lulus |
-| IT-idempotensi-03 | nilai sah | jalan pintas UC-05b: naskah BIMA dipulihkan ke seed pada pemakaian berulang | sesuai harapan (12568 ms) | Lulus |
+| IT-idempotensi-01 | nilai sah | kotak masuk BIMA: kunci yang sama tidak menambah baris ganda (keputusan dan penugasan) | sesuai harapan (2937 ms) | Lulus |
+| IT-idempotensi-02 | nilai sah | kotak masuk BIMA: dua permintaan serentak untuk kelompok yang sama menghasilkan satu baris per kunci | sesuai harapan (2613 ms) | Lulus |
+| IT-idempotensi-03 | nilai sah | jalan pintas UC-05b: naskah BIMA dipulihkan ke seed pada pemakaian berulang | sesuai harapan (12955 ms) | Lulus |
 
 #### `pengajuan-db.test.ts`
 
@@ -837,11 +897,11 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-pengajuan-01 | nilai sah | contoh A: semua butir lolos, proposal Terkirim dengan bukti pengiriman | sesuai harapan (16522 ms) | Lulus |
-| IT-pengajuan-02 | nilai sah | token yang sama tidak membuat versi ganda | sesuai harapan (16547 ms) | Lulus |
-| IT-pengajuan-03 | batas bawah / atas | contoh B: Ditahan, butir gagal paling atas dengan bagian dan batas; diajukan ulang tanpa batas token membuat versi baru | sesuai harapan (26525 ms) | Lulus |
-| IT-pengajuan-04 | nilai tidak sah | contoh C lalu masa ditutup: Ditahan, kemudian Ditolak tanpa versi baru (3a) | sesuai harapan (21744 ms) | Lulus |
-| IT-pengajuan-05 | nilai sah | proposal milik pengusul lain tidak dapat dibuka atau diajukan | sesuai harapan (311 ms) | Lulus |
+| IT-pengajuan-01 | nilai sah | contoh A: semua butir lolos, proposal Terkirim dengan bukti pengiriman | sesuai harapan (16907 ms) | Lulus |
+| IT-pengajuan-02 | nilai sah | token yang sama tidak membuat versi ganda | sesuai harapan (15487 ms) | Lulus |
+| IT-pengajuan-03 | batas bawah / atas | contoh B: Ditahan, butir gagal paling atas dengan bagian dan batas; diajukan ulang tanpa batas token membuat versi baru | sesuai harapan (29193 ms) | Lulus |
+| IT-pengajuan-04 | nilai tidak sah | contoh C lalu masa ditutup: Ditahan, kemudian Ditolak tanpa versi baru (3a) | sesuai harapan (21042 ms) | Lulus |
+| IT-pengajuan-05 | nilai sah | proposal milik pengusul lain tidak dapat dibuka atau diajukan | sesuai harapan (257 ms) | Lulus |
 
 #### `penilaian-reviewer.test.ts`
 
@@ -851,13 +911,13 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-penilaian-01 | nilai sah | UC-09: jalankanPemeriksaanSemantik menyimpan hasil per butir semantik, kutipan sah, berlabel tiruan | sesuai harapan (3213 ms) | Lulus |
-| IT-penilaian-02 | nilai sah | NFR 3.1: reviewer lain mendapat 403; reviewer pemilik lolos | sesuai harapan (1507 ms) | Lulus |
-| IT-penilaian-03 | nilai sah | J-07 hanya memuat penugasan milik sendiri | sesuai harapan (554 ms) | Lulus |
-| IT-penilaian-04 | nilai tidak sah | J-08 memuat tab, butir, dan membuka cepat tanpa LLM (NFR 2.3) | sesuai harapan (4977 ms) | Lulus |
-| IT-penilaian-05 | nilai tidak sah | UC-08: koreksi tanpa alasan ditolak; dengan alasan tersimpan dan rekomendasi semula tidak berubah | sesuai harapan (5288 ms) | Lulus |
-| IT-penilaian-06 | nilai tidak sah | S-1: simpan sementara memberi label Draf tanpa log audit dan tanpa kirim ke BIMA | sesuai harapan (3204 ms) | Lulus |
-| IT-penilaian-07 | nilai sah | simpan permanen menolak komponen belum lengkap; lengkap -> Final, Selesai, log audit, terkirim ke BIMA | sesuai harapan (8515 ms) | Lulus |
+| IT-penilaian-01 | nilai sah | UC-09: jalankanPemeriksaanSemantik menyimpan hasil per butir semantik, kutipan sah, berlabel tiruan | sesuai harapan (3936 ms) | Lulus |
+| IT-penilaian-02 | nilai sah | NFR 3.1: reviewer lain mendapat 403; reviewer pemilik lolos | sesuai harapan (1355 ms) | Lulus |
+| IT-penilaian-03 | nilai sah | J-07 hanya memuat penugasan milik sendiri | sesuai harapan (498 ms) | Lulus |
+| IT-penilaian-04 | nilai tidak sah | J-08 memuat tab, butir, dan membuka cepat tanpa LLM (NFR 2.3) | sesuai harapan (5474 ms) | Lulus |
+| IT-penilaian-05 | nilai tidak sah | UC-08: koreksi tanpa alasan ditolak; dengan alasan tersimpan dan rekomendasi semula tidak berubah | sesuai harapan (4988 ms) | Lulus |
+| IT-penilaian-06 | nilai tidak sah | S-1: simpan sementara memberi label Draf tanpa log audit dan tanpa kirim ke BIMA | sesuai harapan (3437 ms) | Lulus |
+| IT-penilaian-07 | nilai sah | simpan permanen menolak komponen belum lengkap; lengkap -> Final, Selesai, log audit, terkirim ke BIMA | sesuai harapan (8346 ms) | Lulus |
 
 #### `penugasan-pemantauan-db.test.ts`
 
@@ -867,10 +927,10 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-penugasanDb-01 | nilai sah | daftar periode ditutup hanya memuat periode ditutup dengan hitungan tak negatif | sesuai harapan (1611 ms) | Lulus |
-| IT-penugasanDb-02 | tipe salah / nilai janggal | id periode tidak sah atau tidak ada menghasilkan null | sesuai harapan (280 ms) | Lulus |
-| IT-pemantauanDb-01 | tipe salah / nilai janggal | rincian proposal yang tidak ada menghasilkan null | sesuai harapan (529 ms) | Lulus |
-| IT-pemantauanDb-02 | nilai sah | rincian proposal contoh dapat dibuka lewat idProposal BIMA maupun id baris | sesuai harapan (3139 ms) | Lulus |
+| IT-penugasanDb-01 | nilai sah | daftar periode ditutup hanya memuat periode ditutup dengan hitungan tak negatif | sesuai harapan (2042 ms) | Lulus |
+| IT-penugasanDb-02 | tipe salah / nilai janggal | id periode tidak sah atau tidak ada menghasilkan null | sesuai harapan (299 ms) | Lulus |
+| IT-pemantauanDb-01 | tipe salah / nilai janggal | rincian proposal yang tidak ada menghasilkan null | sesuai harapan (614 ms) | Lulus |
+| IT-pemantauanDb-02 | nilai sah | rincian proposal contoh dapat dibuka lewat idProposal BIMA maupun id baris | sesuai harapan (3517 ms) | Lulus |
 
 #### `templat-aturan-db.test.ts`
 
@@ -880,51 +940,51 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 
 | ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
 |---|---|---|---|---|
-| IT-templatAturan-01 | nilai sah | S-1: skema baru belum punya templat; Susun Versi Baru membuat versi 1 | sesuai harapan (5323 ms) | Lulus |
-| IT-templatAturan-02 | nilai sah | S-2, 9a, lalu terbit: butir turunan berstatus Draf dan terkunci | sesuai harapan (9696 ms) | Lulus |
-| IT-templatAturan-03 | nilai tidak sah | 4a: butir turunan templat ditolak diubah dan tidak dapat dinonaktifkan | sesuai harapan (1601 ms) | Lulus |
-| IT-templatAturan-04 | nilai tidak sah | menambah, mengubah, dan menonaktifkan butir manual; kode ganda ditolak | sesuai harapan (11503 ms) | Lulus |
-| IT-templatAturan-05 | nilai sah | Uji pada Contoh tidak melempar galat walau pemeriksa belum tersedia | sesuai harapan (2628 ms) | Lulus |
-| IT-templatAturan-06 | nilai tidak sah | 8a: tanggal berlaku di tengah masa pengusulan ditolak; di luar rentang disimpan dan semua butir Aktif | sesuai harapan (5332 ms) | Lulus |
-| IT-templatAturan-07 | nilai sah | templat versi 2: versi lama Arsip, butir turunan lama Nonaktif pada draf, butir baru Draf | sesuai harapan (9882 ms) | Lulus |
+| IT-templatAturan-01 | nilai sah | S-1: skema baru belum punya templat; Susun Versi Baru membuat versi 1 | sesuai harapan (5146 ms) | Lulus |
+| IT-templatAturan-02 | nilai sah | S-2, 9a, lalu terbit: butir turunan berstatus Draf dan terkunci | sesuai harapan (9216 ms) | Lulus |
+| IT-templatAturan-03 | nilai tidak sah | 4a: butir turunan templat ditolak diubah dan tidak dapat dinonaktifkan | sesuai harapan (1215 ms) | Lulus |
+| IT-templatAturan-04 | nilai tidak sah | menambah, mengubah, dan menonaktifkan butir manual; kode ganda ditolak | sesuai harapan (9958 ms) | Lulus |
+| IT-templatAturan-05 | nilai sah | Uji pada Contoh tidak melempar galat walau pemeriksa belum tersedia | sesuai harapan (2871 ms) | Lulus |
+| IT-templatAturan-06 | nilai tidak sah | 8a: tanggal berlaku di tengah masa pengusulan ditolak; di luar rentang disimpan dan semua butir Aktif | sesuai harapan (4998 ms) | Lulus |
+| IT-templatAturan-07 | nilai sah | templat versi 2: versi lama Arsip, butir turunan lama Nonaktif pada draf, butir baru Draf | sesuai harapan (9834 ms) | Lulus |
 
 ### 5.2 *Use-case testing* (e2e per UC dan alur bolak-balik)
 
-Dijalankan dengan `npm run e2e` (puppeteer-core, Chrome lokal) terhadap `next start`, mode LLM tiruan. Sumber: *real use case* tiap UC dan *use scenario*. Dijalankan: 2026-10-22T20:05:58.249Z. Sasaran: server lokal (next start). Mode LLM: tiruan. Hasil: 29 dari 29 skenario lulus.
+Dijalankan dengan `npm run e2e` (puppeteer-core, Chrome lokal) terhadap `next start`, mode LLM tiruan. Sumber: *real use case* tiap UC dan *use scenario*. Dijalankan: 2026-10-22T21:48:21.954Z. Sasaran: server lokal (next start). Mode LLM: tiruan. Hasil: 29 dari 29 skenario lulus.
 
 Tangkapan layar setiap layar dan modal pada lebar 1440 dan 390 px ada di `docs/bukti-e2e/`.
 
 | Skenario | Sumber | Hasil | Catatan hasil aktual |
 |---|---|---|---|
 | Beranda diarahkan ke J-01 Masuk | Alur jendela (docs/peta-uc-jendela.md) | lulus | / menuju J-01; J-01 memuat Masuk dengan akun BIMA dan tautan Buka Pusat Demo; tanpa galat konsol (0.7 dtk) |
-| /demo: Reset & isi data demo lewat modal konfirmasi | Alur jendela (docs/peta-uc-jendela.md) | lulus | modal konfirmasi Reset & isi data demo, seed berhasil; sakelar masa pengusulan berpindah ke berjalan; tanpa galat konsol (22.9 dtk) |
+| /demo: Reset & isi data demo lewat modal konfirmasi | Alur jendela (docs/peta-uc-jendela.md) | lulus | modal konfirmasi Reset & isi data demo, seed berhasil; sakelar masa pengusulan berpindah ke berjalan; tanpa galat konsol (23.0 dtk) |
 | SSO J-01 dan guard peran | Alur jendela (docs/peta-uc-jendela.md) | lulus | anggota Tim Kerja masuk ke J-04; anggota diarahkan dengan ?galat=akses saat membuka J-02; tanpa galat konsol (5.2 dtk) |
-| UC-05a: proposal lolos semua butir (Terkirim) dan unduh templat di BIMA | Real use case UC-05 (use-case testing) | lulus | BIMA Unduh Templat: 200, document, 10076 byte; J-06 menampilkan Terkirim, daftar butir Lolos, Bukti pengiriman, Kembali ke BIMA; tanpa galat konsol (43.1 dtk) |
-| UC-05b / UC-06: ada butir gagal (Ditahan), diperbaiki lalu Terkirim V2 | Real use case UC-05 (use-case testing) | lulus | butir Gagal paling atas: Bagian "Metode" tidak melebihi 1200 kata KTA-04 Gagal Metode 1.321 kata dari batas 1.200 (lebih 121 kata) Bagian "Metode; tombol Kembali ke BIMA berfungsi; S-1.3/S-1.4: ajukan ulang dengan naskah perbaikan menghasilkan Terkirim, kode versi V2, bukti pengiriman; tanpa galat konsol (162.8 dtk) |
-| UC-05c: ditahan lalu ditolak karena masa pengusulan ditutup (3a) | Real use case UC-05 (use-case testing) | lulus | Ditahan lebih dulu, lalu Ditolak setelah masa ditutup; pesan 3a.2 memuat tanggal tutup (23 Oktober 2026); tanpa galat konsol (51.1 dtk) |
-| UC-01: menyusun templat (J-02, J-02b, S-2, M-01, jalur utama) | Real use case UC-01 (use-case testing) | lulus | J-02: Unduh Templat (.docx) menghasilkan 200 dan tipe .docx; S-2: pesan Lengkapi isian yang ditandai, isian bertanda mendapat fokus, M-01 tidak terbuka; J-02b: Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh; M-01: ringkasan versi, Batal menutup modal tanpa menerbitkan; jalur utama: M-01 Terbitkan, hasil s.10 tampil di J-02 dengan jumlah butir draf, Buka Aturan Pemeriksaan, Unduh Templat (.docx); tanpa galat konsol (28.9 dtk) |
-| UC-01 9a: masa berjalan, draf disimpan, Buka Draf, Back | Real use case UC-01 (use-case testing) | lulus | pesan 9a persis, Buka Draf dan Unduh Pratinjau (.docx); templat berlaku tidak berubah; Simpan Draf di J-02b, tombol Back kembali ke J-02 dengan pesan 9a (hasil ada di URL); tanpa galat konsol (23.3 dtk) |
-| UC-01 S-1: skema belum punya templat | Real use case UC-01 (use-case testing) | lulus | S-1: keterangan Skema ini belum memiliki templat; Susun Versi Baru membuka J-02b untuk versi 1; tanpa galat konsol (10.3 dtk) |
-| UC-02: aturan pemeriksaan (J-03, M-02 galat, M-04 4a, J-03b, M-03, M-05 8a) | Real use case UC-02 (use-case testing) | lulus | 4a: M-04 memuat pesan penolakan dan Buka Templat Proposal; form butir tidak dibuka; Tutup menutup modal; M-02: isian wajib kosong ditandai di dekat isiannya, modal tetap terbuka; butir manual semantik ditambahkan lewat M-02; J-03b: layar sendiri dengan ringkasan per contoh, tabel butir x contoh, Uji Ulang dan Kembali ke Aturan Pemeriksaan; kode butir di J-03b menaut ke baris J-03 yang tergulir ke layar; Back dari J-03 kembali ke J-03b; M-03: Nonaktifkan butir manual; butir nonaktif tersembunyi dengan pilihan Tampilkan butir nonaktif; 8a: tanggal berlaku di tengah masa pengusulan ditolak di dalam M-05; jalur utama: M-05 Simpan Versi menampilkan basis aturan versi baru tersimpan; tanpa galat konsol (35.1 dtk) |
-| UC-03: menugaskan reviewer (J-04, J-04b, S-1, M-06 S-2, M-07, Back) | Real use case UC-03 (use-case testing) | lulus | S-1: panel Kekurangan Reviewer tampil; tabel Usulan Penugasan (6 baris), Sebaran Beban, judul proposal menaut ke J-05b; S-2: pemindahan ke reviewer sealmamater ditolak, syarat tampil di dalam M-06; pemindahan yang memenuhi syarat mengganti reviewer dan menutup M-06; M-07: pesan ditetapkan dan tercatat di BIMA dengan tautan ke J-05 dan kotak masuk BIMA; kotak masuk BIMA tiruan menerima penugasan; Back dari kotak masuk BIMA kembali ke J-04b yang memuat penugasan ditetapkan; tanpa galat konsol (73.9 dtk) |
-| UC-04: memantau kesesuaian (J-05, M-08, M-09, tautan ke J-03 dan J-05b) | Real use case UC-04 (use-case testing) | lulus | tiga bagian laporan tampil; M-08 (sheet) terbuka, butir di URL; judul proposal di sheet menaut ke /tim-kerja/proposal/572f1a07-3282-4e91-a367-00acace2644f; M-09: butir yang ditandai berlabel Perlu ditinjau dan tampil di J-03 lewat tautan Buka Aturan Pemeriksaan; tanpa galat konsol (45.9 dtk) |
-| J-05b: rincian proposal, tautan antarentitas, unduh berkas | Alur jendela (docs/peta-uc-jendela.md) | lulus | Unduh Berkas: 4 berkas, semua status 200; Kembali ke Pemantauan membuka J-05; Back kembali ke J-05b; periode menaut ke J-04b; tanpa galat konsol (16.7 dtk) |
-| UC-07a: menyetujui seluruh rekomendasi, J-08b dan M-11 Simpan Permanen | Real use case UC-07 (use-case testing) | lulus | komponen belum diputuskan ditandai dengan teks, M-11 tidak terbuka; rekomendasi tidak dikoreksi dihitung disetujui; Simpan Permanen terkirim ke BIMA, isian hanya-baca; tanpa galat konsol (23.0 dtk) |
-| UC-07c: menyimpan sementara lalu melanjutkan (Draf sudah terisi) | Real use case UC-07 (use-case testing) | lulus | J-07 berlabel Draf; J-08b memuat ulang umpan balik dan keputusan komponen tersimpan; tanpa galat konsol (13.2 dtk) |
-| UC-07b/UC-08: pemeriksaan reviewer (J-08, M-10 S-1 dan 4a, J-08b Simpan Sementara dan Permanen) | Real use case UC-07 (use-case testing) | lulus | J-08 terbuka dalam 1.8 dtk; Unduh Berkas di J-08: 200 (application/vnd.openxmlformats-officedocument.wordprocessingml.document); butir menyorot kutipan (mark); butir dan tab tersimpan di URL sehingga muat ulang mempertahankannya; S-1: pesan Alasan koreksi wajib diisi dengan bingkai merah di dalam M-10; 4a: Batal menutup M-10; koreksi tersimpan dan butir berlabel Dikoreksi reviewer; Simpan Sementara menghasilkan label Draf di J-07; draf dan koreksi dimuat ulang saat Periksa lagi (J-07 ke J-08 ke J-08b); Simpan Permanen (M-11): terkirim ke BIMA, isian hanya-baca; tanpa galat konsol (43.8 dtk) |
-| UC-09 S-1: kutipan LLM tidak ditemukan (Perlu diperiksa manual) | Real use case UC-09 (use-case testing) | lulus | label Perlu diperiksa manual tampil pada butir yang kutipannya tidak ditemukan; tanpa galat konsol (11.2 dtk) |
-| UC-09 S-2: LLM tidak merespons (Belum ada rekomendasi) | Real use case UC-09 (use-case testing) | lulus | label Belum ada rekomendasi tampil; reviewer tetap dapat menilai; tanpa galat konsol (8.9 dtk) |
-| Hak akses: 403 reviewer lain di J-08, J-08b, berkas; Tim Kerja boleh | NFR 3.2 (hak akses) dan aturan unduhan berkas | lulus | halaman J-08 milik reviewer lain menampilkan 403 Akses ditolak; route data 403; J-08b 404; unduh berkas proposal 403; reviewer tidak dapat membuka J-05b (diarahkan dengan ?galat=akses); Tim Kerja mengunduh berkas (200); tanpa sesi tidak dapat; tanpa galat konsol (9.7 dtk) |
-| Jalan pintas UC-06, UC-08, UC-09 membuka jendela yang benar | Real use case UC-06 (use-case testing) | lulus | UC-06 membuka halaman pengajuan BIMA (proposal gagal jumlah kata); UC-08 dan UC-09 membuka J-08 langsung; panel langkah lama tidak ada lagi; navigator menggantikannya; tanpa galat konsol (27.8 dtk) |
-| Alur bolak-balik: J-02, J-02b, M-01, unduh .docx, J-03, BIMA, J-06, kembali ke J-02 | Use scenario lintas UC-01, UC-02, UC-05, UC-06 dan alur bolak-balik (docs/arah-perbaikan-2026-10-22.md bagian 3) | lulus | J-02b: pratinjau .docx dari draf yang baru disimpan memuat judul bagian baru; J-02: Unduh Templat (.docx) memuat "Dampak Sosial E2E" sebagai judul bagian; J-03: butir turunan templat baru muncul; BIMA pengajuan: Unduh Templat memuat bagian baru; J-06: butir bagian baru diperiksa dan Gagal (naskah lama tidak memuat bagian itu), status Ditahan; J-02: Riwayat Versi memuat Terbit dan Arsip; versi Arsip dapat dibuka dan diunduh tanpa bagian baru; tanpa galat konsol (111.2 dtk) |
-| Reset data demo sesudah alur bolak-balik | Use scenario lintas UC-01, UC-02, UC-05, UC-06 dan alur bolak-balik (docs/arah-perbaikan-2026-10-22.md bagian 3) | lulus | data demo dipulihkan; tanpa galat konsol (19.7 dtk) |
-| Navigator demo: pindah layar/peran tidak mengubah data; 15 layar dapat dibuka | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | navigator memuat 15 layar dan menandai J-03 sebagai layar yang dibuka; pindah layar/peran (J-04b ke J-07 ke J-04b) tidak mengubah data usulan; J-01..J-08b dan dua halaman BIMA dapat dibuka dari navigator lewat Pindah layar; tanpa galat konsol (104.4 dtk) |
-| Navigator demo: skenario J-04 dan J-04b, aktif ditampilkan, Pasang skenario menyiapkan data | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | J-04 Kosong: daftar periode tampil, pil dan panel menyebut skenario aktif, 6 skenario; J-04 siap-kecil: daftar periode menampilkan enam proposal belum ditugaskan; J-04b siap: enam proposal; navigator ciut tidak menutupi isian Batas Beban; pil di jendela yang dibuka lewat menu tidak menyebut skenario jendela lain (J-05 · skenario belum dipilih); J-04b menunggu: tabel Usulan Penugasan terisi; J-04b kekurangan: Susun otomatis dan panel Kekurangan Reviewer tampil; J-04b ditetapkan: penugasan tampil dan tercatat di kotak masuk BIMA; tanpa galat konsol (128.7 dtk) |
-| Navigator demo: skenario di J-01, J-02, J-03, J-05, J-06, J-07, J-08, BIMA | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | J-01: belum masuk, masuk sebagai anggota (menu J-04/J-05 saja), masuk sebagai reviewer (J-07); J-02: tanpa templat (S-1), masa berjalan (9a), draf tersimpan; J-02b membuka draf di layar penyusunan; J-03: butir Perlu ditinjau muncul pada skenario khusus dan hilang pada normal; J-03b membuka laporan uji; J-05: belum ada penilaian final lalu data pemantauan contoh; J-06: Terkirim, Ditahan, Ditolak, dan Sedang diperiksa; J-07: kosong, Baru, Draf, Selesai; J-08: final hanya-baca, perlu diperiksa manual, belum ada rekomendasi, draf, normal; BIMA tiruan: halaman pengajuan membuka draf siap diajukan; tanpa galat konsol (288.0 dtk) |
-| Navigator demo: sakelar masa pengusulan, papan ketik, dan ciut | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | sakelar masa pengusulan di navigator mengganti keadaan J-04b (berjalan lalu ditutup); papan ketik: Esc menciutkan, Alt+Shift+N membuka, fokus pindah ke panel, Tab menjangkau tombol; navigator ciut tidak menutupi tombol utama di J-04b (viewport 1440x900); tanpa galat konsol (16.9 dtk) |
-| J-04 skala nyata: 10.000 proposal (S-1, susun, halaman dan Back, sebaran, M-07 tetapkan, kotak masuk BIMA) | NFR kinerja: 10.000 proposal (UC-03) | lulus | menyiapkan skenario skala nyata (buka J-04): 15.2 dtk; S-1 batas 60: panel Kekurangan Reviewer tampil (11.0 dtk); Susun Usulan Penugasan 10.000 proposal: 24.9 dtk dari klik sampai pesan (Waktu proses di server: 20,5 detik); tabel Usulan Penugasan 50 baris dari 10.000 (halaman 1 dari 200); Sebaran Beban 119 reviewer, 119 reviewer bersedia; proposal per reviewer terendah 84, tertinggi 85, rata-rata 84, batas 100.; halaman 2 usulan terbuka dalam 1.8 dtk; hal=2 di URL; Back kembali ke halaman 1; Tetapkan Penugasan 10.000 proposal: 5.2 dtk dari klik sampai pesan (Waktu proses di server: 4,8 detik); kotak masuk BIMA: 10.000 penugasan diterima tanpa ganda, ringkasan + 100 pesan terbaru; CATATAN WAKTU: susun 24.9 dtk, tetapkan 5.2 dtk (klik sampai pesan, lokal ke Neon); tanpa galat konsol (68.1 dtk) |
-| Skenario kecil tidak terpengaruh data skala nyata | NFR kinerja: 10.000 proposal (UC-03) | lulus | skenario J-04b siap sesudah skala nyata: 7.0 dtk; 5 reviewer bersedia; proposal per review; J-07 Semua Selesai dan Baru tepat 1 baris; kotak masuk B-2 tetap memuat 10000 penugasan; /bima/masuk menyembunyikan akun skala (11 akun tampil); tanpa galat konsol (28.8 dtk) |
-| Akhir: Reset & isi data demo (basis data bersih) | Alur jendela (docs/peta-uc-jendela.md) | lulus | reset selesai; /demo memuat 44 kartu skenario per jendela dan tanpa navigator mengambang; tanpa galat konsol (20.2 dtk) |
+| UC-05a: proposal lolos semua butir (Terkirim) dan unduh templat di BIMA | Real use case UC-05 (use-case testing) | lulus | BIMA Unduh Templat: 200, document, 10807 byte; J-06 menampilkan Terkirim, daftar butir Lolos, Bukti pengiriman, Kembali ke BIMA; tanpa galat konsol (44.1 dtk) |
+| UC-05b / UC-06: ada butir gagal (Ditahan), diperbaiki lalu Terkirim V2 | Real use case UC-05 (use-case testing) | lulus | butir Gagal paling atas: Bagian "Metode" tidak melebihi 1000 kata KTA-04 Gagal Metode 1.233 kata dari batas 1.000 (lebih 233 kata) Bagian "Metode; tombol Kembali ke BIMA berfungsi; S-1.3/S-1.4: ajukan ulang dengan naskah perbaikan menghasilkan Terkirim, kode versi V2, bukti pengiriman; tanpa galat konsol (123.4 dtk) |
+| UC-05c: ditahan lalu ditolak karena masa pengusulan ditutup (3a) | Real use case UC-05 (use-case testing) | lulus | Ditahan lebih dulu, lalu Ditolak setelah masa ditutup; pesan 3a.2 memuat tanggal tutup (23 Oktober 2026); tanpa galat konsol (44.8 dtk) |
+| UC-01: menyusun templat (J-02, J-02b, S-2, M-01, jalur utama) | Real use case UC-01 (use-case testing) | lulus | J-02: Unduh Templat (.docx) menghasilkan 200 dan tipe .docx; S-2: pesan Lengkapi isian yang ditandai, isian bertanda mendapat fokus, M-01 tidak terbuka; J-02b: Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh; M-01: ringkasan versi, Batal menutup modal tanpa menerbitkan; jalur utama: M-01 Terbitkan, hasil s.10 tampil di J-02 dengan jumlah butir draf, Buka Aturan Pemeriksaan, Unduh Templat (.docx); tanpa galat konsol (31.5 dtk) |
+| UC-01 9a: masa berjalan, draf disimpan, Buka Draf, Back | Real use case UC-01 (use-case testing) | lulus | pesan 9a persis, Buka Draf dan Unduh Pratinjau (.docx); templat berlaku tidak berubah; Simpan Draf di J-02b, tombol Back kembali ke J-02 dengan pesan 9a (hasil ada di URL); tanpa galat konsol (22.3 dtk) |
+| UC-01 S-1: skema belum punya templat | Real use case UC-01 (use-case testing) | lulus | S-1: keterangan Skema ini belum memiliki templat; Susun Versi Baru membuka J-02b untuk versi 1; tanpa galat konsol (9.9 dtk) |
+| UC-02: aturan pemeriksaan (J-03, M-02 galat, M-04 4a, J-03b, M-03, M-05 8a) | Real use case UC-02 (use-case testing) | lulus | 4a: M-04 memuat pesan penolakan dan Buka Templat Proposal; form butir tidak dibuka; Tutup menutup modal; M-02: isian wajib kosong ditandai di dekat isiannya, modal tetap terbuka; butir manual semantik ditambahkan lewat M-02; J-03b: layar sendiri dengan ringkasan per contoh, tabel butir x contoh, Uji Ulang dan Kembali ke Aturan Pemeriksaan; kode butir di J-03b menaut ke baris J-03 yang tergulir ke layar; Back dari J-03 kembali ke J-03b; M-03: Nonaktifkan butir manual; butir nonaktif tersembunyi dengan pilihan Tampilkan butir nonaktif; 8a: tanggal berlaku di tengah masa pengusulan ditolak di dalam M-05; jalur utama: M-05 Simpan Versi menampilkan basis aturan versi baru tersimpan; tanpa galat konsol (33.1 dtk) |
+| UC-03: menugaskan reviewer (J-04, J-04b, S-1, M-06 S-2, M-07, Back) | Real use case UC-03 (use-case testing) | lulus | S-1: panel Kekurangan Reviewer tampil; tabel Usulan Penugasan (6 baris), Sebaran Beban, judul proposal menaut ke J-05b; S-2: pemindahan ke reviewer sealmamater ditolak, syarat tampil di dalam M-06; pemindahan yang memenuhi syarat mengganti reviewer dan menutup M-06; M-07: pesan ditetapkan dan tercatat di BIMA dengan tautan ke J-05 dan kotak masuk BIMA; kotak masuk BIMA tiruan menerima penugasan; Back dari kotak masuk BIMA kembali ke J-04b yang memuat penugasan ditetapkan; tanpa galat konsol (74.1 dtk) |
+| UC-04: memantau kesesuaian (J-05, M-08, M-09, tautan ke J-03 dan J-05b) | Real use case UC-04 (use-case testing) | lulus | tiga bagian laporan tampil; M-08 (sheet) terbuka, butir di URL; judul proposal di sheet menaut ke /tim-kerja/proposal/b32e8cc8-d194-489a-a3bc-05ea4239703d; M-09: butir yang ditandai berlabel Perlu ditinjau dan tampil di J-03 lewat tautan Buka Aturan Pemeriksaan; tanpa galat konsol (48.5 dtk) |
+| J-05b: rincian proposal, tautan antarentitas, unduh berkas | Alur jendela (docs/peta-uc-jendela.md) | lulus | Unduh Berkas: 4 berkas, semua status 200; Kembali ke Pemantauan membuka J-05; Back kembali ke J-05b; periode menaut ke J-04b; tanpa galat konsol (17.2 dtk) |
+| UC-07a: menyetujui seluruh rekomendasi, J-08b dan M-11 Simpan Permanen | Real use case UC-07 (use-case testing) | lulus | komponen belum diputuskan ditandai dengan teks, M-11 tidak terbuka; rekomendasi tidak dikoreksi dihitung disetujui; Simpan Permanen terkirim ke BIMA, isian hanya-baca; tanpa galat konsol (24.1 dtk) |
+| UC-07c: menyimpan sementara lalu melanjutkan (Draf sudah terisi) | Real use case UC-07 (use-case testing) | lulus | J-07 berlabel Draf; J-08b memuat ulang umpan balik dan keputusan komponen tersimpan; tanpa galat konsol (12.9 dtk) |
+| UC-07b/UC-08: pemeriksaan reviewer (J-08, M-10 S-1 dan 4a, J-08b Simpan Sementara dan Permanen) | Real use case UC-07 (use-case testing) | lulus | J-08 terbuka dalam 2.6 dtk; Unduh Berkas di J-08: 200 (application/vnd.openxmlformats-officedocument.wordprocessingml.document); butir menyorot kutipan (mark); butir dan tab tersimpan di URL sehingga muat ulang mempertahankannya; S-1: pesan Alasan koreksi wajib diisi dengan bingkai merah di dalam M-10; 4a: Batal menutup M-10; koreksi tersimpan dan butir berlabel Dikoreksi reviewer; Simpan Sementara menghasilkan label Draf di J-07; draf dan koreksi dimuat ulang saat Periksa lagi (J-07 ke J-08 ke J-08b); Simpan Permanen (M-11): terkirim ke BIMA, isian hanya-baca; tanpa galat konsol (45.9 dtk) |
+| UC-09 S-1: kutipan LLM tidak ditemukan (Perlu diperiksa manual) | Real use case UC-09 (use-case testing) | lulus | label Perlu diperiksa manual tampil pada butir yang kutipannya tidak ditemukan; tanpa galat konsol (11.0 dtk) |
+| UC-09 S-2: LLM tidak merespons (Belum ada rekomendasi) | Real use case UC-09 (use-case testing) | lulus | label Belum ada rekomendasi tampil; reviewer tetap dapat menilai; tanpa galat konsol (11.3 dtk) |
+| Hak akses: 403 reviewer lain di J-08, J-08b, berkas; Tim Kerja boleh | NFR 3.2 (hak akses) dan aturan unduhan berkas | lulus | halaman J-08 milik reviewer lain menampilkan 403 Akses ditolak; route data 403; J-08b 404; unduh berkas proposal 403; reviewer tidak dapat membuka J-05b (diarahkan dengan ?galat=akses); Tim Kerja mengunduh berkas (200); tanpa sesi tidak dapat; tanpa galat konsol (11.1 dtk) |
+| Jalan pintas UC-06, UC-08, UC-09 membuka jendela yang benar | Real use case UC-06 (use-case testing) | lulus | UC-06 membuka halaman pengajuan BIMA (proposal gagal jumlah kata); UC-08 dan UC-09 membuka J-08 langsung; panel langkah lama tidak ada lagi; navigator menggantikannya; tanpa galat konsol (28.3 dtk) |
+| Alur bolak-balik: J-02, J-02b, M-01, unduh .docx, J-03, BIMA, J-06, kembali ke J-02 | Use scenario lintas UC-01, UC-02, UC-05, UC-06 dan alur bolak-balik (docs/arah-perbaikan-2026-10-22.md bagian 3) | lulus | J-02b: pratinjau .docx dari draf yang baru disimpan memuat judul bagian baru; J-02: Unduh Templat (.docx) memuat "Dampak Sosial E2E" sebagai judul bagian; J-03: butir turunan templat baru muncul; BIMA pengajuan: Unduh Templat memuat bagian baru; J-06: butir bagian baru diperiksa dan Gagal (naskah lama tidak memuat bagian itu), status Ditahan; J-02: Riwayat Versi memuat Terbit dan Arsip; versi Arsip dapat dibuka dan diunduh tanpa bagian baru; tanpa galat konsol (98.8 dtk) |
+| Reset data demo sesudah alur bolak-balik | Use scenario lintas UC-01, UC-02, UC-05, UC-06 dan alur bolak-balik (docs/arah-perbaikan-2026-10-22.md bagian 3) | lulus | data demo dipulihkan; tanpa galat konsol (19.8 dtk) |
+| Navigator demo: pindah layar/peran tidak mengubah data; 15 layar dapat dibuka | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | navigator memuat 15 layar dan menandai J-03 sebagai layar yang dibuka; pindah layar/peran (J-04b ke J-07 ke J-04b) tidak mengubah data usulan; J-01..J-08b dan dua halaman BIMA dapat dibuka dari navigator lewat Pindah layar; tanpa galat konsol (107.8 dtk) |
+| Navigator demo: skenario J-04 dan J-04b, aktif ditampilkan, Pasang skenario menyiapkan data | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | J-04 Kosong: daftar periode tampil, pil dan panel menyebut skenario aktif, 6 skenario; J-04 siap-kecil: daftar periode menampilkan enam proposal belum ditugaskan; J-04b siap: enam proposal; navigator ciut tidak menutupi isian Batas Beban; pil di jendela yang dibuka lewat menu tidak menyebut skenario jendela lain (J-05 · skenario belum dipilih); J-04b menunggu: tabel Usulan Penugasan terisi; J-04b kekurangan: Susun otomatis dan panel Kekurangan Reviewer tampil; J-04b ditetapkan: penugasan tampil dan tercatat di kotak masuk BIMA; tanpa galat konsol (134.0 dtk) |
+| Navigator demo: skenario di J-01, J-02, J-03, J-05, J-06, J-07, J-08, BIMA | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | J-01: belum masuk, masuk sebagai anggota (menu J-04/J-05 saja), masuk sebagai reviewer (J-07); J-02: tanpa templat (S-1), masa berjalan (9a), draf tersimpan; J-02b membuka draf di layar penyusunan; J-03: butir Perlu ditinjau muncul pada skenario khusus dan hilang pada normal; J-03b membuka laporan uji; J-05: belum ada penilaian final lalu data pemantauan contoh; J-06: Terkirim, Ditahan, Ditolak, dan Sedang diperiksa; J-07: kosong, Baru, Draf, Selesai; J-08: final hanya-baca, perlu diperiksa manual, belum ada rekomendasi, draf, normal; BIMA tiruan: halaman pengajuan membuka draf siap diajukan; tanpa galat konsol (287.2 dtk) |
+| Navigator demo: sakelar masa pengusulan, papan ketik, dan ciut | Pusat Demo dan Navigator (docs/peta-uc-jendela.md) | lulus | sakelar masa pengusulan di navigator mengganti keadaan J-04b (berjalan lalu ditutup); papan ketik: Esc menciutkan, Alt+Shift+N membuka, fokus pindah ke panel, Tab menjangkau tombol; navigator ciut tidak menutupi tombol utama di J-04b (viewport 1440x900); tanpa galat konsol (16.6 dtk) |
+| J-04 skala nyata: 10.000 proposal (S-1, susun, halaman dan Back, sebaran, M-07 tetapkan, kotak masuk BIMA) | NFR kinerja: 10.000 proposal (UC-03) | lulus | menyiapkan skenario skala nyata (buka J-04): 15.1 dtk; S-1 batas 60: panel Kekurangan Reviewer tampil (12.9 dtk); Susun Usulan Penugasan 10.000 proposal: 15.4 dtk dari klik sampai pesan (Waktu proses di server: 11,7 detik); tabel Usulan Penugasan 50 baris dari 10.000 (halaman 1 dari 200); Sebaran Beban 119 reviewer, 119 reviewer bersedia; proposal per reviewer terendah 84, tertinggi 85, rata-rata 84, batas 100.; halaman 2 usulan terbuka dalam 1.8 dtk; hal=2 di URL; Back kembali ke halaman 1; Tetapkan Penugasan 10.000 proposal: 5.2 dtk dari klik sampai pesan (Waktu proses di server: 4,8 detik); kotak masuk BIMA: 10.000 penugasan diterima tanpa ganda, ringkasan + 100 pesan terbaru; CATATAN WAKTU: susun 15.4 dtk, tetapkan 5.2 dtk (klik sampai pesan, lokal ke Neon); tanpa galat konsol (60.0 dtk) |
+| Skenario kecil tidak terpengaruh data skala nyata | NFR kinerja: 10.000 proposal (UC-03) | lulus | skenario J-04b siap sesudah skala nyata: 7.0 dtk; 5 reviewer bersedia; proposal per review; J-07 Semua Selesai dan Baru tepat 1 baris; kotak masuk B-2 tetap memuat 10000 penugasan; /bima/masuk menyembunyikan akun skala (11 akun tampil); tanpa galat konsol (27.3 dtk) |
+| Akhir: Reset & isi data demo (basis data bersih) | Alur jendela (docs/peta-uc-jendela.md) | lulus | reset selesai; /demo memuat 44 kartu skenario per jendela dan tanpa navigator mengambang; tanpa galat konsol (19.9 dtk) |
 
 ## 6. Uji kinerja
 

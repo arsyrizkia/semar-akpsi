@@ -160,7 +160,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
   const urlTemplat = `/tim-kerja/templat?skema=${skemaId}`;
   const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}`;
   const jumlahNonaktif = butir.filter((b) => b.status === "Nonaktif").length;
-  const kelasDaftar = (b: ButirTampil) => (b.status === "Perlu ditinjau" ? "bg-emas-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
+  const kelasDaftar = (b: ButirTampil) => (b.status === "Perlu ditinjau" ? "bg-peringatan-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
 
   return (
     <>
@@ -224,7 +224,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           ) : undefined
         }
       >
-        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sogan-700">
+        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primer-700">
           {nyata ? (
             <span>
               Basis aturan berlaku: versi {nyata.versi}, sejak {formatTanggal(nyata.tanggalBerlaku)}.
@@ -232,8 +232,8 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           ) : (
             <span>Skema ini belum memiliki basis aturan.</span>
           )}
-          {draf ? <Badge warna="emas">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
-          <Link href={urlTemplat} className="font-semibold text-sogan-800 underline underline-offset-2">
+          {draf ? <Badge warna="peringatan">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
+          <Link href={urlTemplat} className="font-semibold text-primer-800 underline underline-offset-2">
             Templat Proposal {namaSkema}
           </Link>
         </p>
@@ -255,7 +255,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           <TBody>
             {butir.length === 0 ? (
               <TR>
-                <TD colSpan={7} className="py-6 text-center text-sogan-700">
+                <TD colSpan={7} className="py-6 text-center text-primer-700">
                   Belum ada butir cek. Terbitkan templat di Templat Proposal atau tekan &ldquo;Tambah Butir&rdquo;.
                 </TD>
               </TR>
@@ -274,17 +274,17 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                   <TD className="whitespace-nowrap">
                     {butirTerkunci(b.asal) ? (
                       <Link href={urlTemplat} className="inline-flex items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat Templat Proposal">
-                        <Lock aria-hidden className="size-4 text-sogan-700" /> templat<span className="sr-only"> (terkunci)</span>
+                        <Lock aria-hidden className="size-4 text-primer-700" /> templat<span className="sr-only"> (terkunci)</span>
                       </Link>
                     ) : (
                       "manual"
                     )}
                   </TD>
-                  <TD className="min-w-56 max-w-md text-xs text-sogan-800">{b.ringkasan}</TD>
+                  <TD className="min-w-56 max-w-md text-xs text-primer-800">{b.ringkasan}</TD>
                   <TD>
                     <LencanaStatus status={b.status} />
                     {b.ditandaiPemantauan ? (
-                      <Link href="/tim-kerja/pemantauan" className="mt-1 block text-xs text-sogan-700 underline underline-offset-2">
+                      <Link href="/tim-kerja/pemantauan" className="mt-1 block text-xs text-primer-700 underline underline-offset-2">
                         ditandai di Pemantauan
                       </Link>
                     ) : null}
@@ -420,7 +420,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
             <p>
               Butir <span className="font-mono font-semibold" translate="no">{nonaktif.kode}</span>: {nonaktif.deskripsi}
             </p>
-            <p className="mt-2 text-sogan-700">
+            <p className="mt-2 text-primer-700">
               Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.
             </p>
           </>
@@ -466,7 +466,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
         }
       >
         <form id="form-versi" onSubmit={simpanVersi} noValidate className="space-y-4">
-          <p className="text-sogan-700">
+          <p className="text-primer-700">
             Basis aturan versi {draf?.versi ?? "baru"} untuk {namaSkema}, periode {periode.nama}.
           </p>
           <Isian

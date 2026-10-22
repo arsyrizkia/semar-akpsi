@@ -8,6 +8,7 @@ import { periksaDeterministikTeks } from "@/lib/pemeriksa/deterministik";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import { blokDariHtml, ekstrakNaskah, TIPE_DOCX } from "@/lib/pengajuan/ekstraksi";
 import { potongTeks } from "@/lib/pengajuan/potong";
+import { judulBerhuruf } from "@/lib/templat/isian-substansi";
 import { buatTokenPengajuan, verifikasiTokenPengajuan } from "@/lib/pengajuan/token";
 
 const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
@@ -56,11 +57,11 @@ async function lewatPipeline(v: VarianContoh) {
 }
 
 describe("UC-05 ekstraksi dan pemotongan DOCX", () => {
-  it("KH-potongTeks-01: memotong naskah contoh menjadi tujuh bagian bertemplat dengan judul dan kata kunci", async () => {
+  it("KH-potongTeks-01: memotong naskah contoh menjadi delapan bagian bertemplat (A-H) dengan judul dan kata kunci", async () => {
     const { def, potong } = await lewatPipeline("a");
     expect(potong.judulDokumen).toBe(def.judul);
     expect(Object.keys(potong.teksPerBagian)).toEqual(bagian.map((b) => b.nama));
-    expect(potong.judulBagianDitemukan).toEqual(bagian.map((b) => b.nama));
+    expect(potong.judulBagianDitemukan).toEqual(bagian.map((b, i) => judulBerhuruf(i, b.nama)));
     expect(potong.kataKunci).toBe(def.kataKunci);
     expect(potong.teksPerBagian["Daftar Pustaka"].split("\n")).toHaveLength(def.jumlahPustaka);
   });
@@ -69,7 +70,7 @@ describe("UC-05 ekstraksi dan pemotongan DOCX", () => {
     expect((await lewatPipeline("a")).hasil.filter((h) => h.status === "Gagal")).toEqual([]);
     const b = await lewatPipeline("b");
     expect(b.hasil.filter((h) => h.status === "Gagal").map((h) => h.kode)).toEqual(["KTA-04"]);
-    expect(b.hasil.find((h) => h.kode === "KTA-04")!.angkaPembukti).toMatch(/^1\.\d{3} kata dari batas 1\.200 \(lebih \d+ kata\)$/);
+    expect(b.hasil.find((h) => h.kode === "KTA-04")!.angkaPembukti).toMatch(/^1\.\d{3} kata dari batas 1\.000 \(lebih \d+ kata\)$/);
     const c = await lewatPipeline("c");
     expect(c.hasil.filter((h) => h.status === "Gagal").map((h) => h.kode)).toEqual(["KAT-01", "SIT-03"]);
     expect(c.hasil.find((h) => h.kode === "SIT-03")!.angkaPembukti).toContain("9 entri daftar pustaka, 7 referensi dikutip");

@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
 export const Tabs = RTabs.Root;
 
 export function TabsList({ className, ...props }: React.ComponentProps<typeof RTabs.List>) {
-  return <RTabs.List className={cn("flex flex-wrap gap-1 border-b border-sogan-200", className)} {...props} />;
+  return <RTabs.List className={cn("flex flex-wrap gap-1 border-b border-primer-200", className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof RTabs.Trigger>) {
   return (
     <RTabs.Trigger
       className={cn(
-        "-mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-sogan-700 hover:text-sogan-900 data-[state=active]:border-emas-500 data-[state=active]:text-sogan-900",
+        "-mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-primer-700 hover:text-primer-900 data-[state=active]:border-primer-400 data-[state=active]:text-primer-900",
         className,
       )}
       {...props}
@@ -38,10 +38,10 @@ export function Tooltip({ isi, children }: { isi: string; children: React.ReactN
         <RTooltip.Portal>
           <RTooltip.Content
             sideOffset={6}
-            className="z-50 max-w-xs rounded-md bg-sogan-900 px-3 py-2 text-xs text-krem shadow-lg"
+            className="z-50 max-w-xs rounded-md bg-primer-900 px-3 py-2 text-xs text-latar shadow-lg"
           >
             {isi}
-            <RTooltip.Arrow className="fill-sogan-900" />
+            <RTooltip.Arrow className="fill-primer-900" />
           </RTooltip.Content>
         </RTooltip.Portal>
       </RTooltip.Root>

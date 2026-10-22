@@ -26,7 +26,7 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
   const tautanPemantauan = `/tim-kerja/pemantauan?periode=${p.periode.id}&skema=${p.skema.id}`;
   const tautanButirJ03 = (kode: string) => `/tim-kerja/aturan?skema=${p.skema.id}&periode=${p.periode.id}&butir=${encodeURIComponent(kode)}`;
   const unduh = (idBerkas: string) => `/api/semar/proposal/${encodeURIComponent(p.idProposal)}/berkas/${idBerkas}`;
-  const tautan = "text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600";
+  const tautan = "text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600";
 
   return (
     <>
@@ -44,24 +44,24 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
 
       <Bagian judul="Identitas">
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[11rem_1fr]">
-          <dt className="text-sogan-700">Judul</dt>
-          <dd className="font-semibold text-sogan-900">{p.judul}</dd>
-          <dt className="text-sogan-700">Skema Pendanaan</dt>
+          <dt className="text-primer-700">Judul</dt>
+          <dd className="font-semibold text-primer-900">{p.judul}</dd>
+          <dt className="text-primer-700">Skema Pendanaan</dt>
           <dd>{sesi.pengelola ? <Link href={`/tim-kerja/templat?skema=${p.skema.id}`} className={tautan}>{p.skema.nama}</Link> : p.skema.nama}</dd>
-          <dt className="text-sogan-700">Periode Seleksi</dt>
+          <dt className="text-primer-700">Periode Seleksi</dt>
           <dd>
             <Link href={`/tim-kerja/penugasan/${p.periode.id}`} className={tautan}>
               {p.periode.nama}
             </Link>
           </dd>
-          <dt className="text-sogan-700">Pengusul</dt>
+          <dt className="text-primer-700">Pengusul</dt>
           <dd>
             {p.pengusul.nama}, {p.pengusul.institusi}
           </dd>
-          <dt className="text-sogan-700">Status</dt>
+          <dt className="text-primer-700">Status</dt>
           <dd>
             <StatusBadge status={p.status} />
-            {p.waktuTerkirim ? <span className="ml-2 text-sogan-700">dikirim {formatWaktu(p.waktuTerkirim)}</span> : null}
+            {p.waktuTerkirim ? <span className="ml-2 text-primer-700">dikirim {formatWaktu(p.waktuTerkirim)}</span> : null}
           </dd>
         </dl>
       </Bagian>
@@ -99,10 +99,10 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
 
       <Bagian judul="Hasil Pemeriksaan Deterministik">
         {deterministik.length === 0 ? (
-          <p className="text-sm text-sogan-700">Belum ada hasil pemeriksaan deterministik.</p>
+          <p className="text-sm text-primer-700">Belum ada hasil pemeriksaan deterministik.</p>
         ) : (
           <>
-            <p className="mb-3 text-sm text-sogan-700">
+            <p className="mb-3 text-sm text-primer-700">
               <span className="angka">{ringkas.deterministik.lolos}</span> Lolos, <span className="angka">{ringkas.deterministik.gagal}</span> Gagal dari{" "}
               <span className="angka">{ringkas.deterministik.jumlah}</span> butir (versi {p.versiDinilai?.kode}).
             </p>
@@ -120,11 +120,11 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                   <TR key={h.butirId}>
                     <TD className="max-w-sm">
                       {sesi.pengelola ? (
-                        <Link href={tautanButirJ03(h.butirKode)} className="font-mono text-xs font-semibold text-sogan-700 underline-offset-2 hover:underline">
+                        <Link href={tautanButirJ03(h.butirKode)} className="font-mono text-xs font-semibold text-primer-700 underline-offset-2 hover:underline">
                           {h.butirKode}
                         </Link>
                       ) : (
-                        <span className="font-mono text-xs font-semibold text-sogan-700">{h.butirKode}</span>
+                        <span className="font-mono text-xs font-semibold text-primer-700">{h.butirKode}</span>
                       )}
                       <p>{h.deskripsi}</p>
                     </TD>
@@ -146,10 +146,10 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
 
       <Bagian judul="Hasil Pemeriksaan Semantik">
         {semantik.length === 0 ? (
-          <p className="text-sm text-sogan-700">Belum ada hasil pemeriksaan semantik.</p>
+          <p className="text-sm text-primer-700">Belum ada hasil pemeriksaan semantik.</p>
         ) : (
           <>
-            <p className="mb-3 text-sm text-sogan-700">
+            <p className="mb-3 text-sm text-primer-700">
               <span className="angka">{ringkas.semantik.memenuhi}</span> Memenuhi, <span className="angka">{ringkas.semantik.tidakMemenuhi}</span> Tidak memenuhi,{" "}
               <span className="angka">{ringkas.semantik.perluManual}</span> perlu diperiksa manual, <span className="angka">{ringkas.semantik.belumAda}</span> belum ada rekomendasi.
             </p>
@@ -166,7 +166,7 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                 {semantik.map((h) => (
                   <TR key={h.butirId}>
                     <TD className="min-w-48 max-w-xs">
-                      <Link href={`${tautanPemantauan}&butir=${encodeURIComponent(h.butirKode)}`} className="font-mono text-xs font-semibold text-sogan-700 underline-offset-2 hover:underline" title="Rincian butir di Pemantauan (J-05)">
+                      <Link href={`${tautanPemantauan}&butir=${encodeURIComponent(h.butirKode)}`} className="font-mono text-xs font-semibold text-primer-700 underline-offset-2 hover:underline" title="Rincian butir di Pemantauan (J-05)">
                         {h.butirKode}
                       </Link>
                       <p>{h.deskripsi}</p>
@@ -180,13 +180,13 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                       {h.koreksi ? (
                         <>
                           <StatusBadge status="Dikoreksi reviewer" /> <span className="font-semibold">{h.koreksi.keputusanReviewer}</span>
-                          <p className="mt-1 text-sogan-700">
+                          <p className="mt-1 text-primer-700">
                             {h.koreksi.jenisKekeliruan ? `${h.koreksi.jenisKekeliruan}: ` : ""}
                             {h.koreksi.alasan}
                           </p>
                         </>
                       ) : (
-                        <span className="text-sogan-700">Belum dikoreksi</span>
+                        <span className="text-primer-700">Belum dikoreksi</span>
                       )}
                     </TD>
                   </TR>
@@ -199,7 +199,7 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
 
       <Bagian judul="Penugasan dan Penilaian">
         {p.penugasan.length === 0 ? (
-          <p className="text-sm text-sogan-700">Proposal ini belum ditugaskan ke reviewer.</p>
+          <p className="text-sm text-primer-700">Proposal ini belum ditugaskan ke reviewer.</p>
         ) : (
           <Table>
             <THead>
@@ -217,12 +217,12 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                   <TR key={x.id}>
                     <TD>
                       {x.namaReviewer}
-                      <p className="text-xs text-sogan-700">{x.institusiReviewer}</p>
+                      <p className="text-xs text-primer-700">{x.institusiReviewer}</p>
                     </TD>
                     <TD>
-                      <StatusBadge status={x.status} /> <span className="text-xs text-sogan-700">{formatWaktu(x.tanggal)}</span>
+                      <StatusBadge status={x.status} /> <span className="text-xs text-primer-700">{formatWaktu(x.tanggal)}</span>
                     </TD>
-                    <TD>{st === "Final" || st === "Draf" ? <StatusBadge status={st === "Final" ? "Selesai" : "Draf"} /> : <span className="text-sogan-700">{st}</span>}</TD>
+                    <TD>{st === "Final" || st === "Draf" ? <StatusBadge status={st === "Final" ? "Selesai" : "Draf"} /> : <span className="text-primer-700">{st}</span>}</TD>
                     <TD angka>{formatAngka(x.penilaian?.jumlahKoreksi ?? 0)}</TD>
                   </TR>
                 );
@@ -234,14 +234,14 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
 
       <Bagian judul="Berkas">
         {p.berkas.length === 0 ? (
-          <p className="text-sm text-sogan-700">Tidak ada berkas tersimpan untuk proposal ini.</p>
+          <p className="text-sm text-primer-700">Tidak ada berkas tersimpan untuk proposal ini.</p>
         ) : (
-          <ul className="divide-y divide-sogan-100 rounded-md border border-sogan-200 bg-white">
+          <ul className="divide-y divide-primer-100 rounded-md border border-primer-200 bg-white">
             {p.berkas.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-sogan-900">{b.nama}</p>
-                  <p className="text-xs text-sogan-700">
+                  <p className="truncate font-semibold text-primer-900">{b.nama}</p>
+                  <p className="text-xs text-primer-700">
                     {b.peran === "naskah" ? "Naskah" : "Lampiran"}
                     {b.keterangan ? `, ${b.keterangan}` : ""}
                     {b.ukuran > 0 ? `, ${ukuranBerkas(b.ukuran)}` : ""}

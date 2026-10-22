@@ -125,11 +125,11 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
               return (
                 <TR key={k} className={kosong ? "bg-bata-100/60" : undefined}>
                   <TD className="w-3/5">
-                    <p id={`kb-baris-${i}`} className="font-medium text-sogan-900">
+                    <p id={`kb-baris-${i}`} className="font-medium text-primer-900">
                       {k}
                     </p>
                     {i === 0 ? (
-                      <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className="text-xs text-sogan-700 underline underline-offset-2">
+                      <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className="text-xs text-primer-700 underline underline-offset-2">
                         Tinjau butir semantik ({rek.dikoreksi} dari {rek.total} dikoreksi)
                       </Link>
                     ) : null}
@@ -176,17 +176,17 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
         {galat ? <Alert jenis="galat">{galat}</Alert> : null}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-sogan-200 pt-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-primer-200 pt-4">
         <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className={kelasTombol("hantu", "md")}>
           <ArrowLeft aria-hidden className="size-4" /> Kembali ke Pemeriksaan
         </Link>
         {final ? (
-          <p className="flex items-center gap-2 text-sm font-semibold text-sogan-700">
+          <p className="flex items-center gap-2 text-sm font-semibold text-primer-700">
             <Lock aria-hidden className="size-4" /> Hanya-baca
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
-            {kotor ? <span className="text-xs text-sogan-700">Ada perubahan yang belum disimpan</span> : null}
+            {kotor ? <span className="text-xs text-primer-700">Ada perubahan yang belum disimpan</span> : null}
             <Button varian="sekunder" onClick={simpanSementara} disabled={sibuk}>
               Simpan Sementara
             </Button>
@@ -210,7 +210,7 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
         saatKonfirmasi={simpanPermanen}
         galat={galatModal}
       >
-        <ul className="divide-y divide-sogan-100 text-sm">
+        <ul className="divide-y divide-primer-100 text-sm">
           {KOMPONEN_BORANG.map((k) => (
             <li key={k} className="flex items-center justify-between gap-3 py-1.5">
               <span>{k}</span>
@@ -221,7 +221,7 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
         <p className="mt-3 text-sm angka">
           {ringkas.memenuhi} Memenuhi, {ringkas.tidakMemenuhi} Tidak memenuhi, {rek.dikoreksi} koreksi rekomendasi.
         </p>
-        <p className="mt-3 rounded-md border-l-4 border-emas-500 bg-emas-50 px-3 py-2 text-sm text-sogan-900">
+        <p className="mt-3 rounded-md border-l-4 border-peringatan-500 bg-peringatan-50 px-3 py-2 text-sm text-primer-900">
           Setelah disimpan permanen, penilaian menjadi hanya-baca dan dikirim ke BIMA.
         </p>
       </ModalKonfirmasi>

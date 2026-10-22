@@ -223,12 +223,14 @@ export interface EntriPustaka {
   teks: string;
 }
 
-/** Entri daftar pustaka bernomor: "[1] ...", "1. ...", "1) ...". Baris lanjutan digabung ke entri sebelumnya. */
+/** Entri daftar pustaka bernomor: "[1] ...", "1. ...", "1) ...". Baris lanjutan (termasuk DOI dan tahun di awal baris) digabung ke entri sebelumnya. */
 export function entriPustaka(teks: string): EntriPustaka[] {
   const hasil: EntriPustaka[] = [];
   for (const baris of barisTeks(teks)) {
-    const m = baris.match(/^\[?\s*(\d+)\s*[\].)]\s*(.*)$/);
-    if (m) hasil.push({ nomor: Number(m[1]), teks: m[2] });
+    // "[1]teks" boleh rapat; "1." atau "1)" harus diikuti spasi dan bernomor paling banyak tiga angka, supaya baris lanjutan
+    // seperti "10.1016/j.x" (DOI) atau "2016. doi: ..." (tahun) tidak terbaca sebagai entri baru
+    const m = baris.match(/^(?:\[\s*(\d+)\s*\]\s*|(\d{1,3})\s*[.)]\s+)(.*)$/);
+    if (m) hasil.push({ nomor: Number(m[1] ?? m[2]), teks: m[3] });
     else if (hasil.length) hasil[hasil.length - 1].teks += ` ${baris}`;
   }
   return hasil;

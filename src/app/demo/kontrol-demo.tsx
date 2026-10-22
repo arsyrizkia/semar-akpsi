@@ -29,7 +29,7 @@ export function KontrolDemo({ masa }: { masa: "berjalan" | "ditutup" }) {
           <span className="text-xs text-abu-600">Mengosongkan semua data kecuali log audit, lalu mengisi ulang data contoh.</span>
         </div>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sakelar masa pengusulan">
-          <span className="text-sm font-semibold text-sogan-800">Masa pengusulan</span>
+          <span className="text-sm font-semibold text-primer-800">Masa pengusulan</span>
           {(["berjalan", "ditutup"] as const).map((m) => (
             <Button
               key={m}
@@ -43,7 +43,7 @@ export function KontrolDemo({ masa }: { masa: "berjalan" | "ditutup" }) {
             </Button>
           ))}
           <span className="text-xs text-abu-600">
-            Saat ini: <strong data-testid="masa-saat-ini" className="font-semibold text-sogan-800">{saatIni}</strong>
+            Saat ini: <strong data-testid="masa-saat-ini" className="font-semibold text-primer-800">{saatIni}</strong>
           </span>
         </div>
       </div>

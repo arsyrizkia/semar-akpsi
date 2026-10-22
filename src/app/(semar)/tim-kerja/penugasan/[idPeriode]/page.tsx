@@ -61,13 +61,13 @@ export default async function Halaman({ params, searchParams }: { params: Param;
           ["Ditetapkan", formatAngka(periode.ditetapkan)],
         ].map(([k, v]) => (
           <div key={k}>
-            <dt className="text-xs text-sogan-700">{k}</dt>
-            <dd className="angka text-lg font-semibold text-sogan-900">{v}</dd>
+            <dt className="text-xs text-primer-700">{k}</dt>
+            <dd className="angka text-lg font-semibold text-primer-900">{v}</dd>
           </div>
         ))}
         <div>
-          <dt className="text-xs text-sogan-700">Status penetapan</dt>
-          <dd className="mt-1 text-sm font-semibold text-sogan-900">{status}</dd>
+          <dt className="text-xs text-primer-700">Status penetapan</dt>
+          <dd className="mt-1 text-sm font-semibold text-primer-900">{status}</dd>
         </div>
       </dl>
 
@@ -127,7 +127,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
               {ditetapkan.map((u) => (
                 <TR key={u.penugasanId}>
                   <TD className="min-w-56 max-w-sm">
-                    <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-sogan-800 underline decoration-emas-500 underline-offset-2 hover:text-sogan-600">
+                    <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
                       {u.judulProposal}
                     </Link>
                   </TD>

@@ -1,39 +1,54 @@
 @import "tailwindcss";
 
 /*
- * Desain sistem "Sogan tenang" (docs/desain-sistem.md): sogan (cokelat) primer, emas hanya aksen kecil, permukaan netral hangat,
- * motif kawung hanya di area merek. Font Outfit (next/font) untuk merek, judul, dan teks UI. Kontras diperiksa terhadap WCAG AA.
+ * Desain sistem (docs/desain-sistem.md): warna UTAMA dari palet situs Kemdiktisaintek (token `primer-*`, hanya warnanya;
+ * tanpa logo atau nama), identitas Semar (sogan cokelat dan emas) hanya sebagai AKSEN di area merek (`merek-semar-*`, `aksen-*`).
+ * Tata letak "Sogan tenang" dan font Outfit tetap. Status (daun, bata, peringatan) terpisah dari biru merek.
  */
 @theme {
-  --color-sogan-50: #f7f0e6;
-  --color-sogan-100: #eedfcb;
-  --color-sogan-200: #dcc3a0;
-  --color-sogan-300: #c6a073;
-  --color-sogan-400: #a87b4c;
-  --color-sogan-500: #8a5e36;
-  --color-sogan-600: #6f4727;
-  --color-sogan-700: #573620;
-  --color-sogan-800: #3f2616;
-  --color-sogan-900: #2b190e;
+  /* primer: biru Kemdiktisaintek. 400 = #1F86FF hanya untuk elemen besar, ikon, garis fokus (3,6:1 di atas putih); teks/tombol berlabel memakai 700 atau lebih tua */
+  --color-primer-50: #e7edfa;
+  --color-primer-100: #d3e1f6;
+  --color-primer-200: #bed8ff;
+  --color-primer-300: #7fb2f0;
+  --color-primer-400: #1f86ff;
+  --color-primer-500: #1a75e0;
+  --color-primer-600: #0a5fc6;
+  --color-primer-700: #0050ad;
+  --color-primer-800: #003366;
+  --color-primer-850: #002550;
+  --color-primer-900: #00162f;
 
-  --color-emas-50: #fbf3dc;
-  --color-emas-100: #f5e5ae;
-  --color-emas-300: #e4be5a;
-  --color-emas-400: #d4a63a;
-  --color-emas-500: #b8892a;
-  --color-emas-700: #6f5013;
+  /* aksen: kuning emas Kemdiktisaintek (#FBBD61) untuk penanda kecil di area merek Semar */
+  --color-aksen-100: #fde9c4;
+  --color-aksen-300: #fbbd61;
+  --color-aksen-400: #f2a93b;
+  --color-aksen-500: #b8892a;
+  --color-aksen-700: #6f5013;
 
-  --color-krem: #faf7f1;
-  --color-krem-100: #f1ece1;
-  --color-krem-200: #eadfc4;
+  /* merek-semar: sogan (cokelat) dan kulit untuk ilustrasi, lambang, dan kawung */
+  --color-merek-semar-100: #eedfcb;
+  --color-merek-semar-300: #c6a073;
+  --color-merek-semar-500: #8a5e36;
+  --color-merek-semar-600: #6f4727;
+  --color-merek-semar-700: #573620;
+  --color-merek-semar-900: #2b190e;
+  --color-merek-semar-kulit: #e8c98a;
+  --color-merek-semar-kulit-tua: #d9a35f;
 
-  /* abu hangat: status netral dan garis halus */
-  --color-abu-50: #f4f1eb;
-  --color-abu-100: #ebe7df;
-  --color-abu-200: #dcd6ca;
-  --color-abu-600: #6b6357;
-  --color-abu-700: #4a4339;
+  /* permukaan netral dingin */
+  --color-latar: #f4f7fc;
+  --color-latar-100: #eaf0f9;
+  --color-latar-200: #d6e4f7;
 
+  /* abu netral dingin: status netral dan garis halus */
+  --color-abu-50: #f1f4f8;
+  --color-abu-100: #e6ebf1;
+  --color-abu-200: #d3dae4;
+  --color-abu-600: #5a6577;
+  --color-abu-700: #3f4a5a;
+
+  /* status: Lolos (daun), Gagal (bata), Perlu ditinjau (peringatan); selalu bersama teks atau ikon */
   --color-daun-100: #ddebdd;
   --color-daun-500: #3e7a47;
   --color-daun-600: #2f6439;
@@ -44,20 +59,26 @@
   --color-bata-600: #9a3a25;
   --color-bata-700: #7a2d1d;
 
+  --color-peringatan-50: #fff4dc;
+  --color-peringatan-100: #fde7b8;
+  --color-peringatan-300: #fbbd61;
+  --color-peringatan-500: #b8700a;
+  --color-peringatan-700: #6b4700;
+
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --shadow-sm: 0 1px 2px rgb(43 25 14 / 0.06);
-  --shadow-overlay: 0 8px 24px rgb(43 25 14 / 0.18);
+  --shadow-sm: 0 1px 2px rgb(0 22 47 / 0.08);
+  --shadow-overlay: 0 8px 24px rgb(0 22 47 / 0.22);
 }
 
 :root {
-  --latar: var(--color-krem);
+  --latar: var(--color-latar);
   --permukaan: #ffffff;
-  --garis: var(--color-sogan-200);
-  --teks: var(--color-sogan-900);
+  --garis: var(--color-primer-200);
+  --teks: var(--color-primer-900);
 }
 
 html {
@@ -72,7 +93,7 @@ body {
 }
 
 h1, h2, h3 {
-  color: var(--color-sogan-800);
+  color: var(--color-primer-800);
   font-weight: 600;
   letter-spacing: -0.005em;
   text-wrap: balance;
@@ -97,20 +118,20 @@ button, a, summary, [role="button"], [role="tab"] {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-emas-700);
+  outline: 3px solid var(--color-primer-400);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px #faf7f1; /* halo krem: cincin tetap >= 3:1 pada latar terang maupun gelap */
+  box-shadow: 0 0 0 2px #ffffff; /* halo putih: cincin tetap >= 3:1 pada latar terang maupun navy */
 }
 
 /* Motif kawung halus untuk latar header (SVG inline, orisinal). */
 .latar-kawung {
-  background-color: var(--color-sogan-800);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23d4a63a' stroke-opacity='.22' stroke-width='1'%3E%3Cellipse cx='24' cy='11' rx='5' ry='10'/%3E%3Cellipse cx='24' cy='37' rx='5' ry='10'/%3E%3Cellipse cx='11' cy='24' rx='10' ry='5'/%3E%3Cellipse cx='37' cy='24' rx='10' ry='5'/%3E%3C/g%3E%3Ccircle cx='24' cy='24' r='2' fill='%23d4a63a' fill-opacity='.25'/%3E%3C/svg%3E");
+  background-color: var(--color-primer-850);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23fbbd61' stroke-opacity='.28' stroke-width='1'%3E%3Cellipse cx='24' cy='11' rx='5' ry='10'/%3E%3Cellipse cx='24' cy='37' rx='5' ry='10'/%3E%3Cellipse cx='11' cy='24' rx='10' ry='5'/%3E%3Cellipse cx='37' cy='24' rx='10' ry='5'/%3E%3C/g%3E%3Ccircle cx='24' cy='24' r='2' fill='%23fbbd61' fill-opacity='.25'/%3E%3C/svg%3E");
   background-size: 48px 48px;
 }
 
 .latar-kawung-terang {
-  background-color: var(--color-krem-100);
+  background-color: var(--color-latar-100);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%238a5e36' stroke-opacity='.12' stroke-width='1'%3E%3Cellipse cx='24' cy='11' rx='5' ry='10'/%3E%3Cellipse cx='24' cy='37' rx='5' ry='10'/%3E%3Cellipse cx='11' cy='24' rx='10' ry='5'/%3E%3Cellipse cx='37' cy='24' rx='10' ry='5'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 48px 48px;
 }

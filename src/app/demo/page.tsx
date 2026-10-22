@@ -49,7 +49,7 @@ const SKENARIO: BarisUc[] = [
   { kode: "UC-07c-awal", judul: "Menyimpan sementara lalu melanjutkan: dari awal", peran: "Reviewer", layar: "J-07, J-08", catatan: "Mulai dari label Baru; Simpan Sementara diperagakan sendiri" },
 ];
 
-const kelasTautanKecil = "inline-flex min-h-8 items-center rounded-md border border-sogan-300 bg-white px-2.5 text-xs font-medium text-sogan-800 transition-colors hover:bg-sogan-50";
+const kelasTautanKecil = "inline-flex min-h-8 items-center rounded-md border border-primer-300 bg-white px-2.5 text-xs font-medium text-primer-800 transition-colors hover:bg-primer-50";
 
 function TabelUc({ judul, daftar }: { judul: string; daftar: BarisUc[] }) {
   return (
@@ -68,7 +68,7 @@ function TabelUc({ judul, daftar }: { judul: string; daftar: BarisUc[] }) {
       <TBody>
         {daftar.map((k) => (
           <TR key={k.kode}>
-            <TD className="whitespace-nowrap font-mono text-xs font-semibold text-sogan-700">{k.kode}</TD>
+            <TD className="whitespace-nowrap font-mono text-xs font-semibold text-primer-700">{k.kode}</TD>
             <TD>
               {k.judul}
               {k.catatan ? <span className="block text-xs text-abu-600">{k.catatan}</span> : null}
@@ -93,24 +93,24 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
   const log = await getDb().select().from(logAudit).orderBy(desc(logAudit.id)).limit(20);
   return (
     <>
-      <a href="#isi" className="sr-only-fokus fixed left-2 top-2 z-[60] rounded-md bg-white px-3 py-2 text-sm font-semibold text-sogan-900 focus:not-sr-only">Lewati ke isi</a>
-      <header className="latar-kawung text-krem">
+      <a href="#isi" className="sr-only-fokus fixed left-2 top-2 z-[60] rounded-md bg-white px-3 py-2 text-sm font-semibold text-primer-900 focus:not-sr-only">Lewati ke isi</a>
+      <header className="latar-kawung text-latar">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link href="/masuk" aria-label="SEMAR, ke halaman masuk">
             <LogoSemar />
           </Link>
-          <Link href="/masuk" className="text-sm font-semibold text-emas-100 underline underline-offset-2">
+          <Link href="/masuk" className="text-sm font-semibold text-aksen-300 underline underline-offset-2">
             Masuk sebagai Tim Kerja atau Reviewer
           </Link>
         </div>
       </header>
-      <main id="isi" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main id="isi" className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6">
         <KepalaHalaman
           judul="Pusat Demo"
           keterangan="Pindah layar tidak mengubah data. Pasang skenario menyiapkan data, lalu membuka layarnya."
           aksi={
             <span className="text-xs text-abu-600">
-              Mode LLM: <strong className="font-semibold text-sogan-800">{modeLlm()}</strong>
+              Mode LLM: <strong className="font-semibold text-primer-800">{modeLlm()}</strong>
             </span>
           }
         />
@@ -139,7 +139,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
                 <TR key={j.kode}>
                   <TD className="whitespace-nowrap">
                     <span className={j.induk ? "pl-4" : undefined}>
-                      <span className="font-mono text-xs font-semibold text-sogan-700">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
+                      <span className="font-mono text-xs font-semibold text-primer-700">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
                     </span>
                   </TD>
                   <TD className="hidden text-xs text-abu-700 md:table-cell">{j.peran}</TD>
@@ -201,7 +201,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
           <p className="mt-2 text-xs text-abu-600">20 entri terakhir; basis data menolak UPDATE dan DELETE pada tabel ini (NFR 3.3).</p>
         </Bagian>
 
-        <p className="mt-8 border-t border-sogan-200 pt-4 text-xs text-abu-600">
+        <p className="mt-8 border-t border-primer-200 pt-4 text-xs text-abu-600">
           Akun demo: dppm-pengelola, dppm-anggota, pengusul-1..3, reviewer-1..6. Data, akun, dan institusi adalah rekaan; BIMA adalah simulasi, bukan sistem resmi.
         </p>
       </main>
