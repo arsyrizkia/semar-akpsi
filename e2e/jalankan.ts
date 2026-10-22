@@ -269,6 +269,7 @@ async function utama() {
     await skenario("/demo: Reset & isi data demo", page, async (c) => {
       await buka(page, url("/demo"), "Pusat Demo");
       await foto(page, "demo");
+      await tunggu(3000);
       await klik(page, "Reset & isi data demo");
       await adaTeks(page, "Data demo direset dan diisi ulang.", 240_000);
       c("seed berhasil lewat tombol");
@@ -1020,6 +1021,7 @@ async function utama() {
     /* ---- akhir: basis data bersih ---- */
     await skenario("Akhir: Reset & isi data demo (basis data bersih)", page, async (c) => {
       await buka(page, url("/demo"), "Pusat Demo");
+      await tunggu(3000); // tunggu hidrasi (di produksi yang cepat, klik sebelum hidrasi tidak melakukan apa pun)
       await klik(page, "Reset & isi data demo");
       await adaTeks(page, "Data demo direset dan diisi ulang.", 240_000);
       await atur("berjalan");
