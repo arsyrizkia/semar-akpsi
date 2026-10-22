@@ -133,15 +133,46 @@ async function daurUlangPenugasanKlon() {
       AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr JOIN proposal p ON p.id = pr.proposal_id WHERE p.id_proposal = bima_kotak_masuk.id_proposal)`);
 }
 
-/** Memastikan ada paling sedikit `jumlah` proposal Terkirim (periode utama) yang belum punya penugasan (bahan UC-03). */
+/** Menghapus proposal SEMAR (Terkirim, tanpa penugasan) beserta cermin klonnya di BIMA; proposal dasar PRP-2026-0001..0003 kembali Draf. */
+async function buangProposalBelumDitugaskan(kondisiTambahan: ReturnType<typeof sql>) {
+  const db = getDb();
+  const periode = await ambilPeriodeBerjalan();
+  const dihapus = await db.execute(sql`
+    DELETE FROM proposal WHERE periode_id = ${periode.id} AND status = 'Terkirim'
+      AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = proposal.id) ${kondisiTambahan}
+    RETURNING id_proposal`);
+  const ids = (dihapus as unknown as { rows: { id_proposal: string }[] }).rows.map((r) => r.id_proposal);
+  // proposal BIMA 0001..0003 kembali menjadi Draf supaya dapat diajukan lagi; cermin klon (nomor di atas 0004) dihapus agar tidak yatim
+  const dasar = ids.filter((i) => /^PRP-2026-000[1-3]$/.test(i));
+  if (dasar.length) await db.update(s.bimaProposal).set({ statusBima: "Draf" }).where(inArray(s.bimaProposal.id, dasar));
+  const klon = ids.filter((i) => !/^PRP-2026-000[1-4]$/.test(i));
+  if (klon.length) {
+    await db.delete(s.bimaBerkas).where(inArray(s.bimaBerkas.proposalId, klon));
+    await db.delete(s.bimaProposal).where(inArray(s.bimaProposal.id, klon));
+  }
+}
+
+/**
+ * Menjadikan jumlah proposal Terkirim (periode utama) yang belum punya penugasan TEPAT `jumlah` (bahan UC-03): yang kurang dibuat,
+ * yang berlebih (mis. PRP-2026-0001 dari skenario J-06) dibuang.
+ */
 async function pastikanProposalBelumDitugaskan(jumlah: number) {
   const db = getDb();
   const periode = await ambilPeriodeBerjalan();
   await daurUlangPenugasanKlon();
-  const [{ n }] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(s.proposal)
-    .where(sql`${s.proposal.periodeId} = ${periode.id} AND ${s.proposal.status} = 'Terkirim' AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = ${s.proposal.id})`);
+  const hitung = async () =>
+    (
+      await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(s.proposal)
+        .where(sql`${s.proposal.periodeId} = ${periode.id} AND ${s.proposal.status} = 'Terkirim' AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = ${s.proposal.id})`)
+    )[0].n;
+  const n = await hitung();
+  if (n > jumlah) {
+    await buangProposalBelumDitugaskan(
+      sql`AND proposal.id IN (SELECT p2.id FROM proposal p2 WHERE p2.periode_id = ${periode.id} AND p2.status = 'Terkirim' AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = p2.id) ORDER BY p2.id_proposal DESC LIMIT ${n - jumlah})`,
+    );
+  }
   for (let i = n; i < jumlah; i++) {
     await buatProposalDemo({ varian: i % 2 === 0 ? "a" : "d", pengusulIdBima: PENGUSUL_SIKLUS[i % PENGUSUL_SIKLUS.length], sufiks: `kelompok ${i + 1}` });
   }
@@ -153,14 +184,7 @@ async function kosongkanProposalBelumDitugaskan() {
   const periode = await ambilPeriodeBerjalan();
   await daurUlangPenugasanKlon();
   await db.delete(s.penugasanReviewer).where(and(eq(s.penugasanReviewer.periodeId, periode.id), eq(s.penugasanReviewer.status, "Diusulkan")));
-  const dihapus = await db.execute(sql`
-    DELETE FROM proposal WHERE periode_id = ${periode.id} AND status = 'Terkirim'
-      AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr WHERE pr.proposal_id = proposal.id)
-    RETURNING id_proposal`);
-  const ids = (dihapus as unknown as { rows: { id_proposal: string }[] }).rows.map((r) => r.id_proposal);
-  // proposal BIMA 0001..0003 kembali menjadi Draf supaya dapat diajukan lagi; klon demo dibiarkan
-  const dasar = ids.filter((i) => /^PRP-2026-000[1-3]$/.test(i));
-  if (dasar.length) await db.update(s.bimaProposal).set({ statusBima: "Draf" }).where(inArray(s.bimaProposal.id, dasar));
+  await buangProposalBelumDitugaskan(sql``);
 }
 
 /* ------------------------------ UC-04 ------------------------------ */
@@ -509,7 +533,9 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     };
   }
   await setPeriodeAktif(null);
-  await nonaktifkanReviewerSkala();
+  await nonaktifkanReviewerSkala(); // juga menghapus penugasan dan pesan kotak masuk sisa skala nyata
+  // jendela reviewer tidak boleh memuat penugasan klon sisa J-04 (Ditetapkan/Diusulkan) pada reviewer contoh
+  if (kodeJendela === "J-07" || kodeJendela === "J-08" || kunci === "J-01/reviewer") await daurUlangPenugasanKlon();
 
   switch (kunci) {
     /* J-01 */
@@ -586,7 +612,7 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
       const periode = await ambilPeriodeBerjalan();
       if (id === "siap-kecil") {
         await tetapkanBatas(periode.id, 3);
-        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Enam proposal Terkirim siap disusun; batas beban 3 menyusun usulan, batas 1 memicu S-1." };
+        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Tepat enam proposal Terkirim siap disusun; batas beban 3 menyusun usulan, batas 1 memicu S-1." };
       }
       if (id === "kekurangan") {
         await tetapkanBatas(periode.id, 1);

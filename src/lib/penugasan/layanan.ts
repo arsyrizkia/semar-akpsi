@@ -70,7 +70,7 @@ export async function hitungPerluDitugaskan(periodeId: string): Promise<number> 
 
 /**
  * Usulan (status Diusulkan) atau penugasan Ditetapkan beserta data tampilan untuk satu periode, berhalaman di basis data
- * (urut judul lalu id). Tanpa `opsi.halaman` seluruh baris dikembalikan (hanya untuk data kecil).
+ * (urut id proposal lalu id penugasan). Tanpa `opsi.halaman` seluruh baris dikembalikan (hanya untuk data kecil).
  */
 export async function ambilUsulan(
   periodeId: string,
@@ -97,7 +97,7 @@ export async function ambilUsulan(
     .innerJoin(pengusul, eq(pengusul.id, proposal.pengusulId))
     .innerJoin(rev, eq(rev.id, penugasanReviewer.reviewerId))
     .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, status)))
-    .orderBy(asc(proposal.judul), asc(penugasanReviewer.id));
+    .orderBy(asc(proposal.idProposal), asc(penugasanReviewer.id));
   const baris = opsi.halaman
     ? await kueri.limit(opsi.ukuran ?? UKURAN_HALAMAN_USULAN).offset((Math.max(1, opsi.halaman) - 1) * (opsi.ukuran ?? UKURAN_HALAMAN_USULAN))
     : await kueri;

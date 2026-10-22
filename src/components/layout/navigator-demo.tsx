@@ -103,22 +103,50 @@ export function NavigatorDemo() {
   const buka = useCallback((kodeJendela: string, id?: string) => {
     const sk = id ? cariSkenario(kodeJendela, id) : skenarioBawaan(kodeJendela);
     setMenyiapkan(`${kodeJendela}${sk ? `: ${sk.nama}` : ""}`);
+    // panel diciutkan sebelum pindah supaya jendela tujuan tidak langsung tertutup panel; kemajuan tampil di pil
+    aturTerbuka(false);
     window.location.assign(alamatSkenario(kodeJendela, id));
   }, []);
 
+  // halaman dipulihkan dari bfcache (tombol Back): status "Menyiapkan" tidak boleh macet
+  useEffect(() => {
+    const pulih = (e: PageTransitionEvent) => {
+      if (e.persisted) setMenyiapkan(null);
+    };
+    window.addEventListener("pageshow", pulih);
+    return () => window.removeEventListener("pageshow", pulih);
+  }, []);
+
+  const [mengubahMasa, setMengubahMasa] = useState(false);
   async function ubahMasa(nilai: "berjalan" | "ditutup") {
     setPesanMasa(null);
-    const r = await setSakelarMasa(nilai);
-    if (r.ok) {
-      setMasa(nilai);
-      setPesanMasa(r.pesan);
-      router.refresh();
-    } else setPesanMasa(r.pesan);
+    setMengubahMasa(true);
+    try {
+      const r = await setSakelarMasa(nilai);
+      if (r.ok) {
+        setMasa(nilai);
+        setPesanMasa(r.pesan);
+        router.refresh();
+      } else setPesanMasa(r.pesan);
+    } catch {
+      setPesanMasa("Sakelar masa pengusulan gagal diubah; coba lagi.");
+    } finally {
+      setMengubahMasa(false);
+    }
   }
 
   if (jalur === "/demo" || jalur.startsWith("/demo/")) return null;
 
+  const namaPendek = (j: { kode: string; nama: string }) => (j.kode.startsWith("BIMA") ? j.nama.replace("BIMA: ", "BIMA ") : `${j.kode} ${j.nama}`);
   const ringkasAktif = skenarioCookie && jendelaCookie ? `${jendelaCookie.kode} · ${skenarioCookie.nama}` : null;
+  // pil hanya menyebut skenario bila cocok dengan jendela yang sedang dibuka; selain itu keadaan data saat ini tidak diketahui
+  const labelPil = menyiapkan
+    ? `Menyiapkan ${menyiapkan}...`
+    : jendela
+      ? aktifDiJendela && skenarioCookie
+        ? `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · ${skenarioCookie.nama}`
+        : `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · skenario belum dipilih`
+      : "Navigator demo";
 
   if (!terbuka) {
     return (
@@ -129,11 +157,12 @@ export function NavigatorDemo() {
         aria-expanded={false}
         aria-keyshortcuts="Alt+Shift+N"
         aria-label={`Buka navigator demo${ringkasAktif ? `, skenario aktif ${ringkasAktif}` : ""}`}
+        title={`Navigator demo (Alt+Shift+N)${ringkasAktif ? ` · skenario terakhir dipilih: ${ringkasAktif}` : ""}`}
         data-testid="navigator-pil"
-        className="fixed bottom-4 left-4 z-40 inline-flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-emas-400 bg-sogan-800 px-4 py-2 text-sm font-semibold text-krem shadow-lg hover:bg-sogan-700 focus-visible:outline-3 focus-visible:outline-emas-500"
+        className="fixed bottom-4 left-4 z-40 inline-flex max-w-[min(15rem,calc(100vw-2rem))] items-center gap-2 rounded-full border border-emas-400 bg-sogan-800 px-3 py-1.5 text-xs font-semibold text-krem shadow-lg hover:bg-sogan-700 focus-visible:outline-3 focus-visible:outline-emas-500"
       >
-        <Compass aria-hidden className="size-4 shrink-0 text-emas-300" />
-        <span className="truncate">{ringkasAktif ? `Navigator demo · ${ringkasAktif}` : jendela ? `Navigator demo · ${jendela.kode}` : "Navigator demo"}</span>
+        {menyiapkan ? <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-emas-300" /> : <Compass aria-hidden className="size-4 shrink-0 text-emas-300" />}
+        <span className="truncate">{labelPil}</span>
       </button>
     );
   }
@@ -166,7 +195,7 @@ export function NavigatorDemo() {
         <p data-testid="navigator-aktif" className="rounded bg-emas-50 px-2 py-1.5 text-xs text-sogan-800">
           <span className="font-semibold">Skenario aktif:</span>{" "}
           {ringkasAktif ?? "belum dipilih lewat navigator"}
-          {jendela ? <span className="block text-sogan-600">Sedang dibuka: {jendela.kode} {jendela.nama}</span> : null}
+          {jendela ? <span className="block text-sogan-600">Sedang dibuka: {namaPendek(jendela)}</span> : null}
         </p>
 
         {menyiapkan ? (
@@ -175,39 +204,9 @@ export function NavigatorDemo() {
           </p>
         ) : null}
 
-        <section aria-labelledby="nav-jendela">
-          <h2 id="nav-jendela" className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sogan-700">
-            Jendela
-          </h2>
-          <ul className="grid grid-cols-2 gap-1.5">
-            {KATALOG_JENDELA.map((j) => {
-              const sekarang = jendela?.kode === j.kode;
-              return (
-                <li key={j.kode}>
-                  <button
-                    type="button"
-                    disabled={Boolean(menyiapkan)}
-                    onClick={() => buka(j.kode)}
-                    aria-current={sekarang ? "page" : undefined}
-                    data-jendela={j.kode}
-                    title={`${j.nama} (${j.peran})`}
-                    className={cn(
-                      "flex h-full w-full flex-col rounded border px-2 py-1 text-left leading-tight focus-visible:outline-3 focus-visible:outline-emas-500 disabled:opacity-60",
-                      sekarang ? "border-emas-600 bg-emas-100 font-semibold text-sogan-900" : "border-sogan-200 bg-white text-sogan-800 hover:border-emas-500 hover:bg-emas-50",
-                    )}
-                  >
-                    <span className="font-mono text-[11px] font-bold text-emas-700">{j.kode.startsWith("BIMA") ? "BIMA" : j.kode}</span>
-                    <span className="text-xs">{j.kode.startsWith("BIMA") ? j.nama.replace("BIMA: ", "") : j.nama}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
         <section aria-labelledby="nav-skenario">
           <h2 id="nav-skenario" className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sogan-700">
-            Skenario {jendela ? `${jendela.kode} ${jendela.nama}` : ""}
+            Skenario {jendela ? namaPendek(jendela) : ""}
           </h2>
           {jendela ? (
             <ul className="space-y-1.5">
@@ -241,6 +240,38 @@ export function NavigatorDemo() {
           )}
         </section>
 
+        <section aria-labelledby="nav-jendela">
+          <h2 id="nav-jendela" className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sogan-700">
+            Pindah jendela
+          </h2>
+          <ul className="grid grid-cols-5 gap-1.5">
+            {KATALOG_JENDELA.map((j) => {
+              const sekarang = jendela?.kode === j.kode;
+              const bawaan = skenarioBawaan(j.kode);
+              return (
+                <li key={j.kode}>
+                  <button
+                    type="button"
+                    disabled={Boolean(menyiapkan)}
+                    onClick={() => buka(j.kode)}
+                    aria-current={sekarang ? "page" : undefined}
+                    aria-label={`${j.kode.startsWith("BIMA") ? j.nama : `${j.kode} ${j.nama}`}, peran ${j.peran}, membuka skenario bawaan ${bawaan?.nama ?? ""}`}
+                    data-jendela={j.kode}
+                    title={`${namaPendek(j)} (${j.peran}); membuka skenario bawaan: ${bawaan?.nama ?? "-"}`}
+                    className={cn(
+                      "flex h-full w-full items-center justify-center rounded border px-1 py-1.5 text-center font-mono text-[11px] font-bold leading-tight focus-visible:outline-3 focus-visible:outline-emas-500 disabled:opacity-60",
+                      sekarang ? "border-emas-600 bg-emas-100 text-sogan-900" : "border-sogan-200 bg-white text-emas-700 hover:border-emas-500 hover:bg-emas-50",
+                    )}
+                  >
+                    {j.kode === "BIMA-1" ? "B-1" : j.kode === "BIMA-2" ? "B-2" : j.kode}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1 text-[11px] text-sogan-700">J-01..J-08 = jendela SEMAR; B-1 BIMA Pengajuan, B-2 BIMA Kotak masuk. Arahkan kursor untuk nama dan skenario bawaan.</p>
+        </section>
+
         <section aria-labelledby="nav-masa">
           <h2 id="nav-masa" className="mb-1.5 text-xs font-bold uppercase tracking-wide text-sogan-700">
             Masa pengusulan
@@ -252,8 +283,10 @@ export function NavigatorDemo() {
                 type="button"
                 data-masa={m}
                 aria-pressed={masa === m}
+                disabled={mengubahMasa}
                 onClick={() => void ubahMasa(m)}
                 className={cn(
+                  "disabled:opacity-60",
                   "flex-1 rounded border px-2 py-1 text-xs font-semibold focus-visible:outline-3 focus-visible:outline-emas-500",
                   masa === m ? "border-sogan-800 bg-sogan-800 text-krem" : "border-sogan-300 bg-white text-sogan-800 hover:bg-emas-50",
                 )}

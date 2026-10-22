@@ -4,7 +4,8 @@
  * skenario lain tidak ikut menanggung 10.000 baris: J-04 hanya membukanya bila pengaturan_demo.periodeAktifId menunjuknya, dan semua
  * pembaca periode lain mengecualikan namanya. Reset & isi data demo (TRUNCATE) menghapusnya.
  *
- * Isi (semua rekaan): 40 institusi, 130 reviewer (±9% tidak bersedia), 400 pengusul, 10.000 proposal beserta satu versi (V1) tiap proposal.
+ * Isi (semua rekaan): 40 institusi, 130 reviewer (±9% tidak bersedia; kesediaan hanya biner, belum per bidang), 4.000 pengusul (2-3 proposal
+ * tiap pengusul), 10.000 proposal beserta satu versi (V1) tiap proposal; judul dari topik x pendekatan x wilayah, semuanya skema PD.
  * Hasil pemeriksaan deterministik per butir tidak dibuat untuk 10.000 proposal ini: status Terkirim berarti semua butir lolos (pembuktian
  * per butir dipertunjukkan pada proposal skenario kecil). Teks naskah juga kosong, jadi J-08 pada proposal skala nyata hanya kerangka.
  */
@@ -16,7 +17,7 @@ import { NAMA_PERIODE_SKALA, setPeriodeAktif, ubahPengaturanDemo } from "@/lib/w
 
 export const JUMLAH_PROPOSAL_SKALA = 10_000;
 export const JUMLAH_REVIEWER_SKALA = 130;
-export const JUMLAH_PENGUSUL_SKALA = 400;
+export const JUMLAH_PENGUSUL_SKALA = 4000;
 export const JUMLAH_INSTITUSI_SKALA = 40;
 /** Batas beban bawaan skenario: 10.000 / ±123 reviewer bersedia = ±81 per reviewer, jadi 100 cukup; 60 memicu kekurangan (S-1). */
 export const BATAS_BEBAN_SKALA = 100;
@@ -41,6 +42,7 @@ const NAMA_BELAKANG = [
   "Maharani", "Setiawan", "Anggraini", "Permana", "Firmansyah", "Handayani", "Gunawan", "Kurniawan", "Utami", "Sari", "Budiman", "Ramadhan",
   "Syahputra", "Puspita", "Hakim", "Fadillah", "Mulyadi", "Suryani",
 ];
+const PENDEKATAN = ["studi kasus", "eksperimen lapangan", "pengembangan prototipe", "pemodelan numerik", "penelitian tindakan", "survei terstruktur", "kajian komparatif"];
 const TOPIK = [
   "pengolahan limbah pesisir", "irigasi tetes cerdas", "literasi digital desa", "bahan bangunan ramah lingkungan", "pemetaan potensi perikanan",
   "energi surya skala rumah tangga", "pembelajaran adaptif berbasis data", "pangan lokal bergizi", "deteksi dini banjir", "tata kelola koperasi desa",
@@ -64,9 +66,20 @@ export interface HasilSiapkanSkala {
   waktuAturMs: number;
 }
 
-/** Reviewer skala nyata tidak bersedia pada semua skenario selain skala nyata (satu UPDATE per tabel; murah). */
+/**
+ * Skenario selain skala nyata tidak boleh melihat sisa skala nyata: penugasan periode skala (reviewer contoh reviewer-1..5 ikut dibagi
+ * saat Tetapkan) dan pesan SKL di kotak masuk BIMA dihapus, lalu reviewer massal dinonaktifkan. Murah bila tidak ada sisa.
+ */
 export async function nonaktifkanReviewerSkala(): Promise<void> {
   const db = getDb();
+  const sisa = await db.execute(sql`SELECT 1 FROM penugasan_reviewer pr JOIN periode_seleksi p ON p.id = pr.periode_id WHERE p.nama LIKE ${NAMA_PERIODE_SKALA + "%"} LIMIT 1`);
+  if ((sisa as unknown as { rows: unknown[] }).rows.length) {
+    await db.execute(sql`DELETE FROM penugasan_reviewer WHERE periode_id IN (SELECT id FROM periode_seleksi WHERE nama LIKE ${NAMA_PERIODE_SKALA + "%"})`);
+  }
+  const pesan = await db.execute(sql`SELECT 1 FROM bima_kotak_masuk WHERE id_proposal LIKE ${AWALAN_ID_PROPOSAL + "%"} LIMIT 1`);
+  if ((pesan as unknown as { rows: unknown[] }).rows.length) {
+    await db.execute(sql`DELETE FROM bima_kotak_masuk WHERE id_proposal LIKE ${AWALAN_ID_PROPOSAL + "%"}`);
+  }
   const [{ ada }] = await db.select({ ada: sql<number>`count(*)::int` }).from(s.akun).where(sql`${s.akun.idBima} like ${AWALAN_REVIEWER + "%"} and ${s.akun.bersedia}`);
   if (!ada) return; // tidak ada yang perlu diubah; skenario kecil tidak membayar apa pun
   await db.update(s.akun).set({ bersedia: false }).where(like(s.akun.idBima, `${AWALAN_REVIEWER}%`));
@@ -106,27 +119,24 @@ async function buatDataMassal(periodeId: string): Promise<void> {
   await db.insert(s.bimaReviewer).values(reviewer.map((r) => ({ idBima: r.idBima, kode: r.nomorInduk, nama: r.nama, institusi: r.institusi, bidang: r.bidang, bersedia: r.bersedia })));
   await db.insert(s.akun).values(reviewer.map((r) => ({ ...r, peran: "reviewer" as const })));
 
-  // pengusul (hanya sisi SEMAR; pengusul skala nyata tidak masuk lewat BIMA)
-  await db.insert(s.akun).values(
-    Array.from({ length: JUMLAH_PENGUSUL_SKALA }, (_, k) => {
-      const i = k + 1;
-      return {
-        idBima: `${AWALAN_PENGUSUL}${nomor(i, 4)}`,
-        nama: namaOrang(i + 11, "Dr."),
-        peran: "pengusul" as const,
-        institusi: namaInstitusiSkala((i * 17 + (i % 3) * 5) % JUMLAH_INSTITUSI_SKALA),
-        nomorInduk: `NIDN-S${nomor(i, 5)}`,
-        bersedia: false,
-      };
-    }),
-  );
+  // pengusul (hanya sisi SEMAR; pengusul skala nyata tidak masuk lewat BIMA), set-based
+  const sqlArr = (a: string[]) => sql.raw(`ARRAY[${a.map((x) => `'${x}'`).join(",")}]`);
+  await db.execute(sql`
+    INSERT INTO akun (id_bima, nama, peran, institusi, nomor_induk, bersedia)
+    SELECT ${AWALAN_PENGUSUL} || lpad(n::text, 4, '0'),
+           'Dr. ' || (${sqlArr(NAMA_DEPAN)})[1 + (n + 11) % ${NAMA_DEPAN.length}] || ' ' || (${sqlArr(NAMA_BELAKANG)})[1 + (n * 7 + 3 + (n / ${NAMA_DEPAN.length}) * 5) % ${NAMA_BELAKANG.length}],
+           'pengusul', (${sqlArr(JENIS)})[1 + ((n * 17 + (n % 3) * 5) % ${JUMLAH_INSTITUSI_SKALA}) % ${JENIS.length}] || ' ' || (${sqlArr(WILAYAH)})[1 + ((n * 17 + (n % 3) * 5) % ${JUMLAH_INSTITUSI_SKALA}) % ${WILAYAH.length}] || ' Contoh',
+           'NIDN-S' || lpad(n::text, 5, '0'), false
+    FROM generate_series(1, ${JUMLAH_PENGUSUL_SKALA}) AS n`);
 
   // 10.000 proposal Terkirim + satu versi tiap proposal, set-based
-  const topik = sql.raw(`ARRAY[${TOPIK.map((t) => `'${t}'`).join(",")}]`);
+  const topik = sqlArr(TOPIK);
+  const pendekatan = sqlArr(PENDEKATAN);
+  const wilayah = sqlArr(WILAYAH);
   await db.execute(sql`
     INSERT INTO proposal (id_proposal, judul, skema_id, periode_id, pengusul_id, status, waktu_terkirim)
     SELECT ${AWALAN_ID_PROPOSAL} || lpad(n::text, 5, '0'),
-           'Penelitian ' || (${topik})[1 + n % ${TOPIK.length}] || ' tahap ' || (1 + n % 4) || ' (skala nyata ' || lpad(n::text, 5, '0') || ')',
+           'Penelitian ' || (${topik})[1 + n % ${TOPIK.length}] || ' dengan ' || (${pendekatan})[1 + (n / ${TOPIK.length}) % ${PENDEKATAN.length}] || ' di wilayah ' || (${wilayah})[1 + (n * 7) % ${WILAYAH.length}] || ' (skala nyata ' || lpad(n::text, 5, '0') || ')',
            ${skema.id}::uuid, ${periodeId}::uuid,
            (SELECT array_agg(id ORDER BY id_bima) FROM akun WHERE id_bima LIKE ${AWALAN_PENGUSUL + "%"})[1 + (n * 37) % ${JUMLAH_PENGUSUL_SKALA}],
            'Terkirim', now() - ((n % 240) || ' minutes')::interval

@@ -144,7 +144,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
   },
 ];
 
-/** Nama cookie (tidak httpOnly) berisi skenario yang terakhir dipilih: "<jendela>|<skenario>" */
+/** Nama cookie (tidak httpOnly) berisi skenario yang terakhir dipilih: "<jendela>/<skenario>" */
 export const COOKIE_SKENARIO = "semar_skenario";
 
 export function cariJendela(kode: string): JendelaDemo | undefined {

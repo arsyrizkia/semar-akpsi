@@ -23,6 +23,15 @@ describe.skipIf(!ada)("revisi r2: idempotensi", () => {
     await getDb().delete(bimaKotakMasuk).where(eq(bimaKotakMasuk.idProposal, "PRP-UJI"));
   });
 
+  it("kotak masuk BIMA: dua permintaan serentak untuk kelompok yang sama menghasilkan satu baris per kunci", async () => {
+    const dasar = `serentak-${Date.now()}`;
+    const kelompok = Array.from({ length: 200 }, (_, i) => ({ idProposal: "PRP-SERENTAK", reviewerIdBima: "reviewer-uji", tanggal: new Date().toISOString(), kunci: `${dasar}-${i}` }));
+    await Promise.all([terimaPenugasanDariSemar({ penugasan: kelompok }), terimaPenugasanDariSemar({ penugasan: kelompok }), terimaPenugasanDariSemar({ penugasan: kelompok })]);
+    const baris = await getDb().select().from(bimaKotakMasuk).where(eq(bimaKotakMasuk.idProposal, "PRP-SERENTAK"));
+    expect(baris).toHaveLength(200);
+    await getDb().delete(bimaKotakMasuk).where(eq(bimaKotakMasuk.idProposal, "PRP-SERENTAK"));
+  });
+
   it("jalan pintas UC-05b: naskah BIMA dipulihkan ke seed pada pemakaian berulang", async () => {
     const db = getDb();
     const naskah = async () => (await db.select().from(bimaBerkas).where(and(eq(bimaBerkas.proposalId, "PRP-2026-0002"), eq(bimaBerkas.peran, "naskah")))).map((b) => b.nama);

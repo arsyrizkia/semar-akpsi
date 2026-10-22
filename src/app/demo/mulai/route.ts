@@ -21,6 +21,15 @@ const KODE = new Set<string>([
  * (dibaca navigator), lalu membuka jendela tujuan.
  */
 export async function GET(req: NextRequest) {
+  // GET ini mengubah data. Pratinjau tautan, prefetch, dan perayap tidak boleh memicunya: hanya navigasi peramban biasa yang diproses.
+  const mode = req.headers.get("sec-fetch-mode");
+  const tujuanFetch = req.headers.get("purpose") ?? req.headers.get("sec-purpose") ?? req.headers.get("next-router-prefetch");
+  if ((mode && mode !== "navigate") || tujuanFetch || /bot|crawl|spider|preview|slurp|facebookexternalhit|whatsapp|telegram|slack/i.test(req.headers.get("user-agent") ?? "")) {
+    return new NextResponse("Pergantian skenario hanya diproses lewat navigasi peramban dari Navigator demo atau halaman /demo.", {
+      status: 405,
+      headers: { "x-robots-tag": "noindex, nofollow", allow: "GET" },
+    });
+  }
   const kode = req.nextUrl.searchParams.get("k");
   const kodeJendela = req.nextUrl.searchParams.get("j");
   try {

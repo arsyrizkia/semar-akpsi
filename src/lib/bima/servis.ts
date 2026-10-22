@@ -2,7 +2,7 @@
  * Fungsi servis sisi BIMA tiruan. HANYA dipanggil dari route /api/bima/* dan halaman /bima/*.
  * Kode SEMAR tidak boleh mengimpor berkas ini; SEMAR memakai src/lib/bima/client.ts (HTTP).
  */
-import { and, desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bimaAkun, bimaBerkas, bimaKotakMasuk, bimaProposal, bimaReviewer } from "@/db/schema";
 import { ambilBerkas } from "../berkas";
@@ -47,16 +47,6 @@ export async function daftarReviewerBima() {
   return getDb().select().from(bimaReviewer);
 }
 
-/** Idempotensi tanpa mengubah skema: kunci disimpan di payload dan diperiksa sebelum insert. */
-async function sudahAda(jenis: string, kunci: string): Promise<boolean> {
-  const [ada] = await getDb()
-    .select({ id: bimaKotakMasuk.id })
-    .from(bimaKotakMasuk)
-    .where(and(eq(bimaKotakMasuk.jenis, jenis), sql`${bimaKotakMasuk.payload}->>'kunci' = ${kunci}`))
-    .limit(1);
-  return Boolean(ada);
-}
-
 export interface PayloadPenugasan {
   periodeId?: string;
   penugasan: { idProposal: string; reviewerIdBima: string; tanggal: string; kunci?: string }[];
@@ -65,7 +55,8 @@ export async function terimaPenugasanDariSemar(p: PayloadPenugasan) {
   const db = getDb();
   if (!p.penugasan.length) return { diterima: 0 };
   // idempoten: pengiriman ulang (ulang otomatis klien atau "Kirim ulang") tidak menambah baris ganda untuk kunci yang sama.
-  // Kunci kembar di dalam satu kelompok dibuang di sini; kunci yang sudah ada di kotak masuk dibuang oleh anti-join di SQL.
+  // Penjamin idempotensi adalah indeks unik parsial bima_kotak_masuk_kunci_uq (jenis, payload->>'kunci') + ON CONFLICT DO NOTHING, jadi dua
+  // permintaan serentak untuk kelompok yang sama (percobaan ulang klien setelah batas waktu) tidak pernah menyisipkan baris ganda.
   // Satu pernyataan INSERT ... SELECT per kelompok (500 penugasan) supaya penerimaan skala 10.000 tetap cepat.
   const lihat = new Set<string>();
   const elemen = p.penugasan
@@ -80,8 +71,7 @@ export async function terimaPenugasanDariSemar(p: PayloadPenugasan) {
     INSERT INTO bima_kotak_masuk (jenis, id_proposal, penerima_id_bima, payload)
     SELECT 'penugasan', e->>'idProposal', e->>'reviewerIdBima', e
     FROM jsonb_array_elements(${JSON.stringify(elemen)}::jsonb) AS e
-    WHERE (e->>'kunci') IS NULL
-       OR (e->>'kunci') NOT IN (SELECT k.payload->>'kunci' FROM bima_kotak_masuk k WHERE k.jenis = 'penugasan' AND k.payload->>'kunci' IS NOT NULL)
+    ON CONFLICT (jenis, (payload->>'kunci')) WHERE (payload->>'kunci') IS NOT NULL DO NOTHING
     RETURNING 1`);
   const diterima = (hasil as unknown as { rows: unknown[] }).rows.length;
   return { diterima, duplikat: p.penugasan.length - diterima };
@@ -96,14 +86,13 @@ export interface PayloadKeputusan {
   kunci?: string;
 }
 export async function terimaKeputusanDariSemar(p: PayloadKeputusan) {
-  if (p.kunci && (await sudahAda("keputusan", p.kunci))) return { diterima: true, duplikat: true };
-  await getDb().insert(bimaKotakMasuk).values({
-    jenis: "keputusan",
-    idProposal: p.idProposal,
-    penerimaIdBima: p.reviewerIdBima,
-    payload: p as unknown as Record<string, unknown>,
-  });
-  return { diterima: true };
+  const hasil = await getDb().execute(sql`
+    INSERT INTO bima_kotak_masuk (jenis, id_proposal, penerima_id_bima, payload)
+    VALUES ('keputusan', ${p.idProposal}, ${p.reviewerIdBima}, ${JSON.stringify(p)}::jsonb)
+    ON CONFLICT (jenis, (payload->>'kunci')) WHERE (payload->>'kunci') IS NOT NULL DO NOTHING
+    RETURNING 1`);
+  const baru = (hasil as unknown as { rows: unknown[] }).rows.length;
+  return baru ? { diterima: true } : { diterima: true, duplikat: true };
 }
 
 /** Cermin status pengajuan dari SEMAR ke halaman proposal BIMA ("Lihat hasil pemeriksaan"). */

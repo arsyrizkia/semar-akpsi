@@ -11,7 +11,7 @@ import { modeLlm } from "@/lib/llm/konfigurasi";
 import { KATALOG_JENDELA, alamatSkenario } from "@/lib/demo/katalog";
 import { KontrolDemo } from "./kontrol-demo";
 
-export const metadata: Metadata = { title: "Demo" };
+export const metadata: Metadata = { title: "Demo", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
@@ -56,6 +56,7 @@ function DaftarKartu({ daftar }: { daftar: Kartu[] }) {
         <li key={k.kode}>
           <a
             href={`/demo/mulai?k=${k.kode}`}
+            rel="nofollow"
             data-kode={k.kode}
             className="block h-full rounded-lg border border-sogan-200 bg-krem p-4 hover:border-emas-500 hover:bg-emas-50 focus-visible:outline-3 focus-visible:outline-emas-500"
           >
@@ -116,6 +117,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
                       <li key={sk.id}>
                         <a
                           href={alamatSkenario(j.kode, sk.id)}
+                          rel="nofollow"
                           data-skenario-kartu={`${j.kode}/${sk.id}`}
                           title={sk.ringkas}
                           className="inline-block rounded-md border border-sogan-200 bg-krem px-3 py-1 text-xs hover:border-emas-500 hover:bg-emas-50 focus-visible:outline-3 focus-visible:outline-emas-500"

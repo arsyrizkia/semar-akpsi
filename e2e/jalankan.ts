@@ -726,8 +726,20 @@ async function utama() {
       await bukaNavigator();
       await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: ms }), page.click(`[data-testid=navigator-panel] ${selektor}`)]);
       await adaTeks(page, tungguTeks, ms);
-      await ciutkanNavigator(); // teks navigator tidak boleh tercampur ke pemeriksaan teks halaman
+      // halaman tujuan harus terbuka dengan pil (panel otomatis ciut), supaya tidak menutupi isian dan tombol di kiri bawah
+      await page.waitForSelector("[data-testid=navigator-pil]", { timeout: 10_000 });
+      yakin((await page.$("[data-testid=navigator-panel]")) === null, `panel navigator tetap terbuka sesudah memilih ${selektor}`);
     };
+    /** Elemen di bawah titik tengah selektor harus elemen itu sendiri (tidak tertutup pil atau panel navigator). */
+    const tidakTertutupNavigator = (selektor: string) =>
+      page.evaluate((sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return `tidak ada ${sel}`;
+        e.scrollIntoView({ block: "center" });
+        const r = e.getBoundingClientRect();
+        const di = document.elementFromPoint(r.left + Math.min(r.width / 2, 40), r.top + r.height / 2);
+        return di && (e === di || e.contains(di)) ? "" : `${sel} tertutup oleh ${di?.getAttribute("data-testid") ?? di?.tagName}`;
+      }, selektor);
     const teksPanel = (judul: string) =>
       page.evaluate((j) => {
         const h = [...document.querySelectorAll("h2")].find((e) => e.textContent?.trim() === j);
@@ -792,6 +804,19 @@ async function utama() {
       yakin(/\d+ proposal Terkirim belum punya penugasan tetap/.test(siap), "keadaan siap-kecil tidak menampilkan proposal yang perlu ditugaskan");
       yakin(!siap.includes("Tidak ada proposal Terkirim yang masih perlu ditugaskan"), "keadaan berisi seharusnya tidak menampilkan pesan kosong");
       c("pindah ke skenario siap-kecil: pesan kosong hilang, jumlah proposal siap disusun tampil");
+      const tepatEnam = siap.match(/(\d+) proposal Terkirim belum punya penugasan tetap/)?.[1];
+      yakin(tepatEnam === "6", `siap-kecil seharusnya tepat 6 proposal Terkirim, ada ${tepatEnam}`);
+      const tertutup = await tidakTertutupNavigator("#batas");
+      yakin(!tertutup, tertutup);
+      yakin((await teksPanel("Usulan Penugasan")).includes("Belum ada usulan penugasan"), "siap-kecil seharusnya menyuruh menyusun usulan");
+      c("siap-kecil memuat tepat enam proposal; navigator ciut tidak menutupi isian Batas Beban sesudah pindah skenario");
+      // pil tidak menyebut skenario jendela lain: pindah lewat menu header ke J-05
+      await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60_000 }), page.evaluate(() => (document.querySelector("nav[aria-label='Menu Tim Kerja DPPM'] a[href^='/tim-kerja/pemantauan']") as HTMLElement).click())]);
+      await adaTeks(page, "Pemantauan Kesesuaian");
+      const pilLain = await page.$eval("[data-testid=navigator-pil]", (e) => e.textContent ?? "");
+      yakin(pilLain.includes("J-05") && !pilLain.includes("Siap") && pilLain.includes("belum dipilih"), `pil memuat skenario jendela lain: ${pilLain}`);
+      c(`pil di jendela yang dibuka lewat menu tidak menyebut skenario jendela lain (${pilLain})`);
+      await buka(page, url("/demo/mulai?j=J-04&s=siap-kecil"), "Susun Usulan Penugasan");
 
       await lewatNavigator("[data-skenario='menunggu']", "Usulan Penugasan");
       await page.waitForFunction(() => document.querySelectorAll("table tbody tr").length >= 4, { timeout: 30_000 });
@@ -1003,7 +1028,7 @@ async function utama() {
       yakin(barisKotak === 100, `kotak masuk seharusnya menampilkan 100 pesan terbaru, ada ${barisKotak}`);
       await foto(page, "bima-kotak-masuk-skala");
       c("kotak masuk BIMA: 10.000 penugasan diterima tanpa ganda, ringkasan + 100 pesan terbaru");
-      c(`CATATAN WAKTU: susun ${waktuSusun} dtk, tetapkan ${waktuTetapkan} dtk (klik sampai pesan, lokal ke Neon)`);
+      c(`CATATAN WAKTU: susun ${waktuSusun} dtk, tetapkan ${waktuTetapkan} dtk (klik sampai pesan, ${process.env.E2E_BASE_URL ? `produksi ${new URL(process.env.E2E_BASE_URL).host}` : "lokal ke Neon"})`);
     });
 
     await skenario("Skenario kecil tidak terpengaruh data skala nyata", page, async (c) => {
@@ -1016,6 +1041,17 @@ async function utama() {
       yakin(/^[1-9]\d? reviewer bersedia/.test(sebaran), `reviewer skala nyata ikut tampil di skenario kecil: ${sebaran}`);
       c(`skenario siap-kecil sesudah skala nyata: ${waktu} dtk; ${sebaran.slice(0, 40)}`);
       await foto(page, "j04-siap-kecil-sesudah-skala");
+      // sisa skala nyata (penugasan reviewer contoh dan pesan SKL) tidak boleh bocor ke jendela reviewer dan BIMA
+      await buka(page, url("/demo/mulai?j=J-07&s=selesai"), "Daftar Penugasan");
+      const baris = await page.$$eval("table tbody tr", (r) => r.map((x) => x.textContent ?? ""));
+      yakin(baris.length === 1 && baris[0].includes("Selesai") && !baris[0].includes("Baru"), `J-07 Semua Selesai sesudah skala memuat ${baris.length} baris: ${baris.slice(0, 2).join(" | ").slice(0, 160)}`);
+      await buka(page, url("/demo/mulai?j=J-07&s=baru"), "Daftar Penugasan");
+      const barisBaru = await page.$$eval("table tbody tr", (r) => r.length);
+      yakin(barisBaru === 1, `J-07 Baru sesudah skala memuat ${barisBaru} baris`);
+      await buka(page, url("/bima/kotak-masuk"), "Kotak masuk");
+      const sisaSkl = await page.evaluate(() => document.body.innerText.includes("SKL-2026-"));
+      yakin(!sisaSkl, "kotak masuk BIMA masih memuat pesan SKL sesudah meninggalkan skala nyata");
+      c("tidak ada sisa skala nyata: J-07 Semua Selesai dan Baru tepat 1 baris, kotak masuk BIMA tanpa pesan SKL");
     });
 
     /* ---- akhir: basis data bersih ---- */
@@ -1040,7 +1076,7 @@ async function utama() {
   const md = [
     "# Laporan uji ujung ke ujung SEMAR",
     "",
-    `Dijalankan: ${new Date().toISOString()}. Mode LLM: tiruan. Hasil: ${lulus} dari ${hasil.length} skenario lulus.`,
+    `Dijalankan: ${new Date().toISOString()}. Sasaran: ${process.env.E2E_BASE_URL ?? "server lokal (next start)"}. Mode LLM: tiruan. Hasil: ${lulus} dari ${hasil.length} skenario lulus.`,
     "",
     "| Skenario | Hasil | Catatan |",
     "|---|---|---|",

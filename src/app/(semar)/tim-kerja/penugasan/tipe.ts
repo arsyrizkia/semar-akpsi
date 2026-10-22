@@ -3,6 +3,8 @@ export interface HasilSusunAksi {
   galat?: string;
   /** > 0 bila reviewer kurang (S-1) */
   kekurangan?: number;
+  /** batas beban yang benar-benar dipakai saat Susun (isian bisa berubah sesudahnya) */
+  batasDipakai?: number;
   jumlahUsulan?: number;
   berhasil?: boolean;
   /** lama menyusun di server, milidetik */

@@ -19,6 +19,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer | string }>({
   dataType() {
@@ -431,4 +432,8 @@ export const bimaKotakMasuk = pgTable("bima_kotak_masuk", {
   penerimaIdBima: text("penerima_id_bima"),
   payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
   diterimaPada: waktu("diterima_pada").defaultNow().notNull(),
-});
+},
+(t) => [
+  // idempotensi pesan BIMA tiruan: satu kunci per jenis (dipasang juga oleh scripts/pasang-trigger.ts)
+  uniqueIndex("bima_kotak_masuk_kunci_uq").on(t.jenis, sql`(${t.payload}->>'kunci')`).where(sql`(${t.payload}->>'kunci') IS NOT NULL`),
+]);

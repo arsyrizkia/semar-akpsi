@@ -30,6 +30,12 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
     }
+    // skenario skala nyata: periode aktif J-04 (periode tersendiri) ikut digeser supaya lencana dan tanggal tutupnya konsisten
+    const { periodeAktifId } = await ambilPengaturanDemo();
+    if (periodeAktifId && periodeAktifId !== p?.id) {
+      const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
+      await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, periodeAktifId));
+    }
   }
   await db
     .update(pengaturanDemo)

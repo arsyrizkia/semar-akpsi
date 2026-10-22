@@ -25,7 +25,7 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
     const hasil = await susunPenugasan(periodeId.data, batas);
     const durasiMs = Date.now() - mulai;
     revalidatePath(JALUR);
-    if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan, durasiMs };
+    if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan, batasDipakai: batas, durasiMs };
     return { berhasil: true, jumlahUsulan: hasil.jumlahUsulan, durasiMs };
   } catch (e) {
     if (e instanceof MasaBelumDitutupError) return { galat: e.message };

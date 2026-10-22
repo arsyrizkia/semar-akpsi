@@ -143,7 +143,7 @@ export function PapanPenugasan({
         </div>
         {!periode.ditutup ? (
           <Alert jenis="info" className="mt-4">
-            Tombol &quot;Susun Usulan Penugasan&quot; baru aktif sesudah masa pengusulan periode ini ditutup (di prototipe: sakelar masa pengusulan pada
+            Tombol &quot;Susun Usulan Penugasan&quot; baru aktif sesudah masa pengusulan periode ini ditutup (di prototipe: sakelar masa pengusulan di Navigator demo atau
             halaman /demo).
           </Alert>
         ) : null}
@@ -190,7 +190,7 @@ export function PapanPenugasan({
         <Panel judul="Kekurangan Reviewer">
           <Alert jenis="peringatan">
             <p>
-              Reviewer yang bersedia tidak cukup untuk batas beban {batas}. Sebanyak <strong>{angka.format(hasilSusun.kekurangan)}</strong> proposal terkirim belum
+              Reviewer yang bersedia tidak cukup untuk batas beban {hasilSusun.batasDipakai ?? batas}. Sebanyak <strong>{angka.format(hasilSusun.kekurangan)}</strong> proposal terkirim belum
               dapat ditugaskan, sehingga usulan tidak disusun.{detik(hasilSusun.durasiMs)}
             </p>
             <p className="mt-1">
@@ -307,9 +307,9 @@ export function PapanPenugasan({
           </Table>
         ) : (
           <p className="text-sm text-sogan-700">
-            {perluDitugaskan === 0 || totalDitetapkan > 0
-              ? "Tidak ada usulan yang menunggu penetapan."
-              : "Belum ada usulan penugasan. Isi batas beban lalu tekan \"Susun Usulan Penugasan\"."}
+            {perluDitugaskan > 0
+              ? "Belum ada usulan penugasan. Isi batas beban lalu tekan \"Susun Usulan Penugasan\"."
+              : "Tidak ada usulan yang menunggu penetapan."}
           </p>
         )}
         <Halaman kunci="hal" halaman={halaman} jumlahHalaman={jumlahHalaman} ukuran={ukuranHalaman} total={totalUsulan} nama="Usulan Penugasan" />
