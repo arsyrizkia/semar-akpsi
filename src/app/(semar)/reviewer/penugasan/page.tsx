@@ -38,7 +38,7 @@ export default async function Halaman() {
             {baris.map((b) => (
               <TR key={b.penugasanId}>
                 <TD className="max-w-md font-medium">
-                  <Link href={`/reviewer/pemeriksaan/${b.penugasanId}`} className="text-primer-800 underline-offset-2 hover:underline">
+                  <Link href={`/reviewer/pemeriksaan/${b.penugasanId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
                     {b.judul}
                   </Link>
                 </TD>
@@ -48,7 +48,7 @@ export default async function Halaman() {
                   <StatusBadge status={b.label} />
                 </TD>
                 <TD className="text-right">
-                  <Button asChild ukuran="sm">
+                  <Button asChild ukuran="sm" varian="sekunder">
                     <Link href={`/reviewer/pemeriksaan/${b.penugasanId}`} aria-label={`Periksa ${b.judul}`}>
                       Periksa
                     </Link>

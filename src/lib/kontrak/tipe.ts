@@ -149,6 +149,8 @@ export interface BarisUsulanPenugasan {
   reviewerId: string;
   namaReviewer: string;
   institusiReviewer: string;
+  /** status penugasan sebenarnya (Diusulkan, Ditetapkan, Selesai) */
+  status?: string;
 }
 
 export interface SebaranBeban {

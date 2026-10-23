@@ -3,15 +3,15 @@
 import { Toaster, toast } from "sonner";
 
 /**
- * Notifikasi (toast) bertema. Sonner menyediakan wilayah aria-live; pesan galat bertahan lebih lama.
+ * Notifikasi (toast) bertema, di kanan atas (di bawah bilah atas pada ponsel) supaya tidak menutupi kolom aksi tabel atau pil navigator di kiri bawah. Sonner menyediakan wilayah aria-live; pesan galat bertahan lebih lama.
  * Pakai `beriTahu.sukses("...")` atau `toast` langsung dari "sonner".
  */
 export function Notifikasi() {
   return (
     <Toaster
-      position="bottom-right"
-      offset={{ bottom: "4.5rem", right: "1rem" }}
-      mobileOffset={{ bottom: "4.5rem", right: "1rem", left: "1rem" }}
+      position="top-right"
+      offset={{ top: "1rem", right: "1rem" }}
+      mobileOffset={{ top: "4rem", right: "1rem", left: "1rem" }}
       closeButton
       duration={5000}
       toastOptions={{

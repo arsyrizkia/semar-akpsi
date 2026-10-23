@@ -4,6 +4,7 @@
  * dan satu butir batas kata per bagian yang berbatas (Judul, Ringkasan, Pendahuluan, Metode); kode batas kata mengikuti urutan bagian.
  */
 import type { ParameterButir } from "./kontrak/tipe";
+import { formatAngka } from "@/lib/utils";
 
 export interface BagianSeed {
   nama: string;
@@ -42,7 +43,7 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
     if (x.batasKata != null) {
       hasil.push({
         kode: `KTA-${String(++k).padStart(2, "0")}`,
-        deskripsi: `Bagian "${x.nama}" tidak melebihi ${x.batasKata} kata`,
+        deskripsi: `Bagian “${x.nama}” tidak melebihi ${formatAngka(x.batasKata)} kata`,
         jenis: "deterministik",
         asal: "templat",
         komponen: "2. Jumlah kata per bagian",

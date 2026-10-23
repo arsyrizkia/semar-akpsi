@@ -15,15 +15,17 @@ function formAwal(b: ButirTampil) {
 }
 
 /**
- * M-10 Koreksi Rekomendasi (UC-08), di atas J-08. Render dengan `key` = id butir agar isian mulai segar tiap dibuka.
+ * M-10 Koreksi Rekomendasi (UC-08), di atas J-08. Tetap terpasang; `key` berganti tiap dibuka agar isian mulai segar.
  * Batal (4a) menutup tanpa menulis apa pun; Simpan Koreksi menulis lewat server (S-1: alasan kosong ditolak).
  */
 export function ModalKoreksi({
+  buka,
   penugasanId,
   butir,
   saatTutup,
   saatTersimpan,
 }: {
+  buka: boolean;
   penugasanId: string;
   butir: ButirTampil;
   saatTutup: () => void;
@@ -53,7 +55,7 @@ export function ModalKoreksi({
 
   return (
     <Modal
-      buka
+      buka={buka}
       saatUbah={(b) => {
         if (!b && !sibuk) saatTutup();
       }}
@@ -75,15 +77,15 @@ export function ModalKoreksi({
       <div className="space-y-4">
         <dl className="space-y-2 rounded-md bg-abu-50 p-3 text-sm">
           <div>
-            <dt className="text-xs font-semibold text-primer-700">Rekomendasi sistem</dt>
+            <dt className="text-xs font-semibold text-teks-redup">Rekomendasi sistem</dt>
             <dd>{butir.rekomendasi ?? butir.status}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold text-primer-700">Kutipan</dt>
-            <dd>{butir.kutipan ? <q className="italic">{butir.kutipan}</q> : "Tidak ada kutipan."}</dd>
+            <dt className="text-xs font-semibold text-teks-redup">Kutipan</dt>
+            <dd>{butir.kutipan ? <q>{butir.kutipan}</q> : "Tidak ada kutipan."}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold text-primer-700">Alasan sistem</dt>
+            <dt className="text-xs font-semibold text-teks-redup">Alasan sistem</dt>
             <dd>{butir.alasanSistem ?? "Tidak ada."}</dd>
           </div>
         </dl>

@@ -46,6 +46,8 @@ export interface VersiRincian {
   waktu: Date;
   statusPemeriksaan: string;
   versiTemplat: number | null;
+  /** id templat_proposal yang dipakai versi ini (untuk tautan ke J-02) */
+  templatId: string | null;
   versiAturan: number | null;
   /** id berkas_versi (naskah) bila tersimpan di SEMAR */
   berkasId: string | null;
@@ -124,6 +126,7 @@ export async function ambilRincianProposal(ref: string): Promise<RincianProposal
       waktu: versiProposal.waktu,
       statusPemeriksaan: versiProposal.statusPemeriksaan,
       versiTemplat: templatProposal.versi,
+      templatId: versiProposal.templatId,
       versiAturan: basisAturan.versi,
       basisAturanId: versiProposal.basisAturanId,
       berkasId: versiProposal.berkasId,

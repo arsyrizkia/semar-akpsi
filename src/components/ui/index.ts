@@ -9,3 +9,4 @@ export * from "./modal";
 export * from "./unduh";
 export * from "./notifikasi";
 export * from "./paginasi";
+export * from "./cegat-tinggalkan";

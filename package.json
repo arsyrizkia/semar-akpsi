@@ -15,7 +15,8 @@
     "contoh:proposal": "tsx scripts/buat-proposal-contoh.ts",
     "test:coverage": "vitest run --coverage",
     "laporan-uji": "tsx scripts/laporan-uji.ts",
-    "rencana-uji": "tsx scripts/rencana-uji.ts"
+    "rencana-uji": "tsx scripts/rencana-uji.ts",
+    "label-ui": "tsx scripts/label-ui.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

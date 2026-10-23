@@ -40,6 +40,14 @@ export function urutkanHasil<T extends { butirKode: string; status: string }>(ha
   return [...hasil].sort((a, b) => (PRIORITAS[a.status] ?? 4) - (PRIORITAS[b.status] ?? 4) || a.butirKode.localeCompare(b.butirKode));
 }
 
+/** Status penilaian untuk J-05b, sama dengan label J-07 (Baru, Draf, Selesai): baris penilaian yang baru dibuka (belum "Simpan Sementara") bukan Draf. */
+export function statusPenilaianDariLabel(label: string, statusPenugasan: string): "Belum dimulai" | "Draf" | "Final" | "Belum ditetapkan" {
+  if (statusPenugasan === "Diusulkan") return "Belum ditetapkan";
+  if (label === "Selesai") return "Final";
+  if (label === "Draf") return "Draf";
+  return "Belum dimulai";
+}
+
 /** Status penilaian reviewer untuk satu penugasan, dari baris penilaian (bila ada). */
 export function statusPenilaian(penilaian: { status: "Draf" | "Final" } | null | undefined, statusPenugasan: string): "Belum dimulai" | "Draf" | "Final" | "Belum ditetapkan" {
   if (statusPenugasan === "Diusulkan") return "Belum ditetapkan";

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 /** Label tetap sisi BIMA tiruan (keputusan 1). Tanpa logo atau identitas resmi. */
 export function LabelBima() {
   return (
-    <div className="bg-slate-800 px-4 py-1.5 text-center text-sm font-semibold text-slate-100" role="note">
+    <div className="sticky top-0 z-30 bg-slate-800 px-4 py-1.5 text-center text-sm font-semibold text-slate-100" role="note">
       Simulasi BIMA – bukan sistem resmi
     </div>
   );
@@ -43,7 +43,7 @@ export function NavBima({ nama }: { nama?: string | null }) {
             );
           })}
           {nama ? (
-            <form action="/api/bima/sesi/keluar" method="post" className="ml-2 flex items-center gap-2 border-l border-slate-300 pl-3">
+            <form action="/api/bima/sesi/keluar" method="post" className="ml-0 flex items-center gap-2 sm:ml-2 sm:border-l sm:border-slate-300 sm:pl-3">
               <span className="text-slate-600">{nama}</span>
               <button type="submit" className="min-h-9 border border-slate-500 px-3 py-1 text-slate-800 transition-colors hover:bg-slate-100">
                 Keluar

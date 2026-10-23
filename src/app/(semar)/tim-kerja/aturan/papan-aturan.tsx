@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { startTransition, useEffect, useState, useTransition } from "react";
 import { Lock, Plus } from "lucide-react";
 import { Alert, Badge, Bagian, Button, Isian, KepalaHalaman, KotakCentang, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
 import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
@@ -101,10 +101,13 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
     mulai(async () => {
       const r = await aksiSimpanButir(skemaId, modalButir?.mode === "ubah" ? modalButir.butir.id : null, masukan);
       if (r.ok && "butirId" in r) {
-        setModalButir(null);
-        beriTahu.sukses(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
-        setSorot(r.kode);
-        router.refresh();
+        // setter dan refresh dalam satu transisi: pesan dan data segar tampil serentak
+        startTransition(() => {
+          setModalButir(null);
+          beriTahu.sukses(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
+          setSorot(r.kode);
+          router.refresh();
+        });
         return;
       }
       if ("terkunci" in r && r.terkunci) {
@@ -130,9 +133,11 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
         }
         return setGalatNonaktif(r.pesan);
       }
-      setNonaktif(null);
-      beriTahu.sukses(`Butir ${r.kode} dinonaktifkan pada versi yang sedang disusun.`);
-      router.refresh();
+      startTransition(() => {
+        setNonaktif(null);
+        beriTahu.sukses(`Butir ${r.kode} dinonaktifkan pada versi yang sedang disusun.`);
+        router.refresh();
+      });
     });
   }
 
@@ -148,11 +153,14 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
         return;
       }
       if ("versi" in r) {
-        setModalVersi(false);
-        setBerhasilVersi({ versi: r.versi, tanggal: r.tanggalBerlaku });
-        setTanggal("");
-        beriTahu.sukses(`Basis aturan versi ${r.versi} tersimpan.`);
-        router.refresh();
+        // pesan "tersimpan" dipasang bersama data segar (kepala tabel versi baru), bukan lebih dulu
+        startTransition(() => {
+          setModalVersi(false);
+          setBerhasilVersi({ versi: r.versi, tanggal: r.tanggalBerlaku });
+          setTanggal("");
+          beriTahu.sukses(`Basis aturan versi ${r.versi} tersimpan.`);
+          router.refresh();
+        });
       }
     });
   }
@@ -224,7 +232,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           ) : undefined
         }
       >
-        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primer-700">
+        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
           {nyata ? (
             <span>
               Basis aturan berlaku: versi {nyata.versi}, sejak {formatTanggal(nyata.tanggalBerlaku)}.
@@ -232,7 +240,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           ) : (
             <span>Skema ini belum memiliki basis aturan.</span>
           )}
-          {draf ? <Badge warna="peringatan">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
+          {draf ? <Badge warna="netral">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
           <Link href={urlTemplat} className="font-semibold text-primer-800 underline underline-offset-2">
             Templat Proposal {namaSkema}
           </Link>
@@ -255,7 +263,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
           <TBody>
             {butir.length === 0 ? (
               <TR>
-                <TD colSpan={7} className="py-6 text-center text-primer-700">
+                <TD colSpan={7} className="py-6 text-center text-teks-redup">
                   Belum ada butir cek. Terbitkan templat di Templat Proposal atau tekan &ldquo;Tambah Butir&rdquo;.
                 </TD>
               </TR>
@@ -274,7 +282,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                   <TD className="whitespace-nowrap">
                     {butirTerkunci(b.asal) ? (
                       <Link href={urlTemplat} className="inline-flex items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat Templat Proposal">
-                        <Lock aria-hidden className="size-4 text-primer-700" /> templat<span className="sr-only"> (terkunci)</span>
+                        <Lock aria-hidden className="size-4 text-teks-redup" /> templat<span className="sr-only"> (terkunci)</span>
                       </Link>
                     ) : (
                       "manual"
@@ -284,7 +292,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                   <TD>
                     <LencanaStatus status={b.status} />
                     {b.ditandaiPemantauan ? (
-                      <Link href="/tim-kerja/pemantauan" className="mt-1 block text-xs text-primer-700 underline underline-offset-2">
+                      <Link href={`/tim-kerja/pemantauan?periode=${periode.id}&skema=${skemaId}&butir=${encodeURIComponent(b.kode)}`} className="mt-1 block text-xs text-primer-800 underline underline-offset-2">
                         ditandai di Pemantauan
                       </Link>
                     ) : null}
@@ -299,6 +307,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                           <Button
                             varian="hantu"
                             ukuran="sm"
+                            className="text-bata-700 hover:bg-bata-100"
                             onClick={() => (setGalatNonaktif(null), setNonaktif(b))}
                             disabled={sibuk}
                             aria-label={`Nonaktifkan butir ${b.kode}`}
@@ -420,7 +429,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
             <p>
               Butir <span className="font-mono font-semibold" translate="no">{nonaktif.kode}</span>: {nonaktif.deskripsi}
             </p>
-            <p className="mt-2 text-primer-700">
+            <p className="mt-2 text-teks-redup">
               Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.
             </p>
           </>
@@ -466,7 +475,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
         }
       >
         <form id="form-versi" onSubmit={simpanVersi} noValidate className="space-y-4">
-          <p className="text-primer-700">
+          <p className="text-teks-redup">
             Basis aturan versi {draf?.versi ?? "baru"} untuk {namaSkema}, periode {periode.nama}.
           </p>
           <Isian

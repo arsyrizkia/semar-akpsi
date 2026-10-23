@@ -79,7 +79,7 @@ describe("Isian Substansi Proposal: butir cek turunan dan katalog", () => {
       ["KTA-03", { tipe: "batas_kata", bagian: "Pendahuluan", batas: 1000 }],
       ["KTA-04", { tipe: "batas_kata", bagian: "Metode", batas: 1000 }],
     ]);
-    expect(kata[3].deskripsi).toBe('Bagian "Metode" tidak melebihi 1000 kata');
+    expect(kata[3].deskripsi).toBe('Bagian “Metode” tidak melebihi 1.000 kata');
     expect(kata[3].aturanHitung).toContain("kalimat petunjuk templat");
     expect(butir.filter((b) => b.parameter.tipe === "lampiran_wajib")).toHaveLength(3);
   });

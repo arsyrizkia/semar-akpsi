@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert, Bagian, Badge, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TombolUnduh, TR } from "@/components/ui";
+import { Alert, Bagian, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TombolUnduh, TR } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
 import { ambilDrafTemplat, ambilTemplatBerlaku, ambilTemplatPerId, daftarSkema, daftarVersiTemplat, type TemplatTampil } from "@/lib/templat/layanan";
+import { hurufBagian } from "@/lib/templat/isian-substansi";
 import { PESAN_DRAF_9A } from "@/lib/templat/status";
 import { masaPengusulanBerjalan } from "@/lib/waktu";
 import { formatAngka, formatTanggal } from "@/lib/utils";
@@ -50,18 +51,16 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         remah={[{ label: "Templat Proposal" }]}
         aksi={
           draf ? (
-            <Link href={urlSusun(draf.id)} className={kelasTombol("utama")}>Buka Draf Versi {draf.versi}</Link>
+            <Link href={urlSusun(draf.id)} className={kelasTombol(hasil === "terbit" ? "sekunder" : "utama")}>Buka Draf Versi {draf.versi}</Link>
           ) : (
-            <TombolSusunVersi skemaId={skemaTerpilih.id} />
+            <TombolSusunVersi skemaId={skemaTerpilih.id} sekunder={hasil === "terbit"} />
           )
         }
       />
 
       <div className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
         <PilihSkema skema={skema} skemaId={skemaTerpilih.id} />
-        <p className="pb-2 text-sm text-primer-700">
-          Masa pengusulan (sakelar demo): <Badge warna={masaBerjalan ? "peringatan" : "daun"}>{masaBerjalan ? "berjalan" : "ditutup"}</Badge>
-        </p>
+        {masaBerjalan ? <p className="pb-2 text-sm text-teks-redup">Masa pengusulan sedang berjalan: templat baru disimpan sebagai draf untuk periode berikutnya.</p> : null}
       </div>
 
       {hasil === "terbit" && dilihat?.status === "Terbit" ? (
@@ -71,9 +70,6 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href={`/tim-kerja/aturan?skema=${skemaTerpilih.id}`} className={kelasTombol("utama", "sm")}>Buka Aturan Pemeriksaan</Link>
-            <TombolUnduh href={urlUnduh(dilihat.id)} ukuran="sm">
-              Unduh Templat (.docx)
-            </TombolUnduh>
           </div>
         </Alert>
       ) : null}
@@ -98,7 +94,10 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         }
       >
         {dilihat ? (
-          <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-primer-700">
+          <p className="mb-1 text-sm text-teks-redup">Struktur mengikuti Isian Substansi Proposal (bagian A sampai H).</p>
+        ) : null}
+        {dilihat ? (
+          <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
             <span>{skemaTerpilih.namaSkema}</span>
             <LencanaStatus status={dilihat.status} />
             <span>
@@ -126,14 +125,14 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
               dilihat.bagian.map((b) => (
                 <TR key={b.urutan}>
                   <TD angka>{b.urutan}</TD>
-                  <TD>{b.nama}</TD>
+                  <TD>{hurufBagian(b.urutan - 1)}. {b.nama}</TD>
                   <TD angka>{b.batasKata == null ? "Tanpa batas" : formatAngka(b.batasKata)}</TD>
                   <TD>{b.wajib ? "Ya" : "Tidak"}</TD>
                 </TR>
               ))
             ) : (
               <TR>
-                <TD colSpan={4} className="py-6 text-center text-primer-700">
+                <TD colSpan={4} className="py-6 text-center text-teks-redup">
                   Skema ini belum memiliki templat
                 </TD>
               </TR>
@@ -150,7 +149,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-primer-700">Tidak ada lampiran wajib.</p>
+              <p className="text-sm text-teks-redup">Tidak ada lampiran wajib.</p>
             )}
           </div>
         ) : null}
@@ -173,7 +172,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
           <TBody>
             {riwayat.length === 0 ? (
               <TR>
-                <TD colSpan={6} className="py-6 text-center text-primer-700">
+                <TD colSpan={6} className="py-6 text-center text-teks-redup">
                   Belum ada versi templat untuk skema ini.
                 </TD>
               </TR>

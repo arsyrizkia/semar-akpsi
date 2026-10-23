@@ -58,12 +58,15 @@ async function bebanPerReviewer(periodeId: string, kecualiPenugasanId?: string):
 
 export const UKURAN_HALAMAN_USULAN = 50;
 
-/** Jumlah usulan/penugasan berstatus tertentu pada periode (untuk ringkasan dan penomoran halaman). */
+/** Status penugasan yang dihitung "Ditetapkan": sudah ditetapkan, termasuk yang sudah Selesai dinilai (satu angka di J-04 dan J-04b). */
+const statusDitetapkan = (status: "Diusulkan" | "Ditetapkan") => (status === "Ditetapkan" ? (["Ditetapkan", "Selesai"] as const) : ([status] as const));
+
+/** Jumlah usulan/penugasan berstatus tertentu pada periode (untuk ringkasan dan penomoran halaman). "Ditetapkan" mencakup "Selesai". */
 export async function hitungPenugasan(periodeId: string, status: "Diusulkan" | "Ditetapkan"): Promise<number> {
   const [{ n }] = await getDb()
     .select({ n: sql<number>`count(*)::int` })
     .from(penugasanReviewer)
-    .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, status)));
+    .where(and(eq(penugasanReviewer.periodeId, periodeId), inArray(penugasanReviewer.status, [...statusDitetapkan(status)])));
   return n;
 }
 
@@ -114,13 +117,14 @@ export async function ambilUsulan(
       reviewerId: penugasanReviewer.reviewerId,
       namaReviewer: rev.nama,
       institusiReviewer: rev.institusi,
+      status: penugasanReviewer.status,
     })
     .from(penugasanReviewer)
     .innerJoin(proposal, eq(penugasanReviewer.proposalId, proposal.id))
     .innerJoin(skemaPendanaan, eq(proposal.skemaId, skemaPendanaan.id))
     .innerJoin(pengusul, eq(pengusul.id, proposal.pengusulId))
     .innerJoin(rev, eq(rev.id, penugasanReviewer.reviewerId))
-    .where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, status)))
+    .where(and(eq(penugasanReviewer.periodeId, periodeId), inArray(penugasanReviewer.status, [...statusDitetapkan(status)])))
     .orderBy(asc(proposal.idProposal), asc(penugasanReviewer.id));
   const baris = opsi.halaman
     ? await kueri.limit(opsi.ukuran ?? UKURAN_HALAMAN_USULAN).offset((Math.max(1, opsi.halaman) - 1) * (opsi.ukuran ?? UKURAN_HALAMAN_USULAN))

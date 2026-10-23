@@ -30,8 +30,8 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
 
   return (
     <PapanAturan
-      // kunci ikut draf dan versi sehingga isian dimuat ulang saat skema, periode, atau versi berganti
-      key={`${skemaTerpilih.id}:${periodeTerpilih.id}:${tampilan.draf?.id ?? tampilan.nyata?.id ?? "kosong"}`}
+      // kunci hanya skema dan periode: id draf/versi berganti saat butir pertama disimpan, dan itu tidak boleh memasang ulang papan (sorotan dan pesan hasil harus bertahan)
+      key={`${skemaTerpilih.id}:${periodeTerpilih.id}`}
       skema={skema}
       skemaId={skemaTerpilih.id}
       periodeDaftar={periode}

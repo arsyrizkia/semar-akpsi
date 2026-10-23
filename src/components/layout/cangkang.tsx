@@ -65,7 +65,7 @@ function IsiSidebar({ menu, nama, peran, pengelola, institusi, beranda, bisaKelu
         <div className="flex-1" />
       )}
 
-      <div className="border-t border-primer-600/70 px-4 pb-4 pt-3 text-sm">
+      <div className="border-t border-primer-600/70 px-4 pb-4 pt-3 text-sm lg:pb-16">
         <p className="font-semibold text-white">{nama}</p>
         <p className="text-xs text-latar-200">
           {NAMA_PERAN[peran]}
@@ -82,7 +82,7 @@ function IsiSidebar({ menu, nama, peran, pengelola, institusi, beranda, bisaKelu
             </button>
           </form>
         ) : null}
-        <p className="mt-3 text-[11px] leading-snug text-latar-200/90">Nama dan institusi: contoh sementara (rekaan).</p>
+        <p className="mt-3 text-xs leading-snug text-latar-200/90">Nama dan institusi: contoh sementara (rekaan).</p>
       </div>
     </div>
   );
@@ -90,10 +90,30 @@ function IsiSidebar({ menu, nama, peran, pengelola, institusi, beranda, bisaKelu
 
 /**
  * Cangkang aplikasi SEMAR: sidebar per peran di layar lebar, laci (drawer) di layar sempit.
- * Peran tanpa menu (pengusul) tetap mendapat sidebar ramping berisi merek dan identitas, tanpa daftar menu.
+ * Peran tanpa menu (pengusul) mendapat bilah atas ramping (merek + identitas), tanpa sidebar.
  */
 export function CangkangSemar({ children, ...p }: PropsCangkang) {
   const [laci, setLaci] = useState(false);
+  // peran tanpa menu (pengusul): bilah atas ramping, tanpa sidebar kosong dan tanpa tombol menu yang tidak berfungsi
+  if (p.menu.length === 0) {
+    return (
+      <div className="min-h-screen">
+        <a href="#isi-utama" className="sr-only-fokus fixed left-2 top-2 z-[60] rounded-md bg-white px-3 py-2 text-sm font-semibold text-primer-900 focus:not-sr-only">
+          Lewati ke isi
+        </a>
+        <header className="latar-kawung flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2.5 text-white sm:px-6">
+          <LogoSemar />
+          <p className="text-right text-xs leading-snug text-latar-200">
+            <span className="block text-sm font-semibold text-white">{p.nama}</span>
+            {p.institusi} · contoh sementara (rekaan)
+          </p>
+        </header>
+        <main id="isi-utama" tabIndex={-1} className="mx-auto max-w-5xl px-4 pb-40 pt-6 outline-none sm:px-6 lg:pt-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       <a href="#isi-utama" className="sr-only-fokus fixed left-2 top-2 z-[60] rounded-md bg-white px-3 py-2 text-sm font-semibold text-primer-900 focus:not-sr-only">
@@ -105,7 +125,7 @@ export function CangkangSemar({ children, ...p }: PropsCangkang) {
       </aside>
 
       <div className="min-w-0">
-        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-primer-200 bg-latar/95 px-4 py-2 backdrop-blur lg:hidden">
+        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-primer-200 bg-latar px-4 py-2 lg:hidden">
           <RDialog.Root open={laci} onOpenChange={setLaci}>
             <RDialog.Trigger asChild>
               <button type="button" aria-label="Buka menu" className="inline-flex size-10 cursor-pointer items-center justify-center rounded-md text-primer-800 hover:bg-primer-100">

@@ -19,7 +19,11 @@ export async function proxy(req: NextRequest) {
   }
 
   const sesi = await verifikasiSesiSemar(req.cookies.get(COOKIE_SEMAR)?.value);
-  if (!sesi) return NextResponse.redirect(new URL("/masuk", req.url));
+  if (!sesi) {
+    const url = new URL("/masuk", req.url);
+    url.searchParams.set("lanjut", pathname + search);
+    return NextResponse.redirect(url);
+  }
   return NextResponse.next();
 }
 

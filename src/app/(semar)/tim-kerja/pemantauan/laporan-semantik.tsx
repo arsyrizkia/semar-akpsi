@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { startTransition, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge, Bagian, Button, KotakCentang, ModalKonfirmasi, Sheet, StatusBadge, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
@@ -74,11 +74,14 @@ export function LaporanSemantik({
   function tandai() {
     mulai(async () => {
       const h = await aksiTandaiButir(periodeId, skemaId, [...dipilih]);
-      setHasil(h);
-      if (h.galat) return;
-      setKonfirmasi(false);
-      setDipilih(new Set());
-      beriTahu.sukses(h.ditandai.length ? `Butir ${h.ditandai.join(", ")} sekarang berlabel “${STATUS_DITANDAI}”.` : "Tidak ada butir Aktif yang perlu ditandai.");
+      // setter sesudah await dibungkus startTransition: pesan dan data segar (baris berlabel "Perlu ditinjau") tampil serentak
+      startTransition(() => {
+        setHasil(h);
+        if (h.galat) return;
+        setKonfirmasi(false);
+        setDipilih(new Set());
+        beriTahu.sukses(h.ditandai.length ? `Butir ${h.ditandai.join(", ")} sekarang berlabel “${STATUS_DITANDAI}”.` : "Tidak ada butir Aktif yang perlu ditandai.");
+      });
     });
   }
 
@@ -87,7 +90,8 @@ export function LaporanSemantik({
       <Link
         href={alamat(kode)}
         scroll={false}
-        className="text-left text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600"
+        replace
+        className="text-left text-primer-800 underline decoration-dashed decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2"
         aria-label={`Rincian butir ${kode}: ${deskripsi}`}
       >
         {deskripsi}
@@ -96,18 +100,18 @@ export function LaporanSemantik({
   );
   const kodeButir = (kode: string) =>
     pengelola ? (
-      <Link href={tautanJ03(kode)} className="font-mono text-xs font-semibold text-primer-700 underline-offset-2 hover:underline" title="Buka butir ini di Aturan Pemeriksaan (J-03)">
+      <Link href={tautanJ03(kode)} className="font-mono text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2" title="Buka butir ini di Aturan Pemeriksaan (J-03)">
         {kode}
       </Link>
     ) : (
-      <span className="font-mono text-xs font-semibold text-primer-700">{kode}</span>
+      <span className="font-mono text-xs font-semibold text-teks-redup">{kode}</span>
     );
 
   return (
     <>
       <Bagian judul="Kesesuaian per Butir">
         {kesesuaian.length === 0 ? (
-          <p className="text-sm text-primer-700">Belum ada penilaian final untuk periode dan skema ini.</p>
+          <p className="text-sm text-teks-redup">Belum ada penilaian final untuk periode dan skema ini.</p>
         ) : (
           <>
             <Table>
@@ -137,7 +141,7 @@ export function LaporanSemantik({
                 ))}
               </TBody>
             </Table>
-            <p className="mt-2 text-xs text-primer-700">
+            <p className="mt-2 text-xs text-teks-redup">
               Rekomendasi yang tidak dikoreksi dihitung disetujui. Butir deterministik tidak muncul di sini karena reviewer tidak mengoreksinya.
             </p>
           </>
@@ -153,7 +157,7 @@ export function LaporanSemantik({
         }
       >
         {koreksi.length === 0 ? (
-          <p className="text-sm text-primer-700">Belum ada koreksi reviewer pada penilaian final untuk periode dan skema ini.</p>
+          <p className="text-sm text-teks-redup">Belum ada koreksi reviewer pada penilaian final untuk periode dan skema ini.</p>
         ) : (
           <>
             <Table>
@@ -177,7 +181,7 @@ export function LaporanSemantik({
                       </TD>
                       <TD angka>
                         {persen(b.tingkatKoreksi)}
-                        <p className="text-xs text-primer-700">
+                        <p className="text-xs text-teks-redup">
                           {b.jumlahKoreksi} dari {b.jumlah} hasil
                         </p>
                       </TD>
@@ -185,7 +189,7 @@ export function LaporanSemantik({
                         <ul className="space-y-1.5">
                           {b.alasan.map((a, i) => (
                             <li key={i} className="text-xs">
-                              <Badge warna="netral">{a.jenisKekeliruan || "Tanpa jenis"}</Badge> <span className="text-primer-700">menjadi {a.keputusanReviewer}:</span> {a.alasan}
+                              <Badge warna="netral">{a.jenisKekeliruan || "Tanpa jenis"}</Badge> <span className="text-teks-redup">menjadi {a.keputusanReviewer}:</span> {a.alasan}
                             </li>
                           ))}
                         </ul>
@@ -195,9 +199,9 @@ export function LaporanSemantik({
                         {b.butirId && b.status === "Aktif" ? (
                           <KotakCentang id={`perbaiki-${b.kode}`} label="Perlu Diperbaiki" checked={dipilih.has(b.kode)} onCheckedChange={(v) => alih(b.kode, v === true)} />
                         ) : sudahDitandai ? (
-                          <span className="text-xs text-primer-700">Sudah ditandai</span>
+                          <span className="text-xs text-teks-redup">Sudah ditandai</span>
                         ) : (
-                          <span className="text-xs text-primer-600">-</span>
+                          <span className="text-xs text-teks-redup">-</span>
                         )}
                       </TD>
                     </TR>
@@ -214,7 +218,7 @@ export function LaporanSemantik({
               {hasil?.ditandai.length && pengelola ? (
                 <p className="mt-3 text-sm text-primer-800">
                   Butir ditandai tampil disorot di J-03.{" "}
-                  <Link href={`/tim-kerja/aturan?skema=${skemaId}&periode=${periodeId}`} className={kelasTombol("hantu", "sm")}>
+                  <Link href={`/tim-kerja/aturan?skema=${skemaId}&periode=${periodeId}&butir=${encodeURIComponent(hasil.ditandai[0])}`} className={kelasTombol("hantu", "sm")}>
                     Buka Aturan Pemeriksaan
                   </Link>
                 </p>
@@ -240,26 +244,26 @@ export function LaporanSemantik({
           {(butirTerbuka ? rincian[butirTerbuka] : []).map((c, i) => (
             <li key={i} className="border-b border-primer-100 pb-4 last:border-0">
               {c.proposalId ? (
-                <Link href={`/tim-kerja/proposal/${c.proposalId}`} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
+                <Link href={`/tim-kerja/proposal/${c.proposalId}`} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
                   {c.judulProposal}
                 </Link>
               ) : (
                 <p className="font-semibold text-primer-800">{c.judulProposal}</p>
               )}
               <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[9rem_1fr]">
-                <dt className="text-primer-700">Rekomendasi sistem</dt>
+                <dt className="text-teks-redup">Rekomendasi sistem</dt>
                 <dd>
-                  {c.rekomendasi ?? c.statusSistem} {c.tiruan ? <Badge>tiruan</Badge> : null}
+                  <StatusBadge status={c.rekomendasi ?? c.statusSistem} /> {c.tiruan ? <Badge>tiruan</Badge> : null}
                 </dd>
-                <dt className="text-primer-700">Kutipan</dt>
+                <dt className="text-teks-redup">Kutipan</dt>
                 <dd>{c.kutipan ? <q>{c.kutipan}</q> : "-"}</dd>
-                <dt className="text-primer-700">Keputusan reviewer</dt>
+                <dt className="text-teks-redup">Keputusan reviewer</dt>
                 <dd>
-                  {c.keputusanReviewer} {c.dikoreksi ? <StatusBadge status="Dikoreksi reviewer" /> : null}
+                  <StatusBadge status={c.keputusanReviewer} /> {c.dikoreksi ? <StatusBadge status="Dikoreksi reviewer" /> : null}
                 </dd>
                 {c.alasanKoreksi ? (
                   <>
-                    <dt className="text-primer-700">Alasan koreksi</dt>
+                    <dt className="text-teks-redup">Alasan koreksi</dt>
                     <dd>{c.alasanKoreksi}</dd>
                   </>
                 ) : null}

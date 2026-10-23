@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { startTransition, useEffect, useState, useTransition } from "react";
 import { AlertCircle, ArrowLeft, Lock } from "lucide-react";
-import { Alert, Bagian, Button, Isian, ModalKonfirmasi, RadioGroup, RadioItem, StatusBadge, TBody, TD, TH, THead, TR, Table, beriTahu, kelasTombol } from "@/components/ui";
+import { Alert, Bagian, Button, CegatTinggalkan, Isian, ModalKonfirmasi, RadioGroup, RadioItem, StatusBadge, TBody, TD, TH, THead, TR, Table, beriTahu, kelasTombol } from "@/components/ui";
 import { KOMPONEN_BORANG, type Keputusan } from "@/lib/kontrak/tipe";
 import type { DataKeputusan } from "@/lib/penilaian/tipe";
 import { PESAN_KOMPONEN_BELUM_LENGKAP } from "@/lib/penilaian/validasi";
@@ -15,6 +16,7 @@ const PESAN_GAGAL_KIRIM = "Penilaian tersimpan, tetapi gagal terkirim ke BIMA. T
 const potret = (k: Record<string, Keputusan | undefined>, u: string) => JSON.stringify([KOMPONEN_BORANG.map((n) => k[n] ?? null), u]);
 
 export function KeputusanKlien({ data }: { data: DataKeputusan }) {
+  const router = useRouter();
   const [komponen, setKomponen] = useState<Record<string, Keputusan | undefined>>(data.penilaian.komponen);
   const [umpanBalik, setUmpanBalik] = useState(data.penilaian.umpanBalik);
   const [final, setFinal] = useState(data.penilaian.status === "Final");
@@ -41,17 +43,31 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
 
   const isian = () => ({ umpanBalik, komponen: komponen as Record<string, string | undefined> });
 
-  function simpanSementara() {
+  /** Simpan Sementara; dipakai tombolnya dan CegatTinggalkan ("Simpan Sementara lalu pindah"). */
+  async function simpan(): Promise<boolean> {
     setGalat(null);
+    const r = await aksiSimpanSementara(data.penugasanId, isian());
+    if (!r.ok) {
+      setGalat(r.galat);
+      return false;
+    }
+    setTersimpan(potret(komponen, umpanBalik));
+    beriTahu.sukses("Draf penilaian tersimpan");
+    return true;
+  }
+
+  function simpanSementara() {
     mulai(async () => {
-      const r = await aksiSimpanSementara(data.penugasanId, isian());
-      if (!r.ok) {
-        setGalat(r.galat);
-        return;
-      }
-      setTersimpan(potret(komponen, umpanBalik));
-      beriTahu.sukses("Draf penilaian tersimpan");
+      await simpan();
     });
+  }
+
+  /** "Kembali ke Pemeriksaan": bila datang dari J-08, kembali ke entri riwayat itu (tab dan butir terakhir ikut terbawa). */
+  function kembaliKePemeriksaan(e: React.MouseEvent) {
+    const asal = typeof document !== "undefined" ? document.referrer : "";
+    if (kotor || !asal.includes(`/reviewer/pemeriksaan/${data.penugasanId}`) || asal.includes("/keputusan")) return;
+    e.preventDefault();
+    router.back();
   }
 
   function mintaPermanen() {
@@ -76,12 +92,14 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
         setGalatModal(r.galat);
         return;
       }
-      setTersimpan(potret(komponen, umpanBalik));
-      setFinal(true);
-      setTerkirim(r.terkirim);
-      setModal(false);
-      if (r.terkirim) beriTahu.sukses(PESAN_TERKIRIM);
-      else beriTahu.galat(r.pesanKirim ?? PESAN_GAGAL_KIRIM);
+      startTransition(() => {
+        setTersimpan(potret(komponen, umpanBalik));
+        setFinal(true);
+        setTerkirim(r.terkirim);
+        setModal(false);
+        if (r.terkirim) beriTahu.sukses(PESAN_TERKIRIM);
+        else beriTahu.galat(r.pesanKirim ?? PESAN_GAGAL_KIRIM);
+      });
     });
   }
 
@@ -100,7 +118,10 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
       {final ? (
         terkirim ? (
           <Alert jenis="sukses" className="mb-6" judul={PESAN_TERKIRIM}>
-            Penilaian ini hanya dapat dibaca.
+            <p>Penilaian ini hanya dapat dibaca.</p>
+            <Link href="/reviewer/penugasan" className={`${kelasTombol("sekunder", "sm")} mt-2`}>
+              Kembali ke Daftar Penugasan
+            </Link>
           </Alert>
         ) : (
           <Alert jenis="galat" className="mb-6" judul={PESAN_GAGAL_KIRIM}>
@@ -129,7 +150,7 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
                       {k}
                     </p>
                     {i === 0 ? (
-                      <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className="text-xs text-primer-700 underline underline-offset-2">
+                      <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className="text-xs text-primer-800 underline underline-offset-2">
                         Tinjau butir semantik ({rek.dikoreksi} dari {rek.total} dikoreksi)
                       </Link>
                     ) : null}
@@ -177,16 +198,16 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-primer-200 pt-4">
-        <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} className={kelasTombol("hantu", "md")}>
+        <Link href={`/reviewer/pemeriksaan/${data.penugasanId}`} onClick={kembaliKePemeriksaan} className={kelasTombol("hantu", "md")}>
           <ArrowLeft aria-hidden className="size-4" /> Kembali ke Pemeriksaan
         </Link>
         {final ? (
-          <p className="flex items-center gap-2 text-sm font-semibold text-primer-700">
+          <p className="flex items-center gap-2 text-sm font-semibold text-teks-redup">
             <Lock aria-hidden className="size-4" /> Hanya-baca
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
-            {kotor ? <span className="text-xs text-primer-700">Ada perubahan yang belum disimpan</span> : null}
+            {kotor ? <span className="text-xs text-teks-redup">Ada perubahan yang belum disimpan</span> : null}
             <Button varian="sekunder" onClick={simpanSementara} disabled={sibuk}>
               Simpan Sementara
             </Button>
@@ -197,13 +218,15 @@ export function KeputusanKlien({ data }: { data: DataKeputusan }) {
         )}
       </div>
 
+      <CegatTinggalkan kotor={kotor} labelSimpan="Simpan Sementara lalu pindah" saatSimpan={simpan} />
+
       <ModalKonfirmasi
         kode="M-11"
         buka={modal}
         saatUbah={(b) => {
           if (!sibuk) setModal(b);
         }}
-        judul="Simpan Permanen"
+        judul="Konfirmasi Simpan Permanen"
         deskripsi="Periksa ringkasan keputusan sebelum menyimpan."
         labelKonfirmasi="Simpan Permanen"
         memuat={sibuk}

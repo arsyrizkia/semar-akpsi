@@ -61,19 +61,19 @@ export default async function Halaman({ params, searchParams }: { params: Param;
           ["Ditetapkan", formatAngka(periode.ditetapkan)],
         ].map(([k, v]) => (
           <div key={k}>
-            <dt className="text-xs text-primer-700">{k}</dt>
+            <dt className="text-xs text-teks-redup">{k}</dt>
             <dd className="angka text-lg font-semibold text-primer-900">{v}</dd>
           </div>
         ))}
         <div>
-          <dt className="text-xs text-primer-700">Status penetapan</dt>
+          <dt className="text-xs text-teks-redup">Status penetapan</dt>
           <dd className="mt-1 text-sm font-semibold text-primer-900">{status}</dd>
         </div>
       </dl>
 
       {!periode.ditutup ? (
         <Alert jenis="info" className="mb-6">
-          Masa pengusulan periode ini belum ditutup, jadi usulan belum dapat disusun. Di prototipe, tutup masa pengusulan lewat Pusat Demo atau navigator demo.
+          Masa pengusulan periode ini belum ditutup, jadi usulan belum dapat disusun. Penyusunan usulan dibuka sesudah masa pengusulan ditutup.
         </Alert>
       ) : null}
 
@@ -103,8 +103,8 @@ export default async function Halaman({ params, searchParams }: { params: Param;
           judul={`Penugasan yang Sudah Ditetapkan (${formatAngka(periode.ditetapkan)})`}
           aksi={
             <div className="flex flex-wrap gap-2">
-              <Link href="/tim-kerja/pemantauan" className={kelasTombol("sekunder", "sm")}>
-                Pantau Kesesuaian (J-05)
+              <Link href={`/tim-kerja/pemantauan?periode=${periode.id}`} className={kelasTombol("sekunder", "sm")}>
+                Pantau Kesesuaian
               </Link>
               <Link href="/bima/kotak-masuk" className={kelasTombol("hantu", "sm")}>
                 Kotak Masuk BIMA (simulasi)
@@ -127,7 +127,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
               {ditetapkan.map((u) => (
                 <TR key={u.penugasanId}>
                   <TD className="min-w-56 max-w-sm">
-                    <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
+                    <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
                       {u.judulProposal}
                     </Link>
                   </TD>
@@ -136,7 +136,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
                   <TD>{u.namaReviewer}</TD>
                   <TD>{u.institusiReviewer}</TD>
                   <TD>
-                    <StatusBadge status="Ditetapkan" />
+                    <StatusBadge status={u.status ?? "Ditetapkan"} />
                   </TD>
                 </TR>
               ))}

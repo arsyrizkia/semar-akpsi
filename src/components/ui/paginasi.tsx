@@ -14,12 +14,13 @@ export function Paginasi({ halaman, jumlahHalaman, parameter = "halaman", classN
   if (jumlahHalaman <= 1) return null;
   const alamat = (h: number) => {
     const p = new URLSearchParams(cari.toString());
+    p.delete("susun"); // parameter aksi tidak ikut terbawa ke tautan halaman
     p.set(parameter, String(h));
     return `${jalur}?${p.toString()}`;
   };
   const kelas = "inline-flex h-8 items-center gap-1 rounded-md border border-primer-300 bg-white px-2.5 text-sm font-medium text-primer-800 hover:bg-primer-50";
   return (
-    <nav aria-label="Halaman tabel" className={cn("mt-3 flex items-center justify-between gap-3 text-sm text-primer-700", className)}>
+    <nav aria-label="Halaman tabel" className={cn("mt-3 flex items-center justify-between gap-3 text-sm text-teks-redup", className)}>
       <p className="angka">
         Halaman {halaman} dari {jumlahHalaman}
       </p>

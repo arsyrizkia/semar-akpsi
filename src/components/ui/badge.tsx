@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Minus, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Check, Circle, Clock, Minus, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const warna = {
@@ -30,7 +30,7 @@ const petaStatus: Record<string, WarnaBadge> = {
   "Perlu ditinjau": "peringatan",
   Nonaktif: "netral",
   "Belum diajukan": "netral",
-  "Sedang diperiksa": "peringatan",
+  "Sedang diperiksa": "netral",
   Terkirim: "daun",
   Ditahan: "peringatan",
   Ditolak: "bata",
@@ -43,10 +43,13 @@ const petaStatus: Record<string, WarnaBadge> = {
   Diusulkan: "netral",
   Ditetapkan: "daun",
   Selesai: "daun",
-  Baru: "peringatan",
+  Baru: "netral",
   "Dikoreksi reviewer": "netral",
   tiruan: "netral",
 };
+
+/** Ikon khusus status netral yang bukan "tidak ada" (Baru, Sedang diperiksa): bukan segitiga peringatan. */
+const ikonStatus: Record<string, LucideIcon> = { Baru: Circle, "Sedang diperiksa": Clock };
 
 export const warnaStatus = (status: string): WarnaBadge => petaStatus[status] ?? "netral";
 
@@ -56,7 +59,7 @@ export const warnaStatus = (status: string): WarnaBadge => petaStatus[status] ??
  */
 export function LencanaStatus({ status, className }: { status: string; className?: string }) {
   const w = warnaStatus(status);
-  const Ikon = ikonWarna[w];
+  const Ikon = ikonStatus[status] ?? ikonWarna[w];
   return (
     <Badge warna={w} className={className}>
       {Ikon ? <Ikon aria-hidden className="size-3" strokeWidth={3} /> : null}

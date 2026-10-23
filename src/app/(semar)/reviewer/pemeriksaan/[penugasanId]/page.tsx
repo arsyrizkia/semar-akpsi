@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Alert, KepalaHalaman, kelasTombol } from "@/components/ui";
 import { wajibReviewer } from "@/lib/auth";
 import { muatPemeriksaan, periksaAkses } from "@/lib/penilaian/layanan";
+import { AksesDitolak } from "./akses-ditolak";
 import { PemeriksaanKlien } from "./pemeriksaan-klien";
 
 export const metadata: Metadata = { title: "J-08 Pemeriksaan Proposal" };
@@ -23,19 +21,7 @@ export default async function Halaman({ params, searchParams }: { params: Promis
   const akses = await periksaAkses(penugasanId, akun);
 
   if (!akses.ok) {
-    return (
-      <>
-        <KepalaHalaman kode="J-08" judul="Pemeriksaan Proposal" remah={[REMAH_DAFTAR, { label: "Pemeriksaan Proposal" }]} />
-        <Alert jenis="galat" judul={akses.kode === 403 ? "403 Akses ditolak" : "Penugasan tidak ditemukan"}>
-          {akses.kode === 403 ? "Proposal ini tidak ditugaskan kepada Anda. Percobaan akses ini dicatat." : "Penugasan yang Anda buka tidak ada atau belum ditetapkan."}
-        </Alert>
-        <p className="mt-4">
-          <Link href="/reviewer/penugasan" className={kelasTombol("sekunder", "md")}>
-            <ArrowLeft aria-hidden className="size-4" /> Kembali ke Daftar Penugasan
-          </Link>
-        </p>
-      </>
-    );
+    return <AksesDitolak kode="J-08" judul="Pemeriksaan Proposal" kodeAkses={akses.kode} remah={[REMAH_DAFTAR, { label: "Pemeriksaan Proposal" }]} />;
   }
 
   const data = await muatPemeriksaan(akses.penugasan);

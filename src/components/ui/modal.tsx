@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { Dialog as RDialog } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,27 @@ import { Button } from "./button";
 
 const lebarModal = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl" } as const;
 export type UkuranModal = keyof typeof lebarModal;
+
+/**
+ * Modal dibuka lewat state (tanpa Dialog.Trigger), jadi Radix tidak tahu pemicunya dan fokus jatuh ke body.
+ * Hook ini mengingat elemen yang fokus saat `buka` menjadi true, lalu mengembalikannya saat modal ditutup.
+ * Bila pemicu sudah hilang dari pohon, fokus pindah ke `#isi` (landmark isi halaman).
+ */
+function useKembalikanFokus(buka: boolean) {
+  const pemicu = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (buka && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) pemicu.current = document.activeElement;
+  }, [buka]);
+  return (e: Event) => {
+    e.preventDefault();
+    const el = pemicu.current;
+    const tujuan = el && el.isConnected && !(el as HTMLButtonElement).disabled ? el : document.getElementById("isi");
+    if (tujuan) {
+      if (!tujuan.hasAttribute("tabindex") && tujuan.id === "isi") tujuan.setAttribute("tabindex", "-1");
+      tujuan.focus();
+    }
+  };
+}
 
 export interface PropsModal {
   buka: boolean;
@@ -22,29 +44,30 @@ export interface PropsModal {
 }
 
 /**
- * Modal (Radix Dialog): fokus terjebak, Esc menutup, fokus kembali ke pemicu, `aria-labelledby` dari judul.
+ * Modal (Radix Dialog): fokus terjebak, Esc menutup, fokus kembali ke pemicu (lewat useKembalikanFokus; tanpa Dialog.Trigger Radix tidak melakukannya sendiri), `aria-labelledby` dari judul.
  * Dikendalikan lewat `buka` dan `saatUbah`. Bila modal berisi formulir, bungkus isi + kaki dengan <form> sendiri.
  */
 export function Modal({ buka, saatUbah, judul, deskripsi, ukuran = "md", kaki, children, kode }: PropsModal) {
+  const kembalikanFokus = useKembalikanFokus(buka);
   return (
     <RDialog.Root open={buka} onOpenChange={saatUbah}>
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 bg-primer-900/50" />
         <RDialog.Content
+          onCloseAutoFocus={kembalikanFokus}
+          {...(deskripsi ? {} : { "aria-describedby": undefined })}
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-primer-200 bg-white shadow-[var(--shadow-overlay)]",
+            "fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-primer-200 bg-white shadow-[var(--shadow-overlay)]",
             lebarModal[ukuran],
           )}
         >
           <header className="flex items-start justify-between gap-3 border-b border-primer-100 px-5 py-4">
             <div>
-              {kode ? <p className="mb-0.5 font-mono text-[11px] font-semibold text-abu-600">{kode}</p> : null}
+              {kode ? <p className="mb-0.5 font-mono text-xs font-semibold text-abu-600">{kode}</p> : null}
               <RDialog.Title className="text-lg font-semibold text-primer-800">{judul}</RDialog.Title>
               {deskripsi ? (
-                <RDialog.Description className="mt-0.5 text-sm text-primer-700">{deskripsi}</RDialog.Description>
-              ) : (
-                <RDialog.Description className="sr-only">{judul}</RDialog.Description>
-              )}
+                <RDialog.Description className="mt-0.5 text-sm text-teks-redup">{deskripsi}</RDialog.Description>
+              ) : null}
             </div>
             <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-primer-700 hover:bg-primer-100">
               <X aria-hidden className="size-5" />
@@ -112,20 +135,19 @@ export function ModalKonfirmasi({ buka, saatUbah, judul, deskripsi, children, la
 
 /** Sheet: panel dari kanan untuk rincian sekunder (mis. M-08 Rincian Butir). Perilaku fokus sama dengan Modal. */
 export function Sheet({ buka, saatUbah, judul, deskripsi, children, kaki, kode }: Omit<PropsModal, "ukuran">) {
+  const kembalikanFokus = useKembalikanFokus(buka);
   return (
     <RDialog.Root open={buka} onOpenChange={saatUbah}>
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 bg-primer-900/40" />
-        <RDialog.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-primer-200 bg-white shadow-[var(--shadow-overlay)]">
+        <RDialog.Content onCloseAutoFocus={kembalikanFokus} {...(deskripsi ? {} : { "aria-describedby": undefined })} className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-primer-200 bg-white shadow-[var(--shadow-overlay)]">
           <header className="flex items-start justify-between gap-3 border-b border-primer-100 px-5 py-4">
             <div>
-              {kode ? <p className="mb-0.5 font-mono text-[11px] font-semibold text-abu-600">{kode}</p> : null}
+              {kode ? <p className="mb-0.5 font-mono text-xs font-semibold text-abu-600">{kode}</p> : null}
               <RDialog.Title className="text-lg font-semibold text-primer-800">{judul}</RDialog.Title>
               {deskripsi ? (
-                <RDialog.Description className="mt-0.5 text-sm text-primer-700">{deskripsi}</RDialog.Description>
-              ) : (
-                <RDialog.Description className="sr-only">{judul}</RDialog.Description>
-              )}
+                <RDialog.Description className="mt-0.5 text-sm text-teks-redup">{deskripsi}</RDialog.Description>
+              ) : null}
             </div>
             <RDialog.Close aria-label="Tutup" className="-mr-1 -mt-1 inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-primer-700 hover:bg-primer-100">
               <X aria-hidden className="size-5" />

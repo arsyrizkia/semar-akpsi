@@ -1,7 +1,7 @@
 // Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: CRC VersiProposal / HasilPemeriksaan, Class Diagram: Proposal 1 - 0..* PenugasanReviewer 1 - 0..1 Penilaian,
 // J-05b Rincian Proposal (ringkasan hasil, urutan tampil, status penilaian).
 import { describe, expect, it } from "vitest";
-import { ringkasHasil, statusPenilaian, urutkanHasil } from "@/lib/pemantauan/rincian-proposal";
+import { ringkasHasil, statusPenilaian, statusPenilaianDariLabel, urutkanHasil } from "@/lib/pemantauan/rincian-proposal";
 
 describe("ringkasHasil", () => {
   it("KH-ringkasHasil-01: daftar kosong menghasilkan semua hitungan nol", () => {
@@ -63,5 +63,20 @@ describe("statusPenilaian", () => {
   it("KH-statusPenilaian-03: penilaian Draf dan Final diteruskan", () => {
     expect(statusPenilaian({ status: "Draf" }, "Ditetapkan")).toBe("Draf");
     expect(statusPenilaian({ status: "Final" }, "Selesai")).toBe("Final");
+  });
+});
+
+describe("statusPenilaianDariLabel", () => {
+  it("KH-statusPenilaianDariLabel-01: label J-07 Baru = Belum dimulai (baris penilaian yang baru dibuka bukan Draf)", () => {
+    expect(statusPenilaianDariLabel("Baru", "Ditetapkan")).toBe("Belum dimulai");
+  });
+
+  it("KH-statusPenilaianDariLabel-02: label Draf dan Selesai mengikuti J-07", () => {
+    expect(statusPenilaianDariLabel("Draf", "Ditetapkan")).toBe("Draf");
+    expect(statusPenilaianDariLabel("Selesai", "Selesai")).toBe("Final");
+  });
+
+  it("KH-statusPenilaianDariLabel-03: penugasan Diusulkan = Belum ditetapkan, apa pun labelnya", () => {
+    expect(statusPenilaianDariLabel("Draf", "Diusulkan")).toBe("Belum ditetapkan");
   });
 });

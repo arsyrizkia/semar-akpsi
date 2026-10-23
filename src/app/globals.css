@@ -48,6 +48,9 @@
   --color-abu-600: #5a6577;
   --color-abu-700: #3f4a5a;
 
+  /* teks redup (keterangan, meta, label, petunjuk): abu-600, 5,49:1 di atas latar; biru primer hanya untuk tautan, tombol, penanda aktif */
+  --color-teks-redup: #5a6577;
+
   /* status: Lolos (daun), Gagal (bata), Perlu ditinjau (peringatan); selalu bersama teks atau ikon */
   --color-daun-100: #ddebdd;
   --color-daun-500: #3e7a47;
@@ -141,4 +144,47 @@ button, a, summary, [role="button"], [role="tab"] {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/*
+ * Tabel bertumpuk di layar sempit (< 48rem): kepala kolom disembunyikan secara visual, setiap sel menjadi baris "label: nilai".
+ * Label diisi oleh komponen Table (data-label dari teks kepala kolom). Sel aksi (tanpa label) tampil penuh di baris terakhir.
+ */
+@media (max-width: 47.99rem) {
+  table.tumpuk,
+  table.tumpuk tbody,
+  table.tumpuk tr,
+  table.tumpuk td {
+    display: block;
+    width: 100%;
+  }
+  table.tumpuk thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  table.tumpuk tr {
+    padding: 0.5rem 0.75rem;
+  }
+  table.tumpuk td {
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0.25rem 0;
+    text-align: left !important;
+  }
+  table.tumpuk td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-teks-redup);
+  }
+}
+
+/* elemen tetap (pil navigator, toast) tidak boleh menutupi kontrol yang difokus lewat Tab atau gulir */
+html {
+  scroll-padding-bottom: 6rem;
 }

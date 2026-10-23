@@ -74,7 +74,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                     <TD angka>{formatAngka(p.belumDitugaskan)}</TD>
                     <TD>
                       <Badge warna={warnaPenetapan[status]}>{status}</Badge>
-                      {p.diusulkan > 0 ? <span className="ml-2 text-xs text-primer-700">{formatAngka(p.diusulkan)} usulan</span> : null}
+                      {p.diusulkan > 0 ? <span className="ml-2 text-xs text-teks-redup">{formatAngka(p.diusulkan)} usulan</span> : null}
                     </TD>
                     <TD className="text-right">
                       <Link href={`/tim-kerja/penugasan/${p.id}`} className={kelasTombol("sekunder", "sm")}>
@@ -86,7 +86,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
               })}
             </TBody>
           </Table>
-          {jumlahBerjalan > 0 ? <p className="mt-3 text-xs text-primer-700">{jumlahBerjalan} periode lain masih menerima pengusulan dan belum tampil di sini.</p> : null}
+          {jumlahBerjalan > 0 ? <p className="mt-3 text-xs text-teks-redup">{jumlahBerjalan} periode lain masih menerima pengusulan dan belum tampil di sini.</p> : null}
         </>
       )}
     </>

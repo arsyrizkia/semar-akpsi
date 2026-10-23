@@ -78,7 +78,7 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm font-semibold text-primer-800">Status pengajuan</span>
           <LencanaStatus status={status} className="text-sm" />
-          <span className="text-sm text-primer-700">
+          <span className="text-sm text-teks-redup">
             {status === "Terkirim" ? "Proposal tercatat terkirim. Semua butir pemeriksaan administratif lolos." : null}
             {status === "Ditahan" ? `${gagalButir.length} butir belum terpenuhi. Perbaiki naskah pada bagian yang ditunjukkan, lalu ajukan kembali dari BIMA.` : null}
           </span>

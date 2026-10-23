@@ -68,7 +68,7 @@ function TabelUc({ judul, daftar }: { judul: string; daftar: BarisUc[] }) {
       <TBody>
         {daftar.map((k) => (
           <TR key={k.kode}>
-            <TD className="whitespace-nowrap font-mono text-xs font-semibold text-primer-700">{k.kode}</TD>
+            <TD className="whitespace-nowrap font-mono text-xs font-semibold text-teks-redup">{k.kode}</TD>
             <TD>
               {k.judul}
               {k.catatan ? <span className="block text-xs text-abu-600">{k.catatan}</span> : null}
@@ -139,7 +139,7 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
                 <TR key={j.kode}>
                   <TD className="whitespace-nowrap">
                     <span className={j.induk ? "pl-4" : undefined}>
-                      <span className="font-mono text-xs font-semibold text-primer-700">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
+                      <span className="font-mono text-xs font-semibold text-teks-redup">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
                     </span>
                   </TD>
                   <TD className="hidden text-xs text-abu-700 md:table-cell">{j.peran}</TD>

@@ -93,7 +93,7 @@ export function KepalaHalaman({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-primer-800">{judul}</h1>
-          {keterangan ? <p className="mt-0.5 text-sm text-primer-700">{keterangan}</p> : null}
+          {keterangan ? <p className="mt-0.5 text-sm text-teks-redup">{keterangan}</p> : null}
         </div>
         {aksi ? <div className="flex flex-wrap items-center gap-2">{aksi}</div> : null}
       </div>
@@ -158,7 +158,7 @@ export function KeadaanKosong({
     <div className={cn("flex flex-col items-center gap-2 rounded-md border border-dashed border-primer-300 px-6 py-10 text-center", className)}>
       <Ikon aria-hidden className="size-8 text-primer-400" />
       <p className="font-semibold text-primer-800">{judul}</p>
-      {children ? <div className="max-w-md text-sm text-primer-700">{children}</div> : null}
+      {children ? <div className="max-w-md text-sm text-teks-redup">{children}</div> : null}
       {aksi ? <div className="mt-2">{aksi}</div> : null}
     </div>
   );

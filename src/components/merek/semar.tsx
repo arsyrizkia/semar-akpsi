@@ -80,7 +80,7 @@ export function LogoSemar({ className, terang = true }: { className?: string; te
       <LambangSemar />
       <span className="flex flex-col leading-tight">
         <span translate="no" className={cn("text-2xl font-bold tracking-wide", terang ? "text-aksen-300" : "text-merek-semar-700")}>SEMAR</span>
-        <span className={cn("text-[11px] tracking-wide", terang ? "text-latar-200" : "text-primer-700")}>
+        <span className={cn("text-xs tracking-wide", terang ? "text-latar-200" : "text-teks-redup")}>
           Sistem Evaluasi Mandiri dan Asisten Reviewer
         </span>
       </span>

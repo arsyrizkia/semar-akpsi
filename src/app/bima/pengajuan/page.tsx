@@ -66,7 +66,7 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
               <tbody className="divide-y divide-slate-200">
                 {usulan.map((u) => (
                   <tr key={u.id} className={terpilih?.id === u.id ? "bg-slate-50" : undefined}>
-                    <td className="px-3 py-2 align-top font-mono text-xs">{u.id}</td>
+                    <td className="whitespace-nowrap px-3 py-2 align-top font-mono text-xs">{u.id}</td>
                     <td className="px-3 py-2 align-top">{u.judul}</td>
                     <td className="px-3 py-2 align-top">
                       <span className="border border-slate-400 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800">{u.statusBima}</span>

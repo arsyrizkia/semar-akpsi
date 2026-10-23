@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Alert, Bagian, Button, Isian, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
 import type { BarisUsulanPenugasan } from "@/lib/kontrak/tipe";
@@ -57,12 +58,19 @@ export function PapanUsulan({
   const [hasilSusun, aksiSusunForm, sedangMenyusun] = useActionState<HasilSusunAksi, FormData>(aksiSusun, {});
   const formSusun = useRef<HTMLFormElement>(null);
   const sudahOtomatis = useRef(false);
+  const router = useRouter();
+  const jalur = usePathname();
+  const cari = useSearchParams();
   // Skenario navigator "Kekurangan reviewer (S-1)" membuka J-04b dengan ?susun=1: Susun Usulan Penugasan ditekan otomatis sekali.
   useEffect(() => {
     if (sudahOtomatis.current || !susunOtomatis || !ditutup) return;
     sudahOtomatis.current = true;
     formSusun.current?.requestSubmit();
-  }, [susunOtomatis, ditutup]);
+    // parameter aksi dibuang dari URL: Back, muat ulang, atau paginasi tidak boleh menjalankan Susun lagi (navigasi tidak mengubah data)
+    const p = new URLSearchParams(cari.toString());
+    p.delete("susun");
+    router.replace(p.size ? `${jalur}?${p.toString()}` : jalur, { scroll: false });
+  }, [susunOtomatis, ditutup, cari, jalur, router]);
   const [batas, setBatas] = useState(String(batasAwal));
 
   const [sibuk, mulai] = useTransition();
@@ -88,24 +96,29 @@ export function PapanUsulan({
     }
     mulai(async () => {
       const h = await aksiPindah(pindah.penugasanId, pengganti);
-      if (h.diterima) {
-        const nama = kandidat.find((k) => k.id === pengganti)?.nama ?? "reviewer pengganti";
-        setPindah(null);
-        beriTahu.sukses(`Proposal dipindahkan ke ${nama}.`);
-      } else {
-        setGalatPindah({ syarat: h.galat ? [h.galat] : h.syaratDilanggar });
-      }
+      // setter sesudah await dibungkus startTransition supaya ter-commit bersama data segar (revalidatePath)
+      startTransition(() => {
+        if (h.diterima) {
+          const nama = kandidat.find((k) => k.id === pengganti)?.nama ?? "reviewer pengganti";
+          setPindah(null);
+          beriTahu.sukses(`Proposal dipindahkan ke ${nama}.`);
+        } else {
+          setGalatPindah({ syarat: h.galat ? [h.galat] : h.syaratDilanggar });
+        }
+      });
     });
   }
 
   function tetapkan() {
     mulai(async () => {
       const h = await aksiTetapkan(periodeId);
-      setHasilTetapkan(h);
-      if (h.berhasil) {
-        setTetapBuka(false);
-        beriTahu.sukses(`Penugasan ditetapkan untuk ${angka.format(h.jumlah ?? 0)} proposal.`);
-      }
+      startTransition(() => {
+        setHasilTetapkan(h);
+        if (h.berhasil) {
+          setTetapBuka(false);
+          beriTahu.sukses(`Penugasan ditetapkan untuk ${angka.format(h.jumlah ?? 0)} proposal.`);
+        }
+      });
     });
   }
 
@@ -133,7 +146,7 @@ export function PapanUsulan({
             galat={galatBatas}
             className="w-64"
           />
-          <Button type="submit" memuat={sedangMenyusun} disabled={!ditutup} className="mb-[1.375rem]">
+          <Button type="submit" varian={adaUsulan ? "sekunder" : "utama"} memuat={sedangMenyusun} disabled={!ditutup} className="mb-[1.375rem]">
             Susun Usulan Penugasan
           </Button>
         </form>
@@ -148,7 +161,7 @@ export function PapanUsulan({
               {hasilSusun.galat}
             </Alert>
           ) : null}
-          {hasilSusun.berhasil && !hasilSusun.kekurangan ? (
+          {hasilSusun.berhasil && !hasilSusun.kekurangan && !hasilTetapkan?.berhasil ? (
             <Alert jenis="sukses" className="mt-3">
               {hasilSusun.jumlahUsulan
                 ? `Usulan penugasan disusun untuk ${angka.format(hasilSusun.jumlahUsulan)} proposal. Tinjau tabel di bawah, lalu tetapkan.${detik(hasilSusun.durasiMs)}`
@@ -179,7 +192,7 @@ export function PapanUsulan({
             {detik(hasilTetapkan.durasiMs)}
           </p>
           <p className="mt-2 flex flex-wrap gap-2">
-            <Link href="/tim-kerja/pemantauan" className={kelasTombol("sekunder", "sm")}>
+            <Link href={`/tim-kerja/pemantauan?periode=${periodeId}`} className={kelasTombol("sekunder", "sm")}>
               Buka Pemantauan Kesesuaian
             </Link>
             <Link href="/bima/kotak-masuk" className={kelasTombol("hantu", "sm")}>
@@ -197,7 +210,7 @@ export function PapanUsulan({
           </Button>
         }
       >
-        <p data-testid="ringkasan-usulan" className="mb-3 text-sm text-primer-700">
+        <p data-testid="ringkasan-usulan" className="mb-3 text-sm text-teks-redup">
           {adaUsulan ? (
             <>
               <strong className="angka">{angka.format(totalUsulan)}</strong> usulan menunggu penetapan.{" "}
@@ -226,7 +239,7 @@ export function PapanUsulan({
                 {usulan.map((u) => (
                   <TR key={u.penugasanId}>
                     <TD className="min-w-56 max-w-sm">
-                      <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-600">
+                      <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
                         {u.judulProposal}
                       </Link>
                     </TD>
@@ -246,7 +259,7 @@ export function PapanUsulan({
             {paginasi}
           </>
         ) : perluDitugaskan > 0 ? (
-          <p className="text-sm text-primer-700">Belum ada usulan penugasan. Isi batas beban lalu tekan &ldquo;Susun Usulan Penugasan&rdquo;.</p>
+          <p className="text-sm text-teks-redup">Belum ada usulan penugasan. Isi batas beban lalu tekan &ldquo;Susun Usulan Penugasan&rdquo;.</p>
         ) : null}
       </Bagian>
 
@@ -311,7 +324,7 @@ export function PapanUsulan({
         <p>
           <strong className="angka">{angka.format(totalUsulan)}</strong> proposal akan ditugaskan kepada <strong className="angka">{angka.format(jumlahReviewerUsulan)}</strong> reviewer.
         </p>
-        <p className="mt-2 text-primer-700">Penugasan dikirim ke BIMA. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.</p>
+        <p className="mt-2 text-teks-redup">Penugasan dikirim ke BIMA. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.</p>
       </ModalKonfirmasi>
     </>
   );

@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import { LabelBima, NavBima } from "@/components/layout/header-bima";
 import { ambilSesiBima } from "@/lib/bima/sesi";
 
 export const dynamic = "force-dynamic";
+
+/** Judul tab BIMA tiruan tidak ikut templat "· SEMAR": sistem lain. */
+export const metadata: Metadata = { title: { template: "%s · Simulasi BIMA", default: "Simulasi BIMA" } };
 
 /**
  * Semua halaman BIMA tiruan memuat label tetap "Simulasi BIMA – bukan sistem resmi". Tampilannya sengaja berbeda dari SEMAR:

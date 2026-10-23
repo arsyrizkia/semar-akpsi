@@ -215,11 +215,11 @@ export function NavigatorDemo() {
           aria-label={`Buka navigator demo${ringkasAktif ? `, skenario aktif ${ringkasAktif}` : ""}`}
           title={`Navigator demo (Alt+Shift+N)${ringkasAktif ? ` · skenario terakhir dipilih: ${ringkasAktif}` : ""}`}
           data-testid="navigator-pil"
-          className="fixed bottom-4 right-4 z-40 inline-flex max-w-[min(15rem,calc(100vw-2rem))] items-center gap-2 rounded-full border border-aksen-300 bg-primer-850 px-3 py-1.5 text-xs font-semibold text-latar shadow-[var(--shadow-overlay)] transition-colors hover:bg-primer-700"
+          className="fixed bottom-4 left-4 z-40 inline-flex min-h-9 max-w-[min(15rem,calc(100vw-2rem))] items-center gap-2 rounded-full border border-aksen-300 bg-primer-850 px-3 py-1.5 text-xs pointer-coarse:min-h-11 font-semibold text-latar shadow-[var(--shadow-overlay)] transition-colors hover:bg-primer-700"
         >
           {menyiapkan ? <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-aksen-300" /> : <Compass aria-hidden className="size-4 shrink-0 text-aksen-300" />}
           <span className="truncate">{labelPil}</span>
-          {catatanSkenario ? <span className="rounded-sm bg-aksen-300 px-1 text-[10px] font-bold text-primer-900">catatan</span> : null}
+          {catatanSkenario ? <span className="rounded-sm bg-aksen-300 px-1 text-xs font-bold text-primer-900">catatan</span> : null}
         </button>
       </>
     );
@@ -234,7 +234,7 @@ export function NavigatorDemo() {
         aria-label="Navigator demo"
         aria-busy={Boolean(menyiapkan)}
         data-testid="navigator-panel"
-        className="fixed bottom-4 right-4 z-40 flex max-h-[min(38rem,calc(100dvh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overscroll-contain rounded-lg border border-primer-300 bg-latar shadow-[var(--shadow-overlay)] outline-none"
+        className="fixed bottom-4 left-4 z-40 flex max-h-[min(38rem,calc(100dvh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overscroll-contain rounded-lg border border-primer-300 bg-latar shadow-[var(--shadow-overlay)] outline-none"
       >
         <header className="flex items-center justify-between gap-2 rounded-t-lg bg-primer-800 px-3 py-2 text-latar">
           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -245,7 +245,7 @@ export function NavigatorDemo() {
             onClick={() => aturTerbuka(false)}
             aria-label="Ciutkan navigator demo"
             aria-keyshortcuts="Escape"
-            className="rounded p-1.5 transition-colors hover:bg-primer-700"
+            className="inline-flex size-9 items-center justify-center rounded transition-colors hover:bg-primer-700"
           >
             <ChevronDown aria-hidden className="size-4" />
           </button>
@@ -254,12 +254,12 @@ export function NavigatorDemo() {
         <div className="space-y-5 overflow-y-auto overscroll-contain p-3 text-sm">
           <p data-testid="navigator-aktif" className="text-xs text-primer-800">
             <span className="font-semibold">Skenario aktif:</span> {ringkasAktif ?? "belum dipilih lewat navigator"}
-            {jendela ? <span className="block text-primer-700">Sedang dibuka: {namaPendek(jendela)}</span> : null}
+            {jendela ? <span className="block text-teks-redup">Sedang dibuka: {namaPendek(jendela)}</span> : null}
           </p>
 
           {catatanSkenario ? (
             <section aria-labelledby="nav-catatan" data-testid="navigator-catatan" className="border-l-4 border-primer-400 bg-white px-2.5 py-1.5">
-              <h2 id="nav-catatan" className="text-xs font-semibold text-primer-700">
+              <h2 id="nav-catatan" className="text-xs font-semibold text-teks-redup">
                 Catatan skenario
               </h2>
               <p className="mt-0.5 text-xs text-primer-900">{catatanSkenario}</p>
@@ -276,7 +276,7 @@ export function NavigatorDemo() {
             <h2 id="nav-pindah" className="text-xs font-semibold text-primer-800">
               Pindah layar/peran
             </h2>
-            <p className="mb-1.5 text-[11px] text-primer-700">Data tidak berubah. Peran dipasang hanya bila sesi saat ini belum cocok.</p>
+            <p className="mb-1.5 text-xs text-teks-redup">Data tidak berubah. Peran dipasang hanya bila sesi saat ini belum cocok.</p>
             <ul className="grid grid-cols-2 gap-1">
               {KATALOG_JENDELA.map((j) => {
                 const sekarang = jendela?.kode === j.kode;
@@ -300,8 +300,8 @@ export function NavigatorDemo() {
                         sekarang ? "border-primer-400 bg-primer-50 font-semibold text-primer-900" : "border-primer-200 bg-white text-primer-800 hover:bg-primer-50",
                       )}
                     >
-                      <span className="font-mono text-[11px] font-semibold text-primer-700">{j.kode.startsWith("BIMA") ? `B-${j.kode.slice(-1)}` : j.kode}</span>
-                      <span className="truncate">{j.nama.replace("BIMA: ", "")}</span>
+                      <span className="w-11 shrink-0 whitespace-nowrap font-mono text-xs font-semibold text-teks-redup">{j.kode.startsWith("BIMA") ? `B-${j.kode.slice(-1)}` : j.kode}</span>
+                      <span className="line-clamp-2 leading-tight">{j.nama.replace("BIMA: ", "")}</span>
                     </a>
                   </li>
                 );
@@ -313,7 +313,7 @@ export function NavigatorDemo() {
             <h2 id="nav-skenario" className="text-xs font-semibold text-primer-800">
               Pasang skenario{jendela ? ` untuk ${namaPendek(jendela)}` : ""}
             </h2>
-            <p className="mb-1.5 text-[11px] text-primer-700">Menyiapkan data demo lalu membuka layar ini. Data berubah (Reset penuh ada di Pusat Demo).</p>
+            <p className="mb-1.5 text-xs text-teks-redup">Menyiapkan data demo lalu membuka layar ini. Data berubah (Reset penuh ada di Pusat Demo).</p>
             {jendela ? (
               <ul className="space-y-1">
                 {jendela.skenario.map((sk) => {
@@ -333,16 +333,16 @@ export function NavigatorDemo() {
                       >
                         <span className="flex items-center justify-between gap-2 text-xs font-semibold text-primer-900">
                           {sk.nama}
-                          {aktif ? <span className="rounded-sm bg-primer-800 px-1.5 text-[10px] font-semibold text-latar">aktif</span> : null}
+                          {aktif ? <span className="rounded-sm bg-primer-800 px-1.5 text-xs font-semibold text-latar">aktif</span> : null}
                         </span>
-                        <span className="block text-[11px] text-primer-700">{sk.ringkas}</span>
+                        <span className="block text-xs text-teks-redup">{sk.ringkas}</span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-xs text-primer-700">Pindah ke salah satu layar di atas; skenario keadaannya muncul di sini.</p>
+              <p className="text-xs text-teks-redup">Pindah ke salah satu layar di atas; skenario keadaannya muncul di sini.</p>
             )}
           </section>
 
@@ -369,13 +369,13 @@ export function NavigatorDemo() {
               ))}
             </div>
             {pesanMasa ? (
-              <p role="status" className="mt-1 text-xs text-daun-700">
+              <p role={pesanMasa.startsWith("Sakelar") ? "alert" : "status"} className={cn("mt-1 text-xs", pesanMasa.startsWith("Sakelar") ? "font-semibold text-bata-700" : "text-daun-700")}>
                 {pesanMasa}
               </p>
             ) : null}
           </section>
 
-          <p className="border-t border-primer-200 pt-2 text-xs text-primer-700">
+          <p className="border-t border-primer-200 pt-2 text-xs text-teks-redup">
             <a href="/demo" className="font-semibold text-primer-800 underline underline-offset-2">
               Pusat Demo
             </a>{" "}

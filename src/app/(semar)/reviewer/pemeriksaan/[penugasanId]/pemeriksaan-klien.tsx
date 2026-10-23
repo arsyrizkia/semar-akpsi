@@ -83,6 +83,13 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
   const butirTab = butir.filter((b) => b.tab === tabAktif);
   const butirTerpilih = butir.find((b) => b.hasilId === terpilih) ?? null;
   const butirDimodal = butir.find((b) => b.hasilId === butirKoreksi) ?? null;
+  // M-10 tetap terpasang sesudah ditutup (supaya fokus dapat kembali ke tombol pemicu); `nomorBuka` memberi isian segar tiap dibuka
+  const [terakhir, setTerakhir] = useState<{ id: string; nomor: number } | null>(null);
+  const butirModalTerakhir = terakhir ? (butir.find((b) => b.hasilId === terakhir.id) ?? null) : null;
+  const bukaKoreksi = (id: string) => {
+    setTerakhir((t) => ({ id, nomor: (t?.nomor ?? 0) + 1 }));
+    setButirKoreksi(id);
+  };
   const ringkas = ringkasRekomendasi(butir.map((b) => ({ status: b.status, dikoreksi: b.koreksi !== null })));
 
   // Rekomendasi belum tersedia: perbarui halaman berkala (tanpa memanggil LLM dari halaman ini)
@@ -128,10 +135,17 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         judul="Pemeriksaan Proposal"
         keterangan={data.proposal.judul}
         remah={[{ label: "Daftar Penugasan", href: "/reviewer/penugasan" }, { label: "Pemeriksaan Proposal" }]}
-        aksi={lanjut}
+        aksi={
+          <>
+            <Link href="/reviewer/penugasan" className={kelasTombol("hantu", "md")}>
+              Kembali ke Daftar Penugasan
+            </Link>
+            {lanjut}
+          </>
+        }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primer-700">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-teks-redup">
         <span className="font-mono text-xs">{data.proposal.idProposal}</span>
         <span>{data.proposal.skema}</span>
         <span>Versi {data.proposal.kodeVersi}</span>
@@ -150,10 +164,10 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         <section aria-labelledby="judul-berkas" className="mb-4 rounded-md border border-primer-200 bg-white text-sm">
           <h2 id="judul-berkas" className="sr-only">Berkas Proposal</h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
-            <FileText aria-hidden className="size-4 shrink-0 text-primer-700" />
+            <FileText aria-hidden className="size-4 shrink-0 text-teks-redup" />
             <span className="min-w-0 break-words">
               <span className="font-medium text-primer-900">{naskah.nama}</span>
-              <span className="ml-2 text-xs text-primer-700">
+              <span className="ml-2 text-xs text-teks-redup">
                 {naskah.peran === "naskah" ? "Naskah" : "Berkas"} · {ukuranBerkas(naskah.ukuran)}
               </span>
             </span>
@@ -163,7 +177,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
           </div>
           {lampiran.length > 0 ? (
             <details className="group border-t border-primer-100">
-              <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primer-700 hover:text-primer-900 [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teks-redup hover:text-primer-900 [&::-webkit-details-marker]:hidden">
                 <ChevronRight aria-hidden className="size-4 transition-transform duration-150 group-open:rotate-90" />
                 Lampiran ({lampiran.length})
               </summary>
@@ -172,7 +186,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                   <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                     <span className="min-w-0 break-words">
                       <span className="font-medium text-primer-900">{f.nama}</span>
-                      <span className="ml-2 text-xs text-primer-700">
+                      <span className="ml-2 text-xs text-teks-redup">
                         {f.namaLampiran ? `Lampiran: ${f.namaLampiran}` : "Lampiran"} · {ukuranBerkas(f.ukuran)}
                       </span>
                     </span>
@@ -201,7 +215,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         </Alert>
       ) : null}
       {final ? (
-        <p className="mb-6 flex items-center gap-2 text-sm font-semibold text-primer-700">
+        <p className="mb-6 flex items-center gap-2 text-sm font-semibold text-teks-redup">
           <Lock aria-hidden className="size-4" /> Penilaian final: koreksi tidak dapat diubah lagi.
         </p>
       ) : null}
@@ -219,7 +233,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
 
         <Bagian judul="Teks Proposal" className="min-w-0">
           <div className="mb-3 xl:hidden">
-            <label htmlFor="pilih-bagian" className="mb-1 block text-xs font-semibold text-primer-700">Bagian proposal</label>
+            <label htmlFor="pilih-bagian" className="mb-1 block text-xs font-semibold text-teks-redup">Bagian proposal</label>
             <Select id="pilih-bagian" value={tabAktif} onChange={(e) => ubahTab(e.target.value)}>
               {data.tab.map((t) => {
                 const jumlah = butir.filter((b) => b.tab === t.nama).length;
@@ -232,13 +246,30 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
               })}
             </Select>
           </div>
+          {butirTab.length > 0 ? (
+            <div className="mb-3 rounded-md border border-primer-200 bg-latar px-3 py-2 lg:hidden">
+              <p className="text-xs font-semibold text-teks-redup">Butir semantik untuk bagian ini ({butirTab.length})</p>
+              <ul className="mt-1 space-y-1">
+                {butirTab.map((b) => (
+                  <li key={b.hasilId} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                    <span className="font-mono text-xs text-teks-redup">{b.kode}</span>
+                    <StatusBadge status={b.status} />
+                    <button type="button" onClick={() => pilihButir(b)} className="cursor-pointer text-xs font-semibold text-primer-800 underline underline-offset-2">
+                      Lihat kutipan di teks
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-teks-redup">Rincian dan koreksi ada di bagian Butir Semantik di bawah teks.</p>
+            </div>
+          ) : null}
           <div>
             {data.tab.map((t) => {
               const rentang = butirTerpilih?.tab === t.nama ? cariKutipan(t.teks, butirTerpilih.kutipan) : null;
               return (
-                <TabsContent key={t.nama} value={t.nama} className="max-h-[65vh] overflow-y-auto overscroll-contain whitespace-pre-wrap break-words text-[15px] leading-relaxed text-primer-900">
+                <TabsContent key={t.nama} value={t.nama} className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap lg:max-h-[65vh] lg:overscroll-contain break-words text-[15px] leading-relaxed text-primer-900">
                   {t.teks.trim() === "" ? (
-                    <span className="italic text-primer-600">Bagian ini tidak ditemukan pada naskah.</span>
+                    <span className="italic text-teks-redup">Bagian ini tidak ditemukan pada naskah.</span>
                   ) : rentang ? (
                     <>
                       {t.teks.slice(0, rentang.mulai)}
@@ -265,13 +296,14 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
           judul="Butir Semantik"
           className="min-w-0 self-start lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:overscroll-contain"
           aksi={
-            <span className="text-xs text-primer-700 angka">
+            <span className="text-xs text-teks-redup angka">
               {ringkas.total} butir, {ringkas.dikoreksi} dikoreksi
             </span>
           }
         >
+          {butirTab.length > 0 ? <p className="mb-2 text-xs text-teks-redup">Tingkat keyakinan memakai ambang contoh: tinggi {"≥"} 0,8; sedang 0,5 sampai 0,8; rendah {"<"} 0,5.</p> : null}
           {butirTab.length === 0 ? (
-            <p className="rounded-md border border-dashed border-primer-300 px-4 py-6 text-center text-sm text-primer-700">
+            <p className="rounded-md border border-dashed border-primer-300 px-4 py-6 text-center text-sm text-teks-redup">
               {data.butir.length === 0 && !data.semantik.siap ? "Menunggu rekomendasi…" : "Tidak ada butir semantik pada tab ini."}
             </p>
           ) : (
@@ -281,26 +313,21 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                 const dipilih = terpilih === b.hasilId;
                 return (
                   <li key={b.hasilId} className={dipilih ? "bg-primer-50 shadow-[inset_3px_0_0_var(--color-primer-400)]" : undefined}>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={dipilih}
-                      aria-label={`Butir ${b.kode}: sorot kutipan di teks`}
-                      onClick={() => pilihButir(b)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          pilihButir(b);
-                        }
-                      }}
-                      className="cursor-pointer space-y-2 px-3 pb-2 pt-3 touch-manipulation"
-                    >
-                      <p className="text-sm font-semibold text-primer-900">
-                        <span className="mr-1.5 font-mono text-xs font-medium text-primer-700">{b.kode}</span>
+                    <article aria-labelledby={`judul-butir-${b.hasilId}`} className="space-y-2 px-3 pb-2 pt-3">
+                      {/* tombol semantik: menyorot kutipan di teks; isi butir tetap terbaca pembaca layar */}
+                      <button
+                        type="button"
+                        id={`judul-butir-${b.hasilId}`}
+                        aria-pressed={dipilih}
+                        title="Sorot kutipan di teks"
+                        onClick={() => pilihButir(b)}
+                        className="block w-full cursor-pointer touch-manipulation text-left text-sm font-semibold text-primer-900 hover:text-primer-700"
+                      >
+                        <span className="mr-1.5 font-mono text-xs font-medium text-teks-redup">{b.kode}</span>
                         {b.deskripsi}
-                      </p>
+                      </button>
                       <p className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="text-xs font-semibold text-primer-700">{b.koreksi ? "Rekomendasi semula" : "Rekomendasi"}</span>
+                        <span className="text-xs font-semibold text-teks-redup">{b.koreksi ? "Rekomendasi semula" : "Rekomendasi"}</span>
                         <span className={b.koreksi ? "opacity-60" : undefined}>
                           <StatusBadge status={b.status} />
                         </span>
@@ -308,31 +335,31 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                         {sendiri ? <span className="text-xs font-semibold text-bata-700">Baca bagian ini sendiri</span> : null}
                       </p>
                       {b.status === "Perlu diperiksa manual" && b.rekomendasi ? (
-                        <p className="text-xs text-primer-700">Sistem merekomendasikan “{b.rekomendasi}”, tetapi kutipannya belum dapat dipastikan ada di teks.</p>
+                        <p className="text-xs text-teks-redup">Sistem merekomendasikan “{b.rekomendasi}”, tetapi kutipannya belum dapat dipastikan ada di teks.</p>
                       ) : null}
                       {b.kutipan ? (
-                        <blockquote className="border-l-4 border-primer-400 pl-3 text-sm italic text-primer-900">“{b.kutipan}”</blockquote>
+                        <blockquote className="border-l-4 border-primer-400 pl-3 text-sm text-primer-900">“{b.kutipan}”</blockquote>
                       ) : sendiri ? null : (
-                        <p className="text-xs text-primer-600">Tidak ada kutipan pendukung.</p>
+                        <p className="text-xs text-teks-redup">Tidak ada kutipan pendukung.</p>
                       )}
                       {b.tingkatKeyakinan !== null ? <BarKeyakinan nilai={b.tingkatKeyakinan} /> : null}
-                      {b.alasanSistem ? <p className="text-xs text-primer-700">Alasan sistem: {b.alasanSistem}</p> : null}
+                      {b.alasanSistem ? <p className="text-xs text-teks-redup">Alasan sistem: {b.alasanSistem}</p> : null}
                       {b.koreksi ? (
                         <div className="rounded-md bg-primer-50 p-2 text-sm">
                           <p className="flex flex-wrap items-center gap-2">
                             <StatusBadge status="Dikoreksi reviewer" />
                             <StatusBadge status={b.koreksi.keputusan} />
                           </p>
-                          <p className="mt-1 text-xs text-primer-700">
+                          <p className="mt-1 text-xs text-teks-redup">
                             {b.koreksi.jenisKekeliruan ? `${b.koreksi.jenisKekeliruan}: ` : ""}
                             {b.koreksi.alasan}
                           </p>
                         </div>
                       ) : null}
-                    </div>
+                    </article>
                     {!final ? (
                       <div className="px-3 pb-3">
-                        <Button varian="sekunder" ukuran="sm" onClick={() => setButirKoreksi(b.hasilId)} aria-haspopup="dialog">
+                        <Button varian="sekunder" ukuran="sm" onClick={() => bukaKoreksi(b.hasilId)} aria-haspopup="dialog">
                           {b.koreksi ? "Ubah Koreksi" : "Tidak Setuju"}
                         </Button>
                       </div>
@@ -342,23 +369,24 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
               })}
             </ul>
           )}
-          <p className="mt-3 text-xs text-primer-700">
+          <p className="mt-3 text-xs text-teks-redup">
             Butir yang tidak Anda koreksi dianggap disetujui. <span className="angka">{ringkas.disetujui}</span> disetujui, <span className="angka">{ringkas.dikoreksi}</span> dikoreksi
             {ringkas.tanpaRekomendasi ? <>, <span className="angka">{ringkas.tanpaRekomendasi}</span> perlu dibaca sendiri</> : null}.
           </p>
         </Bagian>
       </Tabs>
 
-      {butirDimodal ? (
+      {butirModalTerakhir ? (
         <ModalKoreksi
-          key={butirDimodal.hasilId}
+          key={`${butirModalTerakhir.hasilId}-${terakhir?.nomor ?? 0}`}
+          buka={butirDimodal !== null}
           penugasanId={data.penugasanId}
-          butir={butirDimodal}
+          butir={butirModalTerakhir}
           saatTutup={() => setButirKoreksi(null)}
           saatTersimpan={(id, k) => {
             setKoreksiLokal((s) => ({ ...s, [id]: k }));
             setButirKoreksi(null);
-            beriTahu.sukses(`Koreksi butir ${butirDimodal.kode} tersimpan`);
+            beriTahu.sukses(`Koreksi butir ${butirModalTerakhir.kode} tersimpan`);
           }}
         />
       ) : null}

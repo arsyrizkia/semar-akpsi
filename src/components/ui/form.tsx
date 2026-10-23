@@ -52,7 +52,7 @@ export function Field({
     <div className={className}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      {petunjuk && !galat ? <p className="mt-1 text-xs text-primer-600">{petunjuk}</p> : null}
+      {petunjuk && !galat ? <p className="mt-1 text-xs text-teks-redup">{petunjuk}</p> : null}
       {galat ? (
         <p role="alert" className="mt-1 text-sm font-medium text-bata-600">
           {galat}
@@ -134,7 +134,7 @@ function Penanda({ id, label, wajib, petunjuk, galat, children, className }: Das
           {galat}
         </p>
       ) : petunjuk ? (
-        <p id={`${id}-petunjuk`} className="mt-1 text-xs text-primer-600">
+        <p id={`${id}-petunjuk`} className="mt-1 text-xs text-teks-redup">
           {petunjuk}
         </p>
       ) : null}

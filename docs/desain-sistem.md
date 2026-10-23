@@ -14,11 +14,11 @@ Token ada di `src/app/globals.css` (`@theme`). Kelas Tailwind memakai nama seman
 
 | Kelompok | Token → nilai | Peran |
 |---|---|---|
-| `primer` (biru Kemdiktisaintek) | 50 `#E7EDFA` · 100 `#D3E1F6` · 200 `#BED8FF` · 300 `#7FB2F0` · 400 `#1F86FF` · 500 `#1A75E0` · 600 `#0A5FC6` · 700 `#0050AD` · 800 `#003366` · 850 `#002550` · 900 `#00162F` | 50 latar lembut (baris tersorot, kepala tabel, info); 200 garis; 400 elemen besar, ikon, cincin fokus, garis tab aktif; 500 batas kontrol sekunder; 600 placeholder dan teks redup kecil; **700 tombol utama dan tautan**; 800 judul, hover tombol utama, penanda menu aktif; 850 sidebar dan area merek; 900 teks isi |
+| `primer` (biru Kemdiktisaintek) | 50 `#E7EDFA` · 100 `#D3E1F6` · 200 `#BED8FF` · 300 `#7FB2F0` · 400 `#1F86FF` · 500 `#1A75E0` · 600 `#0A5FC6` · 700 `#0050AD` · 800 `#003366` · 850 `#002550` · 900 `#00162F` | 50 latar lembut (baris tersorot, kepala tabel, info); 200 garis; 400 elemen besar, ikon, cincin fokus, garis tab aktif; 500 batas kontrol sekunder; 600 placeholder dan hover tautan; **700 tombol utama dan tautan (bergaris bawah)**; 800 judul, hover tombol utama, penanda menu aktif; 850 sidebar dan area merek; 900 teks isi |
 | `aksen` (emas) | 100 `#FDE9C4` · 300 `#FBBD61` · 400 `#F2A93B` · 500 `#B8892A` · 700 `#6F5013` | **hanya area merek**: wordmark SEMAR, tagline J-01, penanda menu aktif di sidebar, cincin medali ilustrasi, ikon pil navigator. Bukan warna status |
 | `merek-semar` (sogan) | 100 `#EEDFCB` · 300 `#C6A073` · 500 `#8A5E36` · 600 `#6F4727` · 700 `#573620` · 900 `#2B190E` · kulit `#E8C98A` · kulit-tua `#D9A35F` | ilustrasi dan lambang Semar (SVG memakai kelas `fill-merek-semar-*`), wordmark di latar terang |
 | `latar` | `#F4F7FC` · 100 `#EAF0F9` · 200 `#D6E4F7` | latar halaman, permukaan lembut, teks pada navy |
-| `abu` (netral dingin) | 50 `#F1F4F8` · 100 `#E6EBF1` · 200 `#D3DAE4` · 600 `#5A6577` · 700 `#3F4A5A` | status netral (Draf, Arsip, Nonaktif), keterangan |
+| `abu` (netral dingin) | 50 `#F1F4F8` · 100 `#E6EBF1` · 200 `#D3DAE4` · 600 `#5A6577` · 700 `#3F4A5A` | status netral (Draf, Arsip, Nonaktif, Baru, Sedang diperiksa), **teks redup**: keterangan, meta, label `dt`, petunjuk isian, deskripsi modal (token semantik `teks-redup` = `abu-600`) |
 | `daun` | 100 `#DDEBDD` · 500 `#3E7A47` · 600 `#2F6439` · 700 `#234D2C` | Lolos / Memenuhi |
 | `bata` | 100 `#F6DDD5` · 500 `#B5472F` · 600 `#9A3A25` · 700 `#7A2D1D` | Gagal / Tidak memenuhi, galat, aksi merusak |
 | `peringatan` (kuning/oranye) | 50 `#FFF4DC` · 100 `#FDE7B8` · 300 `#FBBD61` · 500 `#B8700A` · 700 `#6B4700` | Perlu ditinjau, peringatan, sorotan kutipan di teks |
@@ -26,6 +26,7 @@ Token ada di `src/app/globals.css` (`@theme`). Kelas Tailwind memakai nama seman
 Aturan pemakaian:
 
 - **Teks dan tombol berlabel putih memakai `primer-700` atau lebih tua** (`#0050AD` 7,63 : 1 di atas putih). `#1F86FF` (`primer-400`) hanya 3,55 : 1 di atas putih, jadi tidak pernah dipakai untuk teks normal; ia untuk elemen besar, ikon, batas isian, cincin fokus, dan garis tab aktif (syarat 3 : 1).
+- **Biru hanya untuk yang dapat diklik atau berstatus aktif**: tautan (`primer-700`/`800`, bergaris bawah), tombol, penanda tab dan menu aktif. Teks biasa (keterangan, meta, label, petunjuk) memakai `text-teks-redup` (abu-600, 5,49 : 1 di atas `latar`, 5,89 : 1 di atas putih), sehingga tautan tidak tersamar sebagai teks biasa (Dennis dkk., 2015, hlm. 370 dan 371: warna hemat dan konsisten).
 - **Status terpisah dari biru merek.** Lolos hijau, Gagal merah, Perlu ditinjau kuning/oranye, netral abu. Biru tidak pernah menjadi warna status supaya tidak tertukar dengan aksi. Status selalu berupa teks dan ikon kecil (centang, silang, segitiga, strip), tidak hanya warna.
 - **Sogan/emas hanya aksen.** Kawung tipis berwarna emas transparan di atas navy (`.latar-kawung`: blok merek sidebar, J-01, kepala Pusat Demo). Area kerja tanpa motif dan tanpa emas.
 - **BIMA tiruan tetap sistem lain**: abu-slate netral, font sistem, sudut tegas, tanpa komponen dan token SEMAR, tanpa logo atau nama kementerian; label tetap "Simulasi BIMA – bukan sistem resmi".
@@ -37,10 +38,11 @@ Aturan pemakaian:
 |---|---:|---|
 | isi `primer-900` / `latar` | 16,9 | 4,5 |
 | judul `primer-800` / `latar` | 11,7 | 4,5 |
-| teks redup, tautan `primer-700` / `latar` | 7,1 | 4,5 |
+| tautan `primer-700` bergaris bawah / `latar` | 7,1 | 4,5 |
+| teks redup `teks-redup` (`abu-600`) / `latar` dan / putih | 5,5 dan 5,9 | 4,5 |
 | `primer-700` / putih | 7,6 | 4,5 |
 | keterangan `abu-600` / `latar` | 5,5 | 4,5 |
-| placeholder dan teks kecil `primer-600` / putih | 6,1 | 4,5 |
+| placeholder `primer-600` / putih | 6,1 | 4,5 |
 | tombol utama putih / `primer-700` | 7,6 | 4,5 |
 | tombol utama hover putih / `primer-800` | 12,6 | 4,5 |
 | tombol sekunder `primer-800` / putih | 12,6 | 4,5 |
@@ -77,7 +79,8 @@ Hanya di area merek: blok logo sidebar, panel kiri layar masuk J-01, dan kepala 
 - **Outfit** (Google Fonts, `next/font/google`, huruf variabel, subset latin) untuk wordmark, judul, dan teks UI. Cormorant Garamond dan Plus Jakarta Sans **dihapus**. Tidak ada font serif sama sekali.
 - **Angka tabel:** Outfit memiliki fitur OpenType `tnum` (diperiksa pada berkas sumber dan pada subset latin hasil `next/font`: `tnum` dan `pnum` ada). Maka angka tabel memakai `font-variant-numeric: tabular-nums` (kelas `.angka`, atau `<TD angka>`/`<TH angka>`). Tidak perlu font angka sekunder. Bila di kemudian hari subset kehilangan `tnum`, cadangannya `ui-monospace` untuk sel angka.
 - Skala (rem): isi 1 (16 px) tinggi baris 1,55; tabel dan modal 0,875; keterangan 0,75; judul halaman 1,5 (600); judul bagian 1 (600); wordmark 1,5 (700). Judul memakai `text-wrap: balance`.
-- Kode jendela (J-xx, M-xx): `font-mono`, 11–12 px, abu hangat.
+- Kode jendela (J-xx, M-xx): `font-mono`, 12 px, abu dingin. **Ukuran terkecil 12 px** (`text-xs`); tidak ada `text-[10px]`/`text-[11px]` (Dennis dkk., 2015, hlm. 370: huruf tidak lebih kecil dari 8 pt, 10 pt lebih baik).
+- Kepala tabel berhuruf kalimat (`text-xs font-semibold`), **tanpa huruf kapital semua** dan tanpa `italic` untuk kutipan (Dennis dkk., 2015, hlm. 370). Kutipan memakai garis kiri dan tanda kutip lengkung.
 
 ## 3. Jarak, radius, bayangan
 
@@ -90,13 +93,13 @@ Hanya di area merek: blok logo sidebar, panel kiri layar masuk J-01, dan kepala 
 | Komponen | Catatan |
 |---|---|
 | `Tombol` (`Button`) | Varian `utama` (satu per layar), `sekunder`, `hantu`, `bahaya`; `memuat` memutar ikon, menonaktifkan, dan `aria-busy`. Tinggi 32/40/44 px. |
-| `Modal` | Radix Dialog: fokus terjebak, Esc, fokus kembali ke pemicu, `aria-labelledby` dari judul, ukuran `sm`/`md`/`lg`, slot `kaki`, `kode` M-xx kecil. Galat modal tampil di dalam modal. |
+| `Modal` | Radix Dialog: fokus terjebak, Esc, fokus kembali ke pemicu (hook `useKembalikanFokus`, karena modal dibuka lewat state tanpa `Dialog.Trigger`; cadangan `#isi` bila pemicu hilang), tanpa deskripsi ganda, `aria-labelledby` dari judul, ukuran `sm`/`md`/`lg`, slot `kaki`, `kode` M-xx kecil. Galat modal tampil di dalam modal. |
 | `ModalKonfirmasi` | Ringkasan + "Batal" + tombol konfirmasi (label persis spesifikasi); `bahaya`, `memuat`, `galat`. |
 | `Sheet` | Panel kanan (M-08), perilaku fokus sama dengan Modal. |
-| `Notifikasi` / `beriTahu` | Sonner (wilayah `aria-live`), tema primer/status; muncul di **kanan bawah**, 4,5 rem di atas dasar layar sehingga tidak menutupi tombol aksi kepala halaman maupun pil navigator; galat bertahan 8 detik. Dipasang sekali di root. |
-| `Table`, `THead`, `TBody`, `TR`, `TH`, `TD` | Padat; kepala lengket (`tinggiMaks` bila perlu menggulir); `angka` untuk kolom angka (rata kanan, tabular); `TR tersorot` (latar `primer-50` dengan garis `primer-400` di kiri, `aria-current`). Tanpa bingkai ganda. |
+| `Notifikasi` / `beriTahu` | Sonner (wilayah `aria-live`), tema primer/status; muncul di **kanan atas** (di bawah bilah atas pada ponsel), sehingga tidak menutupi kolom aksi tabel maupun pil navigator di kiri bawah; galat bertahan 8 detik. Dipasang sekali di root. |
+| `Table`, `THead`, `TBody`, `TR`, `TH`, `TD` | Padat; **di bawah 48 rem setiap baris menjadi blok bertumpuk** berlabel kolom (`data-label` dari kepala kolom, kelas `tumpuk`), sehingga aksi dan galat tidak tersembunyi di gulir ke samping (`tumpuk={false}` mematikannya); kepala lengket (`tinggiMaks` bila perlu menggulir); `angka` untuk kolom angka (rata kanan, tabular); `TR tersorot` (latar `primer-50` dengan garis `primer-400` di kiri, `aria-current`). Tanpa bingkai ganda. |
 | `Paginasi` | Berbasis URL (`?halaman=`), pertahankan parameter lain; komponen klien, bungkus dengan `Suspense`. |
-| `LencanaStatus` (`StatusBadge`) | Peta status baku → warna + ikon (centang, silang, segitiga, strip) + teks. |
+| `LencanaStatus` (`StatusBadge`) | Peta status baku → warna + ikon + teks. Hijau + centang: Lolos, Memenuhi, Terkirim, Ditetapkan, Selesai, Terbit, Aktif. Merah + silang: Gagal, Tidak memenuhi, Ditolak. Kuning + segitiga: Perlu ditinjau, Perlu diperiksa manual, Ditahan (benar-benar perlu perhatian). **Netral abu**: Draf, Arsip, Nonaktif, Diusulkan, Dikoreksi reviewer, tiruan (ikon strip); **Baru** (ikon titik) dan **Sedang diperiksa** (ikon jam) netral, bukan peringatan. Bar keyakinan: tinggi hijau, sedang `peringatan-500`, rendah merah. |
 | `KeadaanKosong` | Satu kalimat yang belum ada + satu tindakan. |
 | `Isian`, `Pilihan`, `KotakCentang` | Label terhubung, penanda wajib, petunjuk atau **galat tepat di bawah isian** (`aria-invalid`, `aria-describedby`, bingkai merah). `Field`/`Input`/`Select` lama tetap ada. |
 | `TombolUnduh` | Tautan bergaya tombol dengan ikon unduh; nama berkas dari `Content-Disposition`. |
@@ -104,7 +107,8 @@ Hanya di area merek: blok logo sidebar, panel kiri layar masuk J-01, dan kepala 
 | `Bagian` (`Panel` lama) | Pengelompokan dengan judul kecil 16 px; tanpa kartu, tanpa bingkai ganda, tanpa judul serif. `bingkai` hanya bila isi memang perlu permukaan. |
 | `KepalaHalaman` (`JudulHalaman` lama) | Breadcrumb + chip kode J-xx kecil, judul, ≤ 1 baris keterangan, slot `aksi` di kanan. |
 | `Alert` | Garis kiri 4 px berwarna + ikon; galat/peringatan diumumkan (`role=alert`). |
-| `CangkangSemar` (`components/layout`) | Sidebar per peran (lebar 16 rem) dengan blok merek berkawung, menu, identitas + "Keluar", label "contoh sementara" kecil di kaki. Di bawah 1024 px menjadi laci. Tautan "Lewati ke isi". Sidebar navy `primer-850`, penanda menu aktif `aksen-300`. Menu per peran dari `src/lib/menu.ts`. |
+| `CangkangSemar` (`components/layout`) | Sidebar per peran (lebar 16 rem) dengan blok merek berkawung, menu, identitas + "Keluar", label "contoh sementara" kecil di kaki. Di bawah 1024 px menjadi laci. Tautan "Lewati ke isi". Sidebar navy `primer-850`, penanda menu aktif `aksen-300`. Menu per peran dari `src/lib/menu.ts`. Peran tanpa menu (pengusul, J-06) mendapat bilah atas ramping tanpa sidebar dan tanpa tombol menu. |
+| `CegatTinggalkan` | Menjaga isian belum disimpan saat klik tautan internal: modal "Tinggalkan tanpa menyimpan?" (simpan lalu pindah, tinggalkan, batal). Dipakai J-02b dan J-08b. |
 
 Judul tab: `export const metadata = { title: "J-xx Nama" }` di setiap `page.tsx`; templat root menambahkan " · SEMAR".
 
@@ -134,17 +138,22 @@ Judul tab: `export const metadata = { title: "J-xx Nama" }` di setiap `page.tsx`
 
 ## 7. Pre-delivery checklist (ui-ux-pro-max + web-design-guidelines)
 
-- [ ] Kontras teks ≥ 4,5 : 1, ikon penting dan batas kontrol ≥ 3 : 1 (tabel di atas).
-- [ ] Fokus terlihat di semua kontrol (`:focus-visible`, 3 px); tidak ada `outline: none` tanpa pengganti.
-- [ ] Tombol ikon punya `aria-label`; ikon dekoratif `aria-hidden`.
-- [ ] Label terhubung ke isian; galat tepat di dekat isian; `aria-invalid`/`aria-describedby`.
-- [ ] Modal: fokus terjebak, Esc, fokus kembali, judul sebagai `aria-labelledby`; `overscroll-behavior: contain`.
-- [ ] Hirarki judul h1 → h2 berurutan; tautan lewati ke isi.
-- [ ] Status = teks + ikon + warna.
-- [ ] Angka tabel tabular dan rata kanan; tanggal/angka lewat `Intl` (id-ID, WIB).
-- [ ] Tidak ada gulir horizontal pada 375 px; laci menggantikan sidebar di bawah 1024 px.
-- [ ] `prefers-reduced-motion` dihormati; transisi hanya `colors`/`opacity`.
-- [ ] Keadaan kosong, memuat, dan galat ada pada tiap tabel/daftar.
-- [ ] Aksi merusak lewat modal konfirmasi; unduhan lewat tautan (`TombolUnduh`).
-- [ ] Judul tab "J-xx Nama · SEMAR"; kode jendela hanya chip kecil.
-- [ ] `touch-action: manipulation`, target sentuh ≥ 40 px (tombol md) pada kontrol utama.
+- [x] Kontras teks ≥ 4,5 : 1, ikon penting dan batas kontrol ≥ 3 : 1 (tabel di atas). Bukti: diperiksa ulang 23 Okt (rumus WCAG; tabel 1.2); token `teks-redup` ditambah.
+- [x] Fokus terlihat di semua kontrol (`:focus-visible`, 3 px); tidak ada `outline: none` tanpa pengganti. Bukti: `globals.css` cincin `primer-400` + halo putih; tidak ada `outline-none` tanpa pengganti (grep).
+- [x] Tombol ikon punya `aria-label`; ikon dekoratif `aria-hidden`. Bukti: `aria-label` pada tombol ikon (Tutup, Buka menu); ikon dekoratif `aria-hidden` (grep).
+- [x] Label terhubung ke isian; galat tepat di dekat isian; `aria-invalid`/`aria-describedby`. Bukti: komponen `Isian`/`Pilihan`/`KotakCentang`; e2e M-10 S-1 dan J-02b S-2.
+- [x] Modal: fokus terjebak, Esc, fokus kembali, judul sebagai `aria-labelledby`; `overscroll-behavior: contain`. Bukti: `modal.tsx` + `useKembalikanFokus`; e2e "Fokus kembali ke pemicu" (M-reset, M-06, M-10).
+- [x] Hirarki judul h1 → h2 berurutan; tautan lewati ke isi. Bukti: e2e dan tangkapan layar; "Lewati ke isi" di semua cangkang.
+- [x] Status = teks + ikon + warna. Bukti: `badge.tsx` peta status; bagian 4.
+- [x] Angka tabel tabular dan rata kanan; tanggal/angka lewat `Intl` (id-ID, WIB). Bukti: `.angka` dan `Intl` id-ID (`utils.ts`).
+- [x] Tidak ada gulir horizontal pada 375 px; laci menggantikan sidebar di bawah 1024 px. Bukti: tabel bertumpuk di < 48 rem (`table.tsx`, `globals.css`); tangkapan 390 px di `docs/bukti-e2e/`.
+- [x] `prefers-reduced-motion` dihormati; transisi hanya `colors`/`opacity`. Bukti: `globals.css` aturan global.
+- [x] Keadaan kosong, memuat, dan galat ada pada tiap tabel/daftar. Bukti: `KeadaanKosong` dan teks kosong per tabel; `loading.tsx` J-03b.
+- [x] Aksi merusak lewat modal konfirmasi; unduhan lewat tautan (`TombolUnduh`). Bukti: M-03, M-07, M-11, Reset; unduhan lewat `TombolUnduh`.
+- [x] Judul tab "J-xx Nama · SEMAR"; kode jendela hanya chip kecil. Bukti: `metadata` per `page.tsx` (BIMA: "· Simulasi BIMA").
+- [x] `touch-action: manipulation`, target sentuh ≥ 40 px (tombol md) pada kontrol utama. Bukti: `globals.css`; tombol `pointer-coarse:h-11`; pil navigator `pointer-coarse:min-h-11`.
+
+- [x] Elemen tetap (pil navigator kiri bawah, toast kanan atas) tidak menutupi kolom aksi; `scroll-padding-bottom` 6 rem agar kontrol terfokus tidak tertutup. Bukti: `globals.css`, e2e "navigator ciut".
+- [x] Tidak ada tabel yang memecah kata per baris pada 390 px. Bukti: tangkapan layar 390 px (`docs/bukti-e2e/`).
+
+Catatan: `.claude/skills/ui-ux-pro-max/references/pro-rules.md` tidak ada di repo; yang dipakai adalah Pre-Delivery Checklist dan Quick Reference 1 sampai 3 di `SKILL.md` serta aturan `web-design-guidelines` (audit di `docs/penilaian/audit-ui-2026-10-22.md`, diperbarui 23 Okt).

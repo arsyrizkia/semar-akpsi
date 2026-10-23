@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
-import { Alert, Bagian, Button, Input, KepalaHalaman, KotakCentang, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu } from "@/components/ui";
+import { Alert, Bagian, Button, CegatTinggalkan, Input, KepalaHalaman, KotakCentang, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu } from "@/components/ui";
 import { periksaKelengkapan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
 import { PESAN_LENGKAPI } from "@/lib/templat/status";
 import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
@@ -123,6 +123,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
 
   return (
     <div ref={ref}>
+      <CegatTinggalkan kotor={kotor} labelSimpan="Simpan Draf" saatSimpan={simpan} />
       <KepalaHalaman
         kode="J-02b"
         judul="Penyusunan Templat"
@@ -144,7 +145,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
         }
       />
 
-      <p aria-live="polite" className="-mt-3 mb-5 text-sm text-primer-700">
+      <p aria-live="polite" className="-mt-3 mb-5 text-sm text-teks-redup">
         {kotor ? "Ada perubahan yang belum disimpan." : "Isian sama dengan draf yang tersimpan."}
       </p>
 
@@ -170,7 +171,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
           <TBody>
             {isian.bagian.length === 0 ? (
               <TR>
-                <TD colSpan={5} className={tandai && kelengkapan.tanpaBagian ? "py-4 text-center font-medium text-bata-600" : "py-4 text-center text-primer-700"}>
+                <TD colSpan={5} className={tandai && kelengkapan.tanpaBagian ? "py-4 text-center font-medium text-bata-600" : "py-4 text-center text-teks-redup"}>
                   Belum ada bagian. Tekan &ldquo;Tambah Bagian&rdquo;.
                 </TD>
               </TR>
@@ -248,7 +249,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
       </Bagian>
 
       <Bagian judul="Lampiran Wajib">
-        {isian.lampiran.length === 0 ? <p className="text-sm text-primer-700">Belum ada lampiran wajib.</p> : null}
+        {isian.lampiran.length === 0 ? <p className="text-sm text-teks-redup">Belum ada lampiran wajib.</p> : null}
         <ul className="space-y-2">
           {isian.lampiran.map((l, i) => {
             const galat = tandai && kelengkapan.lampiran[i];
@@ -311,20 +312,21 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
         saatKonfirmasi={konfirmasiTerbitkan}
       >
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-          <dt className="text-primer-700">Skema</dt>
+          <dt className="text-teks-redup">Skema</dt>
           <dd className="font-semibold">{namaSkema}</dd>
-          <dt className="text-primer-700">Versi</dt>
+          <dt className="text-teks-redup">Versi</dt>
           <dd className="font-semibold">{templat.versi}</dd>
-          <dt className="text-primer-700">Periode Berlaku</dt>
+          <dt className="text-teks-redup">Periode Berlaku</dt>
           <dd className="font-semibold">{namaPeriode}</dd>
-          <dt className="text-primer-700">Bagian</dt>
+          <dt className="text-teks-redup">Bagian</dt>
           <dd className="angka font-semibold">{isian.bagian.length}</dd>
-          <dt className="text-primer-700">Lampiran Wajib</dt>
+          <dt className="text-teks-redup">Lampiran Wajib</dt>
           <dd className="angka font-semibold">{isian.lampiran.length}</dd>
         </dl>
-        <p className="mt-3 text-primer-700">
-          Templat versi {templat.versi} menggantikan templat yang berlaku dan butir cek turunannya dibuat sebagai draf.
-          {masaBerjalan ? " Masa pengusulan sedang berjalan, sehingga hasilnya dapat berupa draf." : ""}
+        <p className="mt-3 text-teks-redup">
+          {masaBerjalan
+            ? "Masa pengusulan sedang berjalan: templat akan disimpan sebagai draf untuk periode berikutnya; templat yang berlaku tidak berubah dan butir cek belum diturunkan."
+            : `Templat versi ${templat.versi} menggantikan templat yang berlaku dan butir cek turunannya dibuat sebagai draf.`}
         </p>
       </ModalKonfirmasi>
     </div>

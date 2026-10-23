@@ -126,7 +126,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                     <Link href={`${urlKembali}&sorot=${encodeURIComponent(butir.kode)}#butir-${butir.kode}`} className="font-mono text-xs font-semibold underline underline-offset-2" translate="no">
                       {butir.kode}
                     </Link>
-                    <span className="block text-xs text-primer-700">{butir.deskripsi}</span>
+                    <span className="block text-xs text-teks-redup">{butir.deskripsi}</span>
                   </TD>
                   {sel.map((h, i) => (
                     <TD key={uji.contoh[i].dokumenKode} className="min-w-52">
@@ -138,7 +138,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
             </TBody>
           </Table>
         )}
-        <p className="mt-3 text-xs text-primer-700">
+        <p className="mt-3 text-xs text-teks-redup">
           Contoh proposal adalah data contoh sementara{dasar?.tanggalBerlaku ? `; basis aturan berlaku sejak ${formatTanggal(dasar.tanggalBerlaku)}` : ""}.
         </p>
       </Bagian>
@@ -162,8 +162,8 @@ function SelHasil({ h }: { h: SelUji }) {
         <LencanaStatus status={h.status} />
         {h.tiruan ? <Badge>tiruan</Badge> : null}
       </span>
-      {h.kutipan ? <p className="text-xs italic">&ldquo;{h.kutipan}&rdquo;</p> : null}
-      {h.alasanSistem ? <p className="text-xs text-primer-700">{h.alasanSistem}</p> : null}
+      {h.kutipan ? <p className="text-xs">&ldquo;{h.kutipan}&rdquo;</p> : null}
+      {h.alasanSistem ? <p className="text-xs text-teks-redup">{h.alasanSistem}</p> : null}
       {h.tingkatKeyakinan != null ? <BarKeyakinan nilai={h.tingkatKeyakinan} /> : null}
     </div>
   );
