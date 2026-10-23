@@ -34,15 +34,56 @@ const bersihkan = (html: string) =>
     .replace(/ *\n */g, "\n")
     .trim();
 
-/** HTML keluaran mammoth menjadi blok: judul, paragraf, gambar, tabel (isi tabel dibuang). */
+const POLA_TAG_ATAS = /<(h[1-6]|p|table|ul|ol)\b[^>]*>/gi;
+
+/** Elemen tingkat atas dari potongan HTML; kemunculan bersarang dengan nama yang sama (tabel dalam tabel) dihitung agar penutupnya tepat. */
+function elemenTingkatAtas(html: string, nama: RegExp = POLA_TAG_ATAS): { tag: string; isi: string }[] {
+  const hasil: { tag: string; isi: string }[] = [];
+  const pola = new RegExp(nama.source, "gi");
+  let m: RegExpExecArray | null;
+  let dari = 0;
+  pola.lastIndex = dari;
+  while ((m = pola.exec(html)) !== null) {
+    const tag = m[1].toLowerCase();
+    const awal = m.index + m[0].length;
+    const buka = new RegExp(`<${tag}\\b[^>]*>|</${tag}>`, "gi");
+    buka.lastIndex = awal;
+    let kedalaman = 1;
+    let tutup = -1;
+    let akhir = awal;
+    let t: RegExpExecArray | null;
+    while ((t = buka.exec(html)) !== null) {
+      if (t[0][1] === "/") kedalaman--;
+      else kedalaman++;
+      if (kedalaman === 0) {
+        tutup = t.index;
+        akhir = t.index + t[0].length;
+        break;
+      }
+    }
+    if (tutup < 0) break;
+    hasil.push({ tag, isi: html.slice(awal, tutup) });
+    dari = akhir;
+    pola.lastIndex = dari;
+  }
+  return hasil;
+}
+
+/** Judul bagian berhuruf ("A. JUDUL") di awal sel pertama tabel: tabel itu adalah tabel bagian Isian Substansi, bukan tabel data. */
+const POLA_SEL_BAGIAN = /^[A-Z]\s*[.)]\s*\S/;
+
+/**
+ * HTML keluaran mammoth menjadi blok: judul, paragraf, gambar, tabel (isi tabel data dibuang). Pengecualian: tabel bagian Isian Substansi
+ * (sel pertamanya berawal judul berhuruf, "A. JUDUL"), yang isi selnya dibuka menjadi blok sendiri; tabel di dalam sel tetap satu blok "[tabel]".
+ */
 export function blokDariHtml(html: string): BlokTeks[] {
   const blok: BlokTeks[] = [];
-  const pola = /<(h[1-6]|p|table|ul|ol)\b[^>]*>([\s\S]*?)<\/\1>/gi;
-  for (const m of html.matchAll(pola)) {
-    const tag = m[1].toLowerCase();
-    const isi = m[2];
+  for (const { tag, isi } of elemenTingkatAtas(html)) {
     if (tag === "table") {
-      blok.push({ jenis: "tabel", teks: "[tabel]" });
+      const sel = elemenTingkatAtas(isi, /<(td|th)\b[^>]*>/gi).map((x) => blokDariHtml(x.isi));
+      const pertama = sel[0]?.find((b) => b.jenis === "judul" || b.jenis === "paragraf");
+      if (pertama && POLA_SEL_BAGIAN.test(pertama.teks.trim())) for (const b of sel) blok.push(...b);
+      else blok.push({ jenis: "tabel", teks: "[tabel]" });
     } else if (tag === "ul" || tag === "ol") {
       for (const li of isi.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)) {
         const t = bersihkan(li[1]);

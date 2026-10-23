@@ -1,9 +1,16 @@
 // Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-10 buatDokumenTemplat (Contract C-31); setiap cabang generator templat (.docx).
 import { describe, expect, it } from "vitest";
 import mammoth from "mammoth";
+import JSZip from "jszip";
 import { bagianDokumen, buatDokumenTemplat, panduanBagian } from "@/lib/templat/dokumen";
 
 const skema = { kode: "PT", namaSkema: "Penelitian Terapan" };
+/** Badan dokumen ditambah teks kaki halaman (metadata skema, periode, versi templat ada di kaki). */
+async function teksDenganKaki(bytes: Buffer): Promise<string> {
+  const zip = await JSZip.loadAsync(bytes);
+  const kaki = await Promise.all(Object.keys(zip.files).filter((n) => /^word\/footer\d+\.xml$/.test(n)).map(async (n) => (await zip.file(n)!.async("string")).replace(/<[^>]+>/g, "")));
+  return `${(await mammoth.extractRawText({ buffer: bytes })).value}\n${kaki.join("\n")}`;
+}
 
 describe("panduanBagian (cabang)", () => {
   it("KP-panduanBagian-01: bagian Isian Substansi memakai kalimat petunjuk resmi; Kata Kunci menyebut titik koma", () => {
@@ -50,19 +57,19 @@ describe("bagianDokumen (cabang)", () => {
 
 describe("buatDokumenTemplat (cabang isi)", () => {
   it("KP-buatDokumenTemplat-01: periode null menulis 'belum ditetapkan'; tanpa lampiran tidak ada halaman lampiran", async () => {
-    const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 1, status: "Draf" }, [], [], skema, null) })).value;
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 1, status: "Draf" }, [], [], skema, null));
     expect(teks).toContain("belum ditetapkan");
     expect(teks).toContain("Versi templat: 1 (Draf)");
     expect(teks).not.toContain("LAMPIRAN 1.");
   });
   it("KP-buatDokumenTemplat-02: periode terisi menulis nama dan tahun; lampiran bernomor", async () => {
-    const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], ["Surat A", "Surat B"], skema, { nama: "Seleksi 2026", tahun: 2026 }) })).value;
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], ["Surat A", "Surat B"], skema, { nama: "Seleksi 2026", tahun: 2026 }));
     expect(teks).toContain("Seleksi 2026 (2026)");
     expect(teks).toContain("LAMPIRAN 1. SURAT A");
     expect(teks).toContain("LAMPIRAN 2. SURAT B");
   });
   it("KP-buatDokumenTemplat-03: periode tanpa tahun tidak menulis tanda kurung", async () => {
-    const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], [], skema, { nama: "Seleksi X" }) })).value;
-    expect(teks).toContain("Periode berlaku: Seleksi X\n");
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], [], skema, { nama: "Seleksi X" }));
+    expect(teks).toContain("Periode berlaku: Seleksi X |");
   });
 });

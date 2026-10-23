@@ -48,3 +48,27 @@ describe("jenisBerkas dan ekstrakTeksLampiran (cabang)", () => {
     expect(await ekstrakTeksLampiran(Buffer.from("PK rusak"), "a.docx", TIPE_DOCX)).toBe("");
   });
 });
+
+describe("blokDariHtml: tabel bagian Isian Substansi (MS-01, tahap ekstraksi; putaran 2)", () => {
+  const bagianTabel = (judul: string, isi: string) =>
+    `<table><tr><td><p><strong>${judul}</strong></p><p><em>petunjuk</em></p></td></tr><tr><td>${isi}</td></tr></table>`;
+
+  it("KP-blokDariHtml-T1: tabel yang sel pertamanya berawal judul berhuruf dibuka: judul, petunjuk, dan isi sel menjadi blok sendiri", () => {
+    const blok = blokDariHtml(bagianTabel("A. JUDUL", "<p>[Judul saya]</p>"));
+    expect(blok.map((b) => b.teks)).toEqual(["A. JUDUL", "petunjuk", "[Judul saya]"]);
+    expect(blok.every((b) => b.jenis === "paragraf")).toBe(true);
+  });
+  it("KP-blokDariHtml-T2: tabel di dalam sel isian tetap satu blok [tabel] (Jadwal), dan tabel setelahnya dibaca sebagai tabel bagian lain", () => {
+    const blok = blokDariHtml(bagianTabel("G. JADWAL PENELITIAN", "<table><tr><td><p>Tahun ke-1</p></td></tr></table>") + bagianTabel("H. DAFTAR PUSTAKA", "<p>[1] Pustaka.</p>"));
+    expect(blok.map((b) => b.teks)).toEqual(["G. JADWAL PENELITIAN", "petunjuk", "[tabel]", "H. DAFTAR PUSTAKA", "petunjuk", "[1] Pustaka."]);
+  });
+  it("KP-blokDariHtml-T3: tabel data (sel pertama bukan judul berhuruf) tetap satu blok [tabel] dan isinya dibuang", () => {
+    expect(blokDariHtml("<table><tr><td><p>Nama</p></td><td><p>A. Budi</p></td></tr></table>")).toEqual([{ jenis: "tabel", teks: "[tabel]" }]);
+    expect(blokDariHtml("<table><tr><td></td></tr></table>")).toEqual([{ jenis: "tabel", teks: "[tabel]" }]);
+  });
+  it("KP-blokDariHtml-T4: tabel bersarang dan elemen sesudahnya dipasangkan dengan penutup yang benar; elemen tak tertutup menghentikan pembacaan", () => {
+    const blok = blokDariHtml(`${bagianTabel("A. JUDUL", "<table><tr><td><table><tr><td><p>x</p></td></tr></table></td></tr></table>")}<p>sesudah</p>`);
+    expect(blok.map((b) => b.teks)).toEqual(["A. JUDUL", "petunjuk", "[tabel]", "sesudah"]);
+    expect(blokDariHtml("<p>utuh</p><p>tidak tertutup")).toEqual([{ jenis: "paragraf", teks: "utuh" }]);
+  });
+});

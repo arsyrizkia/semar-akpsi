@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "laporan-uji": "tsx scripts/laporan-uji.ts",
     "rencana-uji": "tsx scripts/rencana-uji.ts",
-    "label-ui": "tsx scripts/label-ui.ts"
+    "label-ui": "tsx scripts/label-ui.ts",
+    "pratinjau-docx": "tsx scripts/pratinjau-docx.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",
@@ -44,6 +45,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^5.0.5",
+    "docx-preview": "^0.4.1",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",

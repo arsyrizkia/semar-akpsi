@@ -43,16 +43,16 @@ export const BAGIAN_DEPAN: readonly KolomDepan[] = [
   {
     kunci: "mitra",
     judul: "MITRA KERJASAMA PENELITIAN (Jika Ada)",
-    penjelas: "Pengusul dapat mengusulkan mitra kerja sama penelitian; surat pernyataan mitra dilampirkan pada bagian lampiran.",
+    penjelas: "Pelaksanaan penelitian dapat melibatkan mitra kerjasama yaitu mitra kerjasama dalam melaksanakan penelitian, mitra sebagai calon pengguna hasil penelitian, atau mitra investor",
     isian: [],
     tabel: ["Mitra", "Nama Mitra", "Dana"],
   },
-  { kunci: "luaran", judul: "LUARAN DAN TARGET CAPAIAN", penjelas: "Luaran Wajib dan Luaran Tambahan.", isian: [], tabel: ["Tahun Luaran", "Kategori Luaran", "Jenis Luaran", "Status target capaian", "Keterangan"] },
-  { kunci: "strategis", judul: "BIDANG STRATEGIS", penjelas: "", isian: ["Bidang Strategis"], tabel: [] },
+  { kunci: "luaran", judul: "LUARAN DAN TARGET CAPAIAN", penjelas: "", isian: [], tabel: ["Tahun Luaran", "Kategori Luaran", "Jenis Luaran", "Status target capaian", "Keterangan"] },
+  { kunci: "strategis", judul: "BIDANG STRATEGIS", penjelas: "", isian: [], tabel: ["8 Bidang Strategis", "Rumusan Masalah", "Uraian"] },
   {
     kunci: "anggaran",
     judul: "ANGGARAN",
-    penjelas: "Rencana Anggaran Biaya (RAB) penelitian mengacu pada ketentuan yang berlaku. Total RAB: Rp ....",
+    penjelas: "Rencana Anggaran Biaya penelitian mengacu pada PMK dan buku Panduan Penelitian dan Pengabdian kepada Masyarakat yang berlaku.",
     isian: [],
     tabel: ["Kelompok", "Komponen", "Item", "Satuan", "Vol.", "Biaya Satuan", "Total"],
   },
@@ -63,7 +63,7 @@ export const KOP_BAWAAN: KopTemplat = {
   alamat: "Jalan Jenderal Sudirman, Senayan, Jakarta Pusat 10270",
   laman: "https://bima.kemdiktisaintek.go.id",
   proteksi:
-    "Dokumen ini bersifat rahasia dan hanya untuk keperluan penilaian proposal. Dilarang menyalin, memperbanyak, atau menyebarluaskan isi proposal tanpa izin tertulis pengusul.",
+    "Dilarang menyalin, menyimpan, memperbanyak sebagian atau seluruh isi proposal ini dalam bentuk apapun kecuali oleh pengusul dan pengelola administrasi penelitian dan pengabdian kepada masyarakat",
   judulProposal: "PROPOSAL PENELITIAN",
   depan: { judul: true, identitas: true, mitra: true, luaran: true, strategis: true, anggaran: true },
 };

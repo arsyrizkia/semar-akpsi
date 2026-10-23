@@ -79,7 +79,7 @@ describe("buatDokumenTemplat paket (MS-10 cabang baru)", () => {
   it("KP-buatDokumenTemplat-J10: sakelar bagian depan mematikan bagian; kop khusus dipakai; alamat dan laman kosong dilewati", async () => {
     const kop = { ...KOP_BAWAAN, lembaga: "Lembaga Uji", alamat: "", laman: "", depan: { ...KOP_BAWAAN.depan, anggaran: false, mitra: false } };
     const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, bagian, [], skema, null, { kop }));
-    expect(t).toContain("LEMBAGA UJI");
+    expect(t).toContain("Lembaga Uji");
     expect(t).not.toContain("ANGGARAN");
     expect(t).not.toContain("MITRA KERJASAMA");
     expect(t).toContain("5. BIDANG STRATEGIS".replace("5", "4"));
@@ -96,7 +96,7 @@ describe("buatDokumenTemplat paket (MS-10 cabang baru)", () => {
     expect(t).toContain("Kepala Uji");
     expect(t).not.toContain("Tuliskan judul usulan");
     expect(t).toContain("FORMULIR X");
-    expect(t).toContain("Alamat : ....");
+    expect(t).toMatch(/Alamat\s*:\s*\.\.\.\./);
     expect(t).toContain("LAMPIRAN 2. BERKAS Y");
   });
   it("KP-buatDokumenTemplat-J12: daftar berpemisah koma dan 3 butir; daftar pustaka berawalan [1]; bagian bertabel punya tabel Tahun ke-1", async () => {

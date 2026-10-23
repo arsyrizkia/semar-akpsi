@@ -419,7 +419,7 @@ async function utama() {
       await foto(page, "bima-pengajuan");
       const d = await unduh(page, await hrefUnduh(page, "Unduh Templat"));
       yakin(d.status === 200 && d.tipe === TIPE_DOCX && /\.docx/.test(d.disposisi), `Unduh Templat di BIMA: status ${d.status}, tipe ${d.tipe}`);
-      yakin((d.html.match(/<h1>/g) ?? []).length >= 3, "templat .docx dari BIMA tidak memuat judul bagian (h1)");
+      yakin((d.html.match(/<p>(?:<strong>)?[A-Z]\. [A-Z]{3,}/g) ?? []).length >= 3, "templat .docx dari BIMA tidak memuat judul bagian berhuruf (A. JUDUL ...)");
       c(`BIMA Unduh Templat: 200, ${d.tipe.split(".").pop()}, ${d.ukuran} byte`);
       await ajukan();
       await tungguJalur(page, "/pengusul/hasil/", 60_000);
@@ -557,12 +557,12 @@ async function utama() {
       c("J-02b: Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh");
       const idDraf = jalur(page).split("/")[3];
       const paket = await unduh(page, `/api/semar/templat/${idDraf}/unduh`);
-      const perlu = ["<h1>A. JUDUL</h1>", "<h1>C. KATA KUNCI</h1>", "Tuliskan judul usulan penelitian maksimal 20 kata", "KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "bersedia menjadi mitra", "[kata kunci 1; kata kunci 2; kata kunci 3; kata kunci 4; kata kunci 5]", "[Sisipkan diagram alir penelitian (JPG/PNG)]"];
+      const perlu = ["A. JUDUL", "C. KATA KUNCI", "Tuliskan judul usulan penelitian maksimal 20 kata", "Kementerian Pendidikan Tinggi, Sains, dan Teknologi", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "bersedia menjadi mitra", "[kata kunci 1; kata kunci 2; kata kunci 3; kata kunci 4; kata kunci 5]", "[Sisipkan diagram alir penelitian (JPG/PNG)]"];
       const kurang = perlu.filter((x) => !paket.html.includes(x));
       yakin(paket.status === 200 && kurang.length === 0, `paket .docx kurang: ${kurang.join(" | ") || `status ${paket.status}`}`);
       const isianSaja = await unduh(page, `/api/semar/templat/${idDraf}/unduh?mode=isian`);
-      yakin(isianSaja.status === 200 && isianSaja.html.includes("<h1>A. JUDUL</h1>") && !isianSaja.html.includes("PROTEKSI ISI PROPOSAL") && !isianSaja.html.includes("SURAT PERNYATAAN"), "mode=isian seharusnya hanya memuat Isian Substansi");
-      c("unduhan .docx: paket lengkap (halaman depan, judul berhuruf A-H sebagai h1, petunjuk, tempat isian per jenis, halaman lampiran) dan mode=isian hanya A-H");
+      yakin(isianSaja.status === 200 && isianSaja.html.includes("A. JUDUL") && !isianSaja.html.includes("PROTEKSI ISI PROPOSAL") && !isianSaja.html.includes("SURAT PERNYATAAN"), "mode=isian seharusnya hanya memuat Isian Substansi");
+      c("unduhan .docx: paket lengkap (halaman depan, judul berhuruf A-H dalam tabel berlatar biru muda, petunjuk, tempat isian per jenis, halaman lampiran) dan mode=isian hanya A-H");
       await klik(page, "Terbitkan");
       await tungguModal(page, "Konfirmasi Terbitkan");
       const ringkas = await page.$eval("[role=dialog]", (e) => (e as HTMLElement).innerText);
@@ -1106,7 +1106,7 @@ async function utama() {
       await adaTeks(page, "telah terbit");
       // 4. unduh templat dari J-02 dan periksa judul bagian (Heading 1)
       const d1 = await unduh(page, await hrefUnduh(page, "Unduh Templat (.docx)"));
-      yakin(d1.status === 200 && new RegExp(`<h1>[^<]*${BARU}`, "i").test(d1.html), `templat .docx tidak memuat judul bagian "${BARU}" sebagai Heading 1`);
+      yakin(d1.status === 200 && new RegExp(`<p>(?:<strong>)?[A-Z]\\. [^<]*${BARU}`, "i").test(d1.html), `templat .docx tidak memuat judul bagian berhuruf "${BARU}"`);
       await foto(page, "bolak-balik-j02-terbit");
       c(`J-02: Unduh Templat (.docx) memuat "${BARU}" sebagai judul bagian`);
       // 5. J-03 menampilkan butir turunan baru
