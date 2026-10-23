@@ -1,4 +1,5 @@
 // Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-16 hitungKata, C-17 cekKataKunci, C-18 cocokkanSitasi, C-19 cekLampiran, C-20 cocokkanStrukturJudul; CRC ButirCek.
+import { bagianBawaan } from "@/lib/templat/isian-substansi";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -10,12 +11,12 @@ import { cekKataKunci, cekLampiran, cocokkanSitasi, cocokkanStrukturJudul, perik
 import { fmt, hitungKata } from "@/lib/pemeriksa/deterministik/teks";
 
 const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
-const templat = baca("templat.json") as { lampiranWajib: string[]; templat: Record<string, { nama: string; batasKata: number | null; wajib: boolean }[]> };
+const templat = baca("templat.json") as { lampiranWajib: string[] };
 const katalog = baca("katalog-butir.json") as { butir: (Omit<ButirCek, "id" | "asal" | "status" | "parameter"> & { parameter: ParameterButir })[] };
 
 /** Himpunan butir deterministik yang sama dengan seed: turunan templat PD + katalog manual. */
 function butirPD(): ButirCek[] {
-  const turunan = turunkanButirDariTemplat(templat.templat.PD, templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null }));
+  const turunan = turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null }));
   const semua = [
     ...turunan.map((b) => ({ ...b, asal: "templat" as const })),
     ...katalog.butir.map((b) => ({ ...b, asal: "manual" as const, aturanHitung: (b as { aturanHitung?: string }).aturanHitung ?? null, pertanyaan: b.pertanyaan ?? null, contohJawaban: b.contohJawaban ?? null })),
@@ -37,7 +38,7 @@ function butirPD(): ButirCek[] {
 }
 
 const konteksPD: KonteksPeriksa = {
-  bagianTemplat: templat.templat.PD.map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
+  bagianTemplat: bagianBawaan("dasar").map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
   lampiranWajib: templat.lampiranWajib,
 };
 
@@ -90,7 +91,7 @@ describe("UC-06 pada tiga proposal contoh", () => {
   it("KH-periksaDeterministikTeks-03: contoh C: kata kunci (4 dari 5) dan jumlah referensi (9 entri, 7 dikutip) gagal", () => {
     expect(gagalKode("c")).toEqual(["KAT-01", "SIT-03"]);
     const hasil = periksaDeterministikTeks(dokumenDariContoh("c"), butirPD(), konteksPD);
-    expect(hasil.find((h) => h.kode === "KAT-01")!.angkaPembukti).toContain("4 kata kunci terbaca");
+    expect(hasil.find((h) => h.kode === "KAT-01")!.angkaPembukti).toContain("4 kata kunci: kualitas air");
     const sit = hasil.find((h) => h.kode === "SIT-03")!;
     expect(sit.angkaPembukti).toContain("9 entri daftar pustaka, 7 referensi dikutip");
     expect(sit.angkaPembukti).toContain("nomor 8, 9 tidak dikutip");
@@ -130,7 +131,7 @@ describe("cekKataKunci", () => {
   it("KH-cekKataKunci-03: dipisah koma dikenali sebagai pemisah salah", () => {
     const h = cekKataKunci(dok("a, b, c, d, e"), 5, ";");
     expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain("1 kata kunci terbaca");
+    expect(h.angkaPembukti).toContain("5 kata kunci terbaca dengan koma");
     expect(h.angkaPembukti).toContain("bukan titik koma");
   });
   it("KH-cekKataKunci-04: kosong gagal", () => expect(cekKataKunci(dok(null), 5, ";").status).toBe("Gagal"));

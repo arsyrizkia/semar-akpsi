@@ -9,9 +9,11 @@ import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposa
 import { catatLogAudit } from "@/lib/audit";
 import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
-import type { BagianTemplatDto } from "@/lib/kontrak";
+import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
-import { bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
+import { bagianDariBaris, kepalaDariBaris } from "./isian-substansi";
+import { kopDariBaris, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
+import { batasKataValid, bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
 import { putuskanTerbitkan } from "./status";
 
 export interface Pelaku {
@@ -29,7 +31,12 @@ export interface TemplatTampil {
   periodeBerlakuNama: string | null;
   lampiranWajib: string[];
   diterbitkanPada: string | null;
-  bagian: { urutan: number; nama: string; batasKata: number | null; wajib: boolean }[];
+  /** bagian dengan ketentuan lengkap (null pada baris lama sudah diturunkan dari nama bagian) */
+  bagian: BagianTemplatDto[];
+  kepala: KepalaTemplatDto;
+  kop: KopTemplat;
+  /** templat per lampiran wajib, sejajar `lampiranWajib` (bawaan bila belum diatur) */
+  lampiranTemplat: LampiranTemplat[];
 }
 
 export interface SkemaPilihan {
@@ -77,7 +84,10 @@ async function muatTemplat(db: Db, t: typeof templatProposal.$inferSelect): Prom
     periodeBerlakuNama,
     lampiranWajib: t.lampiranWajib,
     diterbitkanPada: t.diterbitkanPada?.toISOString() ?? null,
-    bagian: bagian.map((b) => ({ urutan: b.urutan, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
+    bagian: bagian.map(bagianDariBaris),
+    kepala: kepalaDariBaris(t),
+    kop: kopDariBaris(t.kop),
+    lampiranTemplat: lampiranDariBaris(t.lampiranTemplat, t.lampiranWajib),
   };
 }
 
@@ -109,7 +119,7 @@ export async function ambilDrafTemplat(skemaId: string): Promise<TemplatTampil |
 export async function ambilKonteksTemplat(skemaId: string): Promise<{ bagianTemplat: BagianTemplatDto[]; lampiranWajib: string[] }> {
   const t = (await ambilTemplatBerlaku(skemaId)) ?? (await ambilDrafTemplat(skemaId));
   return {
-    bagianTemplat: (t?.bagian ?? []).map((b) => ({ urutan: b.urutan, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
+    bagianTemplat: t?.bagian ?? [],
     lampiranWajib: t?.lampiranWajib ?? [],
   };
 }
@@ -130,12 +140,33 @@ export async function susunVersiBaru(skemaId: string, pelaku: Pelaku): Promise<{
   const id = await db.transaction(async (tx) => {
     const [t] = await tx
       .insert(templatProposal)
-      .values({ skemaId, versi, status: "Draf", periodeBerlakuId: null, lampiranWajib: berlaku?.lampiranWajib ?? [], dibuatOleh: pelaku.id })
+      .values({
+        skemaId,
+        versi,
+        status: "Draf",
+        periodeBerlakuId: null,
+        lampiranWajib: berlaku?.lampiranWajib ?? [],
+        dibuatOleh: pelaku.id,
+        ...(berlaku ? { judulDokumen: berlaku.kepala.judulDokumen, subjudul: berlaku.kepala.subjudul, pengantar: berlaku.kepala.pengantar, kop: berlaku.kop, lampiranTemplat: berlaku.lampiranTemplat } : {}),
+      })
       .returning();
     if (berlaku && berlaku.bagian.length > 0) {
-      await tx
-        .insert(bagianTemplat)
-        .values(berlaku.bagian.map((b) => ({ templatId: t.id, urutan: b.urutan, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })));
+      await tx.insert(bagianTemplat).values(
+        berlaku.bagian.map((b) => ({
+          templatId: t.id,
+          urutan: b.urutan,
+          nama: b.nama,
+          batasKata: b.batasKata,
+          wajib: b.wajib,
+          petunjuk: b.petunjuk ?? null,
+          jenisIsian: b.jenisIsian ?? null,
+          jumlahButir: b.jumlahButir ?? null,
+          pemisah: b.pemisah ?? null,
+          wajibGambar: b.wajibGambar ?? null,
+          sitasiBernomor: b.sitasiBernomor ?? null,
+          daftarPustaka: b.daftarPustaka ?? null,
+        })),
+      );
     }
     return t.id;
   });
@@ -149,11 +180,20 @@ async function simpanIsian(db: Db, templatId: string, isian: MasukanKelengkapan)
   await db.delete(bagianTemplat).where(eq(bagianTemplat.templatId, templatId));
   const bagian = isian.bagian.map(bagianTersimpan);
   if (bagian.length > 0) {
-    await db.insert(bagianTemplat).values(bagian.map((b, i) => ({ templatId, urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })));
+    await db.insert(bagianTemplat).values(bagian.map((b, i) => ({ templatId, urutan: i + 1, ...b })));
   }
+  const lampiran = isian.lampiran.map((l) => l.trim());
   await db
     .update(templatProposal)
-    .set({ lampiranWajib: isian.lampiran.map((l) => l.trim()), periodeBerlakuId: isian.periodeBerlakuId })
+    .set({
+      lampiranWajib: lampiran,
+      periodeBerlakuId: isian.periodeBerlakuId,
+      ...(isian.kepala
+        ? { judulDokumen: isian.kepala.judulDokumen.trim() || null, subjudul: isian.kepala.subjudul.trim() || null, pengantar: isian.kepala.pengantar.trim() || null }
+        : {}),
+      ...(isian.kop ? { kop: isian.kop } : {}),
+      ...(isian.lampiranTemplat ? { lampiranTemplat: isian.lampiranTemplat.filter((l) => lampiran.some((n) => n.toLowerCase() === l.nama.trim().toLowerCase())) } : {}),
+    })
     .where(eq(templatProposal.id, templatId));
 }
 
@@ -206,7 +246,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
     await gantiTemplatBerlaku(tx, { baruId: t.id, lamaIds: lama.map((l) => l.id), drafBasisId: drafBasis.id, waktu });
 
     // turunkanButirCek (langkah 10): berstatus Draf, terkunci (asal = templat)
-    const turunan = turunkanButirCek(bagian, lampiran);
+    const turunan = turunkanButirCek(bagian, lampiran, lampiranDariBaris(m.isian.lampiranTemplat, lampiran));
     const [{ nilai }] = await tx.select({ nilai: max(butirCek.urutan) }).from(butirCek).where(eq(butirCek.basisAturanId, drafBasis.id));
     let urutan = nilai ?? 0;
     if (turunan.length > 0) {
@@ -291,9 +331,12 @@ export async function simpanDrafTemplat(m: { skemaId: string; templatId: string;
   }
   const bersih = bersihkanIsianDraf(m.isian);
   await simpanIsian(db, t.id, {
-    bagian: bersih.bagian.map((b) => ({ nama: b.nama, batas: b.batasKata == null ? "" : String(b.batasKata), tanpaBatas: b.batasKata == null, wajib: b.wajib })),
+    bagian: m.isian.bagian.filter((b) => b.nama.trim() !== "").map((b) => ({ ...b, nama: b.nama.trim(), ...(!batasKataValid(b.batas) ? { batas: "", tanpaBatas: true } : {}) })),
     lampiran: bersih.lampiran,
     periodeBerlakuId: bersih.periodeBerlakuId,
+    kepala: m.isian.kepala,
+    kop: m.isian.kop,
+    lampiranTemplat: m.isian.lampiranTemplat,
   });
   await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.draf-simpan", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, bagian: bersih.bagian.length, lampiran: bersih.lampiran.length } });
   return { ok: true, versi: t.versi, jumlahBagian: bersih.bagian.length, jumlahLampiran: bersih.lampiran.length };

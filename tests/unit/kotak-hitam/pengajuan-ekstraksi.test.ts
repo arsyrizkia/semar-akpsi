@@ -1,4 +1,5 @@
 // Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-21 TemplatProposal.potongPerBagian dan C-16 sampai C-20 atas naskah DOCX/PDF contoh; CRC VersiProposal.
+import { bagianBawaan } from "@/lib/templat/isian-substansi";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -12,14 +13,14 @@ import { judulBerhuruf } from "@/lib/templat/isian-substansi";
 import { buatTokenPengajuan, verifikasiTokenPengajuan } from "@/lib/pengajuan/token";
 
 const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
-const templat = baca("templat.json") as { lampiranWajib: string[]; templat: Record<string, { nama: string; batasKata: number | null; wajib: boolean }[]> };
+const templat = baca("templat.json") as { lampiranWajib: string[] };
 const katalog = baca("katalog-butir.json") as { butir: { kode: string; deskripsi: string; jenis: "deterministik" | "semantik"; komponen: string; pemeriksa: string; parameter: ParameterButir }[] };
 
-const bagian = templat.templat.PD.map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib }));
+const bagian = bagianBawaan("dasar").map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib }));
 const konteks: KonteksPeriksa = { bagianTemplat: bagian, lampiranWajib: templat.lampiranWajib };
 
 const butir: ButirCek[] = [
-  ...turunkanButirDariTemplat(templat.templat.PD, templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null })),
+  ...turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null })),
   ...katalog.butir
     .filter((b) => b.jenis === "deterministik")
     .map((b) => ({ ...b, asal: "manual" as const, aturanHitung: null, pertanyaan: null, contohJawaban: null })),

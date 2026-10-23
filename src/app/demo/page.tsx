@@ -42,6 +42,7 @@ const UC: BarisUc[] = [
 const SKENARIO: BarisUc[] = [
   { kode: "UC-05a", judul: "Proposal terkirim pada pengajuan pertama", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Semua butir lolos (Terkirim)" },
   { kode: "UC-05b", judul: "Proposal ditahan lalu terkirim setelah diperbaiki", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Ditahan (Metode melebihi batas), lalu Ajukan ulang dengan naskah perbaikan (Terkirim V2)" },
+  { kode: "UC-06-koma", judul: "Kata kunci dipisah koma", peran: "Sistem (di dalam UC-05)", layar: "BIMA, J-06", catatan: "Butir kata kunci Gagal: pemisah koma, bukan titik koma" },
   { kode: "UC-05c", judul: "Proposal ditahan lalu ditolak karena masa pengusulan ditutup", peran: "Pengusul", layar: "BIMA, J-06", catatan: "Ditahan, tutup masa di BIMA, Ajukan ulang (Ditolak, 3a)" },
   { kode: "UC-07a", judul: "Menyetujui seluruh rekomendasi", peran: "Reviewer", layar: "J-07, J-08", catatan: "Tanpa koreksi, lalu Simpan Permanen" },
   { kode: "UC-07b", judul: "Mengoreksi rekomendasi yang keliru", peran: "Reviewer", layar: "J-07, J-08", catatan: "Mulai dari J-07 (Periksa), lalu Tidak Setuju pada satu butir (UC-08)" },

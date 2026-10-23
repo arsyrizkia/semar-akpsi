@@ -10,13 +10,14 @@
  *  b = gagal jumlah kata di satu bagian (Metode melebihi batas 1.000 kata)
  *  c = gagal kata kunci (4, bukan 5) dan sitasi (9 referensi, 7 dikutip)
  *  d = seperti a, topik lain; dipakai skenario reviewer (sudah Terkirim)
+ *  f = gagal kata kunci karena dipisah koma (bukan titik koma), seperti contoh BIMA no. 5; dipakai demo UC-06
  *  e = naskah perbaikan varian b: topik dan judul sama, bagian Metode dalam batas (dipakai UC-05b "terkirim setelah diperbaiki")
  */
-import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { Document, Footer, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { PENGANTAR_ISIAN_SUBSTANSI, bagianBawaan, judulBerhuruf, petunjukResmi } from "../templat/isian-substansi";
 
-export type VarianContoh = "a" | "b" | "c" | "d" | "e";
+export type VarianContoh = "a" | "b" | "c" | "d" | "e" | "f";
 
 export const BAGIAN_CONTOH = ["Judul", "Ringkasan", "Kata Kunci", "Pendahuluan", "Metode", "Hasil yang Diharapkan", "Jadwal Penelitian", "Daftar Pustaka"] as const;
 export const LAMPIRAN_CONTOH = ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"] as const;
@@ -87,6 +88,19 @@ const TOPIK: Record<Exclude<VarianContoh, "e">, Topik> = {
     mahasiswa: "Fajar Ramadhan",
     promotor: "Dr. Sekar Anindita",
     kataKunci: ["ketahanan pangan", "nelayan kecil", "pemodelan berbasis agen", "paceklik", "adaptasi rumah tangga"],
+  },
+  f: {
+    judul: "Pemetaan Rantai Pasok Garam Rakyat dengan Analisis Jaringan untuk Wilayah Pesisir Timur",
+    objek: "rantai pasok garam rakyat",
+    metode: "analisis jaringan dan wawancara pelaku usaha",
+    lokasi: "sentra garam pesisir timur",
+    luaran: "peta rantai pasok, rekomendasi tata niaga, dan satu artikel jurnal",
+    masalah: "belum terpetakannya simpul tengkulak yang menekan harga di tingkat petambak",
+    kebaruan: "penggunaan analisis jaringan sosial pada rantai pasok komoditas pesisir berskala kecil",
+    mitra: "Koperasi Petambak Garam Contoh",
+    mahasiswa: "Gita Maharani",
+    promotor: "Dr. Haris Mulyono",
+    kataKunci: ["rantai pasok", "garam rakyat", "analisis jaringan", "tata niaga", "pesisir timur"],
   },
 };
 
@@ -170,7 +184,7 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
   const gagalSitasi = varian === "c";
   const jumlahPustaka = gagalSitasi ? 9 : 8;
   const jumlahDikutip = gagalSitasi ? 7 : 8;
-  const kataKunci = t.kataKunci.join("; ");
+  const kataKunci = t.kataKunci.join(varian === "f" ? ", " : "; ");
 
   const ringkasan = susunTeks(
     t,
@@ -213,11 +227,15 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
 
   const jadwal = [
     "Tahun ke-1",
+    "No Nama Kegiatan Bulan",
+    "1 2 3 4 5 6 7 8 9 10 11 12",
     `1. Pengumpulan data dan inventarisasi ${t.objek} (bulan 1 sampai 4)`,
     `2. Pengembangan awal model dengan ${t.metode} (bulan 3 sampai 8)`,
     "3. Pengujian tahap pertama bersama mitra (bulan 7 sampai 10)",
     "4. Penyusunan artikel dan laporan kemajuan (bulan 10 sampai 12)",
     "Tahun ke-2",
+    "No Nama Kegiatan Bulan",
+    "1 2 3 4 5 6 7 8 9 10 11 12",
     "1. Penyempurnaan model dan pengujian lapangan (bulan 1 sampai 6)",
     "2. Penyerahan luaran kepada mitra dan penyebarluasan (bulan 7 sampai 10)",
     "3. Penyusunan artikel akhir dan laporan akhir (bulan 10 sampai 12)",
@@ -230,7 +248,7 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
     {
       nama: "Surat Pernyataan Mitra",
       berkas: "surat-pernyataan-mitra.pdf",
-      teks: `${nomorSurat("Surat Pernyataan Mitra")}\nYang bertanda tangan di bawah ini, pimpinan ${t.mitra}, menyatakan bersedia menjadi mitra pada proposal berjudul "${t.judul}". Mitra tidak berafiliasi dengan institusi pengusul. Surat ini bermeterai dan ditandatangani oleh pimpinan mitra.\n[meterai] [tanda tangan pimpinan mitra]`,
+      teks: `${nomorSurat("Surat Pernyataan Mitra")}\nYang bertanda tangan di bawah ini, pimpinan ${t.mitra}, menyatakan bersedia menjadi mitra pada proposal berjudul "${t.judul}". Dan saya menyatakan bahwa saya tidak memiliki afiliasi atau hubungan keluarga dengan tim pengusul. Surat ini bermeterai dan ditandatangani oleh pimpinan mitra.\n[meterai] [tanda tangan pimpinan mitra]`,
     },
     {
       nama: "Artikel Ketua Pengusul",
@@ -275,9 +293,22 @@ function bungkusIsian(baris: string[]): string[] {
   return hasil;
 }
 
+function tabelJadwal(kegiatan: string[]): Table {
+  const sel = (t: string) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t, size: 18 })] })] });
+  const bulan = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({ children: [sel("No"), sel("Nama Kegiatan"), new TableCell({ columnSpan: 12, children: [new Paragraph({ children: [new TextRun({ text: "Bulan", size: 18 })] })] })] }),
+      new TableRow({ children: [sel(""), sel(""), ...bulan.map(sel)] }),
+      ...kegiatan.map((k, i) => new TableRow({ children: [sel(String(i + 1)), sel(k), ...bulan.map(() => sel(""))] })),
+    ],
+  });
+}
+
 export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
   const batas = new Map(bagianBawaan("dasar").map((b) => [b.nama, b.batasKata]));
-  const anak: Paragraph[] = [
+  const anak: (Paragraph | Table)[] = [
     new Paragraph({ children: [new TextRun({ text: "Isian Substansi Proposal", bold: true, size: 36 })] }),
     new Paragraph({ children: [new TextRun({ text: "SKEMA PENELITIAN DASAR (PENELITIAN DASAR FUNDAMENTAL DAN PENELITIAN KERJA SAMA ANTAR PERGURUAN TINGGI)", bold: true })] }),
     new Paragraph({ children: [new TextRun(PENGANTAR_ISIAN_SUBSTANSI)] }),
@@ -286,6 +317,24 @@ export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
     anak.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(judulBerhuruf(i, nama))] }));
     anak.push(new Paragraph({ children: [new TextRun({ text: petunjukResmi(nama, batas.get(nama) ?? null) ?? "", italics: true })] }));
     const baris = def.bagian[nama].split("\n").filter((b) => b.trim());
+    if (nama === "Jadwal Penelitian") {
+      // jadwal sebagai tabel Word seperti contoh BIMA: "Tahun ke-N" lalu tabel No, Nama Kegiatan, Bulan
+      anak.push(new Paragraph({ children: [new TextRun("[")] }));
+      let rows: string[] = [];
+      const tutup = () => {
+        if (rows.length) anak.push(tabelJadwal(rows));
+        rows = [];
+      };
+      for (const b of baris) {
+        if (/^Tahun ke-\d+$/.test(b)) {
+          tutup();
+          anak.push(new Paragraph({ children: [new TextRun(b)] }));
+        } else if (/^\d+\.\s/.test(b)) rows.push(b.replace(/^\d+\.\s*/, ""));
+      }
+      tutup();
+      anak.push(new Paragraph({ children: [new TextRun("]")] }));
+      return;
+    }
     for (const b of bungkusIsian(baris)) anak.push(new Paragraph({ children: [new TextRun(b)] }));
   });
   const doc = new Document({

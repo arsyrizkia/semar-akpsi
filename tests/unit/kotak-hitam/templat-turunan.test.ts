@@ -13,7 +13,7 @@ describe("turunkanButirCek (Contract C-03)", () => {
   it("KH-turunkanButirCek-02: bagian wajib menjadi BGN-nn dan bagian opsional tanpa batas kata tidak menghasilkan apa pun (Q1)", () => {
     const b = turunkanButirCek([bagian("Latar Belakang", null), bagian("Catatan", null, false)], []);
     expect(b).toHaveLength(1);
-    expect(b[0]).toMatchObject({ kode: "BGN-01", parameter: { tipe: "bagian_wajib", bagian: "Latar Belakang" }, pemeriksa: "cocokkanStrukturJudul", komponen: "Screening" });
+    expect(b[0]).toMatchObject({ kode: "BGN-01", parameter: { tipe: "bagian_terisi", bagian: "Latar Belakang" }, pemeriksa: "periksaBagianTerisi", komponen: "Screening" });
   });
 
   it("KH-turunkanButirCek-03: batas kata tepat 0 tetap menghasilkan KTA-nn, bagian tanpa batas tidak (Q2, batas bawah)", () => {

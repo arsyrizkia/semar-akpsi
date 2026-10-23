@@ -38,14 +38,16 @@ export type ParameterButir =
   | { tipe: "bagian_wajib"; bagian: string }
   | { tipe: "batas_kata"; bagian: string; batas: number }
   | { tipe: "lampiran_wajib"; nama: string }
+  | { tipe: "lampiran_format"; nama: string; kunci: string[] }
   | { tipe: "kata_kunci"; jumlah: number; pemisah: string }
-  | { tipe: "sitasi_bernomor" }
-  | { tipe: "pustaka_berurutan" }
-  | { tipe: "jumlah_referensi_sama" }
+  | { tipe: "sitasi_bernomor"; pustaka?: string }
+  | { tipe: "pustaka_berurutan"; pustaka?: string }
+  | { tipe: "jumlah_referensi_sama"; pustaka?: string }
   | { tipe: "struktur_judul" }
   | { tipe: "judul_sama" }
   | { tipe: "bagian_terisi"; bagian: string }
   | { tipe: "diagram_alir"; bagian: string }
+  | { tipe: "tabel_wajib"; bagian: string }
   | { tipe: "semantik"; bagian: string; lampiran?: string };
 
 /** Butir cek sebagaimana dibaca fungsi pemeriksa (turunan baris butir_cek). */
@@ -64,6 +66,9 @@ export interface ButirCek {
   status: StatusButir;
 }
 
+/** Jenis tempat isian sebuah bagian templat: teks bebas, daftar bersambung pemisah (kata kunci), atau tabel (jadwal). */
+export type JenisIsian = "teks" | "daftar" | "tabel";
+
 export interface BagianTemplatDto {
   urutan: number;
   nama: string;
@@ -71,8 +76,30 @@ export interface BagianTemplatDto {
   wajib: boolean;
   /** huruf judul pada Isian Substansi ("A".."H"); diturunkan dari urutan bila kosong */
   huruf?: string | null;
-  /** kalimat petunjuk resmi bagian; diturunkan dari nama bagian (templat/isian-substansi.ts) bila kosong */
+  /**
+   * kalimat petunjuk bagian, boleh memuat `{batas}` (diganti batas kata bagian); null = diturunkan dari nama bagian
+   * (templat/isian-substansi.ts), "" = tanpa petunjuk. Dibaca lewat `petunjukBagian`.
+   */
   petunjuk?: string | null;
+  /** ketentuan bagian (UC-01 M-12); null/kosong = diturunkan dari nama bagian Isian Substansi, selain itu teks */
+  jenisIsian?: JenisIsian | null;
+  /** jumlah butir bila jenisIsian = "daftar" */
+  jumlahButir?: number | null;
+  /** pemisah satu karakter bila jenisIsian = "daftar" */
+  pemisah?: string | null;
+  /** bagian wajib memuat gambar (mis. diagram alir pada Metode) */
+  wajibGambar?: boolean | null;
+  /** sitasi pada bagian ini bernomor sesuai urutan pengutipan */
+  sitasiBernomor?: boolean | null;
+  /** bagian ini adalah daftar pustaka yang dicocokkan dengan sitasi */
+  daftarPustaka?: boolean | null;
+}
+
+/** Kepala dokumen templat (di atas bagian A): judul, subjudul skema, kalimat pengantar. */
+export interface KepalaTemplatDto {
+  judulDokumen: string;
+  subjudul: string | null;
+  pengantar: string | null;
 }
 
 /** Bahan yang diperiksa. Dipakai pemeriksaan nyata (dari versi_proposal) maupun "Uji pada Contoh" (dokumen_contoh). */

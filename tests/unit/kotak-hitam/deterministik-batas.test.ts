@@ -62,7 +62,7 @@ describe("cekKataKunci (Contract C-17, MS-13)", () => {
   it("KH-cekKataKunci-05: empat kata kunci gagal (satu di bawah) dengan angka pembukti", () => {
     const h = hasil("a; b; c; d");
     expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain("4 kata kunci terbaca");
+    expect(h.angkaPembukti).toContain("4 kata kunci: a | b | c | d");
   });
   it("KH-cekKataKunci-06: lima kata kunci lolos", () => expect(hasil("a; b; c; d; e").status).toBe("Lolos"));
   it("KH-cekKataKunci-07: enam kata kunci gagal (satu di atas) dan batas dilanggar menyebut 6", () => {
@@ -70,17 +70,20 @@ describe("cekKataKunci (Contract C-17, MS-13)", () => {
     expect(h.status).toBe("Gagal");
     expect(h.batasDilanggar).toContain("ditemukan 6");
   });
-  it("KH-cekKataKunci-08: pemisah salah (garis tegak) terbaca satu kata kunci dan gagal", () => {
+  it("KH-cekKataKunci-08: pemisah salah (garis tegak) gagal dan disebut pemisah yang dipakai", () => {
     const h = hasil("a | b | c | d | e");
     expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain("1 kata kunci terbaca");
+    expect(h.angkaPembukti).toContain("pemisah yang dipakai garis tegak (|), bukan titik koma (;)");
   });
   it("KH-cekKataKunci-09: hanya spasi atau null dianggap tidak ditemukan", () => {
     expect(hasil("   ").angkaPembukti).toContain("tidak ditemukan");
     expect(hasil(null).status).toBe("Gagal");
   });
-  it("KH-cekKataKunci-10: pemisah berlebih di ujung dan segmen kosong tidak dihitung (nilai janggal tetapi sah)", () => {
-    expect(hasil("a;; b; c ; d; e;").status).toBe("Lolos");
+  it("KH-cekKataKunci-10: satu pemisah penutup diabaikan, tetapi butir kosong di tengah gagal (nilai janggal)", () => {
+    expect(hasil("a; b; c ; d; e;").status).toBe("Lolos");
+    const h = hasil("a;; b; c ; d; e;");
+    expect(h.status).toBe("Gagal");
+    expect(h.angkaPembukti).toContain("ada butir kosong");
   });
   it("KH-cekKataKunci-11: jumlah diminta lain (tiga, pemisah koma) mengikuti parameter butir", () => {
     expect(hasil("x, y, z", 3, ",").status).toBe("Lolos");

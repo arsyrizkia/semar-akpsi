@@ -1,27 +1,9 @@
 {
   "label": "struktur mengikuti Isian Substansi Proposal",
-  "catatan": "Bagian A-H dan batas kata mengikuti Isian Substansi Proposal BIMA (Penelitian Dasar: Pendahuluan 1000 kata; Penelitian Terapan: 1500 kata). Kalimat petunjuk resmi tiap bagian ada di src/lib/templat/isian-substansi.ts. Lampiran wajib mengikuti naskah kelompok.",
-  "lampiranWajib": ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"],
-  "templat": {
-    "PD": [
-      { "nama": "Judul", "batasKata": 20, "wajib": true },
-      { "nama": "Ringkasan", "batasKata": 300, "wajib": true },
-      { "nama": "Kata Kunci", "batasKata": null, "wajib": true },
-      { "nama": "Pendahuluan", "batasKata": 1000, "wajib": true },
-      { "nama": "Metode", "batasKata": 1000, "wajib": true },
-      { "nama": "Hasil yang Diharapkan", "batasKata": null, "wajib": true },
-      { "nama": "Jadwal Penelitian", "batasKata": null, "wajib": true },
-      { "nama": "Daftar Pustaka", "batasKata": null, "wajib": true }
-    ],
-    "PT": [
-      { "nama": "Judul", "batasKata": 20, "wajib": true },
-      { "nama": "Ringkasan", "batasKata": 300, "wajib": true },
-      { "nama": "Kata Kunci", "batasKata": null, "wajib": true },
-      { "nama": "Pendahuluan", "batasKata": 1500, "wajib": true },
-      { "nama": "Metode", "batasKata": 1000, "wajib": true },
-      { "nama": "Hasil yang Diharapkan", "batasKata": null, "wajib": true },
-      { "nama": "Jadwal Penelitian", "batasKata": null, "wajib": true },
-      { "nama": "Daftar Pustaka", "batasKata": null, "wajib": true }
-    ]
-  }
+  "catatan": "Struktur bagian A-H, petunjuk, dan ketentuan per bagian (jenis isian, jumlah butir, pemisah, wajib gambar, sitasi bernomor, daftar pustaka) berasal dari src/lib/templat/isian-substansi.ts (bagianBawaan); kepala dokumen dari kepalaBawaan; kop dan templat lampiran dari src/lib/templat/paket.ts. Penelitian Dasar mengikuti contoh BIMA no. 1 (Pendahuluan 1000 kata), Terapan mengikuti no. 5 (Pendahuluan 1500 kata). Lampiran wajib mengikuti naskah kelompok.",
+  "lampiranWajib": [
+    "Surat Pernyataan Mitra",
+    "Artikel Ketua Pengusul",
+    "Surat Keterangan Mahasiswa Bimbingan"
+  ]
 }

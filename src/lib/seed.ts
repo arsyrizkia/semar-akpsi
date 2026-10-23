@@ -9,6 +9,8 @@ import * as s from "@/db/schema";
 import { simpanBerkas } from "./berkas";
 import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type DefinisiContoh, type VarianContoh } from "./contoh/proposal";
 import { turunkanButirDariTemplat } from "./seed-butir";
+import { bagianBawaan, kepalaBawaan } from "./templat/isian-substansi";
+import { KOP_BAWAAN, lampiranBawaan } from "./templat/paket";
 import akunJson from "../../data/contoh/akun.json";
 import katalogJson from "../../data/contoh/katalog-butir.json";
 import skemaJson from "../../data/contoh/skema.json";
@@ -108,7 +110,10 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
   const templatBaris: Record<string, string> = {};
   const basisBaris: Record<string, string> = {};
   for (const sk of skemaBaris) {
-    const bagian = (templatJson.templat as Record<string, { nama: string; batasKata: number | null; wajib: boolean }[]>)[sk.kode];
+    const skemaIsian = sk.kode === "PT" ? "terapan" : "dasar";
+    const bagian = bagianBawaan(skemaIsian);
+    const kepala = kepalaBawaan(skemaIsian);
+    const lampiranTemplat = templatJson.lampiranWajib.map(lampiranBawaan);
     const [t] = await db
       .insert(s.templatProposal)
       .values({
@@ -119,10 +124,15 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
         lampiranWajib: templatJson.lampiranWajib,
         diterbitkanPada: hari(-30),
         dibuatOleh: pengelolaId,
+        judulDokumen: kepala.judulDokumen,
+        subjudul: kepala.subjudul,
+        pengantar: kepala.pengantar,
+        kop: KOP_BAWAAN,
+        lampiranTemplat,
       })
       .returning();
     templatBaris[sk.kode] = t.id;
-    await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })));
+    await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, ...b })));
 
     const [basis] = await db
       .insert(s.basisAturan)
@@ -138,7 +148,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .returning();
     basisBaris[sk.kode] = basis.id;
 
-    const turunan = turunkanButirDariTemplat(bagian, templatJson.lampiranWajib);
+    const turunan = turunkanButirDariTemplat(bagian, templatJson.lampiranWajib, lampiranTemplat);
     const butir = [
       ...turunan.map((b) => ({ ...b, templatId: t.id, pertanyaan: null, contohJawaban: null })),
       ...katalogJson.butir.map((b) => ({
@@ -281,6 +291,27 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .values({ proposalId: p.id, versiId: v.id, reviewerId: akunId("reviewer-2"), periodeId: periode.id, status: "Ditetapkan", label: "Baru" })
       .returning();
     skenario = { idProposal: idBima, proposalId: p.id, versiId: v.id, penugasanId: pn.id, reviewer: "reviewer-2" };
+  }
+
+  /* proposal fiktif yang Gagal kata kunci karena dipisah koma (demo UC-06): dokumen contoh + proposal Draf di BIMA */
+  {
+    const defF = susunContoh("f");
+    await db.insert(s.dokumenContoh).values({
+      kode: "contoh-f",
+      nama: "Contoh F - gagal kata kunci (dipisah koma)",
+      skemaId: skemaPD.id,
+      varian: "f",
+      judul: defF.judul,
+      judulBima: defF.judul,
+      teksPerBagian: defF.bagian,
+      kataKunci: defF.kataKunci,
+      lampiranAda: defF.lampiran.map((l) => l.nama),
+      teksLampiran: Object.fromEntries(defF.lampiran.map((l) => [l.nama, l.teks])),
+      judulBagianDitemukan: Object.keys(defF.bagian),
+      catatan: "Kata kunci dipisah koma (,), bukan titik koma (;), seperti contoh BIMA no. 5.",
+    });
+    await kirimKeBima(defF, 5, "pengusul-3", "Draf"); // PRP-2026-0005 tetap, tidak menggeser nomor skenario reviewer (0004)
+    nomor = Math.max(nomor, 6);
   }
 
   return {

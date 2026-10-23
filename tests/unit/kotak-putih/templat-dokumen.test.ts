@@ -7,18 +7,19 @@ const skema = { kode: "PT", namaSkema: "Penelitian Terapan" };
 
 describe("panduanBagian (cabang)", () => {
   it("KP-panduanBagian-01: bagian Isian Substansi memakai kalimat petunjuk resmi; Kata Kunci menyebut titik koma", () => {
-    expect(panduanBagian({ nama: "Kata Kunci", batasKata: null, wajib: true })).toBe("Isian 5 kata kunci yang dipisahkan dengan tanda titik koma (;)");
+    expect(panduanBagian({ nama: "Kata Kunci", batasKata: null })).toBe("Isian 5 kata kunci yang dipisahkan dengan tanda titik koma (;)");
   });
   it("KP-panduanBagian-02: nama dinormalisasi (penomoran/huruf diabaikan) dan angka batas diisi dari batas kata bagian", () => {
-    expect(panduanBagian({ nama: "6. Daftar Pustaka", batasKata: null, wajib: false })).toMatch(/^Sitasi disusun dan ditulis berdasarkan sistem nomor/);
-    expect(panduanBagian({ nama: "D. Pendahuluan", batasKata: 1500, wajib: true })).toContain("tidak lebih dari 1500 kata");
+    expect(panduanBagian({ nama: "6. Daftar Pustaka", batasKata: null })).toMatch(/^Sitasi disusun dan ditulis berdasarkan sistem nomor/);
+    expect(panduanBagian({ nama: "D. Pendahuluan", batasKata: 1500 })).toContain("tidak lebih dari 1500 kata");
   });
   it("KP-panduanBagian-02b: atribut petunjuk pada bagian lebih diutamakan daripada petunjuk resmi turunan nama", () => {
-    expect(panduanBagian({ nama: "Metode", batasKata: 1000, wajib: true, petunjuk: "Petunjuk khusus." })).toBe("Petunjuk khusus.");
+    expect(panduanBagian({ nama: "Metode", batasKata: 1000, petunjuk: "Petunjuk khusus." })).toBe("Petunjuk khusus.");
   });
-  it("KP-panduanBagian-03: bagian di luar Isian Substansi: batas kata null menjadi tanpa batas; angka diformat Indonesia", () => {
-    expect(panduanBagian({ nama: "Lain", batasKata: null, wajib: true })).toBe("Panduan: tanpa batas kata. Bagian wajib.");
-    expect(panduanBagian({ nama: "Lain", batasKata: 1500, wajib: false })).toBe("Panduan: maksimal 1.500 kata. Bagian opsional.");
+  it("KP-panduanBagian-03: bagian di luar Isian Substansi tanpa petunjuk tersimpan: tanpa kalimat petunjuk (tidak ada 'Panduan:' buatan); petunjuk kosong juga tanpa kalimat; {batas} diganti batas kata", () => {
+    expect(panduanBagian({ nama: "Lain", batasKata: null })).toBeNull();
+    expect(panduanBagian({ nama: "Lain", batasKata: 1500, petunjuk: "" })).toBeNull();
+    expect(panduanBagian({ nama: "Lain", batasKata: 1500, petunjuk: "Maksimal {batas} kata." })).toBe("Maksimal 1500 kata.");
   });
 });
 
@@ -48,17 +49,17 @@ describe("bagianDokumen (cabang)", () => {
 });
 
 describe("buatDokumenTemplat (cabang isi)", () => {
-  it("KP-buatDokumenTemplat-01: periode null menulis 'belum ditetapkan'; tanpa lampiran menulis 'Tidak ada lampiran wajib'", async () => {
+  it("KP-buatDokumenTemplat-01: periode null menulis 'belum ditetapkan'; tanpa lampiran tidak ada halaman lampiran", async () => {
     const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 1, status: "Draf" }, [], [], skema, null) })).value;
     expect(teks).toContain("belum ditetapkan");
-    expect(teks).toContain("Tidak ada lampiran wajib.");
     expect(teks).toContain("Versi templat: 1 (Draf)");
+    expect(teks).not.toContain("LAMPIRAN 1.");
   });
   it("KP-buatDokumenTemplat-02: periode terisi menulis nama dan tahun; lampiran bernomor", async () => {
     const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], ["Surat A", "Surat B"], skema, { nama: "Seleksi 2026", tahun: 2026 }) })).value;
     expect(teks).toContain("Seleksi 2026 (2026)");
-    expect(teks).toContain("1. Surat A");
-    expect(teks).toContain("2. Surat B");
+    expect(teks).toContain("LAMPIRAN 1. SURAT A");
+    expect(teks).toContain("LAMPIRAN 2. SURAT B");
   });
   it("KP-buatDokumenTemplat-03: periode tanpa tahun tidak menulis tanda kurung", async () => {
     const teks = (await mammoth.extractRawText({ buffer: await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], [], skema, { nama: "Seleksi X" }) })).value;

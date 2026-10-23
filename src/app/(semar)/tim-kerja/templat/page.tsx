@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert, Bagian, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TombolUnduh, TR } from "@/components/ui";
+import { Alert, Badge, Bagian, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TombolUnduh, TR } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
 import { ambilDrafTemplat, ambilTemplatBerlaku, ambilTemplatPerId, daftarSkema, daftarVersiTemplat, type TemplatTampil } from "@/lib/templat/layanan";
-import { hurufBagian } from "@/lib/templat/isian-substansi";
+import { hurufBagian, ringkasKetentuan } from "@/lib/templat/isian-substansi";
 import { PESAN_DRAF_9A } from "@/lib/templat/status";
 import { masaPengusulanBerjalan } from "@/lib/waktu";
 import { formatAngka, formatTanggal } from "@/lib/utils";
@@ -89,12 +89,20 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         judul={dilihat ? (dilihat.id === berlaku?.id ? `Templat Berlaku, Versi ${dilihat.versi}` : `Versi ${dilihat.versi} (${dilihat.status})`) : "Templat Berlaku"}
         aksi={
           dilihat ? (
-            <TombolUnduh href={urlUnduh(dilihat.id)}>Unduh Templat (.docx)</TombolUnduh>
+            <span className="flex flex-wrap gap-2">
+              <TombolUnduh href={urlUnduh(dilihat.id)}>Unduh Templat (.docx)</TombolUnduh>
+              <TombolUnduh href={`${urlUnduh(dilihat.id)}?mode=isian`}>Unduh Isian Substansi (.docx)</TombolUnduh>
+            </span>
           ) : undefined
         }
       >
         {dilihat ? (
-          <p className="mb-1 text-sm text-teks-redup">Struktur mengikuti Isian Substansi Proposal (bagian A sampai H).</p>
+          <div className="mb-3 text-sm">
+            <p className="font-semibold text-primer-900">{dilihat.kepala.judulDokumen}</p>
+            {dilihat.kepala.subjudul ? <p className="font-semibold text-primer-900">{dilihat.kepala.subjudul}</p> : null}
+            {dilihat.kepala.pengantar ? <p className="mt-1 max-w-3xl text-teks-redup">{dilihat.kepala.pengantar}</p> : null}
+            <p className="mt-1 text-teks-redup">Kop: {dilihat.kop.lembaga}</p>
+          </div>
         ) : null}
         {dilihat ? (
           <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
@@ -114,19 +122,25 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         <Table>
           <THead>
             <TR>
-              <TH angka>Urutan</TH>
+              <TH>Kode</TH>
               <TH>Nama Bagian</TH>
-              <TH angka>Batas Kata</TH>
+              <TH>Ketentuan</TH>
               <TH>Wajib</TH>
             </TR>
           </THead>
           <TBody>
             {dilihat && dilihat.bagian.length > 0 ? (
-              dilihat.bagian.map((b) => (
+              dilihat.bagian.map((b, i) => (
                 <TR key={b.urutan}>
-                  <TD angka>{b.urutan}</TD>
-                  <TD>{hurufBagian(b.urutan - 1)}. {b.nama}</TD>
-                  <TD angka>{b.batasKata == null ? "Tanpa batas" : formatAngka(b.batasKata)}</TD>
+                  <TD className="font-semibold">{hurufBagian(i)}</TD>
+                  <TD>{b.nama}</TD>
+                  <TD>
+                    <span className="flex flex-wrap gap-1">
+                      {ringkasKetentuan(b).map((c) => (
+                        <Badge key={c}>{c}</Badge>
+                      ))}
+                    </span>
+                  </TD>
                   <TD>{b.wajib ? "Ya" : "Tidak"}</TD>
                 </TR>
               ))
@@ -144,8 +158,10 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
             <h3 className="text-sm font-semibold text-primer-800">Lampiran Wajib</h3>
             {dilihat.lampiranWajib.length > 0 ? (
               <ul className="mt-1 list-inside list-disc text-sm">
-                {dilihat.lampiranWajib.map((l) => (
-                  <li key={l}>{l}</li>
+                {dilihat.lampiranWajib.map((l, i) => (
+                  <li key={l}>
+                    {l} <span className="text-teks-redup">({dilihat.lampiranTemplat[i]?.jenis === "formulir" ? "formulir bertemplat" : "unggahan bebas"})</span>
+                  </li>
                 ))}
               </ul>
             ) : (

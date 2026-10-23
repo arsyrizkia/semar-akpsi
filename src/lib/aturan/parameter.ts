@@ -61,14 +61,16 @@ export const PEMERIKSA_PER_TIPE: Record<ParameterButir["tipe"], string> = {
   bagian_wajib: "cocokkanStrukturJudul",
   batas_kata: "hitungKata",
   lampiran_wajib: "cekLampiran",
+  lampiran_format: "cekLampiran",
   kata_kunci: "cekKataKunci",
   sitasi_bernomor: "cocokkanSitasi",
   pustaka_berurutan: "cocokkanSitasi",
   jumlah_referensi_sama: "cocokkanSitasi",
   struktur_judul: "cocokkanStrukturJudul",
   judul_sama: "cocokkanStrukturJudul",
-  bagian_terisi: "hitungKata",
-  diagram_alir: "cekLampiran",
+  bagian_terisi: "periksaBagianTerisi",
+  tabel_wajib: "cekTabel",
+  diagram_alir: "periksaDiagramAlir",
   semantik: "nilaiSemantik",
 };
 
@@ -81,6 +83,7 @@ const KOMPONEN_PER_TIPE: Partial<Record<ParameterButir["tipe"], string>> = {
   judul_sama: "Screening",
   bagian_terisi: "1. Kesesuaian isi per bagian",
   diagram_alir: "1. Kesesuaian isi per bagian",
+  tabel_wajib: "1. Kesesuaian isi per bagian",
 };
 
 type HasilUrai = { ok: true; parameter: ParameterButir } | { ok: false; pesan: string };
@@ -88,7 +91,7 @@ type HasilUrai = { ok: true; parameter: ParameterButir } | { ok: false; pesan: s
 /** Menerjemahkan teks "Aturan Hitung" ke parameter terstruktur. */
 export function uraikanAturanHitung(teks: string, bagian: string): HasilUrai {
   const t = teks.toLowerCase();
-  const butuhBagian = (tipe: "bagian_terisi" | "diagram_alir"): HasilUrai =>
+  const butuhBagian = (tipe: "bagian_terisi" | "diagram_alir" | "tabel_wajib"): HasilUrai =>
     bagian ? { ok: true, parameter: { tipe, bagian } } : { ok: false, pesan: "Pilih bagian yang diperiksa untuk aturan ini." };
 
   if (/kata kunci/.test(t)) {
@@ -102,7 +105,8 @@ export function uraikanAturanHitung(teks: string, bagian: string): HasilUrai {
   if (/jumlah (referensi|pustaka|rujukan)/.test(t)) return { ok: true, parameter: { tipe: "jumlah_referensi_sama" } };
   if (/(daftar pustaka|pustaka)/.test(t) && /(urut|berurutan)/.test(t)) return { ok: true, parameter: { tipe: "pustaka_berurutan" } };
   if (/sitasi|kutipan/.test(t)) return { ok: true, parameter: { tipe: "sitasi_bernomor" } };
-  if (/diagram alir/.test(t)) return butuhBagian("diagram_alir");
+  if (/diagram alir|gambar/.test(t)) return butuhBagian("diagram_alir");
+  if (/tabel/.test(t)) return butuhBagian("tabel_wajib");
   if (/judul/.test(t) && /(sama|identik)/.test(t)) return { ok: true, parameter: { tipe: "judul_sama" } };
   if (/(struktur|templat sesuai|urutan bagian)/.test(t)) return { ok: true, parameter: { tipe: "struktur_judul" } };
   if (/(terisi|tidak kosong)/.test(t)) return butuhBagian("bagian_terisi");

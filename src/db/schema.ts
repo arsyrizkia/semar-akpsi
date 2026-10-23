@@ -131,6 +131,14 @@ export const templatProposal = pgTable(
     diterbitkanPada: waktu("diterbitkan_pada"),
     dibuatOleh: uuid("dibuat_oleh").references(() => akun.id),
     dibuatPada: waktu("dibuat_pada").defaultNow().notNull(),
+    /** Kepala dokumen templat (23 Okt 2026, aditif): judul bawaan "Isian Substansi Proposal"; subjudul dan pengantar null = tanpa */
+    judulDokumen: text("judul_dokumen").default("Isian Substansi Proposal"),
+    subjudul: text("subjudul"),
+    pengantar: text("pengantar"),
+    /** Kop, teks proteksi, dan sakelar bagian depan 1-6 (null = bawaan lembaga rekaan, src/lib/templat/paket.ts) */
+    kop: jsonb("kop").$type<import("@/lib/templat/paket").KopTemplat>(),
+    /** Templat per lampiran wajib: unggahan bebas atau formulir bertemplat (null = bawaan) */
+    lampiranTemplat: jsonb("lampiran_templat").$type<import("@/lib/templat/paket").LampiranTemplat[]>(),
   },
   (t) => [uniqueIndex("templat_skema_versi_uq").on(t.skemaId, t.versi)],
 );
@@ -145,6 +153,14 @@ export const bagianTemplat = pgTable(
     /** null = tanpa batas kata */
     batasKata: integer("batas_kata"),
     wajib: boolean("wajib").notNull().default(true),
+    /** Ketentuan bagian (23 Okt 2026, aditif; null = diturunkan dari nama bagian Isian Substansi) */
+    petunjuk: text("petunjuk"),
+    jenisIsian: text("jenis_isian").$type<"teks" | "daftar" | "tabel">(),
+    jumlahButir: integer("jumlah_butir"),
+    pemisah: text("pemisah"),
+    wajibGambar: boolean("wajib_gambar"),
+    sitasiBernomor: boolean("sitasi_bernomor"),
+    daftarPustaka: boolean("daftar_pustaka"),
   },
   (t) => [index("bagian_templat_idx").on(t.templatId, t.urutan)],
 );

@@ -26,7 +26,7 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 export type KodeJalanPintas =
   | "UC-01" | "UC-02" | "UC-03" | "UC-04" | "UC-05" | "UC-06" | "UC-07" | "UC-08" | "UC-09"
   | "UC-01-S1" | "UC-09-S1" | "UC-09-S2"
-  | "UC-05a" | "UC-05b" | "UC-05c" | "UC-07a" | "UC-07b" | "UC-07c" | "UC-07c-awal";
+  | "UC-05a" | "UC-05b" | "UC-05c" | "UC-06-koma" | "UC-07a" | "UC-07b" | "UC-07c" | "UC-07c-awal";
 
 export interface HasilSiapkan {
   /** idBima akun yang dimasukkan */
@@ -248,7 +248,7 @@ async function pastikanDataPemantauan() {
 /* ------------------------------ UC-05 ------------------------------ */
 
 /** Mengembalikan proposal BIMA bernomor n ke status Draf supaya dapat diajukan lagi. */
-async function pulihkanDrafBima(nomor: 1 | 2 | 3): Promise<string> {
+async function pulihkanDrafBima(nomor: 1 | 2 | 3 | 5): Promise<string> {
   const db = getDb();
   const id = `PRP-2026-${String(nomor).padStart(4, "0")}`;
   const [p] = await db.select().from(s.proposal).where(eq(s.proposal.idProposal, id));
@@ -259,13 +259,14 @@ async function pulihkanDrafBima(nomor: 1 | 2 | 3): Promise<string> {
   // Naskah dan lampiran BIMA dipulihkan ke isi seed: "Ajukan ulang" dengan naskah perbaikan (UC-05b) menggantinya,
   // sehingga tanpa pemulihan ini kartu berikutnya langsung Terkirim, bukan Ditahan.
   await db.update(s.bimaProposal).set({ statusBima: "Draf" }).where(eq(s.bimaProposal.id, id)); // simpanUsulanBima menolak usulan Terkirim
-  const varian: VarianContoh = nomor === 1 ? "a" : nomor === 2 ? "b" : "c";
+  const varian: VarianContoh = nomor === 1 ? "a" : nomor === 2 ? "b" : nomor === 5 ? "f" : "c";
   const def = susunContoh(varian);
+  const pengusulIdBima = nomor === 5 ? "pengusul-3" : `pengusul-${nomor}`;
   const lampiran: Record<string, { nama: string; tipe: string; bytes: Buffer }> = {};
   for (const l of def.lampiran) lampiran[l.nama] = { nama: l.berkas, tipe: "application/pdf", bytes: Buffer.from(await buatLampiranPdf(l.nama, l.teks)) };
   await simpanUsulanBima({
     idProposal: id,
-    pengusulIdBima: `pengusul-${nomor}`,
+    pengusulIdBima,
     judul: def.judul,
     skemaKode: "PD",
     naskah: { nama: `${id}-proposal.docx`, tipe: DOCX, bytes: Buffer.from(await buatDocx(def)) },
@@ -376,16 +377,19 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
     case "UC-05a":
     case "UC-06":
     case "UC-05b":
-    case "UC-05c": {
-      const nomor = kode === "UC-05" || kode === "UC-05a" ? 1 : kode === "UC-06" || kode === "UC-05b" ? 2 : 3;
+    case "UC-05c":
+    case "UC-06-koma": {
+      const nomor = kode === "UC-05" || kode === "UC-05a" ? 1 : kode === "UC-06" || kode === "UC-05b" ? 2 : kode === "UC-06-koma" ? 5 : 3;
       const id = await pulihkanDrafBima(nomor);
       // UC-05c dimulai saat masa berjalan: pengajuan pertama Ditahan; masa ditutup lewat alat simulasi di BIMA, lalu "Ajukan ulang" -> Ditolak (3a)
       await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
       return {
-        akun: `pengusul-${nomor}`,
+        akun: nomor === 5 ? "pengusul-3" : `pengusul-${nomor}`,
         tujuan: `/bima/pengajuan?proposal=${id}`,
         catatan:
-          kode === "UC-05c"
+          kode === "UC-06-koma"
+            ? "Kata kunci dipisah koma (,) bukan titik koma (;): Ditahan karena butir kata kunci Gagal (pola contoh BIMA no. 5)."
+            : kode === "UC-05c"
             ? "Ajukan (Ditahan karena kata kunci dan sitasi), tutup masa pengusulan di BIMA, lalu Ajukan ulang (Ditolak, alternatif 3a)."
             : kode === "UC-05b"
               ? "Ajukan (Ditahan karena Metode melebihi batas kata), lalu Ajukan ulang dengan naskah perbaikan contoh (Terkirim, versi V2)."

@@ -1,16 +1,13 @@
 // Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-01 potongPerBagian (tahap ekstraksi teks naskah PDF dan lampiran); setiap cabang ekstraksi.
+import { bagianBawaan } from "@/lib/templat/isian-substansi";
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { buatLampiranPdf, susunContoh } from "@/lib/contoh/proposal";
 import { ekstrakNaskah, ekstrakTeksLampiran, TIPE_PDF } from "@/lib/pengajuan/ekstraksi";
 import { potongTeks } from "@/lib/pengajuan/potong";
 
-const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
-const templat = baca("templat.json") as { lampiranWajib: string[]; templat: Record<string, { nama: string; batasKata: number | null; wajib: boolean }[]> };
 
-const bagian = templat.templat.PD.map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib }));
+const bagian = bagianBawaan("dasar").map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib }));
 
 describe("naskah PDF dan lampiran", () => {
   it("KP-ekstrakNaskah-01: PDF: judul bagian dikenali dari nama templat", async () => {

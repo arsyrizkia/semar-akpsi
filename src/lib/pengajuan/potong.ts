@@ -9,7 +9,7 @@
  */
 import type { BagianTemplatDto } from "../kontrak/tipe";
 import { normalisasiJudul } from "../pemeriksa/deterministik/teks";
-import { petunjukResmi } from "../templat/isian-substansi";
+import { petunjukBagian } from "../templat/isian-substansi";
 import type { BlokTeks } from "./ekstraksi";
 
 export interface HasilPotong {
@@ -108,17 +108,18 @@ const hitung = (s: string, c: string) => s.split(c).length - 1;
  * Baris yang hanya berisi "[" di awal atau "]" di akhir selalu dibuang (sisa tanda templat, juga bila pasangannya tidak terbaca).
  */
 export function lepasTandaIsian(baris: string[]): string[] {
-  const hasil = baris.map((b) => b.trim()).filter(Boolean);
+  // tempat isian kosong "[ ]" dan tempat gambar "[Sisipkan ...]" dari generator templat bukan isi pengusul
+  const hasil = baris.map((b) => b.trim()).filter((b) => b && !/^\[\s*(?:…|\.{3})?\s*\]$/.test(b) && !/^\[\s*sisipkan\b[^\]]*\]$/i.test(b) && !/^\[\d+\]$/.test(b) && !/^\[\s*kata kunci 1\b[^\]]*kata kunci 2\b[^\]]*\]$/i.test(b));
   if (hasil.length === 0) return [];
   if (hasil[hasil.length - 1] === "]") hasil.pop();
   if (hasil[0] === "[") hasil.shift();
   if (hasil.length === 0) return [];
   const pertama = hasil[0];
-  if (pertama.startsWith("[") && !adalahSitasiAwal(pertama)) {
+  if (pertama.startsWith("[") && !adalahSitasiAwal(pertama) && !/^\[(?:tabel|gambar)\]$/i.test(pertama)) {
     hasil[0] = pertama.slice(1).trim();
     const akhir = hasil.length - 1;
     const terakhir = hasil[akhir];
-    if (terakhir.endsWith("]") && hitung(terakhir, "]") > hitung(terakhir, "[")) hasil[akhir] = terakhir.slice(0, -1).trim();
+    if (terakhir.endsWith("]") && !/^\[(?:tabel|gambar)\]$/i.test(terakhir) && hitung(terakhir, "]") > hitung(terakhir, "[")) hasil[akhir] = terakhir.slice(0, -1).trim();
   }
   return hasil.filter((b) => b !== "" && !/^(?:…|\.{3})$/.test(b));
 }
@@ -126,7 +127,7 @@ export function lepasTandaIsian(baris: string[]): string[] {
 /* ------------------------------ lampiran yang ikut diekspor ------------------------------ */
 
 /** Awal halaman lampiran/persetujuan yang ditempel BIMA sesudah Isian Substansi (surat pernyataan mitra, persetujuan pengusul/LPPM). */
-const POLA_AWAL_LAMPIRAN_EKSPOR = /^(?:surat\s+(?:pernyataan|keterangan|kesediaan|dukungan)\b.{0,40}|persetujuan\s+pengusul|lembar\s+(?:pengesahan|persetujuan))$/i;
+const POLA_AWAL_LAMPIRAN_EKSPOR = /^(?:lampiran\s+\d+\b.{0,60}|kop\s+instansi\b.{0,60}|surat\s+(?:pernyataan|keterangan|kesediaan|dukungan)\b.{0,40}|persetujuan\s+pengusul|lembar\s+(?:pengesahan|persetujuan))$/i;
 /** Baris kop surat tepat sebelum judul surat: huruf kapital semua, berawalan alamat/kontak, atau baris alamat pendek tanpa tautan/titik. */
 const POLA_KOP_SURAT = /^(?:jalan|jl\.|kampus|telepon|telp\.?|laman|pos-el|faksimile|fax|email|e-mail)\b|\[at\]/i;
 
@@ -206,7 +207,7 @@ function cocokkan(b: BlokTeks, nama: Map<string, string>, berhuruf: boolean): Ke
  */
 export function potongPerBagian(blok: BlokTeks[], bagian: BagianTemplatDto[]): HasilPotong {
   const nama = new Map(bagian.map((b) => [normalisasiJudul(b.nama), b.nama]));
-  const petunjuk = new Map(bagian.map((b) => [b.nama, b.petunjuk ?? petunjukResmi(b.nama, b.batasKata)]));
+  const petunjuk = new Map(bagian.map((b) => [b.nama, petunjukBagian(b)]));
 
   // mode berhuruf: sekurang-kurangnya dua bagian templat berbeda muncul sebagai judul berhuruf
   const berhuruf =
@@ -232,8 +233,8 @@ export function potongPerBagian(blok: BlokTeks[], bagian: BagianTemplatDto[]): H
       continue;
     }
     if (b.jenis === "judul" && (b.tingkat ?? 1) <= 1 && mulai) {
-      // judul tingkat 1 di luar templat: akhir bagian sebelumnya, isinya tidak dipakai
-      ditemukan.push(b.teks);
+      // judul tingkat 1 di luar templat: akhir bagian sebelumnya, isinya tidak dipakai (judul halaman lampiran tidak dicatat sebagai judul asing)
+      if (!POLA_AWAL_LAMPIRAN_EKSPOR.test(b.teks.trim())) ditemukan.push(b.teks);
       aktif = null;
       diLuarTemplat = true;
       continue;

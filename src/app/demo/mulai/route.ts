@@ -10,7 +10,7 @@ export const maxDuration = 300;
 
 const KODE = new Set<string>([
   "UC-01", "UC-02", "UC-03", "UC-04", "UC-05", "UC-06", "UC-07", "UC-08", "UC-09",
-  "UC-05a", "UC-05b", "UC-05c", "UC-07a", "UC-07b", "UC-07c", "UC-07c-awal", "UC-01-S1", "UC-09-S1", "UC-09-S2",
+  "UC-05a", "UC-05b", "UC-05c", "UC-06-koma", "UC-07a", "UC-07b", "UC-07c", "UC-07c-awal", "UC-01-S1", "UC-09-S1", "UC-09-S2",
 ]);
 
 /**

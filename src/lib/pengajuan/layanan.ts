@@ -27,6 +27,7 @@ import { jalankanPemeriksaanDeterministik } from "../pemeriksa/deterministik";
 import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "../waktu";
 import { adalahPengajuanPertama, hitungMasaPengusulan, statusSetelahPemeriksaan, transisiProposal } from "./aturan";
 import { ekstrakNaskah, ekstrakTeksLampiran } from "./ekstraksi";
+import { bagianDariBaris } from "../templat/isian-substansi";
 import { potongTeks } from "./potong";
 import type { KlaimPengajuan } from "./token";
 
@@ -262,7 +263,7 @@ export async function prosesPengajuan(proposalId: string): Promise<void> {
 
     const hasilPotong = potongTeks(
       await ekstrakNaskah(dariBima.naskah.bytes, dariBima.naskah.nama, dariBima.naskah.tipe),
-      bagian.map((b) => ({ urutan: b.urutan, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
+      bagian.map(bagianDariBaris),
     );
     const teksLampiran: Record<string, string> = {};
     for (const l of dariBima.lampiran) teksLampiran[l.namaLampiran] = await ekstrakTeksLampiran(l.bytes, l.nama, l.tipe);

@@ -8,13 +8,14 @@ import {
   BAGIAN_ISIAN_SUBSTANSI,
   PENGANTAR_ISIAN_SUBSTANSI,
   bagianBawaan,
+  kepalaBawaan,
   hurufBagian,
   judulBerhuruf,
   petunjukResmi,
 } from "@/lib/templat/isian-substansi";
 
 const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
-const templat = baca("templat.json") as { label: string; lampiranWajib: string[]; templat: Record<string, { nama: string; batasKata: number | null; wajib: boolean }[]> };
+const templat = baca("templat.json") as { label: string; lampiranWajib: string[] };
 const katalog = baca("katalog-butir.json") as { butir: { kode: string; parameter: { tipe: string; bagian?: string; jumlah?: number; pemisah?: string } }[] };
 
 describe("Isian Substansi Proposal: struktur templat", () => {
@@ -42,9 +43,18 @@ describe("Isian Substansi Proposal: struktur templat", () => {
     expect(bagianBawaan("dasar").every((b) => b.wajib)).toBe(true);
   });
 
-  it("KH-isianSubstansi-03: seed data/contoh/templat.json sama persis dengan struktur Isian Substansi (Dasar dan Terapan) dan berlabel struktur Isian Substansi", () => {
-    expect(templat.templat.PD).toEqual(bagianBawaan("dasar"));
-    expect(templat.templat.PT).toEqual(bagianBawaan("terapan"));
+  it("KH-isianSubstansi-03: bagian bawaan Dasar dan Terapan memuat ketentuan per bagian (daftar 5 butir ';', wajib gambar Metode, tabel Jadwal, sitasi bernomor, daftar pustaka); seed templat.json berlabel struktur Isian Substansi", () => {
+    for (const skema of ["dasar", "terapan"] as const) {
+      const b = Object.fromEntries(bagianBawaan(skema).map((x) => [x.nama, x]));
+      expect(b["Kata Kunci"]).toMatchObject({ jenisIsian: "daftar", jumlahButir: 5, pemisah: ";" });
+      expect(b["Metode"]).toMatchObject({ jenisIsian: "teks", wajibGambar: true });
+      expect(b["Jadwal Penelitian"]).toMatchObject({ jenisIsian: "tabel" });
+      expect(b["Pendahuluan"].sitasiBernomor).toBe(true);
+      expect(b["Daftar Pustaka"]).toMatchObject({ daftarPustaka: true, sitasiBernomor: true });
+      expect(bagianBawaan(skema).filter((x) => x.daftarPustaka)).toHaveLength(1);
+    }
+    expect(kepalaBawaan("dasar").subjudul).toBe("SKEMA PENELITIAN DASAR (PENELITIAN DASAR FUNDAMENTAL DAN PENELITIAN KERJA SAMA ANTAR PERGURUAN TINGGI)");
+    expect(kepalaBawaan("terapan").subjudul).toBe("SKEMA PENELITIAN TERAPAN");
     expect(templat.label).toBe("struktur mengikuti Isian Substansi Proposal");
     expect(templat.lampiranWajib).toEqual(["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"]);
   });
@@ -69,9 +79,9 @@ describe("Isian Substansi Proposal: struktur templat", () => {
 });
 
 describe("Isian Substansi Proposal: butir cek turunan dan katalog", () => {
-  it("KH-isianSubstansi-06: turunan templat Dasar: delapan butir bagian wajib, empat butir batas kata (Judul 20, Ringkasan 300, Pendahuluan 1000, Metode 1000), tiga lampiran", () => {
-    const butir = turunkanButirDariTemplat(templat.templat.PD, templat.lampiranWajib);
-    expect(butir.filter((b) => b.parameter.tipe === "bagian_wajib")).toHaveLength(8);
+  it("KH-isianSubstansi-06: turunan templat Dasar per ketentuan: delapan butir bagian terisi, empat batas kata (Judul 20, Ringkasan 300, Pendahuluan 1000, Metode 1000), satu kata kunci, satu gambar, satu tabel, tiga sitasi, tiga lampiran", () => {
+    const butir = turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib);
+    expect(butir.filter((b) => b.parameter.tipe === "bagian_terisi")).toHaveLength(8);
     const kata = butir.filter((b) => b.parameter.tipe === "batas_kata");
     expect(kata.map((b) => [b.kode, b.parameter])).toEqual([
       ["KTA-01", { tipe: "batas_kata", bagian: "Judul", batas: 20 }],
@@ -81,21 +91,29 @@ describe("Isian Substansi Proposal: butir cek turunan dan katalog", () => {
     ]);
     expect(kata[3].deskripsi).toBe('Bagian “Metode” tidak melebihi 1.000 kata');
     expect(kata[3].aturanHitung).toContain("kalimat petunjuk templat");
+    expect(butir.find((b) => b.kode === "KAT-01")).toMatchObject({ deskripsi: "Kata kunci tepat 5, dipisahkan titik koma (;)", pemeriksa: "cekKataKunci", parameter: { tipe: "kata_kunci", jumlah: 5, pemisah: ";" } });
+    expect(butir.find((b) => b.kode === "GBR-01")).toMatchObject({ parameter: { tipe: "diagram_alir", bagian: "Metode" } });
+    expect(butir.find((b) => b.kode === "TBL-01")).toMatchObject({ pemeriksa: "cekTabel", parameter: { tipe: "tabel_wajib", bagian: "Jadwal Penelitian" } });
+    expect(butir.filter((b) => b.pemeriksa === "cocokkanSitasi").map((b) => [b.kode, b.parameter.tipe])).toEqual([
+      ["SIT-01", "sitasi_bernomor"],
+      ["SIT-02", "pustaka_berurutan"],
+      ["SIT-03", "jumlah_referensi_sama"],
+    ]);
     expect(butir.filter((b) => b.parameter.tipe === "lampiran_wajib")).toHaveLength(3);
   });
 
   it("KH-isianSubstansi-07: turunan templat Terapan: batas Pendahuluan 1500", () => {
-    const kata = turunkanButirDariTemplat(templat.templat.PT, templat.lampiranWajib).filter((b) => b.parameter.tipe === "batas_kata");
+    const kata = turunkanButirDariTemplat(bagianBawaan("terapan"), templat.lampiranWajib).filter((b) => b.parameter.tipe === "batas_kata");
     expect(kata.map((b) => (b.parameter as { batas: number }).batas)).toEqual([20, 300, 1500, 1000]);
   });
 
   it("KH-isianSubstansi-08: setiap bagian yang dirujuk butir katalog ada di templat Dasar dan Terapan; kata kunci tepat 5 dipisah titik koma", () => {
-    const nama = new Set(templat.templat.PD.map((b) => b.nama));
-    expect(new Set(templat.templat.PT.map((b) => b.nama))).toEqual(nama);
+    const nama = new Set(bagianBawaan("dasar").map((b) => b.nama));
+    expect(new Set(bagianBawaan("terapan").map((b) => b.nama))).toEqual(nama);
     for (const b of katalog.butir) {
       if (b.parameter.bagian) expect(nama.has(b.parameter.bagian), `${b.kode} merujuk bagian ${b.parameter.bagian}`).toBe(true);
     }
-    const kk = katalog.butir.find((b) => b.kode === "KAT-01")!;
-    expect(kk.parameter).toMatchObject({ tipe: "kata_kunci", jumlah: 5, pemisah: ";" });
+    // kata kunci, sitasi, diagram alir, dan bagian wajib berasal dari templat, bukan katalog manual
+    expect(katalog.butir.some((b) => ["KAT-01", "SIT-01", "SIT-02", "SIT-03", "ISI-03D"].includes(b.kode))).toBe(false);
   });
 });

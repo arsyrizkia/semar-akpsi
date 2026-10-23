@@ -461,6 +461,17 @@ async function utama() {
       c("S-1.3/S-1.4: ajukan ulang dengan naskah perbaikan menghasilkan Terkirim, kode versi V2, bukti pengiriman");
     });
 
+    await skenario("UC-06: kata kunci dipisah koma Gagal di J-06 (cekKataKunci)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-06-koma"), "Pengajuan proposal");
+      await ajukan();
+      await tungguJalur(page, "/pengusul/hasil/", 60_000);
+      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "proposal berkata kunci berkoma seharusnya Ditahan");
+      const baris = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, " ")).filter((x) => /\bGagal\b/.test(x)));
+      yakin(baris.length === 1 && /Kata kunci/i.test(baris[0]) && /pemisah yang dipakai koma/.test(baris[0]), `hanya butir kata kunci yang seharusnya Gagal dengan penyebab koma: ${baris.join(" || ")}`);
+      await foto(page, "j06-kata-kunci-koma");
+      c(`J-06: butir kata kunci Gagal karena koma: ${baris[0].slice(0, 160)}`);
+    });
+
     await skenario("UC-05c: ditahan lalu ditolak karena masa pengusulan ditutup (3a)", page, async (c) => {
       await buka(page, url("/demo/mulai?k=UC-05c"), "Pengajuan proposal");
       await ajukan();
@@ -491,7 +502,9 @@ async function utama() {
       await judulTab("J-02");
       const d0 = await unduh(page, await hrefUnduh(page, "Unduh Templat (.docx)"));
       yakin(d0.status === 200 && d0.tipe === TIPE_DOCX, `Unduh Templat di J-02: ${d0.status} ${d0.tipe}`);
-      c("J-02: Unduh Templat (.docx) menghasilkan 200 dan tipe .docx");
+      yakin((await jumlahTombol(page, "Unduh Isian Substansi (.docx)")) >= 1, "J-02 tanpa tombol Unduh Isian Substansi (.docx)");
+      yakin((await teksHalaman(page)).includes("Isian Substansi Proposal") && /Kode\s+Nama Bagian\s+Ketentuan\s+Wajib/.test(await teksHalaman(page)), "J-02 tanpa kepala dokumen atau kolom Kode, Nama Bagian, Ketentuan, Wajib");
+      c("J-02: Unduh Templat (.docx) menghasilkan 200 dan tipe .docx; kolom Kode, Nama Bagian, Ketentuan, Wajib");
       await foto(page, "j02-templat");
       await klik(page, "Susun Versi Baru");
       await tungguJalur(page, "/tim-kerja/templat/", 30_000);
@@ -511,9 +524,45 @@ async function utama() {
       const jumlahBaris = await page.$$eval("input[aria-label^='Nama Bagian baris']", (e) => e.length);
       await page.evaluate((n) => (document.querySelector(`button[aria-label='Hapus bagian baris ${n}']`) as HTMLButtonElement | null)?.click(), jumlahBaris);
       await pilihLabel(page, "Periode Berlaku", () => true);
+      // M-12 Ketentuan Bagian: baris ke-3 (Kata Kunci), validasi dekat isian, Terapkan memperbarui chip ringkasan
+      await klik(page, "Atur Ketentuan", 2);
+      await tungguModal(page, "Ketentuan Bagian");
+      await adaTeks(page, "Jumlah Butir");
+      await isiLabel(page, "Jumlah Butir", "0");
+      await adaTeks(page, "Isi bilangan bulat 1 atau lebih");
+      yakin(await page.evaluate(() => [...document.querySelectorAll("[role=dialog] button")].some((b) => b.textContent?.trim() === "Terapkan" && (b as HTMLButtonElement).disabled)), "Terapkan seharusnya nonaktif saat jumlah butir tidak sah");
+      await foto(page, "m12-ketentuan-bagian");
+      await isiLabel(page, "Jumlah Butir", "5");
+      await klik(page, "Terapkan");
+      await tungguModalTutup(page);
+      yakin((await teksHalaman(page)).includes("5 butir · pemisah ;"), "chip ringkasan '5 butir · pemisah ;' tidak tampil sesudah Terapkan");
+      c("M-12: validasi jumlah butir di dekat isian (Terapkan nonaktif), Terapkan memperbarui chip ketentuan");
+      await klik(page, "Atur Ketentuan", 0);
+      await tungguModal(page, "Ketentuan Bagian");
+      await adaTeks(page, "Aturan format baku");
+      yakin(!(await page.$("[role=dialog] select")), "M-12 tidak boleh lagi memuat pilihan jenis isian (format baku)");
+      await klik(page, "Batal");
+      await tungguModalTutup(page);
+      c("M-12: aturan format baku tampil hanya-baca; Batal tidak mengubah isian");
+      // M-13 Templat Lampiran
+      await klik(page, "Atur Templat Lampiran", 0);
+      await tungguModal(page, "Templat Lampiran");
+      await adaTeks(page, "Kalimat Kunci");
+      await foto(page, "m13-templat-lampiran");
+      await klik(page, "Batal");
+      await tungguModalTutup(page);
+      c("M-13: Templat Lampiran (formulir bertemplat dengan kalimat kunci) dapat dibuka dan ditutup");
       await klik(page, "Unduh Pratinjau (.docx)");
       await adaTeks(page, "Pratinjau diunduh dari isian yang baru disimpan.");
       c("J-02b: Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh");
+      const idDraf = jalur(page).split("/")[3];
+      const paket = await unduh(page, `/api/semar/templat/${idDraf}/unduh`);
+      const perlu = ["<h1>A. JUDUL</h1>", "<h1>C. KATA KUNCI</h1>", "Tuliskan judul usulan penelitian maksimal 20 kata", "KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "bersedia menjadi mitra", "[kata kunci 1; kata kunci 2; kata kunci 3; kata kunci 4; kata kunci 5]", "[Sisipkan diagram alir penelitian (JPG/PNG)]"];
+      const kurang = perlu.filter((x) => !paket.html.includes(x));
+      yakin(paket.status === 200 && kurang.length === 0, `paket .docx kurang: ${kurang.join(" | ") || `status ${paket.status}`}`);
+      const isianSaja = await unduh(page, `/api/semar/templat/${idDraf}/unduh?mode=isian`);
+      yakin(isianSaja.status === 200 && isianSaja.html.includes("<h1>A. JUDUL</h1>") && !isianSaja.html.includes("PROTEKSI ISI PROPOSAL") && !isianSaja.html.includes("SURAT PERNYATAAN"), "mode=isian seharusnya hanya memuat Isian Substansi");
+      c("unduhan .docx: paket lengkap (halaman depan, judul berhuruf A-H sebagai h1, petunjuk, tempat isian per jenis, halaman lampiran) dan mode=isian hanya A-H");
       await klik(page, "Terbitkan");
       await tungguModal(page, "Konfirmasi Terbitkan");
       const ringkas = await page.$eval("[role=dialog]", (e) => (e as HTMLElement).innerText);
@@ -1062,7 +1111,7 @@ async function utama() {
       c(`J-02: Unduh Templat (.docx) memuat "${BARU}" sebagai judul bagian`);
       // 5. J-03 menampilkan butir turunan baru
       await klik(page, "Buka Aturan Pemeriksaan");
-      await adaTeks(page, `Bagian wajib "${BARU}" ada di naskah`, 60_000);
+      await adaTeks(page, `Bagian wajib "${BARU}" terisi di naskah`, 60_000);
       await foto(page, "bolak-balik-j03-butir-baru");
       c("J-03: butir turunan templat baru muncul");
       await klik(page, "Simpan Versi");

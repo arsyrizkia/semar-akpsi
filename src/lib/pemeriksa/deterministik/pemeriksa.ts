@@ -12,6 +12,7 @@ import type {
   ParameterButir,
   StatusHasilDeterministik,
 } from "../../kontrak/tipe";
+import { normFrasa } from "../../templat/paket";
 import { barisTeks, fmt, hitungKata, normalisasiJudul, normalisasiJudulProposal } from "./teks";
 
 export { hitungKata } from "./teks";
@@ -125,60 +126,147 @@ export function periksaBatasKata(dokumen: DokumenPeriksa, bagian: string, batas:
   );
 }
 
+const POLA_PENANDA_ISI = /^\s*\[(?:tabel|gambar)\]\s*$/i;
+
+/** Bagian terisi: ada kata (tidak termasuk tabel/gambar/keterangannya) atau, bila hanya berisi tabel atau gambar, penanda tabel/gambar. */
 export function periksaBagianTerisi(dokumen: DokumenPeriksa, bagian: string): HasilPeriksa {
-  const n = hitungKata(teksBagian(dokumen, bagian));
-  return n > 0
-    ? lolos(`${fmt(n)} kata`, bagian)
-    : gagal("0 kata", bagian, `Bagian "${bagian}" harus terisi (lebih dari 0 kata)`);
+  const teks = teksBagian(dokumen, bagian);
+  const n = hitungKata(teks);
+  if (n > 0) return lolos(`${fmt(n)} kata`, bagian);
+  const penanda = barisTeks(teks).filter((b) => POLA_PENANDA_ISI.test(b));
+  if (penanda.length > 0) return lolos(`0 kata; berisi ${penanda.map((p) => p.replace(/[[\]]/g, "").toLowerCase()).join(", ")}`, bagian);
+  return gagal("0 kata", bagian, `Bagian "${bagian}" harus terisi (lebih dari 0 kata)`);
 }
 
-const POLA_DIAGRAM_ALIR = /(?:diagram\s+alir|bagan\s+alir|alur\s+penelitian|flow\s*chart|flowchart)/i;
-const POLA_KETERANGAN_GAMBAR = /^\s*(?:gambar|diagram|bagan)\s*\d+(?:[.\-]\d+)*\s*[.:)\-–]/i;
+const POLA_KETERANGAN_GAMBAR = /^\s*(?:gambar|diagram|bagan)\s*\d+(?:[.\-]\d+)*\s*[.:)\-–]?\s*\S/i;
+const POLA_DIAGRAM_ALIR = /(?:diagram\s+al[iu]r|bagan\s+al[iu]r|al[iu]r\s+penelitian|flow\s*chart|flowchart)/i;
+const POLA_GAMBAR_BERIKUT = /\bgambar\s+(?:\d+\s+)?berikut\b/i;
 
-/** Diagram alir di bagian Metode: ada keterangan gambar yang menyebut diagram alir. */
+/**
+ * Bagian wajib gambar (diagram alir Metode): gambar ada bila ada penanda gambar dari berkas DOCX ("[gambar]"), baris keterangan
+ * "Gambar n. ...", atau kalimat "disajikan pada Gambar berikut". Keterangan yang menyebut diagram alir disebut di angka pembukti;
+ * kesesuaian isi gambar dinilai butir semantik, bukan butir ini.
+ */
 export function periksaDiagramAlir(dokumen: DokumenPeriksa, bagian: string): HasilPeriksa {
   const baris = barisTeks(teksBagian(dokumen, bagian));
-  const ket = baris.find((b) => POLA_KETERANGAN_GAMBAR.test(b) && POLA_DIAGRAM_ALIR.test(b));
-  return ket
-    ? lolos(`keterangan gambar diagram alir ditemukan: "${ket.slice(0, 80)}"`, bagian)
-    : gagal(
-        "tidak ada keterangan gambar yang menyebut diagram alir",
-        bagian,
-        `Bagian "${bagian}" harus memuat diagram alir dengan keterangan gambar`,
-      );
+  const ketAlir = baris.find((b) => POLA_KETERANGAN_GAMBAR.test(b) && POLA_DIAGRAM_ALIR.test(b));
+  if (ketAlir) return lolos(`keterangan gambar diagram alir ditemukan: "${ketAlir.slice(0, 80)}"`, bagian);
+  const penanda = baris.find((b) => /^\s*\[gambar\]\s*$/i.test(b));
+  if (penanda) return lolos("gambar ditemukan di berkas (penanda gambar)", bagian);
+  const ket = baris.find((b) => POLA_KETERANGAN_GAMBAR.test(b) || POLA_GAMBAR_BERIKUT.test(b));
+  if (ket) return lolos(`gambar ditemukan: "${ket.slice(0, 80)}"`, bagian);
+  return gagal(
+    "tidak ada gambar atau keterangan gambar yang menyebut diagram alir",
+    bagian,
+    `Bagian "${bagian}" harus memuat gambar (diagram alir) dengan keterangan gambar`,
+  );
+}
+
+const POLA_KEPALA_TABEL = /\bno\b.*\b(?:kegiatan|aktivitas|tahapan|uraian|indikator|luaran)\b/i;
+const POLA_BARIS_BULAN = /^(?:\d{1,2}\s+){5,}\d{1,2}$/;
+
+/**
+ * cekTabel: bagian wajib memuat tabel. Bukti: penanda "[tabel]" dari berkas DOCX, keterangan "Tabel n", baris kepala tabel
+ * ("No ... Nama Kegiatan ...") atau baris nomor bulan "1 2 3 4 5 6 ..." pada hasil ekstraksi PDF.
+ */
+export function cekTabel(dokumen: DokumenPeriksa, bagian: string): HasilPeriksa {
+  const baris = barisTeks(teksBagian(dokumen, bagian));
+  const bukti = baris.find((b) => /^\s*\[tabel\]\s*$/i.test(b))
+    ? "penanda tabel dari berkas"
+    : baris.find((b) => /^\s*tabel\s*\d+/i.test(b))
+      ? "keterangan tabel"
+      : baris.find((b) => POLA_KEPALA_TABEL.test(b))
+        ? "baris kepala tabel (No, kegiatan)"
+        : baris.find((b) => POLA_BARIS_BULAN.test(b))
+          ? "baris nomor bulan"
+          : null;
+  return bukti
+    ? lolos(`tabel ditemukan (${bukti})`, bagian)
+    : gagal("tidak ada tabel di bagian ini", bagian, `Bagian "${bagian}" harus memuat tabel`);
 }
 
 /* ------------------------------------------------------------------ */
 /* cekKataKunci                                                        */
 /* ------------------------------------------------------------------ */
 
-const NAMA_PEMISAH: Record<string, string> = { ";": "titik koma", ",": "koma", "|": "garis tegak" };
+const NAMA_PEMISAH: Record<string, string> = { ";": "titik koma", ",": "koma", "|": "garis tegak", "/": "garis miring" };
+const namaPemisah = (c: string) => NAMA_PEMISAH[c] ?? `"${c}"`;
+const sebutPemisah = (c: string) => `${namaPemisah(c)} (${c})`;
+const CALON_PEMISAH_SALAH = [";", ",", "/", "|"];
+const garisMiringPemisah = (t: string) => /\s\/\s/.test(t);
+const garisTegakPemisah = (t: string) => /\s\|\s/.test(t);
 
+function daftarRingkas(butir: string[]): string {
+  const potong = (b: string) => (b.length > 40 ? `${b.slice(0, 37)}...` : b);
+  return butir.slice(0, 8).map(potong).join(" | ") + (butir.length > 8 ? " | ..." : "");
+}
+
+/**
+ * cekKataKunci: isian daftar kata kunci harus memuat tepat `jumlah` butir yang dipisah `pemisah`. Tanda kurung siku isian dibuang, baris
+ * baru dianggap lanjutan baris (frasa boleh terpotong baris), satu pemisah penutup diabaikan. Gagal bila: kosong, pemisah salah (koma,
+ * garis miring, baris baru saja), pemisah bercampur, ada butir kosong, atau jumlah butir tidak tepat. Angka pembukti menyebut butir yang terbaca.
+ */
 export function cekKataKunci(dokumen: DokumenPeriksa, jumlah: number, pemisah: string): HasilPeriksa {
-  const mentah = (dokumen.kataKunci ?? "").trim();
-  const namaPemisah = NAMA_PEMISAH[pemisah] ?? `"${pemisah}"`;
-  if (!mentah) {
+  const syarat = `Kata kunci harus tepat ${fmt(jumlah)}, dipisah ${namaPemisah(pemisah)}`;
+  let teks = (dokumen.kataKunci ?? "").trim();
+  if (/^\[[\s\S]*\]$/.test(teks)) teks = teks.slice(1, -1).trim();
+  if (!teks) return gagal("kata kunci tidak ditemukan di naskah", "Kata Kunci", syarat);
+
+  const adaBarisBaru = /\r?\n/.test(teks);
+  const satuBaris = teks.replace(/\s*\r?\n\s*/g, " ").replace(/\s{2,}/g, " ");
+  const pemisahAda = satuBaris.includes(pemisah);
+
+  // pemisah selain yang diminta; bila pemisah diminta ada, hanya koma/titik koma dan garis miring/tegak berspasi yang dianggap pemisah
+  const lain = CALON_PEMISAH_SALAH.filter((c) => {
+    if (c === pemisah || !satuBaris.includes(c)) return false;
+    if (!pemisahAda) return true;
+    return c === "," || c === ";" || (c === "/" && garisMiringPemisah(satuBaris)) || (c === "|" && garisTegakPemisah(satuBaris));
+  });
+
+  const bacaDengan = (c: string) => {
+    let t = satuBaris.trim();
+    const penutup = t.endsWith(c);
+    if (penutup) t = t.slice(0, -c.length).trim();
+    const butir = t.split(c).map((x) => x.trim());
+    return { butir, penutup };
+  };
+
+  if (!pemisahAda && lain.length > 0) {
+    // pemisah yang dipakai bukan yang diminta: baca dengan pemisah yang dipakai supaya angka pembukti menyebut butir yang terbaca
+    const dipakai = lain[0];
+    const { butir } = bacaDengan(dipakai);
+    const terbaca = butir.filter(Boolean);
+    const sebab = `pemisah yang dipakai ${sebutPemisah(dipakai)}, bukan ${sebutPemisah(pemisah)}`;
     return gagal(
-      "kata kunci tidak ditemukan di naskah",
+      `${fmt(terbaca.length)} kata kunci terbaca dengan ${namaPemisah(dipakai)}: ${daftarRingkas(terbaca)}; ${sebab}`,
       "Kata Kunci",
-      `Kata kunci harus tepat ${fmt(jumlah)}, dipisah ${namaPemisah}`,
+      `${syarat}; ${sebab}`,
     );
   }
-  const daftar = mentah
-    .split(pemisah)
-    .map((k) => k.trim())
-    .filter(Boolean);
-  const terbaca = `${fmt(daftar.length)} kata kunci terbaca (pemisah ${namaPemisah})`;
-  if (daftar.length === jumlah) return lolos(`${terbaca}, diminta tepat ${fmt(jumlah)}`, "Kata Kunci");
-  const petunjuk =
-    daftar.length === 1 && /[,\n]/.test(mentah) && pemisah !== ","
-      ? "; tanda pemisah yang dipakai bukan " + namaPemisah
-      : "";
-  return gagal(
-    `${terbaca}, diminta tepat ${fmt(jumlah)}${petunjuk}`,
-    "Kata Kunci",
-    `Kata kunci harus tepat ${fmt(jumlah)}, dipisah ${namaPemisah}; ditemukan ${fmt(daftar.length)}`,
-  );
+  if (!pemisahAda && adaBarisBaru) {
+    const butir = teks.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    if (butir.length >= 2) {
+      const sebab = `pemisah yang dipakai baris baru, bukan ${sebutPemisah(pemisah)}`;
+      return gagal(`${fmt(butir.length)} kata kunci terbaca dengan baris baru: ${daftarRingkas(butir)}; ${sebab}`, "Kata Kunci", `${syarat}; ${sebab}`);
+    }
+  }
+
+  const { butir, penutup } = bacaDengan(pemisah);
+  const terbaca = butir.filter(Boolean);
+  const catatPenutup = penutup ? `; satu ${namaPemisah(pemisah)} penutup diabaikan` : "";
+  const ringkas = `${fmt(terbaca.length)} kata kunci: ${daftarRingkas(terbaca)} (pemisah ${pemisah})${catatPenutup}`;
+
+  if (lain.length > 0) {
+    const sebab = `pemisah bercampur: selain ${sebutPemisah(pemisah)} juga ada ${lain.map(sebutPemisah).join(", ")}`;
+    return gagal(`${ringkas}; ${sebab}`, "Kata Kunci", `${syarat}; ${sebab}`);
+  }
+  const kosong = butir.map((b, i) => (b === "" ? i + 1 : 0)).filter(Boolean);
+  if (kosong.length > 0) {
+    const sebab = `ada butir kosong (butir ke-${kosong.join(", ")})`;
+    return gagal(`${ringkas}; ${sebab}`, "Kata Kunci", `${syarat}; ${sebab}`);
+  }
+  if (terbaca.length === jumlah) return lolos(ringkas, "Kata Kunci");
+  return gagal(`${ringkas}; diminta tepat ${fmt(jumlah)}`, "Kata Kunci", `${syarat}; ditemukan ${fmt(terbaca.length)}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -244,8 +332,11 @@ interface AnalisisSitasi {
   adaPustaka: boolean;
 }
 
-function analisisSitasi(dokumen: DokumenPeriksa, konteks: KonteksPeriksa): AnalisisSitasi {
-  const isi = bagianIsi(dokumen, konteks).filter((k) => !adalahPustaka(k) && !adalahKataKunci(k));
+function analisisSitasi(dokumen: DokumenPeriksa, konteks: KonteksPeriksa, pustakaParam?: string): AnalisisSitasi {
+  // bagian daftar pustaka: dari parameter butir, lalu bagian templat bertanda daftarPustaka, lalu menurut nama
+  const namaPustaka = pustakaParam ?? konteks.bagianTemplat.find((b) => b.daftarPustaka)?.nama;
+  const adalahPust = (k: string) => (namaPustaka ? normalisasiJudul(k) === normalisasiJudul(namaPustaka) : adalahPustaka(k));
+  const isi = bagianIsi(dokumen, konteks).filter((k) => !adalahPust(k) && !adalahKataKunci(k));
   const sitasi: number[] = [];
   let namaTahun = 0;
   for (const k of isi) {
@@ -253,7 +344,7 @@ function analisisSitasi(dokumen: DokumenPeriksa, konteks: KonteksPeriksa): Anali
     sitasi.push(...nomorSitasi(t));
     namaTahun += (t.match(POLA_NAMA_TAHUN) ?? []).length;
   }
-  const kunciPustaka = Object.keys(dokumen.teksPerBagian).find(adalahPustaka);
+  const kunciPustaka = Object.keys(dokumen.teksPerBagian).find(adalahPust);
   const pustaka = kunciPustaka ? entriPustaka(dokumen.teksPerBagian[kunciPustaka]) : [];
   return { sitasi, berbeda: [...new Set(sitasi)].sort((a, b) => a - b), namaTahun, pustaka, adaPustaka: Boolean(kunciPustaka) };
 }
@@ -262,8 +353,9 @@ export function cocokkanSitasi(
   dokumen: DokumenPeriksa,
   konteks: KonteksPeriksa,
   tipe: "sitasi_bernomor" | "pustaka_berurutan" | "jumlah_referensi_sama",
+  pustaka?: string,
 ): HasilPeriksa {
-  const a = analisisSitasi(dokumen, konteks);
+  const a = analisisSitasi(dokumen, konteks, pustaka);
 
   if (tipe === "sitasi_bernomor") {
     const angka = `${fmt(a.sitasi.length)} sitasi bernomor (${fmt(a.berbeda.length)} nomor berbeda), ${fmt(a.namaTahun)} sitasi gaya nama-tahun`;
@@ -346,6 +438,26 @@ export function cekLampiran(dokumen: DokumenPeriksa, konteks: KonteksPeriksa, na
   );
 }
 
+/**
+ * cekLampiran (format): lampiran berformulir memuat kalimat/frasa kunci templatnya (mis. "bersedia menjadi mitra", "tidak memiliki
+ * afiliasi"). Gagal bila lampiran belum ada atau ada frasa kunci yang tidak ditemukan; bila isi berkas tidak terbaca (PDF pindaian)
+ * hasilnya Lolos dengan catatan bahwa format belum dapat diperiksa.
+ */
+export function cekFormatLampiran(dokumen: DokumenPeriksa, nama: string, kunci: string[]): HasilPeriksa {
+  const ada = dokumen.lampiranAda.some((l) => normLampiran(l) === normLampiran(nama));
+  if (!ada) return gagal(`lampiran "${nama}" belum ada`, null, `Lampiran "${nama}" belum diunggah, formatnya tidak dapat diperiksa`);
+  const kunciTeks = Object.keys(dokumen.teksLampiran).find((k) => normLampiran(k) === normLampiran(nama));
+  const teks = kunciTeks ? normFrasa(dokumen.teksLampiran[kunciTeks]) : "";
+  if (!teks) return lolos(`lampiran "${nama}" ada; isi berkas tidak terbaca sehingga format belum diperiksa`, null);
+  const hilang = kunci.filter((k) => !teks.includes(normFrasa(k)));
+  if (hilang.length === 0) return lolos(`${fmt(kunci.length)} dari ${fmt(kunci.length)} kalimat kunci templat ditemukan: ${kunci.map((k) => `"${k}"`).join(", ")}`, null);
+  return gagal(
+    `${fmt(kunci.length - hilang.length)} dari ${fmt(kunci.length)} kalimat kunci templat ditemukan; belum ada: ${hilang.map((k) => `"${k}"`).join(", ")}`,
+    null,
+    `Lampiran "${nama}" tidak sesuai templat: kalimat ${hilang.map((k) => `"${k}"`).join(", ")} tidak ditemukan`,
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Pengarah per butir                                                  */
 /* ------------------------------------------------------------------ */
@@ -371,14 +483,18 @@ export function periksaSatuButir(butir: ButirCek, dokumen: DokumenPeriksa, konte
       return periksaBagianTerisi(dokumen, p.bagian);
     case "diagram_alir":
       return periksaDiagramAlir(dokumen, p.bagian);
+    case "tabel_wajib":
+      return cekTabel(dokumen, p.bagian);
     case "kata_kunci":
       return cekKataKunci(dokumen, p.jumlah, p.pemisah);
     case "sitasi_bernomor":
     case "pustaka_berurutan":
     case "jumlah_referensi_sama":
-      return cocokkanSitasi(dokumen, konteks, p.tipe);
+      return cocokkanSitasi(dokumen, konteks, p.tipe, p.pustaka);
     case "lampiran_wajib":
       return cekLampiran(dokumen, konteks, p.nama);
+    case "lampiran_format":
+      return cekFormatLampiran(dokumen, p.nama, p.kunci);
     default:
       return gagal(
         `jenis aturan "${(p as { tipe: string }).tipe}" tidak dikenali pemeriksa deterministik`,

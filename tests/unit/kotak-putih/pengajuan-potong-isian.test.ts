@@ -182,10 +182,10 @@ describe("normalisasiJudul: huruf bagian (cabang)", () => {
     expect(normalisasiJudul("h) Daftar Pustaka")).toBe("daftar pustaka");
     expect(normalisasiJudul("A.JUDUL")).toBe("a.judul");
   });
-  it("KP-lengkapiBagian-01: atribut huruf dari urutan dan petunjuk dari nama; atribut petunjuk yang sudah ada dipertahankan", () => {
+  it("KP-lengkapiBagian-01: atribut huruf dari urutan; petunjuk tidak diubah; atribut petunjuk yang sudah ada dipertahankan", () => {
     const acak = [{ urutan: 5, nama: "Metode", batasKata: 1000, wajib: true, petunjuk: "Khusus" }, { urutan: 2, nama: "Lain", batasKata: null, wajib: false }];
     const hasil = lengkapiBagian(acak);
-    expect(hasil.map((b) => [b.huruf, b.nama, b.petunjuk])).toEqual([["A", "Lain", null], ["B", "Metode", "Khusus"]]);
+    expect(hasil.map((b) => [b.huruf, b.nama, b.petunjuk])).toEqual([["A", "Lain", undefined], ["B", "Metode", "Khusus"]]);
   });
 });
 

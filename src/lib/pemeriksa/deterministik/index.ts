@@ -16,9 +16,10 @@ import type {
   StatusButir,
 } from "../../kontrak/tipe";
 import type { JalankanPemeriksaanDeterministik, PeriksaDeterministikTeks } from "../../kontrak/layanan";
+import { bagianDariBaris } from "../../templat/isian-substansi";
 import { periksaBanyakButir } from "./pemeriksa";
 
-export { cekKataKunci, cekLampiran, cocokkanSitasi, cocokkanStrukturJudul, periksaBanyakButir } from "./pemeriksa";
+export { cekKataKunci, cekLampiran, cekTabel, cocokkanSitasi, cocokkanStrukturJudul, periksaBanyakButir } from "./pemeriksa";
 export { hitungKata } from "./teks";
 
 export const periksaDeterministikTeks: PeriksaDeterministikTeks = (dokumen, butir, konteks) =>
@@ -70,7 +71,7 @@ export const jalankanPemeriksaanDeterministik: JalankanPemeriksaanDeterministik 
   const [templat] = await db.select().from(templatProposal).where(eq(templatProposal.id, versi.templatId));
   const bagian = await db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan));
   const konteks: KonteksPeriksa = {
-    bagianTemplat: bagian.map((b) => ({ urutan: b.urutan, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
+    bagianTemplat: bagian.map(bagianDariBaris),
     lampiranWajib: templat.lampiranWajib,
   };
 
