@@ -42,7 +42,7 @@ describe("validasi ketentuan M-12 (Contract C-01)", () => {
     expect(periksaKetentuan([baris({ sitasiBernomor: true }), p])).toEqual([null, null]);
   });
   it("KH-ketentuanR3-06: ketentuan tidak sah membuat templat tidak lengkap", () => {
-    const h = periksaKelengkapan({ bagian: [baris({ frasaWajib: [""] })], lampiran: [], periodeBerlakuId: "p" });
+    const h = periksaKelengkapan({ bagian: [baris({ frasaWajib: [""] })], periodeBerlakuId: "p" });
     expect(h.lengkap).toBe(false);
     expect(h.bagian[0].ketentuan?.frasaWajib).toBeTruthy();
   });
@@ -51,45 +51,45 @@ describe("validasi ketentuan M-12 (Contract C-01)", () => {
 describe("turunkanButirCek per ketentuan (Contract C-03)", () => {
   const b = (o: Record<string, unknown>) => ({ nama: "Bagian X", batasKata: null, wajib: false, ...o }) as Parameters<typeof turunkan>[0][number];
   it("KH-turunkanR3-01: satu butir semantik per unsur isi, pertanyaan otomatis atau hasil sunting, parameter semantik ke bagian", () => {
-    const t = turunkan([b({ unsurIsi: [{ unsur: "urgensi" }, { unsur: "tujuan", pertanyaan: "Apakah tujuan jelas?" }] })], []);
+    const t = turunkan([b({ unsurIsi: [{ unsur: "urgensi" }, { unsur: "tujuan", pertanyaan: "Apakah tujuan jelas?" }] })]);
     expect(t.map((x) => [x.kode, x.jenis, x.pemeriksa])).toEqual([["UNS-01", "semantik", "nilaiSemantik"], ["UNS-02", "semantik", "nilaiSemantik"]]);
     expect(t[0].pertanyaan).toBe("Apakah bagian Bagian X memuat urgensi?");
     expect(t[1].pertanyaan).toBe("Apakah tujuan jelas?");
     expect(t[0].parameter).toEqual({ tipe: "semantik", bagian: "Bagian X" });
     expect(t[0].deskripsi).toBe("Bagian X memuat urgensi");
   });
-  it("KH-turunkanR3-02: unsur kosong diabaikan", () => expect(turunkan([b({ unsurIsi: [{ unsur: " " }] })], [])).toEqual([]));
+  it("KH-turunkanR3-02: unsur kosong diabaikan", () => expect(turunkan([b({ unsurIsi: [{ unsur: " " }] })])).toEqual([]));
   it("KH-turunkanR3-03: batas minimal menjadi KTM, maksimal KTA, keduanya bisa bersama", () => {
-    const t = turunkan([b({ batasKata: 300, batasMin: 100 })], []);
+    const t = turunkan([b({ batasKata: 300, batasMin: 100 })]);
     expect(t.map((x) => [x.kode, x.parameter])).toEqual([
       ["KTA-01", { tipe: "batas_kata", bagian: "Bagian X", batas: 300 }],
       ["KTM-01", { tipe: "batas_kata_min", bagian: "Bagian X", batas: 100 }],
     ]);
   });
   it("KH-turunkanR3-04: frasa wajib menjadi satu FRS per frasa", () => {
-    const t = turunkan([b({ frasaWajib: ["kalimat satu", "kalimat dua"] })], []);
+    const t = turunkan([b({ frasaWajib: ["kalimat satu", "kalimat dua"] })]);
     expect(t.map((x) => [x.kode, x.parameter])).toEqual([
       ["FRS-01", { tipe: "frasa_wajib", bagian: "Bagian X", frasa: "kalimat satu" }],
       ["FRS-02", { tipe: "frasa_wajib", bagian: "Bagian X", frasa: "kalimat dua" }],
     ]);
   });
   it("KH-turunkanR3-05: tabel di dalam bagian teks menjadi TBL dengan kolom; tipe tabel juga; tanpa kolom tidak memuat kolom", () => {
-    const t = turunkan([b({ wajibTabel: true, kolomTabel: ["No", "Uraian"] })], []);
+    const t = turunkan([b({ wajibTabel: true, kolomTabel: ["No", "Uraian"] })]);
     expect(t[0].parameter).toEqual({ tipe: "tabel_wajib", bagian: "Bagian X", kolom: ["No", "Uraian"] });
-    expect(turunkan([b({ jenisIsian: "tabel" })], [])[0].parameter).toEqual({ tipe: "tabel_wajib", bagian: "Bagian X" });
+    expect(turunkan([b({ jenisIsian: "tabel" })])[0].parameter).toEqual({ tipe: "tabel_wajib", bagian: "Bagian X" });
   });
   it("KH-turunkanR3-06: gambar berketerangan menjadi GBR deterministik dan UNS semantik kesesuaian isi", () => {
-    const t = turunkan([b({ wajibGambar: true, ketGambar: "arsitektur sistem" })], []);
+    const t = turunkan([b({ wajibGambar: true, ketGambar: "arsitektur sistem" })]);
     expect(t.map((x) => [x.kode, x.jenis])).toEqual([["GBR-01", "deterministik"], ["UNS-01", "semantik"]]);
     expect(t[0].parameter).toEqual({ tipe: "diagram_alir", bagian: "Bagian X", keterangan: "arsitektur sistem" });
     expect(t[1].pertanyaan).toContain("arsitektur sistem");
   });
   it("KH-turunkanR3-07: daftar bagian lain membawa nama bagian di parameter dan deskripsi", () => {
-    const t = turunkan([b({ nama: "Bidang Keilmuan", jenisIsian: "daftar", jumlahButir: 3, pemisah: ";" })], []);
+    const t = turunkan([b({ nama: "Bidang Keilmuan", jenisIsian: "daftar", jumlahButir: 3, pemisah: ";" })]);
     expect(t[0]).toMatchObject({ kode: "KAT-01", deskripsi: "Bidang Keilmuan: tepat 3 butir, dipisahkan titik koma (;)", parameter: { tipe: "kata_kunci", jumlah: 3, pemisah: ";", bagian: "Bidang Keilmuan" } });
   });
   it("KH-turunkanR3-08: bawaan A-H Dasar: 15 butir semantik (pemetaan ISI-01 4, ISI-02 5, ISI-04 4, ISI-05S 1, ISI-03S 1 gambar) dan butir deterministik tetap", () => {
-    const t = turunkan(bagianBawaan("dasar"), []);
+    const t = turunkan(bagianBawaan("dasar"));
     const sem = t.filter((x) => x.jenis === "semantik");
     expect(sem).toHaveLength(15);
     expect(sem.filter((x) => x.bagian === "Ringkasan")).toHaveLength(4);
@@ -175,7 +175,7 @@ describe("docx per tipe (Contract C-31)", () => {
     { urutan: 4, nama: "Rujukan", batasKata: null, wajib: true, jenisIsian: "daftar_pustaka" as const },
   ];
   it("KH-dokumenR3-01: daftar menjadi [butir 1; butir 2; butir 3], gambar dan tabel bernama, tabel berkolom, pustaka [1]", async () => {
-    const buf = await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkapiBagian(bagian), [], skema, null, { mode: "isian" });
+    const buf = await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkapiBagian(bagian), skema, null);
     const t = await teks(buf);
     expect(t).toContain("[butir 1; butir 2; butir 3]");
     expect(t).toContain("[Sisipkan peta lokasi (JPG/PNG)]");
@@ -187,7 +187,7 @@ describe("docx per tipe (Contract C-31)", () => {
   });
   it("KH-dokumenR3-02: round-trip: bagian terbaca, petunjuk dan tempat isian bukan isi, kata terhitung nol", async () => {
     const lengkap = lengkapiBagian(bagian);
-    const buf = await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkap, [], skema, null, { mode: "isian" });
+    const buf = await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkap, skema, null);
     const h = potongPerBagian(await ekstrakDocx(buf), lengkap);
     const ada = h.judulBagianDitemukan.map((x) => x.toLowerCase());
     for (const n of ["bidang keilmuan", "rencana biaya", "rincian", "rujukan"]) expect(ada.some((x) => x.includes(n))).toBe(true);

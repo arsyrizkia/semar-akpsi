@@ -73,7 +73,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
   },
   {
     kode: "J-02a",
-    nama: "Rincian Templat (tab Bagian, Lampiran, Halaman Depan)",
+    nama: "Rincian Templat (tab Bagian, Aturan Pemeriksaan)",
     peran: "Tim Kerja (pengelola)",
     induk: "J-02",
     rute: [],

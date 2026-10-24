@@ -1,8 +1,8 @@
 /**
  * npm run pratinjau-docx: membangkitkan paket .docx templat (skema Dasar dan Terapan) lalu merendernya dengan docx-preview di Chrome
  * (puppeteer-core) dan menyimpan tangkapan ke docs/bukti-e2e:
- *  - uc01-docx-{dasar,terapan,depan,lampiran}-templat.png : hanya hasil generator (di-commit);
- *  - uc01-docx-{dasar,terapan,depan,lampiran}.png         : berdampingan dengan halaman PDF contoh di data/uji-nyata (lokal, tidak di-commit,
+ *  - uc01-docx-{dasar,terapan}-templat.png : hanya hasil generator (di-commit);
+ *  - uc01-docx-{dasar,terapan}.png         : berdampingan dengan halaman PDF contoh di data/uji-nyata (lokal, tidak di-commit,
  *    karena memuat potongan PDF asli). Dilewati bila pdftoppm atau PDF contoh tidak ada.
  * Font Avenir Next LT Pro, Roboto, dan Calibri tidak terpasang di mesin; pratinjau memetakannya ke font sistem terdekat (hanya untuk tangkapan).
  */
@@ -47,7 +47,6 @@ async function bangun(skema: "dasar" | "terapan") {
   return buatDokumenTemplat(
     { versi: 1, status: "Draf" },
     bagian,
-    ["Surat Pernyataan Mitra", "Surat Keterangan Mahasiswa Bimbingan"],
     { kode: skema === "dasar" ? "PD" : "PT", namaSkema: skema === "dasar" ? "Penelitian Dasar" : "Penelitian Terapan" },
     { nama: "Seleksi 2026", tahun: 2026 },
     { kepala: kepalaBawaan(skema) },
@@ -129,19 +128,9 @@ async function utama() {
       // margin atas lembar Isian Substansi 45 pt = 60 px (meniru contoh no. 1)
       return lembar(kotak.y - 60, { x: dasar.x, width: dasar.width, height: tinggi }, berkas);
     };
-    /** Puncak lembar (230 px = 172 pt) untuk perbandingan kop pada skala sama dengan rujukanKop. */
-    const puncak = async (i: number, berkas: string) => {
-      const kotak = await halaman[i].boundingBox();
-      if (!kotak) throw new Error("kotak halaman tidak terbaca");
-      await page.screenshot({ path: path.join(TMP, berkas), captureBeyondViewport: true, clip: { x: kotak.x, y: kotak.y, width: kotak.width, height: 230 } });
-      return path.join(TMP, berkas);
-    };
     return {
-      kopDepan: await puncak(cari(/PROTEKSI ISI PROPOSAL/), `${skema}-kop-depan.png`),
       kopIsian: await shotIsian(`${skema}-kop-isian.png`, 230),
-      depan: await shot(cari(/PROTEKSI ISI PROPOSAL/), `${skema}-depan.png`),
       isian: await shotIsian(`${skema}-isian.png`),
-      lampiran: skema === "dasar" ? await shot(cari(/SURAT PERNYATAAN/), `${skema}-lampiran.png`) : null,
       jumlah: halaman.length,
     };
   };
@@ -153,14 +142,10 @@ async function utama() {
   const salin = (dari: string, nama: string) => execFileSync("cp", [dari, path.join(KELUAR, nama)]);
   salin(dasar.isian, "uc01-docx-dasar-templat.png");
   salin(terapan.isian, "uc01-docx-terapan-templat.png");
-  salin(dasar.depan, "uc01-docx-depan-templat.png");
-  if (dasar.lampiran) salin(dasar.lampiran, "uc01-docx-lampiran-templat.png");
 
   const pasangan: [string, string | null, string][] = [
     ["dasar", rujukan("1. Contoh Proposal Soshum.pdf", 1, "r-dasar"), dasar.isian],
     ["terapan", rujukan("5. Contoh Proposal Soshum.pdf", 1, "r-terapan"), terapan.isian],
-    ["depan", rujukan("6. Contoh Proposal.pdf", 1, "r-depan"), dasar.depan],
-    ["lampiran", rujukan("5. Contoh Proposal Soshum.pdf", 25, "r-lampiran"), dasar.lampiran ?? ""],
   ];
   for (const [nama, ref, gen] of pasangan) {
     if (!ref || !gen) {
@@ -186,7 +171,7 @@ async function utama() {
       { urutan: 3, nama: "Rincian Tahap", batasKata: null, wajib: true, jenisIsian: "tabel", kolomTabel: ["Kode", "Tahap", "Penanggung Jawab"], judulTabel: "Tahap 1" },
       ]).map((b) => ({ ...b, petunjuk: susunPetunjuk(b) })),
     );
-    const bytes = await buatDokumenTemplat({ versi: 2, status: "Draf" }, tambahan, [], { kode: "PD", namaSkema: "Penelitian Dasar" }, { nama: "Seleksi 2026", tahun: 2026 }, { kepala: kepalaBawaan("dasar"), mode: "isian" });
+    const bytes = await buatDokumenTemplat({ versi: 2, status: "Draf" }, tambahan, { kode: "PD", namaSkema: "Penelitian Dasar" }, { nama: "Seleksi 2026", tahun: 2026 }, { kepala: kepalaBawaan("dasar") });
     await page.close();
     page = await peramban.newPage();
     await page.setViewport({ width: 1000, height: 1300, deviceScaleFactor: 1.5 });
@@ -210,7 +195,6 @@ async function utama() {
   // kop berdampingan dengan contoh pada skala sama (puncak lembar 230 px); tidak di-commit karena memuat potongan PDF asli
   const kop: [string, string | null, string][] = [
     ["isian", rujukanKop("1. Contoh Proposal Soshum.pdf", "k-isian"), dasar.kopIsian],
-    ["depan", rujukanKop("6. Contoh Proposal.pdf", "k-depan"), dasar.kopDepan],
   ];
   for (const [nama, ref, gen] of kop) {
     if (!ref) {

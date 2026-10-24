@@ -8,7 +8,6 @@ import { ekstrakDocx } from "@/lib/pengajuan/ekstraksi";
 import { lepasTandaIsian, potongPerBagian } from "@/lib/pengajuan/potong";
 import { buatDokumenTemplat, namaBerkasTemplat } from "@/lib/templat/dokumen";
 import { bagianBawaan, lengkapiBagian, petunjukBagian } from "@/lib/templat/isian-substansi";
-import { KOP_BAWAAN } from "@/lib/templat/paket";
 
 const dok = (kataKunci: string | null): DokumenPeriksa => ({ judul: "", judulBima: "", teksPerBagian: {}, kataKunci, lampiranAda: [], teksLampiran: {}, judulBagianDitemukan: [] });
 const status = (t: string | null, n = 5, p = ";") => cekKataKunci(dok(t), n, p).angkaPembukti;
@@ -71,33 +70,22 @@ describe("lepasTandaIsian: penanda templat (cabang)", () => {
   });
 });
 
-describe("buatDokumenTemplat paket (MS-10 cabang baru)", () => {
+describe("buatDokumenTemplat Isian Substansi (MS-10 cabang baru)", () => {
   const skema = { kode: "PT", namaSkema: "Penelitian Terapan" };
   const bagian = lengkapiBagian(bagianBawaan("terapan").map((b, i) => ({ ...b, urutan: i + 1 })));
   const teks = async (b: Buffer) => (await mammoth.extractRawText({ buffer: b })).value;
 
-  it("KP-buatDokumenTemplat-J10: sakelar bagian depan mematikan bagian; kop khusus dipakai; alamat dan laman kosong dilewati", async () => {
-    const kop = { ...KOP_BAWAAN, lembaga: "Lembaga Uji", alamat: "", laman: "", depan: { ...KOP_BAWAAN.depan, anggaran: false, mitra: false } };
-    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, bagian, [], skema, null, { kop }));
-    expect(t).toContain("Lembaga Uji");
-    expect(t).not.toContain("ANGGARAN");
-    expect(t).not.toContain("MITRA KERJASAMA");
-    expect(t).toContain("5. BIDANG STRATEGIS".replace("5", "4"));
-    expect(t).not.toContain(KOP_BAWAAN.alamat);
-  });
-  it("KP-buatDokumenTemplat-J11: kepala tanpa subjudul dan pengantar: hanya judul; petunjuk kosong tidak dicetak; templat lampiran formulir khusus dicetak", async () => {
+  it("KP-buatDokumenTemplat-J11: kepala tanpa subjudul dan pengantar: hanya judul; petunjuk kosong tidak dicetak; tanpa halaman lampiran", async () => {
     const b2 = bagian.map((b) => (b.nama === "Judul" ? { ...b, petunjuk: "" } : b));
     const t = await teks(
-      await buatDokumenTemplat({ versi: 1, status: "Draf" }, b2, ["Surat X", "Berkas Y"], skema, null, {
+      await buatDokumenTemplat({ versi: 1, status: "Draf" }, b2, skema, null, {
         kepala: { judulDokumen: "Kepala Uji", subjudul: null, pengantar: null },
-        lampiranTemplat: [{ nama: "Surat X", jenis: "formulir", judul: "FORMULIR X", kalimat: ["Isian lain:", "Nama | Alamat", "Kalimat penutup."], kunci: [] }],
       }),
     );
     expect(t).toContain("Kepala Uji");
     expect(t).not.toContain("Tuliskan judul usulan");
-    expect(t).toContain("FORMULIR X");
-    expect(t).toMatch(/Alamat\s*:\s*\.\.\.\./);
-    expect(t).toContain("LAMPIRAN 2. BERKAS Y");
+    expect(t).not.toContain("LAMPIRAN");
+    expect(t).not.toContain("PROTEKSI ISI PROPOSAL");
   });
   it("KP-buatDokumenTemplat-J12: daftar berpemisah koma dan 3 butir; daftar pustaka berawalan [1]; bagian bertabel punya tabel Tahun ke-1", async () => {
     const b3 = [
@@ -105,15 +93,15 @@ describe("buatDokumenTemplat paket (MS-10 cabang baru)", () => {
       { urutan: 2, nama: "Rencana", batasKata: null, wajib: true, jenisIsian: "tabel" as const },
       { urutan: 3, nama: "Daftar Pustaka", batasKata: null, wajib: true, daftarPustaka: true },
     ];
-    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b3, [], skema, null, { mode: "isian" }));
+    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b3, skema, null));
     expect(t).toContain("[kata kunci 1, kata kunci 2, kata kunci 3]");
     expect(t).toContain("Tahun ke-1");
     expect(t).toContain("[1]");
-    const hasil = potongPerBagian(await ekstrakDocx(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b3, [], skema, null, { mode: "isian" })), b3);
+    const hasil = potongPerBagian(await ekstrakDocx(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b3, skema, null)), b3);
     expect(hasil.kataKunci).toBeNull();
   });
-  it("KP-namaBerkasTemplat-J1: mode isian memakai awalan Isian-Substansi", () => {
-    expect(namaBerkasTemplat({ kode: "PT" }, { versi: 2, status: "Terbit" }, "isian")).toBe("Isian-Substansi-PT-v2-Terbit.docx");
+  it("KP-namaBerkasTemplat-J1: nama berkas selalu berawalan Isian-Substansi", () => {
+    expect(namaBerkasTemplat({ kode: "PT" }, { versi: 2, status: "Terbit" })).toBe("Isian-Substansi-PT-v2-Terbit.docx");
   });
   it("KP-petunjukBagian-J1: petunjuk tersimpan menang; kosong = tidak ada; null = turunan resmi; {batas} diganti", () => {
     expect(petunjukBagian({ nama: "Metode", batasKata: 900, petunjuk: "Maks {batas} kata." })).toBe("Maks 900 kata.");

@@ -68,7 +68,7 @@ describe("periksaDiagramAlir keterangan khusus", () => {
 
 describe("pengarah periksaSatuButir untuk tipe baru", () => {
   const butir = (parameter: unknown) => ({ id: "b", kode: "X", deskripsi: "", jenis: "deterministik" as const, asal: "templat" as const, komponen: null, pemeriksa: null, parameter, aturanHitung: null, pertanyaan: null, contohJawaban: null, status: "Aktif" as const }) as Parameters<typeof periksaSatuButir>[0];
-  const konteks = { bagianTemplat: [], lampiranWajib: [] };
+  const konteks = { bagianTemplat: [] };
   it("KP-periksaSatuButir-J10: batas_kata_min, frasa_wajib, kata_kunci berbagian, tabel_wajib berkolom, diagram_alir berketerangan", () => {
     const d = dok({ B: "satu dua tiga", Bid: "a; b", J: "[tabel]" });
     expect(periksaSatuButir(butir({ tipe: "batas_kata_min", bagian: "B", batas: 3 }), d, konteks).status).toBe("Lolos");
@@ -116,21 +116,21 @@ describe("lengkapiBagian dan tabel docx (cabang)", () => {
   const teks = async (b: Buffer) => (await mammoth.extractRawText({ buffer: b })).value;
   it("KP-buatDokumenTemplat-J15: tabel tanpa kolom bulan dan tanpa kolom No dibagi rata; judul blok tampil; tanpa judul tidak ada baris judul", async () => {
     const b = lengkapiBagian([{ urutan: 1, nama: "Rincian", batasKata: null, wajib: true, jenisIsian: "tabel", kolomTabel: ["Kode", "Item", "Biaya"], judulTabel: "Tahap 1" }]);
-    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, [], skema, null, { mode: "isian" }));
+    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, skema, null));
     expect(t).toContain("Tahap 1");
     expect(t).toMatch(/Kode\s+Item\s+Biaya/);
-    const tanpa = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkapiBagian([{ ...b[0], judulTabel: null }]), [], skema, null, { mode: "isian" }));
+    const tanpa = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, lengkapiBagian([{ ...b[0], judulTabel: null }]), skema, null));
     expect(tanpa).not.toContain("Tahap 1");
   });
   it("KP-buatDokumenTemplat-J16: kolom bulan memperluas dua belas nomor bulan; kolom No diberi nomor baris", async () => {
     const b = lengkapiBagian([{ urutan: 1, nama: "Jadwal", batasKata: null, wajib: true, jenisIsian: "tabel", kolomTabel: ["No", "Kegiatan", "Bulan 1–12"] }]);
-    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, [], skema, null, { mode: "isian" }));
+    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, skema, null));
     expect(t).toMatch(/1\s+2\s+3\s+4\s+5\s+6\s+7\s+8\s+9\s+10\s+11\s+12/);
     expect(t).toContain("Bulan");
   });
   it("KP-buatDokumenTemplat-J17: bagian teks dengan tabel wajib mencetak [Sisipkan tabel]", async () => {
     const b = lengkapiBagian([{ urutan: 1, nama: "Anggaran", batasKata: 100, wajib: true, wajibTabel: true, kolomTabel: ["Item", "Biaya"] }]);
-    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, [], skema, null, { mode: "isian" }));
+    const t = await teks(await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, skema, null));
     expect(t).toContain("[Sisipkan tabel]");
   });
 });
@@ -142,7 +142,6 @@ describe("turunkanButirCek: cabang ketentuan baru", () => {
         { nama: "A", batasKata: 10, wajib: true, wajibGambar: true, unsurIsi: [{ unsur: "x" }] },
         { nama: "B", batasKata: 20, batasMin: 5, wajib: true, unsurIsi: [{ unsur: "y" }], frasaWajib: ["f"] },
       ],
-      [],
     );
     expect(t.map((x) => x.kode)).toEqual(["BGN-01", "KTA-01", "GBR-01", "UNS-01", "UNS-02", "BGN-02", "KTA-02", "KTM-01", "FRS-01", "UNS-03"]);
     expect(t.find((x) => x.kode === "GBR-01")?.parameter).toEqual({ tipe: "diagram_alir", bagian: "A", keterangan: "diagram alir penelitian" });

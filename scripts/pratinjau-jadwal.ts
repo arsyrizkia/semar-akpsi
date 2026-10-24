@@ -20,7 +20,7 @@ async function utama() {
   await page.addScriptTag({ content: readFileSync(path.join(akar, "node_modules/jszip/dist/jszip.min.js"), "utf8") });
   await page.addScriptTag({ content: readFileSync(path.join(akar, "node_modules/docx-preview/dist/docx-preview.min.js"), "utf8") });
   for (const n of [12, 24]) {
-    const bytes = await buatDokumenTemplat({ versi: 1, status: "Draf" }, bagian(["No", "Nama Kegiatan", `Bulan 1–${n}`]), [], { kode: "PD", namaSkema: "Penelitian Dasar" }, null, { mode: "isian" });
+    const bytes = await buatDokumenTemplat({ versi: 1, status: "Draf" }, bagian(["No", "Nama Kegiatan", `Bulan 1–${n}`]), { kode: "PD", namaSkema: "Penelitian Dasar" }, null);
     await page.evaluate(async (b64: string) => {
       const bin = atob(b64);
       const u = new Uint8Array(bin.length);

@@ -1,4 +1,4 @@
-// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-16 hitungKata, C-17 cekKataKunci, C-18 cocokkanSitasi, C-19 cekLampiran, C-20 cocokkanStrukturJudul; CRC ButirCek.
+// Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-16 hitungKata, C-17 cekKataKunci, C-18 cocokkanSitasi, C-19 C-20 cocokkanStrukturJudul; CRC ButirCek.
 import { bagianBawaan } from "@/lib/templat/isian-substansi";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import type { ButirCek, DokumenPeriksa, KonteksPeriksa, ParameterButir } from "@
 import { hitungKataContoh, susunContoh, type VarianContoh } from "@/lib/contoh/proposal";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import { periksaDeterministikTeks } from "@/lib/pemeriksa/deterministik/index";
-import { cekKataKunci, cekLampiran, cocokkanSitasi, cocokkanStrukturJudul, periksaBatasKata, periksaDiagramAlir } from "@/lib/pemeriksa/deterministik/pemeriksa";
+import { cekKataKunci, cocokkanSitasi, cocokkanStrukturJudul, periksaBatasKata, periksaDiagramAlir } from "@/lib/pemeriksa/deterministik/pemeriksa";
 import { fmt, hitungKata } from "@/lib/pemeriksa/deterministik/teks";
 
 const baca = (n: string) => JSON.parse(readFileSync(path.join(process.cwd(), "data", "contoh", n), "utf8"));
@@ -16,7 +16,7 @@ const katalog = baca("katalog-butir.json") as { butir: (Omit<ButirCek, "id" | "a
 
 /** Himpunan butir deterministik yang sama dengan seed: turunan templat PD + katalog manual. */
 function butirPD(): ButirCek[] {
-  const turunan = turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null }));
+  const turunan = turunkanButirDariTemplat(bagianBawaan("dasar")).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null }));
   const semua = [
     ...turunan.map((b) => ({ ...b, asal: "templat" as const })),
     ...katalog.butir.map((b) => ({ ...b, asal: "manual" as const, aturanHitung: (b as { aturanHitung?: string }).aturanHitung ?? null, pertanyaan: b.pertanyaan ?? null, contohJawaban: b.contohJawaban ?? null })),
@@ -39,7 +39,6 @@ function butirPD(): ButirCek[] {
 
 const konteksPD: KonteksPeriksa = {
   bagianTemplat: bagianBawaan("dasar").map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib })),
-  lampiranWajib: templat.lampiranWajib,
 };
 
 function dokumenDariContoh(v: VarianContoh): DokumenPeriksa {
@@ -143,7 +142,7 @@ describe("cocokkanSitasi", () => {
     ...dasar,
     teksPerBagian: { Pendahuluan: isi, "Daftar Pustaka": pustaka },
   });
-  const kontekPendek: KonteksPeriksa = { bagianTemplat: [{ urutan: 1, nama: "Pendahuluan", batasKata: null, wajib: true }, { urutan: 2, nama: "Daftar Pustaka", batasKata: null, wajib: true }], lampiranWajib: [] };
+  const kontekPendek: KonteksPeriksa = { bagianTemplat: [{ urutan: 1, nama: "Pendahuluan", batasKata: null, wajib: true }, { urutan: 2, nama: "Daftar Pustaka", batasKata: null, wajib: true }] };
 
   it("KH-cocokkanSitasi-01: sitasi gaya nama-tahun gagal", () => {
     const h = cocokkanSitasi(dok("Menurut (Santoso, 2020) hal ini benar [1].", "[1] A."), kontekPendek, "sitasi_bernomor");
@@ -177,15 +176,7 @@ describe("cocokkanSitasi", () => {
   });
 });
 
-describe("cekLampiran dan struktur judul", () => {
-  it("KH-cekLampiranStruktur-01: lampiran belum ada disebut dengan nama", () => {
-    const d = { ...dokumenDariContoh("a"), lampiranAda: ["Surat Pernyataan Mitra"] };
-    const h = cekLampiran(d, konteksPD, "Artikel Ketua Pengusul");
-    expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain("1 dari 3 lampiran wajib ada");
-    expect(h.angkaPembukti).toContain('"Artikel Ketua Pengusul"');
-    expect(cekLampiran(d, konteksPD, "Surat Pernyataan Mitra").status).toBe("Lolos");
-  });
+describe("struktur judul", () => {
   it("KH-cekLampiranStruktur-02: judul bagian berhuruf Isian Substansi (A. JUDUL ... H. DAFTAR PUSTAKA) dikenali", () => {
     const d = { ...dokumenDariContoh("a"), judulBagianDitemukan: ["A. JUDUL", "B. RINGKASAN", "C. KATA KUNCI", "D. PENDAHULUAN", "E. METODE", "F. HASIL YANG DIHARAPKAN", "G. JADWAL PENELITIAN", "H. DAFTAR PUSTAKA"] };
     expect(cocokkanStrukturJudul(d, konteksPD, { tipe: "struktur_judul" }).status).toBe("Lolos");

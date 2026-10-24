@@ -48,9 +48,8 @@ export interface ButirTampil {
   aturanHitung: string | null;
   pertanyaan: string | null;
   contohJawaban: string | null;
-  /** nilai bagian dan lampiran dari parameter semantik/terstruktur, untuk mengisi panel Ubah */
+  /** nilai bagian dari parameter semantik/terstruktur, untuk mengisi panel Ubah */
   bagian: string | null;
-  lampiran: string | null;
   status: StatusButir;
   ringkasan: string;
   /** true bila status "Perlu ditinjau" berasal dari penandaan UC-04 pada versi yang berlaku */
@@ -85,7 +84,6 @@ function keTampil(b: BarisButir, ditandaiPemantauan = false): ButirTampil {
     pertanyaan: b.pertanyaan,
     contohJawaban: b.contohJawaban,
     bagian: typeof par?.bagian === "string" ? par.bagian : null,
-    lampiran: typeof par?.lampiran === "string" ? par.lampiran : null,
     status: ditandaiPemantauan ? "Perlu ditinjau" : b.status,
     ringkasan: ringkasParameter({ jenis: b.jenis, aturanHitung: b.aturanHitung, pertanyaan: b.pertanyaan, parameter: par }),
     ditandaiPemantauan,
@@ -115,10 +113,10 @@ export async function daftarButirBerlaku(skemaId: string, periodeId: string | nu
   };
 }
 
-/** Pilihan "Bagian yang Diperiksa" dan "Lampiran yang Diperiksa" pada panel butir. */
-export async function pilihanBagianLampiran(skemaId: string, periodeId?: string | null): Promise<{ bagian: string[]; lampiran: string[] }> {
+/** Pilihan "Bagian yang Diperiksa" pada panel butir. */
+export async function pilihanBagian(skemaId: string, periodeId?: string | null): Promise<{ bagian: string[] }> {
   const t = (await ambilTemplatBerlaku(skemaId, periodeId)) ?? (await ambilDrafTemplat(skemaId, periodeId));
-  return { bagian: t?.bagian.map((b) => b.nama) ?? [], lampiran: t?.lampiranWajib ?? [] };
+  return { bagian: t?.bagian.map((b) => b.nama) ?? [] };
 }
 
 export type HasilSimpanButir =

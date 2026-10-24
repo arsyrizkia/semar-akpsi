@@ -33,7 +33,7 @@ export async function aksiSimpanButirTerstruktur(skemaId: string, butirId: strin
   const pelaku = await pelakuPengelola();
   if (!pelaku) return tolak;
   try {
-    return await simpanButir({ skemaId, butirId: butirId ?? undefined, masukan: { jenis: nilai.jenis, kode: nilai.kode, deskripsi: nilai.deskripsi, aturanHitung: nilai.aturanHitung ?? "", pertanyaan: nilai.pertanyaan ?? "", contohJawaban: nilai.contohJawaban ?? "", bagian: "", lampiran: "" }, nilai, pelaku });
+    return await simpanButir({ skemaId, butirId: butirId ?? undefined, masukan: { jenis: nilai.jenis, kode: nilai.kode, deskripsi: nilai.deskripsi, aturanHitung: nilai.aturanHitung ?? "", pertanyaan: nilai.pertanyaan ?? "", contohJawaban: nilai.contohJawaban ?? "", bagian: "" }, nilai, pelaku });
   } catch (e) {
     return pesanGalat(e, "Gagal menyimpan butir");
   }

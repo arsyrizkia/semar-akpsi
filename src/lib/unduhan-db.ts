@@ -6,14 +6,13 @@ import { bagianTemplat, bimaBerkas, penugasanReviewer, periodeSeleksi, proposal,
 import type { BagianTemplatDto } from "@/lib/kontrak/tipe";
 import type { IdentitasTemplatDokumen, PaketDokumen, PeriodeDokumen, SkemaDokumen } from "@/lib/templat/dokumen";
 import { bagianDariBaris, kepalaDariBaris } from "@/lib/templat/isian-substansi";
-import { kopDariBaris, lampiranDariBaris } from "@/lib/templat/paket";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const adalahUuid = (s: string) => UUID.test(s);
 
 /* ------------------------------ templat ------------------------------ */
 export interface DataTemplatUnduh {
-  templat: IdentitasTemplatDokumen & { id: string; lampiranWajib: string[] };
+  templat: IdentitasTemplatDokumen & { id: string };
   bagian: BagianTemplatDto[];
   paket: PaketDokumen;
   skema: SkemaDokumen & { id: string };
@@ -28,9 +27,9 @@ async function lengkapiTemplat(t: typeof templatProposal.$inferSelect): Promise<
     t.periodeBerlakuId ? db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, t.periodeBerlakuId)) : Promise.resolve([]),
   ]);
   return {
-    templat: { id: t.id, versi: t.versi, status: t.status, lampiranWajib: t.lampiranWajib },
+    templat: { id: t.id, versi: t.versi, status: t.status },
     bagian: bagian.map(bagianDariBaris),
-    paket: { kepala: kepalaDariBaris(t), kop: kopDariBaris(t.kop), lampiranTemplat: lampiranDariBaris(t.lampiranTemplat, t.lampiranWajib) },
+    paket: { kepala: kepalaDariBaris(t) },
     skema: { id: skema.id, kode: skema.kode, namaSkema: skema.namaSkema },
     periode: periode[0] ? { nama: periode[0].nama, tahun: periode[0].tahun } : null,
   };

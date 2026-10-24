@@ -12,7 +12,7 @@ import type { DokumenPeriksa } from "@/lib/kontrak/tipe";
 const skema = { kode: "PD", namaSkema: "Penelitian Dasar" };
 const jadwal = (kolom: string[], judulTabel?: string): BagianTemplatDto[] => [{ urutan: 1, nama: "Jadwal Penelitian", batasKata: null, wajib: true, jenisIsian: "tabel", kolomTabel: kolom, judulTabel: judulTabel ?? null }];
 async function xmlDokumen(b: BagianTemplatDto[]): Promise<string> {
-  const bytes = await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, [], skema, null, { mode: "isian" });
+  const bytes = await buatDokumenTemplat({ versi: 1, status: "Draf" }, b, skema, null);
   return (await (await JSZip.loadAsync(bytes)).file("word/document.xml")!.async("string")) ?? "";
 }
 const hitung = (xml: string, pola: RegExp) => (xml.match(pola) ?? []).length;

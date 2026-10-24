@@ -32,13 +32,11 @@ export const AMBANG_KEYAKINAN = { tinggi: 0.8, sedang: 0.5 } as const;
 
 /**
  * Parameter terstruktur butir cek (kolom butir_cek.parameter). Diskriminan: `tipe`.
- * Butir turunan templat memakai bagian_wajib, batas_kata, lampiran_wajib (terkunci).
+ * Butir turunan templat memakai bagian_wajib, batas_kata, dst. (terkunci); lampiran bukan urusan SEMAR (milik BIMA).
  */
 export type ParameterButir =
   | { tipe: "bagian_wajib"; bagian: string }
   | { tipe: "batas_kata"; bagian: string; batas: number }
-  | { tipe: "lampiran_wajib"; nama: string }
-  | { tipe: "lampiran_format"; nama: string; kunci: string[] }
   | { tipe: "kata_kunci"; jumlah: number; pemisah: string; bagian?: string }
   | { tipe: "batas_kata_min"; bagian: string; batas: number }
   | { tipe: "frasa_wajib"; bagian: string; frasa: string }
@@ -147,7 +145,6 @@ export interface DokumenPeriksa {
 
 export interface KonteksPeriksa {
   bagianTemplat: BagianTemplatDto[];
-  lampiranWajib: string[];
 }
 
 export interface HasilButirDeterministik {

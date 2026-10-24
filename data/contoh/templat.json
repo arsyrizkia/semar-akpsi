@@ -1,9 +1,4 @@
 {
   "label": "struktur mengikuti Isian Substansi Proposal",
-  "catatan": "Struktur bagian A-H, petunjuk, dan ketentuan per bagian (jenis isian, jumlah butir, pemisah, wajib gambar, sitasi bernomor, daftar pustaka) berasal dari src/lib/templat/isian-substansi.ts (bagianBawaan); kepala dokumen dari kepalaBawaan; kop dan templat lampiran dari src/lib/templat/paket.ts. Penelitian Dasar mengikuti contoh BIMA no. 1 (Pendahuluan 1000 kata), Terapan mengikuti no. 5 (Pendahuluan 1500 kata). Lampiran wajib mengikuti naskah kelompok.",
-  "lampiranWajib": [
-    "Surat Pernyataan Mitra",
-    "Artikel Ketua Pengusul",
-    "Surat Keterangan Mahasiswa Bimbingan"
-  ]
+  "catatan": "Struktur bagian A-H, petunjuk, dan ketentuan per bagian (jenis isian, jumlah butir, pemisah, wajib gambar, sitasi bernomor, daftar pustaka) berasal dari src/lib/templat/isian-substansi.ts (bagianBawaan); kepala dokumen dari kepalaBawaan. Penelitian Dasar mengikuti contoh BIMA no. 1 (Pendahuluan 1000 kata), Terapan mengikuti no. 5 (Pendahuluan 1500 kata). Tidak dipakai seed (seed memakai bagianBawaan) dan hanya dibaca uji; lampiran dan halaman depan milik BIMA (24 Okt 2026)."
 }

@@ -7,7 +7,6 @@ import { mentahKeBagian, type BarisBagianMentah } from "@/lib/templat/kelengkapa
 import {
   FORM_ATURAN_KOSONG,
   JENIS_ATURAN,
-  KELOMPOK_LAMPIRAN,
   KELOMPOK_UMUM,
   asalAturanButir,
   bangunNilaiButir,
@@ -25,7 +24,7 @@ import {
 
 const bagian = (o: Partial<BarisBagianMentah> = {}): BarisBagianMentah => ({ ...BAGIAN_BARU, nama: "Metode", ...o });
 const form = (o: Partial<FormAturan>): FormAturan => ({ ...FORM_ATURAN_KOSONG, bagian: "Metode", ...o });
-const turunan = (b: BarisBagianMentah) => turunkanButirDariTemplat([mentahKeBagian(b)], []);
+const turunan = (b: BarisBagianMentah) => turunkanButirDariTemplat([mentahKeBagian(b)]);
 const kodeUnik = (xs: { kode: string }[]) => xs.map((x) => x.kode);
 
 describe("formulir terstruktur: validasi per jenis aturan (C-06)", () => {
@@ -34,9 +33,9 @@ describe("formulir terstruktur: validasi per jenis aturan (C-06)", () => {
     expect(JENIS_ATURAN.filter((j) => j.jenis === "semantik").map((j) => j.nilai)).toEqual(["unsur", "semantik_bebas"]);
     expect(JENIS_ATURAN.filter((j) => j.terikatIsi).map((j) => j.nilai)).toEqual(["batas_kata", "batas_kata_min", "daftar", "tabel", "gambar", "sitasi", "frasa", "unsur"]);
   });
-  it("KH-formAturan-02: bagian wajib untuk jenis yang menempel pada isi; lampiran wajib untuk jenis lampiran", () => {
+  it("KH-formAturan-02: bagian wajib untuk jenis yang menempel pada isi; jenis lampiran tidak ada lagi (lampiran milik BIMA)", () => {
     expect(validasiFormAturan(form({ jenisAturan: "batas_kata", batas: "10", bagian: "" }), { manual: false }).bagian).toBeDefined();
-    expect(validasiFormAturan(form({ jenisAturan: "lampiran_ada" }), { manual: true, kodeTerpakai: [], }).lampiran).toBeDefined();
+    expect(JENIS_ATURAN.some((j) => j.nilai.startsWith("lampiran"))).toBe(false);
     expect(validasiFormAturan(form({ jenisAturan: "judul_sama", bagian: "", kode: "JDL-M01", deskripsi: "x" }), { manual: true })).toEqual({});
   });
   it("KH-formAturan-03: batas kata harus angka bulat > 0 (nilai sah, 0, negatif, desimal, teks, batas atas)", () => {
@@ -60,7 +59,6 @@ describe("formulir terstruktur: validasi per jenis aturan (C-06)", () => {
     expect(validasiFormAturan(form({ jenisAturan: "frasa", frasa: " " }), { manual: false }).frasa).toBeDefined();
     expect(validasiFormAturan(form({ jenisAturan: "unsur", unsur: "" }), { manual: false }).unsur).toBeDefined();
     expect(validasiFormAturan(form({ jenisAturan: "semantik_bebas", pertanyaan: "" }), { manual: false }).pertanyaan).toBeDefined();
-    expect(validasiFormAturan(form({ jenisAturan: "lampiran_kunci", lampiran: "S", kunci: "\n \n" }), { manual: false }).kunci).toBeDefined();
   });
   it("KH-formAturan-06: butir manual: kode berpola sah dan unik, deskripsi wajib; kode asal boleh sama saat Ubah", () => {
     const f = form({ jenisAturan: "sitasi", kode: "SIT-M01", deskripsi: "d" });
@@ -146,13 +144,13 @@ describe("sinkron dua arah bagian dan aturan: satu sumber data (C-03)", () => {
     if (!dapatDiubahDiBagian(a2)) throw new Error("daftar harus dapat diubah");
     expect(formDariAsal(a2, b)).toMatchObject({ jumlahButir: "5", pemisah: ";" });
   });
-  it("KH-sinkron-09: butir pustaka, lampiran, parameter asing, dan tipe tak dikenal tidak dapat diubah di bagian", () => {
+  it("KH-sinkron-09: butir pustaka, parameter asing, dan tipe tak dikenal tidak dapat diubah di bagian", () => {
     expect(asalAturanButir({ kode: "x", deskripsi: "", parameter: { tipe: "pustaka_berurutan", pustaka: "Daftar Pustaka" } })?.jenisAturan).toBe("pustaka");
-    expect(asalAturanButir({ kode: "x", deskripsi: "", parameter: { tipe: "lampiran_wajib", nama: "S" } })?.jenisAturan).toBe("lampiran");
+    expect(asalAturanButir({ kode: "x", deskripsi: "", parameter: { tipe: "lampiran_wajib", nama: "S" } })).toBeNull();
     expect(asalAturanButir({ kode: "x", deskripsi: "", parameter: { tipe: "tidak-ada" } })).toBeNull();
     expect(asalAturanButir({ kode: "x", deskripsi: "", parameter: null })).toBeNull();
     expect(dapatDiubahDiBagian(null)).toBe(false);
-    expect(dapatDiubahDiBagian({ jenisAturan: "lampiran", bagian: null })).toBe(false);
+    expect(dapatDiubahDiBagian({ jenisAturan: "pustaka", bagian: null })).toBe(false);
   });
 });
 
@@ -162,16 +160,12 @@ describe("butir manual di luar isi bagian dan butir tersimpan (C-06, C-07)", () 
     if (!h.ok) throw new Error(JSON.stringify(h.galat));
     return h.nilai;
   };
-  it("KH-bangunNilai-01: lampiran dan umum menjadi butir deterministik dengan pemeriksa dan komponen yang benar", () => {
-    const ada = nilai(form({ jenisAturan: "lampiran_ada", bagian: "", lampiran: "Surat Mitra", kode: "LMP-M01", deskripsi: "d" }));
-    expect(ada).toMatchObject({ jenis: "deterministik", parameter: { tipe: "lampiran_wajib", nama: "Surat Mitra" }, pemeriksa: "cekLampiran", komponen: "Lampiran" });
-    const kunci = nilai(form({ jenisAturan: "lampiran_kunci", bagian: "", lampiran: "Surat Mitra", kunci: "a\n\nb", kode: "FMT-M01", deskripsi: "d" }));
-    expect(kunci.parameter).toEqual({ tipe: "lampiran_format", nama: "Surat Mitra", kunci: ["a", "b"] });
+  it("KH-bangunNilai-01: judul sama menjadi butir deterministik dengan pemeriksa dan komponen yang benar", () => {
     expect(nilai(form({ jenisAturan: "judul_sama", bagian: "", kode: "J1", deskripsi: "d" })).parameter).toEqual({ tipe: "judul_sama" });
   });
-  it("KH-bangunNilai-02: pertanyaan semantik bebas membawa bagian, lampiran, dan contoh; unsur tanpa pertanyaan disusun otomatis", () => {
-    const s = nilai(form({ jenisAturan: "semantik_bebas", pertanyaan: "Apakah ok?", contoh: "ya", lampiran: "Surat", kode: "SEM-M01", deskripsi: "d" }));
-    expect(s).toMatchObject({ jenis: "semantik", pertanyaan: "Apakah ok?", contohJawaban: "ya", parameter: { tipe: "semantik", bagian: "Metode", lampiran: "Surat" } });
+  it("KH-bangunNilai-02: pertanyaan semantik bebas membawa bagian dan contoh; unsur tanpa pertanyaan disusun otomatis", () => {
+    const s = nilai(form({ jenisAturan: "semantik_bebas", pertanyaan: "Apakah ok?", contoh: "ya", kode: "SEM-M01", deskripsi: "d" }));
+    expect(s).toMatchObject({ jenis: "semantik", pertanyaan: "Apakah ok?", contohJawaban: "ya", parameter: { tipe: "semantik", bagian: "Metode" } });
     expect(nilai(form({ jenisAturan: "unsur", unsur: "urgensi", kode: "U1", deskripsi: "d" })).pertanyaan).toBe("Apakah bagian Metode memuat urgensi?");
   });
   it("KH-bangunNilai-03: formulir tidak sah menghasilkan galat dan tidak membangun nilai", () => {
@@ -200,10 +194,10 @@ describe("butir manual di luar isi bagian dan butir tersimpan (C-06, C-07)", () 
 });
 
 describe("pengelompokan aturan per bagian (CRC BagianTemplat)", () => {
-  const baris = (kode: string, bagian: string | null, tipe: string | null = null, lampiran: string | null = null) => ({ kode, bagian, tipe, lampiran });
-  it("KH-kelompok-01: bagian templat berurutan dengan huruf A-H, lalu Lampiran, lalu Umum; kelompok kosong disembunyikan", () => {
-    const k = kelompokkanAturan([baris("1", "Metode"), baris("2", "Judul"), baris("3", null, "lampiran_wajib", "S"), baris("4", null, "judul_sama"), baris("5", "Metode")], ["Judul", "Ringkasan", "Metode"]);
-    expect(k.map((x) => [x.huruf, x.nama, x.butir.length])).toEqual([["A", "Judul", 1], ["C", "Metode", 2], [null, KELOMPOK_LAMPIRAN, 1], [null, KELOMPOK_UMUM, 1]]);
+  const baris = (kode: string, bagian: string | null, tipe: string | null = null) => ({ kode, bagian, tipe });
+  it("KH-kelompok-01: bagian templat berurutan dengan huruf A-H, lalu Umum (tanpa kelompok Lampiran); kelompok kosong disembunyikan", () => {
+    const k = kelompokkanAturan([baris("1", "Metode"), baris("2", "Judul"), baris("4", null, "judul_sama"), baris("5", "Metode")], ["Judul", "Ringkasan", "Metode"]);
+    expect(k.map((x) => [x.huruf, x.nama, x.butir.length])).toEqual([["A", "Judul", 1], ["C", "Metode", 2], [null, KELOMPOK_UMUM, 1]]);
   });
   it("KH-kelompok-02: termasukKosong menampilkan semua bagian templat; bagian di luar templat tetap muncul", () => {
     const k = kelompokkanAturan([baris("1", "Lain")], ["Judul", "Metode"], true);

@@ -25,11 +25,11 @@ describe("bersihkanIsianDraf (simpan draf yang belum lengkap)", () => {
   });
 
   it("KH-bersihkanIsianDraf-02: baris bagian tanpa nama dan lampiran kosong dibuang; draf kosong sah", () => {
-    expect(bersihkanIsianDraf({ bagian: [{ nama: "  ", batas: "10", tanpaBatas: false, wajib: true }], lampiran: ["", "   "], periodeBerlakuId: null })).toEqual({ bagian: [], lampiran: [], periodeBerlakuId: null });
+    expect(bersihkanIsianDraf({ bagian: [{ nama: "  ", batas: "10", tanpaBatas: false, wajib: true }], periodeBerlakuId: null })).toEqual({ bagian: [], periodeBerlakuId: null });
   });
 
   it("KH-bersihkanIsianDraf-03: batas kata tidak sah (di bawah batas, huruf, desimal) menjadi tanpa batas", () => {
-    const b = (batas: string) => bersihkanIsianDraf({ bagian: [{ nama: "X", batas, tanpaBatas: false, wajib: true }], lampiran: [], periodeBerlakuId: null }).bagian[0].batasKata;
+    const b = (batas: string) => bersihkanIsianDraf({ bagian: [{ nama: "X", batas, tanpaBatas: false, wajib: true }], periodeBerlakuId: null }).bagian[0].batasKata;
     expect(b("0")).toBeNull();
     expect(b("-5")).toBeNull();
     expect(b("abc")).toBeNull();
@@ -38,7 +38,7 @@ describe("bersihkanIsianDraf (simpan draf yang belum lengkap)", () => {
   });
 
   it("KH-bersihkanIsianDraf-04: spasi di nama dan batas dipangkas; batas tepat 1 sah (batas bawah)", () => {
-    const r = bersihkanIsianDraf({ bagian: [{ nama: "  Metode ", batas: " 1 ", tanpaBatas: false, wajib: false }], lampiran: ["  Lampiran A "], periodeBerlakuId: "" });
+    const r = bersihkanIsianDraf({ bagian: [{ nama: "  Metode ", batas: " 1 ", tanpaBatas: false, wajib: false }], periodeBerlakuId: "" });
     expect(r).toEqual({ bagian: [{ nama: "Metode", batasKata: 1, wajib: false }], lampiran: ["Lampiran A"], periodeBerlakuId: null });
   });
 });

@@ -56,3 +56,6 @@ export function hitungKata(teks: string): number {
   }
   return n;
 }
+
+/** Normalisasi untuk mencocokkan frasa: huruf kecil, tanda baca dan spasi ganda dibuang. */
+export const normFrasa = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();

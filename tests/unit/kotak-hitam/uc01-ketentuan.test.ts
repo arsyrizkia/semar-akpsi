@@ -1,13 +1,13 @@
 // Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-17 cekKataKunci (semua kasus daftar), C-01 periksaKelengkapan (aturan M-12),
-// C-03 turunkanButirCek (butir per ketentuan dan per lampiran), C-31 buatDokumenTemplat, C-19 cekLampiran (format formulir); CRC dan Class Diagram BagianTemplat.
+// C-03 turunkanButirCek (butir per ketentuan; lampiran tidak diturunkan), C-31 buatDokumenTemplat (hanya Isian Substansi); CRC dan Class Diagram BagianTemplat.
 // Teks sintetis yang meniru pola isian pengusul pada contoh BIMA (no. 1: kurung siku dan frasa terpotong baris; no. 5: koma; no. 6: sah; no. 10: titik koma penutup).
 import { describe, expect, it } from "vitest";
 import type { DokumenPeriksa } from "@/lib/kontrak/tipe";
-import { cekFormatLampiran, cekKataKunci, cekTabel, periksaBagianTerisi, periksaDiagramAlir } from "@/lib/pemeriksa/deterministik/pemeriksa";
+import { cekKataKunci, cekTabel, periksaBagianTerisi, periksaDiagramAlir } from "@/lib/pemeriksa/deterministik/pemeriksa";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import { bagianBawaan, bagianDariBaris, ringkasKetentuan } from "@/lib/templat/isian-substansi";
 import { bagianTersimpan, periksaKelengkapan, periksaKetentuan } from "@/lib/templat/kelengkapan";
-import { KOP_BAWAAN, kopDariBaris, lampiranBawaan, lampiranDariBaris, periksaTemplatLampiran } from "@/lib/templat/paket";
+import { lampiranWajibSkema, templatLampiran } from "@/lib/bima/lampiran";
 
 const dok = (teksPerBagian: Record<string, string> = {}, tambahan: Partial<DokumenPeriksa> = {}): DokumenPeriksa => ({
   judul: "J",
@@ -137,9 +137,9 @@ describe("periksaKetentuan / periksaKelengkapan: aturan M-12 (Contract C-01)", (
   });
 });
 
-describe("turunkanButirCek per ketentuan dan lampiran (Contract C-03)", () => {
+describe("turunkanButirCek per ketentuan (Contract C-03)", () => {
   it("KH-turunkanButirCek-20: tiap ketentuan menghasilkan butirnya; bagian bawaan Dasar memuat KAT/GBR/TBL/SIT", () => {
-    const b = turunkanButirDariTemplat(bagianBawaan("dasar"), []);
+    const b = turunkanButirDariTemplat(bagianBawaan("dasar"));
     const per = (k: string) => b.filter((x) => x.kode.startsWith(k));
     expect(per("KAT")).toHaveLength(1);
     expect(per("GBR")).toHaveLength(1);
@@ -149,52 +149,24 @@ describe("turunkanButirCek per ketentuan dan lampiran (Contract C-03)", () => {
     expect(b.filter((x) => x.jenis === "semantik").every((x) => x.kode.startsWith("UNS-"))).toBe(true);
   });
   it("KH-turunkanButirCek-21: tanpa ketentuan tidak ada butir tambahan; daftar tanpa jumlah/pemisah sah tidak menurunkan KAT; pemisah lain dinamai", () => {
-    expect(turunkanButirDariTemplat([{ nama: "A", batasKata: null, wajib: false, jenisIsian: "teks" }], [])).toEqual([]);
-    expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: null, pemisah: ";" }], [])).toEqual([]);
-    const b = turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "," }], []);
+    expect(turunkanButirDariTemplat([{ nama: "A", batasKata: null, wajib: false, jenisIsian: "teks" }])).toEqual([]);
+    expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: null, pemisah: ";" }])).toEqual([]);
+    const b = turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "," }]);
     expect(b[0].deskripsi).toBe("K: tepat 3 butir, dipisahkan koma (,)");
-    expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "#" }], [])[0].deskripsi).toContain('"#"');
+    expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "#" }])[0].deskripsi).toContain('"#"');
   });
   it("KH-turunkanButirCek-22: sitasi bernomor tanpa bagian pustaka hanya SIT-01; pustaka tanpa sitasi bernomor SIT-02 dan SIT-03 dengan nama pustaka di parameter", () => {
-    const s = turunkanButirDariTemplat([{ nama: "P", batasKata: null, wajib: false, sitasiBernomor: true }], []);
+    const s = turunkanButirDariTemplat([{ nama: "P", batasKata: null, wajib: false, sitasiBernomor: true }]);
     expect(s.map((x) => x.kode)).toEqual(["SIT-01"]);
-    const p = turunkanButirDariTemplat([{ nama: "Referensi", batasKata: null, wajib: false, daftarPustaka: true }], []);
+    const p = turunkanButirDariTemplat([{ nama: "Referensi", batasKata: null, wajib: false, daftarPustaka: true }]);
     expect(p.map((x) => [x.kode, x.parameter])).toEqual([
       ["SIT-02", { tipe: "pustaka_berurutan", pustaka: "Referensi" }],
       ["SIT-03", { tipe: "jumlah_referensi_sama", pustaka: "Referensi" }],
     ]);
   });
-  it("KH-turunkanButirCek-23: lampiran berformulir menurunkan FMT-nn (kalimat kunci) di samping LMP-nn; unggahan dan lampiran tanpa kunci tidak", () => {
-    const w = ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul"];
-    const b = turunkanButirDariTemplat([], w, lampiranDariBaris(null, w));
-    expect(b.map((x) => x.kode)).toEqual(["LMP-01", "LMP-02", "FMT-01"]);
-    expect(b[2].parameter).toEqual({ tipe: "lampiran_format", nama: "Surat Pernyataan Mitra", kunci: ["bersedia menjadi mitra", "tidak memiliki afiliasi"] });
-    const lain = turunkanButirDariTemplat([], ["Surat X"], [{ nama: "Surat X", jenis: "formulir", judul: "S", kalimat: ["a"], kunci: [] }, { nama: "Tak Wajib", jenis: "formulir", judul: "S", kalimat: ["a"], kunci: ["a"] }]);
-    expect(lain.map((x) => x.kode)).toEqual(["LMP-01"]);
-  });
 });
 
-describe("cekFormatLampiran (Contract C-19, format formulir)", () => {
-  const kunci = ["bersedia menjadi mitra", "tidak memiliki afiliasi"];
-  const l = (teks?: string, ada = true) => cekFormatLampiran(dok({}, { lampiranAda: ada ? ["Surat Pernyataan Mitra"] : [], teksLampiran: teks === undefined ? {} : { "Surat Pernyataan Mitra": teks } }), "Surat Pernyataan Mitra", kunci);
-  it("KH-cekFormatLampiran-01: surat lengkap Lolos dengan angka pembukti 2 dari 2", () => {
-    const h = l("Dengan ini menyatakan BERSEDIA menjadi mitra. Saya tidak memiliki afiliasi atau hubungan keluarga.");
-    expect(h.status).toBe("Lolos");
-    expect(h.angkaPembukti).toContain("2 dari 2 kalimat kunci");
-  });
-  it("KH-cekFormatLampiran-02: surat kurang kalimat kunci Gagal dan menyebut yang belum ada; lampiran belum diunggah Gagal; isi tidak terbaca Lolos dengan catatan", () => {
-    const h = l("Saya bersedia menjadi mitra penelitian.");
-    expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain('belum ada: "tidak memiliki afiliasi"');
-    expect(h.batasDilanggar).toContain("tidak sesuai templat");
-    expect(l("x", false).status).toBe("Gagal");
-    const kosong = l(undefined);
-    expect(kosong.status).toBe("Lolos");
-    expect(kosong.angkaPembukti).toContain("format belum diperiksa");
-  });
-});
-
-describe("bagian templat dan kop (Class Diagram BagianTemplat, C-31)", () => {
+describe("bagian templat (Class Diagram BagianTemplat, C-31)", () => {
   it("KH-bagianDariBaris-01: baris lama (kolom baru null) diturunkan dari nama bagian; baris baru dipakai apa adanya; bukan daftar tidak membawa jumlah dan pemisah", () => {
     const lama = bagianDariBaris({ urutan: 3, nama: "Kata Kunci", batasKata: null, wajib: true });
     expect(lama).toMatchObject({ jenisIsian: "daftar", jumlahButir: 5, pemisah: ";", wajibGambar: false });
@@ -212,35 +184,13 @@ describe("bagian templat dan kop (Class Diagram BagianTemplat, C-31)", () => {
     expect(c("Daftar Pustaka")).toEqual(["sitasi bernomor", "daftar pustaka"]);
     expect(ringkasKetentuan({ urutan: 1, nama: "Z", batasKata: 1500, wajib: true, jenisIsian: "daftar" })).toEqual(["≤ 1.500 kata", "? butir · pemisah ?"]);
   });
-  it("KH-kop-01: kop bawaan tiga baris persis contoh BIMA (nama lembaga asli, alamat, laman); nilai sebagian dilengkapi bawaan", () => {
-    expect([KOP_BAWAAN.lembaga, KOP_BAWAAN.alamat, KOP_BAWAAN.laman]).toEqual([
-      "Kementerian Pendidikan Tinggi, Sains, dan Teknologi",
-      "Jalan Jenderal Sudirman, Senayan, Jakarta Pusat 10270",
-      "https://bima.kemdiktisaintek.go.id",
-    ]);
-    expect(kopDariBaris(null)).toEqual(KOP_BAWAAN);
-    const k = kopDariBaris({ lembaga: "L", depan: { ...KOP_BAWAAN.depan, anggaran: false } });
-    expect(k).toMatchObject({ lembaga: "L", alamat: KOP_BAWAAN.alamat });
-    expect(k.depan.anggaran).toBe(false);
-    expect(k.depan.judul).toBe(true);
-  });
-  it("KH-lampiran-01: lampiran bawaan: surat mitra dan surat mahasiswa berformulir, lainnya unggahan; tersimpan menang atas bawaan", () => {
-    expect(lampiranBawaan("surat pernyataan mitra").jenis).toBe("formulir");
-    expect(lampiranBawaan("Surat Keterangan Mahasiswa Bimbingan").kunci).toEqual(["dibimbing oleh", "terlibat dalam penelitian"]);
-    expect(lampiranBawaan(" Artikel Ketua Pengusul ")).toMatchObject({ jenis: "unggahan", nama: "Artikel Ketua Pengusul", kunci: [] });
-    const simpan = [{ nama: "Surat Pernyataan Mitra", jenis: "unggahan" as const, judul: "", kalimat: [], kunci: [] }];
-    expect(lampiranDariBaris(simpan, ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul"]).map((x) => x.jenis)).toEqual(["unggahan", "unggahan"]);
-  });
 });
 
-describe("validasi M-13 Templat Lampiran (Contract C-01 untuk templat lampiran)", () => {
-  it("KH-periksaTemplatLampiran-01: unggahan selalu sah; formulir butuh judul dan isi; kalimat kunci harus tertulis di isi (tanpa membedakan huruf besar-kecil dan tanda baca)", () => {
-    expect(periksaTemplatLampiran("unggahan", "", "", "apa saja")).toBeNull();
-    expect(periksaTemplatLampiran("formulir", "SURAT", "Saya BERSEDIA, menjadi mitra.", "bersedia menjadi mitra")).toBeNull();
-    const g = periksaTemplatLampiran("formulir", " ", "", "x");
-    expect(g?.judul).toBeTruthy();
-    expect(g?.kalimat).toBeTruthy();
-    expect(periksaTemplatLampiran("formulir", "S", "Isi", "tidak ada")?.kunci).toContain('"tidak ada"');
-    expect(periksaTemplatLampiran("formulir", "S", "Isi", "")).toBeNull();
+describe("lampiran milik BIMA (arah-isi-saja-2026-10-24)", () => {
+  it("KH-lampiranBima-01: daftar lampiran wajib per skema dan templat lampiran ada di sisi BIMA; artikel ketua tanpa templat; skema tak dikenal tanpa lampiran", () => {
+    expect(lampiranWajibSkema("PD")).toEqual(["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"]);
+    expect(lampiranWajibSkema("XX")).toEqual([]);
+    expect(templatLampiran("surat pernyataan mitra")?.judul).toBe("SURAT PERNYATAAN");
+    expect(templatLampiran("Artikel Ketua Pengusul")).toBeNull();
   });
 });

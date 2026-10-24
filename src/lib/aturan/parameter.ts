@@ -13,8 +13,6 @@ export interface MasukanButir {
   contohJawaban: string;
   /** "Bagian yang Diperiksa" (tambahan prototipe, lihat docs/perubahan-model.md) */
   bagian: string;
-  /** "Lampiran yang Diperiksa" untuk butir semantik atas lampiran (opsional) */
-  lampiran: string;
 }
 
 export type GalatButir = Partial<Record<keyof MasukanButir, string>>;
@@ -41,7 +39,6 @@ export const MASUKAN_BUTIR_KOSONG: MasukanButir = {
   pertanyaan: "",
   contohJawaban: "",
   bagian: "",
-  lampiran: "",
 };
 
 export const CONTOH_ATURAN_HITUNG =
@@ -51,19 +48,11 @@ const KATA_ANGKA: Record<string, number> = {
   satu: 1, dua: 2, tiga: 3, empat: 4, lima: 5, enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10,
 };
 
-const KOMPONEN_LAMPIRAN: Record<string, string> = {
-  "Surat Keterangan Mahasiswa Bimbingan": "4. Lampiran surat mahasiswa bimbingan",
-  "Artikel Ketua Pengusul": "5. Artikel ketua pengusul",
-  "Surat Pernyataan Mitra": "6. Surat pernyataan mitra",
-};
-
 export const PEMERIKSA_PER_TIPE: Record<ParameterButir["tipe"], string> = {
   bagian_wajib: "cocokkanStrukturJudul",
   batas_kata: "hitungKata",
   batas_kata_min: "hitungKata",
   frasa_wajib: "periksaFrasa",
-  lampiran_wajib: "cekLampiran",
-  lampiran_format: "cekLampiran",
   kata_kunci: "cekKataKunci",
   sitasi_bernomor: "cocokkanSitasi",
   pustaka_berurutan: "cocokkanSitasi",
@@ -152,16 +141,15 @@ export function validasiButir(m: MasukanButir): HasilValidasiButir {
     if (!pertanyaan) galat.pertanyaan = "Pertanyaan Pemeriksaan wajib diisi";
     if (!m.bagian) galat.bagian = "Pilih bagian yang diperiksa";
     if (Object.keys(galat).length === 0) {
-      const lampiran = m.lampiran.trim() || undefined;
       return {
         ok: true,
         nilai: {
           jenis: "semantik",
           kode,
           deskripsi,
-          parameter: { tipe: "semantik", bagian: m.bagian, ...(lampiran ? { lampiran } : {}) },
+          parameter: { tipe: "semantik", bagian: m.bagian },
           pemeriksa: "nilaiSemantik",
-          komponen: (lampiran && KOMPONEN_LAMPIRAN[lampiran]) || "1. Kesesuaian isi per bagian",
+          komponen: "1. Kesesuaian isi per bagian",
           aturanHitung: null,
           pertanyaan,
           contohJawaban: m.contohJawaban.trim() || null,

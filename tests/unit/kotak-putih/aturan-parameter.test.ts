@@ -52,9 +52,9 @@ describe("validasiButir (cabang)", () => {
     expect(r.ok && r.nilai.parameter).toEqual({ tipe: "semantik", bagian: "Metode" });
   });
   it("KP-validasiButir-05: semantik dengan lampiran yang tidak ada di peta komponen memakai komponen bawaan", () => {
-    const r = validasiButir({ ...dasar, jenis: "semantik", pertanyaan: "?", bagian: "Metode", lampiran: "Lampiran Baru" });
+    const r = validasiButir({ ...dasar, jenis: "semantik", pertanyaan: "?", bagian: "Metode" });
     expect(r.ok && r.nilai.komponen).toBe("1. Kesesuaian isi per bagian");
-    expect(r.ok && r.nilai.parameter).toEqual({ tipe: "semantik", bagian: "Metode", lampiran: "Lampiran Baru" });
+    expect(r.ok && r.nilai.parameter).toEqual({ tipe: "semantik", bagian: "Metode" });
   });
   it("KP-validasiButir-06: jenis tidak dipilih ditandai; semantik tanpa pertanyaan dan bagian ditandai keduanya", () => {
     expect(!validasiButir(dasar).ok).toBe(true);

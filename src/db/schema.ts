@@ -135,10 +135,10 @@ export const templatProposal = pgTable(
     judulDokumen: text("judul_dokumen").default("Isian Substansi Proposal"),
     subjudul: text("subjudul"),
     pengantar: text("pengantar"),
-    /** Kop, teks proteksi, dan sakelar bagian depan 1-6 (null = bawaan lembaga rekaan, src/lib/templat/paket.ts) */
-    kop: jsonb("kop").$type<import("@/lib/templat/paket").KopTemplat>(),
-    /** Templat per lampiran wajib: unggahan bebas atau formulir bertemplat (null = bawaan) */
-    lampiranTemplat: jsonb("lampiran_templat").$type<import("@/lib/templat/paket").LampiranTemplat[]>(),
+    /** TIDAK DIPAKAI sejak 24 Okt 2026 (halaman depan milik BIMA); dibiarkan agar perubahan skema aditif */
+    kop: jsonb("kop").$type<unknown>(),
+    /** TIDAK DIPAKAI sejak 24 Okt 2026 (templat lampiran milik BIMA, src/lib/bima/lampiran.ts) */
+    lampiranTemplat: jsonb("lampiran_templat").$type<unknown>(),
   },
   (t) => [uniqueIndex("templat_skema_versi_uq").on(t.skemaId, t.versi)],
 );

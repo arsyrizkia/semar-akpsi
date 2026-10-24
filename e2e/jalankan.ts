@@ -587,12 +587,12 @@ async function utama() {
       await adaTeks(page, "Susun Versi Baru");
       await judulTab("J-02a");
       const a0 = await teksHalaman(page);
-      for (const x of ["Bagian", "Aturan Pemeriksaan", "Lampiran", "Halaman Depan", "Unduh Templat (.docx)", "Unduh Isian Substansi (.docx)"]) yakin(a0.includes(x), `J-02a Aktif tanpa "${x}"`);
+      for (const x of ["Bagian", "Aturan Pemeriksaan", "Unduh Templat (.docx)"]) yakin(a0.includes(x), `J-02a Aktif tanpa "${x}"`);
       yakin((await jumlahTombol(page, "Terbitkan")) === 0 && (await page.$("button[aria-label^='Ubah bagian']")) === null, "templat Aktif tidak boleh dapat disunting (Terbitkan atau Ubah bagian ada)");
       await fotoUi(page, "rincian-aktif");
       const d0 = await unduh(page, await hrefUnduh(page, "Unduh Templat (.docx)"));
       yakin(d0.status === 200 && d0.tipe === TIPE_DOCX, `Unduh Templat di J-02a: ${d0.status}`);
-      c("J-02a Aktif: empat tab, Unduh Templat dan Unduh Isian Substansi, tanpa Terbitkan/Ubah (hanya-baca), ada Susun Versi Baru");
+      c("J-02a Aktif: dua tab (Bagian, Aturan Pemeriksaan), Unduh Templat, tanpa Terbitkan/Ubah (hanya-baca), ada Susun Versi Baru");
       // Susun Versi Baru -> Draf
       await klik(page, "Susun Versi Baru");
       await page.waitForFunction(() => !document.body.innerText.includes("Susun Versi Baru") && document.body.innerText.includes("Terbitkan"), { timeout: 30_000 });
@@ -670,10 +670,11 @@ async function utama() {
       await adaTeks(page, "Pratinjau diunduh dari isian yang baru disimpan.");
       const idDraf = jalur(page).split("/")[3];
       const paket = await unduh(page, `/api/semar/templat/${idDraf}/unduh`);
-      const perlu = ["A. JUDUL", "C. KATA KUNCI", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "[butir 1; butir 2; butir 3]", "BIDANG KEILMUAN"];
+      const perlu = ["A. JUDUL", "C. KATA KUNCI", "[butir 1; butir 2; butir 3]", "BIDANG KEILMUAN"];
       const kurang = perlu.filter((x) => !paket.html.includes(x));
       yakin(paket.status === 200 && kurang.length === 0, `paket .docx kurang: ${kurang.join(" | ") || `status ${paket.status}`}`);
-      c("Unduh Pratinjau (.docx): paket lengkap mengikuti bagian dan aturan terbaru");
+      yakin(!/PROTEKSI ISI PROPOSAL|SURAT PERNYATAAN/.test(paket.html), "templat hanya Isian Substansi: tanpa halaman depan dan lampiran");
+      c("Unduh Pratinjau (.docx): Isian Substansi mengikuti bagian dan aturan terbaru");
       // M-01 dan Terbitkan (toast sebelumnya dibiarkan hilang dulu agar tidak menutupi tombol)
       await tutupToast(page);
       await klik(page, "Terbitkan");
@@ -695,7 +696,7 @@ async function utama() {
       await adaTeks(page, "Bidang Keilmuan: tepat 3 butir", 60_000);
       yakin((await page.$$eval("tbody tr[aria-current]", (e) => e.length)) >= 15, "butir turunan baru tidak tersorot");
       const kelPenuh = await page.$$eval("section[data-kelompok]", (e) => e.map((x) => x.getAttribute("data-kelompok")));
-      yakin(kelPenuh.includes("Judul") && kelPenuh.includes("Bidang Keilmuan") && kelPenuh.includes("Lampiran"), `kelompok aturan per bagian tidak lengkap: ${kelPenuh.join(",")}`);
+      yakin(kelPenuh.includes("Judul") && kelPenuh.includes("Bidang Keilmuan") && !kelPenuh.includes("Lampiran"), `kelompok aturan per bagian tidak lengkap: ${kelPenuh.join(",")}`);
       await fotoUi(page, "aturan-aktif");
       c("Buka Aturan Pemeriksaan: tab Aturan dikelompokkan per bagian dan Lampiran, butir baru tersorot");
       // kunci Aktif: aturan isi terkunci (4a), pertanyaan semantik boleh diubah, jenis isi tak bisa dipilih
@@ -714,7 +715,7 @@ async function utama() {
       await klik(page, "Tambah Butir");
       await tungguModal(page, "Tambah Butir");
       const opsiKunci = await page.$$eval("[role=dialog] select[name='jenis-aturan'] option", (o) => o.map((x) => ({ t: x.textContent ?? "", d: (x as HTMLOptionElement).disabled })));
-      yakin(opsiKunci.find((o) => o.t.startsWith("Batas kata maksimal"))?.d === true && opsiKunci.find((o) => o.t.startsWith("Kalimat kunci lampiran"))?.d === false, "pada templat Aktif jenis isi harus terkunci dan jenis lampiran terbuka");
+      yakin(opsiKunci.find((o) => o.t.startsWith("Batas kata maksimal"))?.d === true && opsiKunci.find((o) => o.t.startsWith("Judul sama"))?.d === false && !opsiKunci.some((o) => /lampiran/i.test(o.t)), "pada templat Aktif jenis isi harus terkunci, jenis di luar isi terbuka, dan tidak ada jenis lampiran");
       await klik(page, "Batal");
       await tungguModalTutup(page);
       const idSemantik = await page.evaluate(() => [...document.querySelectorAll("tbody tr[id^='butir-UNS']")][0]?.id ?? null);

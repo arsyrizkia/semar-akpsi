@@ -17,10 +17,10 @@ const templat = baca("templat.json") as { lampiranWajib: string[] };
 const katalog = baca("katalog-butir.json") as { butir: { kode: string; deskripsi: string; jenis: "deterministik" | "semantik"; komponen: string; pemeriksa: string; parameter: ParameterButir }[] };
 
 const bagian = bagianBawaan("dasar").map((b, i) => ({ urutan: i + 1, nama: b.nama, batasKata: b.batasKata, wajib: b.wajib }));
-const konteks: KonteksPeriksa = { bagianTemplat: bagian, lampiranWajib: templat.lampiranWajib };
+const konteks: KonteksPeriksa = { bagianTemplat: bagian };
 
 const butir: ButirCek[] = [
-  ...turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null })),
+  ...turunkanButirDariTemplat(bagianBawaan("dasar")).map((b) => ({ ...b, pertanyaan: null, contohJawaban: null })),
   ...katalog.butir
     .filter((b) => b.jenis === "deterministik")
     .map((b) => ({ ...b, asal: "manual" as const, aturanHitung: null, pertanyaan: null, contohJawaban: null })),
@@ -75,22 +75,6 @@ describe("UC-05 ekstraksi dan pemotongan DOCX", () => {
     const c = await lewatPipeline("c");
     expect(c.hasil.filter((h) => h.status === "Gagal").map((h) => h.kode)).toEqual(["KAT-01", "SIT-03"]);
     expect(c.hasil.find((h) => h.kode === "SIT-03")!.angkaPembukti).toContain("9 entri daftar pustaka, 7 referensi dikutip");
-  });
-
-  it("KH-potongTeks-03: lampiran yang tidak diunggah membuat butir lampiran gagal", async () => {
-    const { def, potong } = await lewatPipeline("a");
-    const dokumen: DokumenPeriksa = {
-      judul: potong.judulDokumen,
-      judulBima: def.judul,
-      teksPerBagian: potong.teksPerBagian,
-      kataKunci: potong.kataKunci,
-      lampiranAda: ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul"],
-      teksLampiran: {},
-      judulBagianDitemukan: potong.judulBagianDitemukan,
-    };
-    const gagal = periksaDeterministikTeks(dokumen, butir, konteks).filter((h) => h.status === "Gagal");
-    expect(gagal.map((h) => h.kode)).toEqual(["LMP-03"]);
-    expect(gagal[0].batasDilanggar).toContain("Surat Keterangan Mahasiswa Bimbingan");
   });
 
   it("KH-potongTeks-04: tabel dan gambar dibuang dari hitungan: HTML dengan tabel dan gambar", () => {

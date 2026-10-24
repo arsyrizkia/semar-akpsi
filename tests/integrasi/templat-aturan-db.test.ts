@@ -61,7 +61,6 @@ describe.skipIf(!ada)("alur UC-01 dan UC-02 pada skema sementara", () => {
         { nama: "Metode", batas: "1200", tanpaBatas: false, wajib: true },
         { nama: "Daftar Pustaka", batas: "", tanpaBatas: true, wajib: true },
       ],
-      lampiran: ["Surat Pernyataan Mitra"],
       periodeBerlakuId: periodeId,
     };
     const tidakLengkap = await terbitkan({ skemaId, templatId: draf.id, isian: { ...isian, periodeBerlakuId: null }, pelaku, masaBerjalan: false });
@@ -73,7 +72,7 @@ describe.skipIf(!ada)("alur UC-01 dan UC-02 pada skema sementara", () => {
     expect((await ambilDrafTemplat(skemaId))?.bagian).toHaveLength(3);
 
     const terbit = await terbitkan({ skemaId, templatId: draf.id, isian, pelaku, masaBerjalan: false });
-    expect(terbit).toMatchObject({ hasil: "terbit", versi: 1, jumlahButir: 3 + 2 + 1 }); // 3 BGN + 2 KTA + 1 LMP
+    expect(terbit).toMatchObject({ hasil: "terbit", versi: 1, jumlahButir: 3 + 2 }); // 3 BGN + 2 KTA
     expect((await ambilTemplatBerlaku(skemaId))?.versi).toBe(1);
     expect(await ambilDrafTemplat(skemaId)).toBeNull();
 
@@ -158,7 +157,6 @@ describe.skipIf(!ada)("alur UC-01 dan UC-02 pada skema sementara", () => {
     expect(s.templat.bagian).toHaveLength(3); // disalin dari templat berlaku
     const isian = {
       bagian: s.templat.bagian.map((b) => ({ nama: b.nama, batas: b.batasKata == null ? "" : String(b.batasKata), tanpaBatas: b.batasKata == null, wajib: b.wajib })),
-      lampiran: s.templat.lampiranWajib,
       periodeBerlakuId: periodeId,
     };
     isian.bagian[1].batas = "1400";

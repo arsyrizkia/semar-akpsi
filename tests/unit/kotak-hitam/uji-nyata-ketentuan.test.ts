@@ -57,8 +57,8 @@ describe.skipIf(!BERKAS.every((b) => existsSync(path.join(DIR, b.nama))))("keten
         expect(periksaBagianTerisi(dokumen, "Jadwal Penelitian").status).toBe("Lolos");
         // PDF no. 5 hanya memuat gambar tanpa keterangan di teks hasil ekstraksi: tidak terdeteksi (batas pemeriksa berbasis teks)
         expect(periksaDiagramAlir(dokumen, "Metode").status).toBe(b.nama.startsWith("5.") ? "Gagal" : "Lolos");
-        const butir: ButirCek[] = turunkanButirDariTemplat(bagian, []).map((x, i) => ({ ...x, id: `b${i}`, pertanyaan: null, contohJawaban: null, status: "Aktif" }));
-        const konteks: KonteksPeriksa = { bagianTemplat: bagian, lampiranWajib: [] };
+        const butir: ButirCek[] = turunkanButirDariTemplat(bagian).map((x, i) => ({ ...x, id: `b${i}`, pertanyaan: null, contohJawaban: null, status: "Aktif" }));
+        const konteks: KonteksPeriksa = { bagianTemplat: bagian };
         const gagal = periksaDeterministikTeks(dokumen, butir, konteks).filter((h) => h.status === "Gagal").map((h) => h.kode);
         // satu-satunya kegagalan yang sah: kata kunci pada contoh no. 5 (koma)
         // butir sitasi (SIT-nn) tidak dibandingkan: ketidakrapian sitasi pada contoh asli dibahas terpisah (catatan-inkonsistensi 29)

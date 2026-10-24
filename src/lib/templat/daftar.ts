@@ -88,12 +88,10 @@ export function kueriPenyaring(p: PenyaringDaftar): string {
 
 /* ----------------------------- tab J-02a ----------------------------- */
 
-export type TabTemplat = "bagian" | "aturan" | "lampiran" | "depan";
+export type TabTemplat = "bagian" | "aturan";
 export const TAB_TEMPLAT: readonly { nilai: TabTemplat; label: string }[] = [
   { nilai: "bagian", label: "Bagian" },
   { nilai: "aturan", label: "Aturan Pemeriksaan" },
-  { nilai: "lampiran", label: "Lampiran" },
-  { nilai: "depan", label: "Halaman Depan" },
 ];
 
 export function bacaTab(v: Mentah): TabTemplat {

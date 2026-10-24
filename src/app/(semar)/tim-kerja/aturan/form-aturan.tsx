@@ -18,7 +18,6 @@ export interface PropsFormAturan {
   mode: "tambah" | "ubah";
   awal: FormAturan;
   bagian: string[];
-  lampiran: string[];
   /** kode butir yang sudah ada pada versi ini (untuk kode otomatis dan cek duplikat butir manual) */
   kodeTerpakai: string[];
   /** templat Aktif/Arsip: jenis aturan yang menempel pada isi bagian terkunci (4a) dan tidak dapat dipilih */
@@ -43,7 +42,7 @@ export function FormAturanModal(props: PropsFormAturan) {
   return <IsiForm key={`${props.mode}:${props.awal.kode}:${props.awal.jenisAturan}:${props.awal.unsur}:${props.awal.frasa}:${props.awal.bagian}`} {...props} />;
 }
 
-function IsiForm({ mode, awal, bagian, lampiran, kodeTerpakai, kunciIsi, hanyaPertanyaan, keKetentuan, sibuk, galatServer, saatSimpan, saatBatal }: PropsFormAturan) {
+function IsiForm({ mode, awal, bagian, kodeTerpakai, kunciIsi, hanyaPertanyaan, keKetentuan, sibuk, galatServer, saatSimpan, saatBatal }: PropsFormAturan) {
   const [f, setF] = useState<FormAturan>(awal);
   const [kodeSunting, setKodeSunting] = useState(mode === "ubah");
   const [deskSunting, setDeskSunting] = useState(false);
@@ -159,19 +158,6 @@ function IsiForm({ mode, awal, bagian, lampiran, kodeTerpakai, kunciIsi, hanyaPe
         )}
         {f.jenisAturan === "frasa" && <Isian label="Frasa Wajib" name="frasa" autoComplete="off" value={f.frasa} galat={tampil("frasa")} onChange={(e) => ubah({ frasa: e.target.value })} />}
         {f.jenisAturan === "unsur" && <Isian label="Unsur Isi" name="unsur" autoComplete="off" value={f.unsur} galat={tampil("unsur")} disabled={beku} onChange={(e) => ubah({ unsur: e.target.value })} />}
-        {(f.jenisAturan === "lampiran_ada" || f.jenisAturan === "lampiran_kunci" || f.jenisAturan === "semantik_bebas") && (
-          <Pilihan label={f.jenisAturan === "semantik_bebas" ? "Lampiran yang Diperiksa (opsional)" : "Lampiran"} name="lampiran" className="max-w-md" value={f.lampiran} galat={tampil("lampiran")} disabled={beku} onChange={(e) => ubah({ lampiran: e.target.value })}>
-            <option value="">{f.jenisAturan === "semantik_bebas" ? "(tidak ada)" : "Pilih lampiran"}</option>
-            {lampiran.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </Pilihan>
-        )}
-        {f.jenisAturan === "lampiran_kunci" && (
-          <Isian label="Kalimat Kunci" multibaris rows={3} name="kunci" autoComplete="off" value={f.kunci} galat={tampil("kunci")} petunjuk="Satu kalimat per baris; berkas lampiran harus memuatnya." onChange={(e) => ubah({ kunci: e.target.value })} />
-        )}
         {tampilIsiSemantik && (
           <div className="space-y-3">
             <Isian label="Pertanyaan Pemeriksaan" multibaris rows={3} name="pertanyaan" autoComplete="off" wajib={f.jenisAturan === "semantik_bebas"} value={f.pertanyaan} galat={tampil("pertanyaan")} petunjuk={f.jenisAturan === "unsur" ? "Kosongkan agar disusun otomatis dari unsur isi." : undefined} onChange={(e) => ubah({ pertanyaan: e.target.value })} />

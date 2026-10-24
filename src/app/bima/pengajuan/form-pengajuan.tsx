@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { templatLampiran } from "@/lib/bima/lampiran";
 import type { OpsiSkemaBima } from "@/lib/bima/servis-pengajuan";
 
 interface Props {
@@ -102,9 +103,9 @@ export function FormPengajuan({ skema, awal, perbaikanTersedia }: Props) {
               download
               className="font-semibold text-slate-900 underline underline-offset-2"
             >
-              Unduh Templat
+              Unduh Templat Isian Substansi
             </a>
-            <span className="text-slate-600"> (.docx, templat yang berlaku untuk skema ini)</span>
+            <span className="text-slate-600"> (.docx; hanya isi proposal bagian A-H, halaman depan dan lampiran diisi di BIMA)</span>
           </p>
         ) : (
           <p className="mt-2 text-sm text-slate-600">Skema ini belum memiliki templat yang terbit.</p>
@@ -140,6 +141,14 @@ export function FormPengajuan({ skema, awal, perbaikanTersedia }: Props) {
             <div key={`${skemaKode}:${nama}`}>
               <label htmlFor={`lampiran:${nama}`} className="mb-1 block text-sm">
                 {nama}
+                {templatLampiran(nama) ? (
+                  <>
+                    {" "}
+                    <a href={`/api/bima/templat-lampiran?nama=${encodeURIComponent(nama)}`} download className="font-semibold text-slate-900 underline underline-offset-2">
+                      Unduh Templat Lampiran
+                    </a>
+                  </>
+                ) : null}
               </label>
               <input
                 id={`lampiran:${nama}`}

@@ -67,3 +67,22 @@ membantu DPPM memeriksa proposal penelitian secara administratif.
 ## Data skala nyata (22 Okt 2026)
 
 Data skenario J-04 "skala" (10.000 proposal, periode "Skala Nyata 2026", pesan SKL-2026-* di kotak masuk BIMA, penugasannya) tidak dihapus oleh skenario lain; hanya "Reset & isi data demo" yang menghapusnya. Kumpulan reviewer periode skala hanya akun `rvw-skala-*` (reviewer contoh reviewer-1..5 tidak ikut dibagi), dan periode lain tidak memakai akun `rvw-skala-*`. Akun `rvw-skala-*` disembunyikan dari /bima/masuk.
+
+## SEMAR hanya untuk isi proposal (24 Okt 2026)
+
+Arahan lengkap: `docs/arah-isi-saja-2026-10-24.md` (membatalkan `docs/arah-uc05-2026-10-24.md` dan bagian 3 `docs/arah-uc01-2026-10-23.md`).
+
+17. **Pembagian BIMA dan SEMAR.** BIMA: formulir pengusul, halaman depan proposal (dibangkitkan dari formulir), **lampiran beserta
+    templat lampirannya** (unduh, isi, unggah), unggahan naskah Isian Substansi, arsip. SEMAR: templat Isian Substansi A-H (UC-01),
+    aturan pemeriksaan isi (UC-02), pemeriksaan deterministik isi (UC-06, naskah ditarik dari BIMA lewat API), semantik (UC-09),
+    penugasan (UC-03), penilaian reviewer (UC-07/08), pemantauan (UC-04). Naskah Isian Substansi tetap diunggah di BIMA (arsitektur opsi B).
+18. **Templat SEMAR tanpa halaman depan dan lampiran.** J-02a hanya tab Bagian dan Aturan Pemeriksaan; modal M-13, sakelar
+    halaman depan, kop, dan isian lampiran wajib dihapus. Unduhan .docx hanya Isian Substansi (kepala berlogo, SKEMA, pengantar,
+    bagian A-H); satu tombol "Unduh Templat (.docx)". Daftar lampiran wajib per skema dan templat lampirannya (surat pernyataan
+    mitra, surat keterangan mahasiswa) milik BIMA tiruan (`src/lib/bima/lampiran.ts`, `lampiran-dokumen.ts`; unduhan
+    `/api/bima/templat-lampiran?nama=`).
+19. **SEMAR tidak memeriksa lampiran.** Butir LMP-nn dan FMT-nn, jenis aturan "Kelengkapan lampiran" dan "Kalimat kunci lampiran",
+    kelompok Lampiran di tab Aturan, serta butir semantik lampiran katalog (LMP-S1, ART-S1/S2, MIT-S1) dihapus; `cekLampiran`
+    tidak ada lagi. Reviewer tetap melihat dan mengunduh lampiran dari BIMA di J-08 (hanya baca); komponen borang J-08b
+    diputuskan reviewer sendiri.
+20. **Skema basis data aditif.** Kolom `templat_proposal.lampiran_wajib`, `kop`, `lampiran_templat` dibiarkan (tidak dipakai kode).

@@ -125,7 +125,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
 
   // butir yang akan lahir dari bagian ini (nomor kode mengikuti seluruh templat saat terbit; di sini hanya awalan)
   const pratinjau = useMemo(() => {
-    const turunan = turunkanButirDariTemplat(semua.map(mentahKeBagian), []);
+    const turunan = turunkanButirDariTemplat(semua.map(mentahKeBagian));
     return turunan.filter((b) => b.bagian === k.nama && k.nama.trim() !== "");
   }, [semua, k.nama]);
   const jumlahDet = pratinjau.filter((b) => b.jenis === "deterministik").length;

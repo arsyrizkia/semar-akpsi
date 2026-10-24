@@ -56,20 +56,19 @@ describe("bagianDokumen (cabang)", () => {
 });
 
 describe("buatDokumenTemplat (cabang isi)", () => {
-  it("KP-buatDokumenTemplat-01: periode null menulis 'belum ditetapkan'; tanpa lampiran tidak ada halaman lampiran", async () => {
-    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 1, status: "Draf" }, [], [], skema, null));
+  it("KP-buatDokumenTemplat-01: periode null menulis 'belum ditetapkan'; tidak ada halaman lampiran (lampiran milik BIMA)", async () => {
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 1, status: "Draf" }, [], skema, null));
     expect(teks).toContain("belum ditetapkan");
     expect(teks).toContain("Versi templat: 1 (Draf)");
     expect(teks).not.toContain("LAMPIRAN 1.");
   });
-  it("KP-buatDokumenTemplat-02: periode terisi menulis nama dan tahun; lampiran bernomor", async () => {
-    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], ["Surat A", "Surat B"], skema, { nama: "Seleksi 2026", tahun: 2026 }));
+  it("KP-buatDokumenTemplat-02: periode terisi menulis nama dan tahun; tidak ada halaman depan", async () => {
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], skema, { nama: "Seleksi 2026", tahun: 2026 }));
     expect(teks).toContain("Seleksi 2026 (2026)");
-    expect(teks).toContain("LAMPIRAN 1. SURAT A");
-    expect(teks).toContain("LAMPIRAN 2. SURAT B");
+    expect(teks).not.toContain("PROTEKSI ISI PROPOSAL");
   });
   it("KP-buatDokumenTemplat-03: periode tanpa tahun tidak menulis tanda kurung", async () => {
-    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], [], skema, { nama: "Seleksi X" }));
+    const teks = await teksDenganKaki(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, [], skema, { nama: "Seleksi X" }));
     expect(teks).toContain("Periode berlaku: Seleksi X |");
   });
 });

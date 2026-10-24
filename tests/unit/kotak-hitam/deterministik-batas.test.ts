@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { SignJWT } from "jose";
 import type { DokumenPeriksa, KonteksPeriksa } from "@/lib/kontrak/tipe";
-import { cekKataKunci, cekLampiran, cocokkanSitasi, cocokkanStrukturJudul, periksaBatasKata } from "@/lib/pemeriksa/deterministik/pemeriksa";
+import { cekKataKunci, cocokkanSitasi, cocokkanStrukturJudul, periksaBatasKata } from "@/lib/pemeriksa/deterministik/pemeriksa";
 import { hitungKata } from "@/lib/pemeriksa/deterministik/teks";
 import { adalahPengajuanPertama, hitungMasaPengusulan, statusSetelahPemeriksaan, transisiProposal, type PeristiwaProposal, type StatusProposal } from "@/lib/pengajuan/aturan";
 import { buatTokenPengajuan, verifikasiTokenPengajuan } from "@/lib/pengajuan/token";
@@ -26,7 +26,6 @@ const konteks: KonteksPeriksa = {
     { urutan: 3, nama: "Catatan", batasKata: null, wajib: false },
     { urutan: 4, nama: "Daftar Pustaka", batasKata: null, wajib: true },
   ],
-  lampiranWajib: ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul"],
 };
 
 describe("hitungKata (Contract C-16, MS-02)", () => {
@@ -124,26 +123,6 @@ describe("cocokkanSitasi (Contract C-18, MS-03)", () => {
   });
 });
 
-describe("cekLampiran (Contract C-19)", () => {
-  it("KH-cekLampiran-01: lampiran ada lolos tanpa membedakan huruf besar dan spasi ganda", () => {
-    const d = dok({ lampiranAda: ["surat  pernyataan MITRA"] });
-    expect(cekLampiran(d, konteks, "Surat Pernyataan Mitra").status).toBe("Lolos");
-  });
-  it("KH-cekLampiran-02: tanpa lampiran terunggah gagal dan menyebut 0 dari 2", () => {
-    const h = cekLampiran(dok(), konteks, "Surat Pernyataan Mitra");
-    expect(h.status).toBe("Gagal");
-    expect(h.angkaPembukti).toContain("0 dari 2 lampiran wajib ada");
-    expect(h.batasDilanggar).toContain("belum diunggah");
-  });
-  it("KH-cekLampiran-03: daftar lampiran wajib templat kosong memakai nama butir sebagai satu-satunya wajib", () => {
-    const k: KonteksPeriksa = { ...konteks, lampiranWajib: [] };
-    expect(cekLampiran(dok({ lampiranAda: ["Peta Lokasi"] }), k, "Peta Lokasi").status).toBe("Lolos");
-    expect(cekLampiran(dok(), k, "Peta Lokasi").angkaPembukti).toContain("0 dari 1");
-  });
-  it("KH-cekLampiran-04: lampiran yang diunggah bernama lain tidak memenuhi", () => {
-    expect(cekLampiran(dok({ lampiranAda: ["Artikel Ketua Pengusul"] }), konteks, "Surat Pernyataan Mitra").status).toBe("Gagal");
-  });
-});
 
 describe("cocokkanStrukturJudul (Contract C-20)", () => {
   it("KH-cocokkanStrukturJudul-01: bagian_wajib ada lolos, tidak ada gagal dengan nama bagian", () => {

@@ -11,11 +11,10 @@
  *  - frasa wajib       -> FRS-nn   periksaFrasa (satu butir per frasa)                   Deterministik
  *  - sitasi bernomor   -> SIT-01 dan tipe daftar_pustaka -> SIT-02, SIT-03  cocokkanSitasi  Deterministik
  *  - unsur isi         -> UNS-nn   nilaiSemantik, satu butir per unsur                   Semantik
- *  - lampiran wajib    -> LMP-nn   cekLampiran; lampiran berformulir -> FMT-nn cekLampiran (kalimat kunci templat)
+ * Lampiran tidak diturunkan: lampiran dan templat lampirannya milik BIMA, SEMAR hanya memeriksa isi (arah-isi-saja-2026-10-24).
  * Penomoran nn dua digit terpisah per awalan, mengikuti urutan bagian.
  */
 import type { BagianTemplatDto, ParameterButir } from "./kontrak/tipe";
-import type { LampiranTemplat } from "./templat/paket";
 import { adalahDaftarPustaka, frasaTerisi, keteranganGambar, kolomTerisi, perluTabel, pertanyaanUnsur, unsurTerisi } from "./templat/isian-substansi";
 import { formatAngka } from "@/lib/utils";
 import { normalisasiJudul } from "./pemeriksa/deterministik/teks";
@@ -40,14 +39,14 @@ export interface ButirSeed {
   /** hanya butir semantik */
   pertanyaan: string | null;
   contohJawaban: string | null;
-  /** bagian templat asal butir (untuk pratinjau M-12); null = butir lampiran */
+  /** bagian templat asal butir (untuk pratinjau M-12); null = butir umum */
   bagian: string | null;
 }
 
 const NAMA_PEMISAH: Record<string, string> = { ";": "titik koma", ",": "koma", "|": "garis tegak", "/": "garis miring" };
 const nn = (n: number) => String(n).padStart(2, "0");
 
-export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: string[], lampiranTemplat: LampiranTemplat[] = []): ButirSeed[] {
+export function turunkanButirDariTemplat(bagian: BagianSeed[]): ButirSeed[] {
   const hasil: ButirSeed[] = [];
   const n = { BGN: 0, KTA: 0, KTM: 0, KAT: 0, GBR: 0, TBL: 0, FRS: 0, UNS: 0 };
   const det = { jenis: "deterministik", asal: "templat", pertanyaan: null, contohJawaban: null } as const;
@@ -204,32 +203,5 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
     );
   }
 
-  let f = 0;
-  lampiranWajib.forEach((nama, i) => {
-    hasil.push({
-      ...det,
-      bagian: null,
-      kode: `LMP-${nn(i + 1)}`,
-      deskripsi: `Lampiran "${nama}" dilampirkan`,
-      komponen: "Lampiran",
-      pemeriksa: "cekLampiran",
-      parameter: { tipe: "lampiran_wajib", nama },
-      aturanHitung: `Berkas lampiran "${nama}" ada pada pengajuan.`,
-    });
-  });
-  // lampiran berformulir: kesesuaian format = kalimat kunci templat ada di berkas
-  for (const l of lampiranTemplat) {
-    if (l.jenis !== "formulir" || l.kunci.length === 0 || !lampiranWajib.some((w) => w.trim().toLowerCase() === l.nama.trim().toLowerCase())) continue;
-    hasil.push({
-      ...det,
-      bagian: null,
-      kode: `FMT-${nn(++f)}`,
-      deskripsi: `Lampiran "${l.nama}" sesuai format templat`,
-      komponen: "Lampiran",
-      pemeriksa: "cekLampiran",
-      parameter: { tipe: "lampiran_format", nama: l.nama, kunci: l.kunci },
-      aturanHitung: `Berkas lampiran "${l.nama}" memuat kalimat kunci templat: ${l.kunci.map((k) => `"${k}"`).join(", ")}.`,
-    });
-  }
   return hasil;
 }

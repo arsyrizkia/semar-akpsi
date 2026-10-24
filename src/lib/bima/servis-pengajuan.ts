@@ -2,10 +2,12 @@
  * Sisi BIMA tiruan untuk halaman pengajuan (agen C). Berkas baru, tidak mengubah servis.ts.
  * Hanya dipakai halaman dan route /bima/pengajuan. Menyimpan unggahan ke bima_proposal dan bima_berkas.
  *
- * Catatan batas sistem: daftar skema dan nama lampiran wajib dibaca dari tabel SEMAR (skema_pendanaan, templat_proposal)
- * karena BIMA tiruan berbagi satu basis data dengan SEMAR dan tidak memiliki katalog skema sendiri.
+ * Catatan batas sistem: daftar skema dan ada-tidaknya templat Terbit dibaca dari tabel SEMAR (skema_pendanaan, templat_proposal)
+ * karena BIMA tiruan berbagi satu basis data dengan SEMAR dan tidak memiliki katalog skema sendiri. Lampiran wajib dan templat
+ * lampirannya milik BIMA (src/lib/bima/lampiran.ts), bukan templat SEMAR.
  */
 import { and, desc, eq, like } from "drizzle-orm";
+import { lampiranWajibSkema } from "./lampiran";
 import { getDb } from "@/db";
 import { ambilPeriodeBerjalanId } from "@/lib/waktu";
 import { bimaBerkas, bimaProposal, skemaPendanaan, templatProposal } from "@/db/schema";
@@ -14,7 +16,7 @@ import { simpanBerkas } from "../berkas";
 export interface OpsiSkemaBima {
   kode: string;
   nama: string;
-  /** nama lampiran wajib menurut templat terbit skema */
+  /** nama lampiran wajib skema menurut konfigurasi BIMA (bukan templat SEMAR) */
   lampiranWajib: string[];
   /** ada templat Terbit untuk skema ini (tombol "Unduh Templat" hanya bila ada) */
   adaTemplat: boolean;
@@ -27,12 +29,12 @@ export async function daftarSkemaBima(): Promise<OpsiSkemaBima[]> {
   const berjalan = await ambilPeriodeBerjalanId();
   for (const s of skema) {
     const daftar = await db
-      .select({ lampiranWajib: templatProposal.lampiranWajib, periodeBerlakuId: templatProposal.periodeBerlakuId })
+      .select({ periodeBerlakuId: templatProposal.periodeBerlakuId })
       .from(templatProposal)
       .where(and(eq(templatProposal.skemaId, s.id), eq(templatProposal.status, "Terbit")))
       .orderBy(desc(templatProposal.versi));
     const t = daftar.find((x) => x.periodeBerlakuId === berjalan) ?? daftar[0];
-    hasil.push({ kode: s.kode, nama: s.namaSkema, lampiranWajib: t?.lampiranWajib ?? [], adaTemplat: Boolean(t) });
+    hasil.push({ kode: s.kode, nama: s.namaSkema, lampiranWajib: lampiranWajibSkema(s.kode), adaTemplat: Boolean(t) });
   }
   return hasil;
 }

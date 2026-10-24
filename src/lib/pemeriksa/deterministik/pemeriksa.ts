@@ -13,7 +13,7 @@ import type {
   ParameterButir,
   StatusHasilDeterministik,
 } from "../../kontrak/tipe";
-import { normFrasa } from "../../templat/paket";
+import { normFrasa } from "./teks";
 import { barisTeks, fmt, hitungKata, normalisasiJudul, normalisasiJudulProposal } from "./teks";
 
 export { hitungKata } from "./teks";
@@ -463,46 +463,6 @@ export function cocokkanSitasi(
 }
 
 /* ------------------------------------------------------------------ */
-/* cekLampiran                                                         */
-/* ------------------------------------------------------------------ */
-
-const normLampiran = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-
-export function cekLampiran(dokumen: DokumenPeriksa, konteks: KonteksPeriksa, nama: string): HasilPeriksa {
-  const ada = new Set(dokumen.lampiranAda.map(normLampiran));
-  const wajib = konteks.lampiranWajib.length ? konteks.lampiranWajib : [nama];
-  const terpenuhi = wajib.filter((w) => ada.has(normLampiran(w)));
-  const belum = wajib.filter((w) => !ada.has(normLampiran(w)));
-  const ringkas = `${fmt(terpenuhi.length)} dari ${fmt(wajib.length)} lampiran wajib ada`;
-  if (ada.has(normLampiran(nama))) return lolos(`lampiran "${nama}" ditemukan (${ringkas})`, null);
-  return gagal(
-    `lampiran "${nama}" belum ada (${ringkas}; belum ada: ${belum.map((b) => `"${b}"`).join(", ")})`,
-    null,
-    `Lampiran wajib "${nama}" belum diunggah`,
-  );
-}
-
-/**
- * cekLampiran (format): lampiran berformulir memuat kalimat/frasa kunci templatnya (mis. "bersedia menjadi mitra", "tidak memiliki
- * afiliasi"). Gagal bila lampiran belum ada atau ada frasa kunci yang tidak ditemukan; bila isi berkas tidak terbaca (PDF pindaian)
- * hasilnya Lolos dengan catatan bahwa format belum dapat diperiksa.
- */
-export function cekFormatLampiran(dokumen: DokumenPeriksa, nama: string, kunci: string[]): HasilPeriksa {
-  const ada = dokumen.lampiranAda.some((l) => normLampiran(l) === normLampiran(nama));
-  if (!ada) return gagal(`lampiran "${nama}" belum ada`, null, `Lampiran "${nama}" belum diunggah, formatnya tidak dapat diperiksa`);
-  const kunciTeks = Object.keys(dokumen.teksLampiran).find((k) => normLampiran(k) === normLampiran(nama));
-  const teks = kunciTeks ? normFrasa(dokumen.teksLampiran[kunciTeks]) : "";
-  if (!teks) return lolos(`lampiran "${nama}" ada; isi berkas tidak terbaca sehingga format belum diperiksa`, null);
-  const hilang = kunci.filter((k) => !teks.includes(normFrasa(k)));
-  if (hilang.length === 0) return lolos(`${fmt(kunci.length)} dari ${fmt(kunci.length)} kalimat kunci templat ditemukan: ${kunci.map((k) => `"${k}"`).join(", ")}`, null);
-  return gagal(
-    `${fmt(kunci.length - hilang.length)} dari ${fmt(kunci.length)} kalimat kunci templat ditemukan; belum ada: ${hilang.map((k) => `"${k}"`).join(", ")}`,
-    null,
-    `Lampiran "${nama}" tidak sesuai templat: kalimat ${hilang.map((k) => `"${k}"`).join(", ")} tidak ditemukan`,
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Pengarah per butir                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -539,10 +499,6 @@ export function periksaSatuButir(butir: ButirCek, dokumen: DokumenPeriksa, konte
     case "pustaka_berurutan":
     case "jumlah_referensi_sama":
       return cocokkanSitasi(dokumen, konteks, p.tipe, p.pustaka);
-    case "lampiran_wajib":
-      return cekLampiran(dokumen, konteks, p.nama);
-    case "lampiran_format":
-      return cekFormatLampiran(dokumen, p.nama, p.kunci);
     default:
       return gagal(
         `jenis aturan "${(p as { tipe: string }).tipe}" tidak dikenali pemeriksa deterministik`,

@@ -1,6 +1,6 @@
 {
   "label": "contoh sementara",
-  "sumber": "Tabel 5.5 (DK 1137-1160). Baris D+S dipecah menjadi dua butir (suffix -D dan -S) karena jenis butir hanya satu.",
+  "sumber": "Tabel 5.5, hanya butir isi dan screening. Butir lampiran (surat mahasiswa, artikel ketua, surat mitra) dihapus 24 Okt 2026: lampiran milik BIMA, SEMAR tidak memeriksa lampiran (reviewer memutuskan komponen borang J-08b sendiri).",
   "butir": [
     {
       "kode": "SCR-01",
@@ -23,62 +23,6 @@
         "tipe": "judul_sama"
       },
       "aturanHitung": "Judul pada naskah identik (tanpa membedakan huruf besar/kecil) dengan judul di BIMA."
-    },
-    {
-      "kode": "LMP-S1",
-      "komponen": "4. Lampiran surat mahasiswa bimbingan",
-      "deskripsi": "Nama promotor dan mahasiswa sesuai proposal; ditandatangani minimal pimpinan program studi",
-      "jenis": "semantik",
-      "pemeriksa": "nilaiSemantik",
-      "parameter": {
-        "tipe": "semantik",
-        "bagian": "Metode",
-        "lampiran": "Surat Keterangan Mahasiswa Bimbingan"
-      },
-      "pertanyaan": "Apakah surat menyebut nama promotor dan mahasiswa yang sesuai dengan proposal, dan ditandatangani sekurang-kurangnya oleh pimpinan program studi?",
-      "contohJawaban": "Memenuhi: nama promotor dan mahasiswa sama dengan proposal; tertera tanda tangan Ketua Program Studi."
-    },
-    {
-      "kode": "ART-S1",
-      "komponen": "5. Artikel ketua pengusul",
-      "deskripsi": "Ketua pengusul sebagai first atau corresponding author",
-      "jenis": "semantik",
-      "pemeriksa": "nilaiSemantik",
-      "parameter": {
-        "tipe": "semantik",
-        "bagian": "Pendahuluan",
-        "lampiran": "Artikel Ketua Pengusul"
-      },
-      "pertanyaan": "Apakah ketua pengusul tercantum sebagai first author atau corresponding author pada artikel yang dilampirkan?",
-      "contohJawaban": "Memenuhi: ketua pengusul adalah penulis pertama."
-    },
-    {
-      "kode": "ART-S2",
-      "komponen": "5. Artikel ketua pengusul",
-      "deskripsi": "Artikel hasil penelitian (bukan review), jurnal bereputasi internasional, berstatus published, relevan, disitasi di proposal",
-      "jenis": "semantik",
-      "pemeriksa": "nilaiSemantik",
-      "parameter": {
-        "tipe": "semantik",
-        "bagian": "Pendahuluan",
-        "lampiran": "Artikel Ketua Pengusul"
-      },
-      "pertanyaan": "Apakah artikel merupakan hasil penelitian (bukan review), terbit di jurnal bereputasi internasional, berstatus published, relevan, dan disitasi di proposal?",
-      "contohJawaban": "Tidak memenuhi: artikel tidak disitasi di proposal."
-    },
-    {
-      "kode": "MIT-S1",
-      "komponen": "6. Surat pernyataan mitra",
-      "deskripsi": "Identitas mitra dan judul sesuai; tidak berafiliasi dengan pengusul; bermeterai dan ditandatangani pimpinan mitra",
-      "jenis": "semantik",
-      "pemeriksa": "nilaiSemantik",
-      "parameter": {
-        "tipe": "semantik",
-        "bagian": "Metode",
-        "lampiran": "Surat Pernyataan Mitra"
-      },
-      "pertanyaan": "Apakah identitas mitra dan judul pada surat sesuai proposal, mitra tidak berafiliasi dengan pengusul, serta surat bermeterai dan ditandatangani pimpinan mitra?",
-      "contohJawaban": "Memenuhi: identitas dan judul sesuai, meterai dan tanda tangan pimpinan mitra tertera."
     }
   ]
 }

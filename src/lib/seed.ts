@@ -10,11 +10,9 @@ import { simpanBerkas } from "./berkas";
 import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type DefinisiContoh, type VarianContoh } from "./contoh/proposal";
 import { turunkanButirDariTemplat } from "./seed-butir";
 import { bagianBawaan, kepalaBawaan, keKolomBagian } from "./templat/isian-substansi";
-import { KOP_BAWAAN, lampiranBawaan } from "./templat/paket";
 import akunJson from "../../data/contoh/akun.json";
 import katalogJson from "../../data/contoh/katalog-butir.json";
 import skemaJson from "../../data/contoh/skema.json";
-import templatJson from "../../data/contoh/templat.json";
 
 export interface OpsiSeed {
   /** Kosongkan semua tabel (kecuali log_audit yang append-only) sebelum mengisi. Bawaan: true. */
@@ -118,7 +116,6 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     const skemaIsian = sk.kode === "PT" ? "terapan" : "dasar";
     const bagian = bagianBawaan(skemaIsian);
     const kepala = kepalaBawaan(skemaIsian);
-    const lampiranTemplat = templatJson.lampiranWajib.map(lampiranBawaan);
     const [t] = await db
       .insert(s.templatProposal)
       .values({
@@ -126,14 +123,11 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
         versi: 1,
         status: "Terbit",
         periodeBerlakuId: periode.id,
-        lampiranWajib: templatJson.lampiranWajib,
         diterbitkanPada: hari(-30),
         dibuatOleh: pengelolaId,
         judulDokumen: kepala.judulDokumen,
         subjudul: kepala.subjudul,
         pengantar: kepala.pengantar,
-        kop: KOP_BAWAAN,
-        lampiranTemplat,
       })
       .returning();
     templatBaris[sk.kode] = t.id;
@@ -153,7 +147,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .returning();
     basisBaris[sk.kode] = basis.id;
 
-    const turunan = turunkanButirDariTemplat(bagian, templatJson.lampiranWajib, lampiranTemplat);
+    const turunan = turunkanButirDariTemplat(bagian);
     const butir = [
       ...turunan.map((b) => ({ ...b, templatId: t.id })),
       ...katalogJson.butir.map((b) => ({
@@ -270,8 +264,6 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
           return { bagian, angka: `${hitungKataContoh(def.bagian[bagian!])} kata dari batas ${par.batas}` };
         case "bagian_wajib":
           return { bagian, angka: "judul bagian ditemukan" };
-        case "lampiran_wajib":
-          return { bagian: null, angka: "berkas lampiran ditemukan" };
         case "kata_kunci":
           return { bagian: "Kata Kunci", angka: `${def.kataKunci.split(";").length} kata kunci` };
         case "bagian_terisi":

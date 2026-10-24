@@ -7,7 +7,6 @@ import { Alert, Button, CegatTinggalkan, KepalaHalaman, LencanaStatus, ModalKonf
 import { mentahKeBagian, periksaKelengkapan } from "@/lib/templat/kelengkapan";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import { dapatDisunting, dapatSusunVersiBaru, masaBerjalanUntuk, statusTampil, TAB_TEMPLAT, urlTabAturan, type TabTemplat } from "@/lib/templat/daftar";
-import { lampiranBawaan, type KopTemplat } from "@/lib/templat/paket";
 import { PESAN_DRAF_9A, PESAN_LENGKAPI } from "@/lib/templat/status";
 import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
 import type { TampilanAturan } from "@/lib/aturan/layanan";
@@ -16,10 +15,7 @@ import { PapanAturan } from "../../aturan/papan-aturan";
 import { aksiSimpanDraf, aksiSusunVersiBaru, aksiTerbitkan } from "../aksi";
 import { BAGIAN_BARU, dariTemplat, sidikIsian, type IsianForm } from "./isian";
 import { ModalKetentuan } from "./modal-ketentuan";
-import { ModalLampiran } from "./modal-lampiran";
 import { TabBagian } from "./tab-bagian";
-import { TabDepan } from "./tab-depan";
-import { TabLampiran } from "./tab-lampiran";
 
 interface Props {
   skemaId: string;
@@ -30,13 +26,13 @@ interface Props {
   sakelarBerjalan: boolean;
   adaDraf: boolean;
   tabAwal: TabTemplat;
-  aturan: { periode: PeriodePilihan; tampilan: TampilanAturan; bagianPilihan: string[]; lampiranPilihan: string[] } | null;
+  aturan: { periode: PeriodePilihan; tampilan: TampilanAturan; bagianPilihan: string[] } | null;
   sorotAwal: string | null;
   hasil: { jenis: "terbit" | "draf"; jumlah: number | null; det: number | null; sem: number | null; baru: string | null } | null;
 }
 
 /**
- * J-02a Rincian Templat: kepala (breadcrumb, status, periode, tombol menurut status) dan empat tab. Isian disunting hanya saat Draf;
+ * J-02a Rincian Templat: kepala (breadcrumb, status, periode, tombol menurut status) dan dua tab (Bagian, Aturan Pemeriksaan). Halaman depan dan lampiran milik BIMA. Isian disunting hanya saat Draf;
  * Aktif dan Arsip hanya-baca, perubahan lewat versi baru. Keadaan isian dipegang di sini supaya bersama bagi tab dan kepala.
  */
 export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBerjalanId, sakelarBerjalan, adaDraf, tabAwal, aturan, sorotAwal, hasil }: Props) {
@@ -51,8 +47,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const [galatModal, setGalatModal] = useState<string | null>(null);
   const [ketentuanDi, setKetentuanDi] = useState<number | null>(null);
   const [bagianBaru, setBagianBaru] = useState(false);
-  const [lampiranDi, setLampiranDi] = useState<number | null>(null);
-  const [lampiranBaru, setLampiranBaru] = useState(false);
   const [sorotAturan, setSorotAturan] = useState<string | null>(sorotAwal);
   const [fokusBagian, setFokusBagian] = useState<string | null>(null);
   const [ubahRingkas, setUbahRingkas] = useState(true);
@@ -69,15 +63,12 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const masukan = useMemo(
     () => ({
       bagian: isian.bagian,
-      lampiran: isian.lampiran,
       periodeBerlakuId: isian.periodeId || null,
-      kop: isian.kop,
-      lampiranTemplat: isian.lampiran.map((nama, i) => ({ ...(isian.lampiranDef[i] ?? lampiranBawaan(nama)), nama: nama.trim() })),
     }),
     [isian],
   );
   const kelengkapan = useMemo(() => periksaKelengkapan(masukan), [masukan]);
-  const turunan = useMemo(() => turunkanButirDariTemplat(isian.bagian.filter((b) => b.nama.trim() !== "").map(mentahKeBagian), isian.lampiran.filter((l) => l.trim() !== ""), masukan.lampiranTemplat), [isian, masukan]);
+  const turunan = useMemo(() => turunkanButirDariTemplat(isian.bagian.filter((b) => b.nama.trim() !== "").map(mentahKeBagian)), [isian]);
   const jumlahSem = turunan.filter((b) => b.jenis === "semantik").length;
   const jumlahDet = turunan.length - jumlahSem;
   const tandai = sudahCoba && !kelengkapan.lengkap;
@@ -91,7 +82,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
     window.history.replaceState(null, "", u);
   }
 
-  const ubahKop = (ubah: Partial<KopTemplat>) => setIsian((s) => ({ ...s, kop: { ...s.kop, ...ubah } }));
   const gantiBaris = (i: number, baris: IsianForm["bagian"][number]) => setIsian((s) => ({ ...s, bagian: s.bagian.map((b, j) => (j === i ? baris : b)) }));
 
   async function simpan(): Promise<boolean> {
@@ -129,9 +119,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
     if (!kelengkapan.lengkap) {
       // S-2: tanda ada di isian; pindah ke tab yang memuat isian bertanda lalu gulir ke sana
       const perluBagian = kelengkapan.tanpaBagian || kelengkapan.bagian.some((b) => b?.nama || b?.batas || b?.ketentuan);
-      const perluLampiran = kelengkapan.lampiran.some(Boolean);
       if (perluBagian) setTab("bagian");
-      else if (perluLampiran) setTab("lampiran");
       setTimeout(() => (ref.current?.querySelector<HTMLElement>('[data-tanda="ya"]') ?? ref.current?.querySelector<HTMLElement>('[role="alert"]'))?.scrollIntoView({ block: "center" }), 80);
       return;
     }
@@ -205,7 +193,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           ) : (
             <>
               <TombolUnduh href={urlUnduh}>Unduh Templat (.docx)</TombolUnduh>
-              <TombolUnduh href={`${urlUnduh}?mode=isian`}>Unduh Isian Substansi (.docx)</TombolUnduh>
               {dapatSusunVersiBaru(templat.status, adaDraf) ? (
                 <Button onClick={susunVersiBaru} memuat={sibuk}>
                   Susun Versi Baru
@@ -323,11 +310,9 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
               periode={aturan.periode}
               tampilan={aturan.tampilan}
               bagianPilihan={aturan.bagianPilihan.length ? aturan.bagianPilihan : templat.bagian.map((b) => b.nama)}
-              lampiranPilihan={aturan.lampiranPilihan}
               masaBerjalan={masaBerjalanUntuk(sakelarBerjalan, aturan.periode.id, periodeBerjalanId)}
               sorotAwal={sorotAturan}
               bagianMentah={isian.bagian}
-              lampiranDef={isian.lampiran.map((nama, i) => ({ ...(isian.lampiranDef[i] ?? lampiranBawaan(nama)), nama: nama.trim() }))}
               saatUbahBagian={(i, b) => setIsian((s) => ({ ...s, bagian: s.bagian.map((x, j) => (j === i ? b : x)) }))}
               saatBukaBagian={(nama) => {
                 pilihTab("bagian");
@@ -338,14 +323,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
                   setKetentuanDi(i);
                 }
               }}
-              saatBukaLampiran={(nama) => {
-                pilihTab("lampiran");
-                const i = isian.lampiran.findIndex((x) => x.trim() === nama.trim());
-                if (bisaSunting && i >= 0) {
-                  setLampiranBaru(false);
-                  setLampiranDi(i);
-                }
-              }}
               saatSusunVersiBaru={susunVersiBaru}
               fokusBagian={fokusBagian}
             />
@@ -354,25 +331,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           )}
         </TabsContent>
 
-        <TabsContent value="lampiran">
-          <TabLampiran
-            lampiran={isian.lampiran}
-            definisi={isian.lampiranDef}
-            bisaSunting={bisaSunting}
-            galat={isian.lampiran.map((_, i) => tandai && Boolean(kelengkapan.lampiran[i]))}
-            saatAtur={(i) => (setLampiranBaru(false), setLampiranDi(i))}
-            saatHapus={(i) => setIsian((s) => ({ ...s, lampiran: s.lampiran.filter((_, j) => j !== i), lampiranDef: s.lampiranDef.filter((_, j) => j !== i) }))}
-            saatTambah={() => {
-              setLampiranBaru(true);
-              setLampiranDi(isian.lampiran.length);
-              setIsian((s) => ({ ...s, lampiran: [...s.lampiran, ""], lampiranDef: [...s.lampiranDef, lampiranBawaan("")] }));
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="depan">
-          <TabDepan kop={isian.kop} kepalaJudul={isian.kepala.judulDokumen} kepalaSubjudul={isian.kepala.subjudul} bisaSunting={bisaSunting} saatUbah={ubahKop} />
-        </TabsContent>
       </Tabs>
 
       {ketentuanDi !== null && isian.bagian[ketentuanDi] ? (
@@ -393,27 +351,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           saatTerapkan={(k) => gantiBaris(ketentuanDi, k)}
         />
       ) : null}
-      {lampiranDi !== null && isian.lampiran[lampiranDi] !== undefined ? (
-        <ModalLampiran
-          buka
-          baru={lampiranBaru}
-          nilai={{ ...(isian.lampiranDef[lampiranDi] ?? lampiranBawaan(isian.lampiran[lampiranDi])), nama: isian.lampiran[lampiranDi] }}
-          saatUbah={(b) => {
-            if (!b) {
-              setLampiranDi(null);
-              setLampiranBaru(false);
-            }
-          }}
-          saatBatalBaru={() => setIsian((s) => ({ ...s, lampiran: s.lampiran.filter((_, j) => j !== lampiranDi), lampiranDef: s.lampiranDef.filter((_, j) => j !== lampiranDi) }))}
-          saatTerapkan={(l) =>
-            setIsian((s) => ({
-              ...s,
-              lampiran: s.lampiran.map((x, j) => (j === lampiranDi ? l.nama : x)),
-              lampiranDef: s.lampiran.map((_, j) => (j === lampiranDi ? l : (s.lampiranDef[j] ?? lampiranBawaan(s.lampiran[j])))),
-            }))
-          }
-        />
-      ) : null}
 
       <ModalKonfirmasi kode="M-01" buka={modal} saatUbah={(b) => !sibuk && setModal(b)} judul="Konfirmasi Terbitkan" labelKonfirmasi="Terbitkan" memuat={sibuk} galat={galatModal} saatKonfirmasi={konfirmasiTerbitkan}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
@@ -425,8 +362,6 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           <dd className="font-semibold">{namaPeriode}</dd>
           <dt className="text-teks-redup">Bagian</dt>
           <dd className="angka font-semibold">{isian.bagian.length}</dd>
-          <dt className="text-teks-redup">Lampiran Wajib</dt>
-          <dd className="angka font-semibold">{isian.lampiran.length}</dd>
         </dl>
         <p className="mt-3 font-semibold">
           {masaBerjalan ? "Saat diterbitkan nanti akan" : "Akan"} membuat <span className="angka">{jumlahDet}</span> butir deterministik dan <span className="angka">{jumlahSem}</span> butir semantik (draf); kelola di tab Aturan Pemeriksaan.

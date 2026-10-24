@@ -80,7 +80,7 @@ describe("Isian Substansi Proposal: struktur templat", () => {
 
 describe("Isian Substansi Proposal: butir cek turunan dan katalog", () => {
   it("KH-isianSubstansi-06: turunan templat Dasar per ketentuan: delapan butir bagian terisi, empat batas kata (Judul 20, Ringkasan 300, Pendahuluan 1000, Metode 1000), satu kata kunci, satu gambar, satu tabel, tiga sitasi, tiga lampiran", () => {
-    const butir = turunkanButirDariTemplat(bagianBawaan("dasar"), templat.lampiranWajib);
+    const butir = turunkanButirDariTemplat(bagianBawaan("dasar"));
     expect(butir.filter((b) => b.parameter.tipe === "bagian_terisi")).toHaveLength(8);
     const kata = butir.filter((b) => b.parameter.tipe === "batas_kata");
     expect(kata.map((b) => [b.kode, b.parameter])).toEqual([
@@ -99,11 +99,12 @@ describe("Isian Substansi Proposal: butir cek turunan dan katalog", () => {
       ["SIT-02", "pustaka_berurutan"],
       ["SIT-03", "jumlah_referensi_sama"],
     ]);
-    expect(butir.filter((b) => b.parameter.tipe === "lampiran_wajib")).toHaveLength(3);
+    // lampiran milik BIMA: SEMAR tidak menurunkan butir lampiran (arah-isi-saja-2026-10-24)
+    expect(butir.filter((b) => /^(LMP|FMT)-/.test(b.kode))).toHaveLength(0);
   });
 
   it("KH-isianSubstansi-07: turunan templat Terapan: batas Pendahuluan 1500", () => {
-    const kata = turunkanButirDariTemplat(bagianBawaan("terapan"), templat.lampiranWajib).filter((b) => b.parameter.tipe === "batas_kata");
+    const kata = turunkanButirDariTemplat(bagianBawaan("terapan")).filter((b) => b.parameter.tipe === "batas_kata");
     expect(kata.map((b) => (b.parameter as { batas: number }).batas)).toEqual([20, 300, 1500, 1000]);
   });
 

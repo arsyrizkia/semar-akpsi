@@ -4,7 +4,7 @@
  *
  * Satu sumber data: aturan yang menempel pada isi bagian (batas kata, daftar, tabel, gambar, sitasi, frasa, unsur isi) ditulis ke
  * ketentuan bagian templat (`terapkanKeBagian`, `hapusDariBagian`) dan butirnya diturunkan ulang (seed-butir), sehingga bagian dan
- * aturan tidak berselisih. Aturan di luar isi bagian (lampiran, judul sama, struktur judul, pertanyaan semantik bebas) tetap butir
+ * aturan tidak berselisih. Aturan di luar isi bagian (judul sama, struktur judul, pertanyaan semantik bebas) tetap butir
  * manual (`bangunNilaiButir`). Sumber uji: Contract C-03 (turunkanButirCek), C-06/C-07 (simpan butir), CRC ButirCek dan BagianTemplat.
  */
 import type { BagianTemplatDto, ParameterButir } from "@/lib/kontrak/tipe";
@@ -22,8 +22,6 @@ export type JenisAturan =
   | "sitasi"
   | "frasa"
   | "unsur"
-  | "lampiran_ada"
-  | "lampiran_kunci"
   | "semantik_bebas"
   | "judul_sama"
   | "struktur_judul";
@@ -35,31 +33,27 @@ export interface InfoJenisAturan {
   /** menempel pada isi bagian: disimpan di ketentuan bagian templat (satu sumber data) */
   terikatIsi: boolean;
   perluBagian: boolean;
-  perluLampiran: boolean;
   /** prefiks kode butir manual */
   prefiks: string;
 }
 
 export const JENIS_ATURAN: readonly InfoJenisAturan[] = [
-  { nilai: "batas_kata", label: "Batas kata maksimal", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "KTA" },
-  { nilai: "batas_kata_min", label: "Batas kata minimal", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "KTM" },
-  { nilai: "daftar", label: "Format daftar", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "KAT" },
-  { nilai: "tabel", label: "Tabel berkolom", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "TBL" },
-  { nilai: "gambar", label: "Gambar berketerangan", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "GBR" },
-  { nilai: "sitasi", label: "Sitasi bernomor", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "SIT" },
-  { nilai: "frasa", label: "Frasa wajib", jenis: "deterministik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "FRS" },
-  { nilai: "unsur", label: "Unsur isi", jenis: "semantik", terikatIsi: true, perluBagian: true, perluLampiran: false, prefiks: "UNS" },
-  { nilai: "lampiran_ada", label: "Kelengkapan lampiran", jenis: "deterministik", terikatIsi: false, perluBagian: false, perluLampiran: true, prefiks: "LMP" },
-  { nilai: "lampiran_kunci", label: "Kalimat kunci lampiran", jenis: "deterministik", terikatIsi: false, perluBagian: false, perluLampiran: true, prefiks: "FMT" },
-  { nilai: "semantik_bebas", label: "Pertanyaan semantik bebas", jenis: "semantik", terikatIsi: false, perluBagian: true, perluLampiran: false, prefiks: "SEM" },
-  { nilai: "judul_sama", label: "Judul sama dengan BIMA", jenis: "deterministik", terikatIsi: false, perluBagian: false, perluLampiran: false, prefiks: "JDL" },
-  { nilai: "struktur_judul", label: "Urutan bagian sesuai templat", jenis: "deterministik", terikatIsi: false, perluBagian: false, perluLampiran: false, prefiks: "STR" },
+  { nilai: "batas_kata", label: "Batas kata maksimal", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "KTA" },
+  { nilai: "batas_kata_min", label: "Batas kata minimal", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "KTM" },
+  { nilai: "daftar", label: "Format daftar", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "KAT" },
+  { nilai: "tabel", label: "Tabel berkolom", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "TBL" },
+  { nilai: "gambar", label: "Gambar berketerangan", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "GBR" },
+  { nilai: "sitasi", label: "Sitasi bernomor", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "SIT" },
+  { nilai: "frasa", label: "Frasa wajib", jenis: "deterministik", terikatIsi: true, perluBagian: true, prefiks: "FRS" },
+  { nilai: "unsur", label: "Unsur isi", jenis: "semantik", terikatIsi: true, perluBagian: true, prefiks: "UNS" },
+  { nilai: "semantik_bebas", label: "Pertanyaan semantik bebas", jenis: "semantik", terikatIsi: false, perluBagian: true, prefiks: "SEM" },
+  { nilai: "judul_sama", label: "Judul sama dengan BIMA", jenis: "deterministik", terikatIsi: false, perluBagian: false, prefiks: "JDL" },
+  { nilai: "struktur_judul", label: "Urutan bagian sesuai templat", jenis: "deterministik", terikatIsi: false, perluBagian: false, prefiks: "STR" },
 ];
 
 export const infoJenis = (j: JenisAturan | ""): InfoJenisAturan | undefined => JENIS_ATURAN.find((x) => x.nilai === j);
 
-/** Kelompok tanpa bagian di daftar aturan. */
-export const KELOMPOK_LAMPIRAN = "Lampiran";
+/** Kelompok tanpa bagian di daftar aturan. Aturan lampiran tidak ada: lampiran milik BIMA. */
 export const KELOMPOK_UMUM = "Umum (di luar bagian)";
 
 export interface FormAturan {
@@ -76,9 +70,6 @@ export interface FormAturan {
   unsur: string;
   pertanyaan: string;
   contoh: string;
-  lampiran: string;
-  /** satu kalimat kunci per baris */
-  kunci: string;
   kode: string;
   deskripsi: string;
 }
@@ -96,8 +87,6 @@ export const FORM_ATURAN_KOSONG: FormAturan = {
   unsur: "",
   pertanyaan: "",
   contoh: "",
-  lampiran: "",
-  kunci: "",
   kode: "",
   deskripsi: "",
 };
@@ -115,7 +104,6 @@ export function validasiFormAturan(f: FormAturan, o: { manual: boolean; kodeTerp
     return g;
   }
   if (info.perluBagian && !f.bagian) g.bagian = "Pilih bagian";
-  if (info.perluLampiran && !f.lampiran) g.lampiran = "Pilih lampiran";
   switch (info.nilai) {
     case "batas_kata":
     case "batas_kata_min":
@@ -138,9 +126,6 @@ export function validasiFormAturan(f: FormAturan, o: { manual: boolean; kodeTerp
       break;
     case "semantik_bebas":
       if (!f.pertanyaan.trim()) g.pertanyaan = "Pertanyaan pemeriksaan wajib diisi";
-      break;
-    case "lampiran_kunci":
-      if (kunciDariTeks(f.kunci).length === 0) g.kunci = "Isi sekurang-kurangnya satu kalimat kunci";
       break;
     default:
       break;
@@ -182,10 +167,6 @@ export function deskripsiOtomatis(f: FormAturan): string {
       return `Bagian “${b}” memuat kalimat “${f.frasa.trim()}”`;
     case "unsur":
       return `${b} memuat ${f.unsur.trim()}`;
-    case "lampiran_ada":
-      return `Lampiran "${f.lampiran}" dilampirkan`;
-    case "lampiran_kunci":
-      return `Lampiran "${f.lampiran}" sesuai format templat`;
     case "semantik_bebas":
       return `Bagian “${b}” sesuai pertanyaan pemeriksaan`;
     case "judul_sama":
@@ -242,25 +223,18 @@ export function bangunNilaiButir(f: FormAturan, o: { kodeTerpakai?: string[]; ko
       return det({ tipe: "sitasi_bernomor" }, KOMPONEN_SITASI, "Sitasi dalam paragraf bernomor [n]; tidak ada sitasi gaya nama-tahun.");
     case "frasa":
       return det({ tipe: "frasa_wajib", bagian: b, frasa: f.frasa.trim() }, KOMPONEN_ISI, `Kalimat "${f.frasa.trim()}" muncul persis di bagian "${b}".`);
-    case "lampiran_ada":
-      return det({ tipe: "lampiran_wajib", nama: f.lampiran }, "Lampiran", `Berkas lampiran "${f.lampiran}" ada pada pengajuan.`);
-    case "lampiran_kunci": {
-      const kunci = kunciDariTeks(f.kunci);
-      return det({ tipe: "lampiran_format", nama: f.lampiran, kunci }, "Lampiran", `Berkas lampiran "${f.lampiran}" memuat kalimat kunci templat: ${kunci.map((k) => `"${k}"`).join(", ")}.`);
-    }
     case "judul_sama":
       return det({ tipe: "judul_sama" }, "Screening", "Judul di naskah sama dengan judul di BIMA.");
     case "struktur_judul":
       return det({ tipe: "struktur_judul" }, "Screening", "Urutan dan judul bagian naskah sesuai templat.");
     case "unsur":
     case "semantik_bebas": {
-      const lampiran = f.lampiran.trim() || undefined;
       return {
         ok: true,
         nilai: {
           jenis: "semantik",
           ...kodeDasar,
-          parameter: { tipe: "semantik", bagian: b, ...(lampiran ? { lampiran } : {}) },
+          parameter: { tipe: "semantik", bagian: b },
           pemeriksa: "nilaiSemantik",
           komponen: KOMPONEN_ISI,
           aturanHitung: null,
@@ -277,7 +251,7 @@ export function bangunNilaiButir(f: FormAturan, o: { kodeTerpakai?: string[]; ko
 
 /** Penunjuk asal sebuah aturan di ketentuan bagian (untuk Ubah dan Hapus). */
 export interface AsalAturan {
-  jenisAturan: JenisAturan | "wajib" | "pustaka" | "lampiran";
+  jenisAturan: JenisAturan | "wajib" | "pustaka";
   bagian: string | null;
   frasa?: string;
   unsur?: string;
@@ -314,9 +288,6 @@ export function asalAturanButir(b: ButirUntukAsal): AsalAturan | null {
     case "pustaka_berurutan":
     case "jumlah_referensi_sama":
       return { jenisAturan: "pustaka", bagian: typeof p.pustaka === "string" ? p.pustaka : null };
-    case "lampiran_wajib":
-    case "lampiran_format":
-      return { jenisAturan: "lampiran", bagian: null };
     case "semantik": {
       if (b.deskripsi.startsWith("Gambar (")) return { jenisAturan: "gambar", bagian };
       const awal = `${bagian} memuat `;
@@ -327,7 +298,7 @@ export function asalAturanButir(b: ButirUntukAsal): AsalAturan | null {
   }
 }
 
-/** Aturan yang dapat diubah atau dihapus lewat ketentuan bagian (bukan wajib, pustaka, lampiran). */
+/** Aturan yang dapat diubah atau dihapus lewat ketentuan bagian (bukan wajib atau pustaka). */
 export const dapatDiubahDiBagian = (a: AsalAturan | null | undefined): a is AsalAturan & { jenisAturan: JenisAturan; bagian: string } =>
   a != null && a.bagian !== null && infoJenis(a.jenisAturan as JenisAturan)?.terikatIsi === true;
 
@@ -489,16 +460,12 @@ export function formDariButir(b: ButirManual): FormAturan | null {
       return { ...dasar, jenisAturan: "sitasi" };
     case "frasa_wajib":
       return { ...dasar, jenisAturan: "frasa", frasa: String(p.frasa ?? "") };
-    case "lampiran_wajib":
-      return { ...dasar, jenisAturan: "lampiran_ada", lampiran: String(p.nama ?? "") };
-    case "lampiran_format":
-      return { ...dasar, jenisAturan: "lampiran_kunci", lampiran: String(p.nama ?? ""), kunci: Array.isArray(p.kunci) ? (p.kunci as string[]).join("\n") : "" };
     case "judul_sama":
       return { ...dasar, jenisAturan: "judul_sama" };
     case "struktur_judul":
       return { ...dasar, jenisAturan: "struktur_judul" };
     case "semantik":
-      return { ...dasar, jenisAturan: "semantik_bebas", pertanyaan: b.pertanyaan ?? "", contoh: b.contohJawaban ?? "", lampiran: typeof p.lampiran === "string" ? p.lampiran : "" };
+      return { ...dasar, jenisAturan: "semantik_bebas", pertanyaan: b.pertanyaan ?? "", contoh: b.contohJawaban ?? "" };
     default:
       return null;
   }
@@ -509,30 +476,25 @@ export function formDariButir(b: ButirManual): FormAturan | null {
 export interface BarisAturan {
   kode: string;
   bagian: string | null;
-  /** parameter.tipe, untuk membedakan butir lampiran */
+  /** parameter.tipe */
   tipe: string | null;
-  /** nama lampiran (parameter.nama atau parameter.lampiran) */
-  lampiran: string | null;
 }
 
 export interface Kelompok<T> {
-  /** nama bagian, KELOMPOK_LAMPIRAN, atau KELOMPOK_UMUM */
+  /** nama bagian atau KELOMPOK_UMUM */
   nama: string;
   huruf: string | null;
   butir: T[];
 }
 
 /**
- * Mengelompokkan butir per bagian: bagian templat berurutan (huruf A, B, ...), bagian di luar daftar menurut kemunculan, lalu Lampiran,
- * lalu Umum. Kelompok bagian templat yang kosong tetap tampil bila `termasukKosong` (agar Tambah Butir terlihat milik siapa).
+ * Mengelompokkan butir per bagian: bagian templat berurutan (huruf A, B, ...), bagian di luar daftar menurut kemunculan, lalu Umum. Kelompok bagian templat yang kosong tetap tampil bila `termasukKosong` (agar Tambah Butir terlihat milik siapa).
  */
 export function kelompokkanAturan<T extends BarisAturan>(butir: T[], namaBagian: string[], termasukKosong = false): Kelompok<T>[] {
   const peta = new Map<string, T[]>();
   const umum: T[] = [];
-  const lampiran: T[] = [];
   for (const b of butir) {
-    if (b.tipe === "lampiran_wajib" || b.tipe === "lampiran_format" || (b.bagian === null && b.lampiran !== null)) lampiran.push(b);
-    else if (b.bagian) peta.set(b.bagian, [...(peta.get(b.bagian) ?? []), b]);
+    if (b.bagian) peta.set(b.bagian, [...(peta.get(b.bagian) ?? []), b]);
     else umum.push(b);
   }
   const hasil: Kelompok<T>[] = [];
@@ -542,7 +504,6 @@ export function kelompokkanAturan<T extends BarisAturan>(butir: T[], namaBagian:
     if (isi.length > 0 || termasukKosong) hasil.push({ nama: n, huruf: i < 26 ? String.fromCharCode(65 + i) : String(i + 1), butir: isi });
   });
   for (const [n, isi] of peta) hasil.push({ nama: n, huruf: null, butir: isi });
-  if (lampiran.length) hasil.push({ nama: KELOMPOK_LAMPIRAN, huruf: null, butir: lampiran });
   if (umum.length) hasil.push({ nama: KELOMPOK_UMUM, huruf: null, butir: umum });
   return hasil;
 }

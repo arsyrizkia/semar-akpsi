@@ -12,7 +12,6 @@ import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
 import { bagianDariBaris, kepalaDariBaris, keKolomBagian } from "./isian-substansi";
-import { kopDariBaris, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
 import { batasKataValid, bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
 import { putuskanTerbitkan } from "./status";
 import type { BarisDaftar } from "./daftar";
@@ -30,14 +29,10 @@ export interface TemplatTampil {
   status: "Draf" | "Terbit" | "Arsip";
   periodeBerlakuId: string | null;
   periodeBerlakuNama: string | null;
-  lampiranWajib: string[];
   diterbitkanPada: string | null;
   /** bagian dengan ketentuan lengkap (null pada baris lama sudah diturunkan dari nama bagian) */
   bagian: BagianTemplatDto[];
   kepala: KepalaTemplatDto;
-  kop: KopTemplat;
-  /** templat per lampiran wajib, sejajar `lampiranWajib` (bawaan bila belum diatur) */
-  lampiranTemplat: LampiranTemplat[];
 }
 
 export interface SkemaPilihan {
@@ -83,12 +78,9 @@ async function muatTemplat(db: Db, t: typeof templatProposal.$inferSelect): Prom
     status: t.status,
     periodeBerlakuId: t.periodeBerlakuId,
     periodeBerlakuNama,
-    lampiranWajib: t.lampiranWajib,
     diterbitkanPada: t.diterbitkanPada?.toISOString() ?? null,
     bagian: bagian.map(bagianDariBaris),
     kepala: kepalaDariBaris(t),
-    kop: kopDariBaris(t.kop),
-    lampiranTemplat: lampiranDariBaris(t.lampiranTemplat, t.lampiranWajib),
   };
 }
 
@@ -122,11 +114,10 @@ export async function ambilDrafTemplat(skemaId: string, periodeId?: string | nul
 }
 
 /** Konteks templat untuk pemeriksaan "Uji pada Contoh": templat Terbit terbaru, bila tidak ada draf terbaru. */
-export async function ambilKonteksTemplat(skemaId: string): Promise<{ bagianTemplat: BagianTemplatDto[]; lampiranWajib: string[] }> {
+export async function ambilKonteksTemplat(skemaId: string): Promise<{ bagianTemplat: BagianTemplatDto[] }> {
   const t = (await ambilTemplatBerlaku(skemaId)) ?? (await ambilDrafTemplat(skemaId));
   return {
     bagianTemplat: t?.bagian ?? [],
-    lampiranWajib: t?.lampiranWajib ?? [],
   };
 }
 
@@ -151,9 +142,8 @@ export async function susunVersiBaru(skemaId: string, pelaku: Pelaku, periodeId:
         versi,
         status: "Draf",
         periodeBerlakuId: periodeId,
-        lampiranWajib: berlaku?.lampiranWajib ?? [],
         dibuatOleh: pelaku.id,
-        ...(berlaku ? { judulDokumen: berlaku.kepala.judulDokumen, subjudul: berlaku.kepala.subjudul, pengantar: berlaku.kepala.pengantar, kop: berlaku.kop, lampiranTemplat: berlaku.lampiranTemplat } : {}),
+        ...(berlaku ? { judulDokumen: berlaku.kepala.judulDokumen, subjudul: berlaku.kepala.subjudul, pengantar: berlaku.kepala.pengantar } : {}),
       })
       .returning();
     if (berlaku && berlaku.bagian.length > 0) {
@@ -166,24 +156,20 @@ export async function susunVersiBaru(skemaId: string, pelaku: Pelaku, periodeId:
   return { templat: await muatTemplat(db, t), dilanjutkan: false };
 }
 
-/** aturBagian(daftarBagian, lampiranWajib) + aturKetentuan per bagian + tetapkanPeriodeBerlaku, untuk isian yang sudah lengkap. */
+/** aturBagian(daftarBagian) + aturKetentuan per bagian + tetapkanPeriodeBerlaku, untuk isian yang sudah lengkap. */
 async function simpanIsian(db: Db, templatId: string, isian: MasukanKelengkapan) {
   await db.delete(bagianTemplat).where(eq(bagianTemplat.templatId, templatId));
   const bagian = isian.bagian.map(bagianTersimpan);
   if (bagian.length > 0) {
     await db.insert(bagianTemplat).values(bagian.map((b, i) => ({ templatId, urutan: i + 1, ...keKolomBagian(b) })));
   }
-  const lampiran = isian.lampiran.map((l) => l.trim());
   await db
     .update(templatProposal)
     .set({
-      lampiranWajib: lampiran,
       periodeBerlakuId: isian.periodeBerlakuId,
       ...(isian.kepala
         ? { judulDokumen: isian.kepala.judulDokumen.trim() || null, subjudul: isian.kepala.subjudul.trim() || null, pengantar: isian.kepala.pengantar.trim() || null }
         : {}),
-      ...(isian.kop ? { kop: isian.kop } : {}),
-      ...(isian.lampiranTemplat ? { lampiranTemplat: isian.lampiranTemplat.filter((l) => lampiran.some((n) => n.toLowerCase() === l.nama.trim().toLowerCase())) } : {}),
     })
     .where(eq(templatProposal.id, templatId));
 }
@@ -225,8 +211,6 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
 
   const waktu = await waktuDemo();
   const bagian = m.isian.bagian.map(bagianTersimpan);
-  const lampiran = m.isian.lampiran.map((l) => l.trim());
-
   const turunanBaru = await db.transaction(async (tx) => {
     // gantiTemplatBerlaku, arsipkan, nonaktifkan (langkah 9)
     const lama = await tx
@@ -237,7 +221,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
     await gantiTemplatBerlaku(tx, { baruId: t.id, lamaIds: lama.map((l) => l.id), drafBasisId: drafBasis.id, waktu });
 
     // turunkanButirCek (langkah 10): berstatus Draf, terkunci (asal = templat)
-    const turunan = turunkanButirCek(bagian, lampiran, lampiranDariBaris(m.isian.lampiranTemplat, lampiran));
+    const turunan = turunkanButirCek(bagian);
     const [{ nilai }] = await tx.select({ nilai: max(butirCek.urutan) }).from(butirCek).where(eq(butirCek.basisAturanId, drafBasis.id));
     let urutan = nilai ?? 0;
     if (turunan.length > 0) {
@@ -320,7 +304,7 @@ export async function daftarSemuaTemplat(): Promise<BarisDaftar[]> {
   for (const b of bagian) bagianPer.set(b.templatId, [...(bagianPer.get(b.templatId) ?? []), b]);
   return templat.map((t) => {
     const bg = (bagianPer.get(t.id) ?? []).map(bagianDariBaris);
-    const turunan = turunkanButirDariTemplat(bg, t.lampiranWajib, lampiranDariBaris(t.lampiranTemplat, t.lampiranWajib));
+    const turunan = turunkanButirDariTemplat(bg);
     const sem = turunan.filter((b) => b.jenis === "semantik").length;
     const p = t.periodeBerlakuId ? per.get(t.periodeBerlakuId) : undefined;
     return {
@@ -348,7 +332,7 @@ export async function ambilTemplatPerId(templatId: string): Promise<{ templat: T
   return t ? { templat: await muatTemplat(db, t), skemaId: t.skemaId } : null;
 }
 
-export type HasilSimpanDraf = { ok: true; versi: number; jumlahBagian: number; jumlahLampiran: number } | { ok: false; pesan: string };
+export type HasilSimpanDraf = { ok: true; versi: number; jumlahBagian: number } | { ok: false; pesan: string };
 
 /**
  * "Simpan Draf" dan "Unduh Pratinjau (.docx)": menyimpan isian yang belum tentu lengkap pada templat berstatus Draf,
@@ -363,14 +347,11 @@ export async function simpanDrafTemplat(m: { skemaId: string; templatId: string;
   const bersih = bersihkanIsianDraf(m.isian);
   await simpanIsian(db, t.id, {
     bagian: m.isian.bagian.filter((b) => b.nama.trim() !== "").map((b) => ({ ...b, nama: b.nama.trim(), ...(!batasKataValid(b.batas) ? { batas: "", tanpaBatas: true } : {}) })),
-    lampiran: bersih.lampiran,
     periodeBerlakuId: bersih.periodeBerlakuId,
     kepala: m.isian.kepala,
-    kop: m.isian.kop,
-    lampiranTemplat: m.isian.lampiranTemplat,
   });
-  await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.draf-simpan", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, bagian: bersih.bagian.length, lampiran: bersih.lampiran.length } });
-  return { ok: true, versi: t.versi, jumlahBagian: bersih.bagian.length, jumlahLampiran: bersih.lampiran.length };
+  await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.draf-simpan", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, bagian: bersih.bagian.length } });
+  return { ok: true, versi: t.versi, jumlahBagian: bersih.bagian.length };
 }
 
 /* ------------------------------ metode seq-uc01 ------------------------------ */
@@ -381,7 +362,7 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 export const cekPengusulanBerjalan = masaPengusulanBerjalan;
 export { masaPengusulanBerjalanPada };
 
-/** turunkanButirCek() (seq-uc01 langkah 10): butir cek terkunci (asal templat) dari bagian dan lampiran wajib. */
+/** turunkanButirCek() (seq-uc01 langkah 10): butir cek terkunci (asal templat) dari bagian templat (lampiran milik BIMA, tidak diperiksa SEMAR). */
 export const turunkanButirCek = turunkanButirDariTemplat;
 
 /** arsipkan(): templat Terbit yang digantikan menjadi Arsip. */

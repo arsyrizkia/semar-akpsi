@@ -19,7 +19,7 @@ import type { JalankanPemeriksaanDeterministik, PeriksaDeterministikTeks } from 
 import { bagianDariBaris } from "../../templat/isian-substansi";
 import { periksaBanyakButir } from "./pemeriksa";
 
-export { cekKataKunci, cekLampiran, cekTabel, cocokkanSitasi, cocokkanStrukturJudul, periksaBanyakButir } from "./pemeriksa";
+export { cekKataKunci, cekTabel, cocokkanSitasi, cocokkanStrukturJudul, periksaBanyakButir } from "./pemeriksa";
 export { hitungKata } from "./teks";
 
 export const periksaDeterministikTeks: PeriksaDeterministikTeks = (dokumen, butir, konteks) =>
@@ -72,7 +72,6 @@ export const jalankanPemeriksaanDeterministik: JalankanPemeriksaanDeterministik 
   const bagian = await db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan));
   const konteks: KonteksPeriksa = {
     bagianTemplat: bagian.map(bagianDariBaris),
-    lampiranWajib: templat.lampiranWajib,
   };
 
   // periksaDeterministik(versi): butir deterministik berstatus Aktif atau Perlu ditinjau

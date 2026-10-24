@@ -4,7 +4,6 @@
  * ketentuan bagian (M-12) harus sah, isian "Periode Berlaku" harus terisi, dan templat memuat sekurang-kurangnya satu bagian.
  */
 import type { BagianTemplatDto, JenisIsian, UnsurIsi } from "../kontrak/tipe";
-import type { KopTemplat, LampiranTemplat } from "./paket";
 
 export interface KetentuanMentah {
   /** kalimat petunjuk; boleh memuat {batas}; "" = tanpa petunjuk */
@@ -60,14 +59,9 @@ export interface BarisBagianMentah extends Partial<KetentuanMentah> {
 
 export interface MasukanKelengkapan {
   bagian: BarisBagianMentah[];
-  lampiran: string[];
   periodeBerlakuId: string | null;
   /** kepala dokumen (judul, subjudul, pengantar); tidak ikut menentukan kelengkapan */
   kepala?: { judulDokumen: string; subjudul: string; pengantar: string };
-  /** kop dan bagian depan 1-6; tidak ada = tidak diubah */
-  kop?: KopTemplat;
-  /** templat per lampiran wajib (M-13); tidak ada = tidak diubah */
-  lampiranTemplat?: LampiranTemplat[];
 }
 
 /** Galat ketentuan satu bagian (M-12): pesan per isian, null = sah. */
@@ -86,7 +80,6 @@ export interface HasilKelengkapan {
   lengkap: boolean;
   /** per baris: true = isian itu perlu ditandai; `ketentuan` = galat ketentuan bagian (M-12) atau null */
   bagian: { nama: boolean; batas: boolean; ketentuan: GalatKetentuan | null }[];
-  lampiran: boolean[];
   periode: boolean;
   tanpaBagian: boolean;
 }
@@ -148,11 +141,10 @@ export function periksaKelengkapan(m: MasukanKelengkapan): HasilKelengkapan {
     batas: !b.tanpaBatas && !batasKataValid(b.batas),
     ketentuan: ketentuan[i],
   }));
-  const lampiran = m.lampiran.map((l) => l.trim() === "");
   const periode = !m.periodeBerlakuId;
   const tanpaBagian = m.bagian.length === 0;
-  const lengkap = !tanpaBagian && !periode && bagian.every((b) => !b.nama && !b.batas && !b.ketentuan) && lampiran.every((x) => !x);
-  return { lengkap, bagian, lampiran, periode, tanpaBagian };
+  const lengkap = !tanpaBagian && !periode && bagian.every((b) => !b.nama && !b.batas && !b.ketentuan);
+  return { lengkap, bagian, periode, tanpaBagian };
 }
 
 /** Nilai tersimpan satu bagian (kolom bagian_templat; "daftar_pustaka" dipetakan ke kolom oleh keKolomBagian). */
@@ -213,13 +205,12 @@ export function bagianTersimpan(b: BarisBagianMentah): BagianTersimpan {
 
 export interface IsianDrafBersih {
   bagian: BagianTersimpan[];
-  lampiran: string[];
   periodeBerlakuId: string | null;
 }
 
 /**
  * Isian yang boleh disimpan sebagai Draf walau belum lengkap ("Simpan Draf", "Unduh Pratinjau (.docx)").
- * Baris tanpa nama dan lampiran kosong dibuang (tidak membawa informasi); batas kata yang tidak valid menjadi tanpa batas;
+ * Baris tanpa nama dibuang (tidak membawa informasi); batas kata yang tidak valid menjadi tanpa batas;
  * jumlah butir atau pemisah yang tidak sah disimpan null (kelengkapan penuh tetap diperiksa saat "Terbitkan", periksaKelengkapan).
  */
 export function bersihkanIsianDraf(m: MasukanKelengkapan): IsianDrafBersih {
@@ -230,7 +221,6 @@ export function bersihkanIsianDraf(m: MasukanKelengkapan): IsianDrafBersih {
         ...bagianTersimpan({ ...b, tanpaBatas: b.tanpaBatas || !batasKataValid(b.batas) }),
         batasKata: b.tanpaBatas || !batasKataValid(b.batas) ? null : Number(b.batas.trim()),
       })),
-    lampiran: m.lampiran.map((l) => l.trim()).filter((l) => l !== ""),
     periodeBerlakuId: m.periodeBerlakuId || null,
   };
 }

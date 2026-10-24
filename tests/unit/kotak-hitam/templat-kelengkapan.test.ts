@@ -23,13 +23,11 @@ describe("periksaKelengkapan (UC-01 S-2)", () => {
         { nama: "Metode", batas: "abc", tanpaBatas: false, wajib: true },
         { nama: "Hasil", batas: "0", tanpaBatas: false, wajib: true },
       ],
-      lampiran: ["", "Artikel"],
       periodeBerlakuId: null,
     });
     expect(h.lengkap).toBe(false);
     expect(h.bagian.map((b) => b.nama)).toEqual([true, false, false]);
     expect(h.bagian.map((b) => b.batas)).toEqual([false, true, true]);
-    expect(h.lampiran).toEqual([true, false]);
     expect(h.periode).toBe(true);
   });
 

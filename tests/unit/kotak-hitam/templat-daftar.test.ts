@@ -114,8 +114,8 @@ describe("penyaring daftar J-02", () => {
 describe("tab dan aksi J-02a", () => {
   it("KH-tabTemplat-01: tab dikenal; nilai asing atau kosong jatuh ke Bagian", () => {
     expect(bacaTab("aturan")).toBe("aturan");
-    expect(bacaTab("lampiran")).toBe("lampiran");
-    expect(bacaTab("depan")).toBe("depan");
+    expect(bacaTab("lampiran")).toBe("bagian"); // tab lampiran dan depan dihapus (milik BIMA)
+    expect(bacaTab("depan")).toBe("bagian");
     expect(bacaTab("x")).toBe("bagian");
     expect(bacaTab(undefined)).toBe("bagian");
   });

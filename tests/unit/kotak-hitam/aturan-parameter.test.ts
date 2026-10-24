@@ -56,7 +56,6 @@ describe("validasiButir", () => {
       pertanyaan: "Apakah surat bermeterai?",
       contohJawaban: "Memenuhi",
       bagian: "Metode",
-      lampiran: "Surat Pernyataan Mitra",
     });
     expect(r.ok).toBe(true);
     if (r.ok) {

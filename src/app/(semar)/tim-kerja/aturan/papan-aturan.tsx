@@ -10,7 +10,6 @@ import { butirTerkunci, KETERANGAN_TERKUNCI, PESAN_TERKUNCI } from "@/lib/aturan
 import type { ButirTampil, TampilanAturan } from "@/lib/aturan/layanan";
 import {
   FORM_ATURAN_KOSONG,
-  KELOMPOK_LAMPIRAN,
   KELOMPOK_UMUM,
   asalAturanButir,
   bangunNilaiButir,
@@ -28,7 +27,6 @@ import {
 import { dapatSusunVersiBaru } from "@/lib/templat/daftar";
 import { mentahKeBagian, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
-import type { LampiranTemplat } from "@/lib/templat/paket";
 import type { StatusTemplat } from "@/lib/templat/status";
 import type { PeriodePilihan } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
@@ -46,18 +44,15 @@ interface Props {
   /** periode templat ini; basis aturan yang ditampilkan adalah basis skema untuk periode itu */
   periode: PeriodePilihan;
   tampilan: TampilanAturan;
-  /** nama bagian dan lampiran templat ini (urutan templat) untuk templat Aktif/Arsip; untuk Draf dipakai isian terkini */
+  /** nama bagian templat ini (urutan templat) untuk templat Aktif/Arsip; untuk Draf dipakai isian terkini */
   bagianPilihan: string[];
-  lampiranPilihan: string[];
   masaBerjalan: boolean;
   /** kode butir yang disorot lewat ?sorot=; boleh beberapa kode dipisah koma (butir turunan baru sesudah templat terbit) */
   sorotAwal: string | null;
-  /** hanya Draf: isian bagian dan lampiran terkini, serta penulis ketentuan bagian (satu sumber data) */
+  /** hanya Draf: isian bagian terkini, serta penulis ketentuan bagian (satu sumber data) */
   bagianMentah: BarisBagianMentah[];
-  lampiranDef: LampiranTemplat[];
   saatUbahBagian: (indeks: number, baris: BarisBagianMentah) => void;
   saatBukaBagian: (nama: string) => void;
-  saatBukaLampiran: (nama: string) => void;
   saatSusunVersiBaru: () => void;
   /** bagian yang difokuskan dari tautan "Atur aturan bagian ini" di M-12 */
   fokusBagian: string | null;
@@ -101,7 +96,6 @@ function dariButir(b: ButirTampil): BarisTampil {
     pratinjau: false,
     bagian: b.bagian,
     tipe: str(p?.tipe),
-    lampiran: str(p?.nama) ?? b.lampiran,
   };
 }
 
@@ -114,14 +108,11 @@ export function PapanAturan({
   periode,
   tampilan,
   bagianPilihan,
-  lampiranPilihan,
   masaBerjalan,
   sorotAwal,
   bagianMentah,
-  lampiranDef,
   saatUbahBagian,
   saatBukaBagian,
-  saatBukaLampiran,
   saatSusunVersiBaru,
   fokusBagian,
 }: Props) {
@@ -163,18 +154,12 @@ export function PapanAturan({
   }, [sorot]);
 
   const namaBagian = modeDraf ? bagianMentah.filter((b) => b.nama.trim() !== "").map((b) => b.nama.trim()) : bagianPilihan;
-  const namaLampiran = modeDraf ? lampiranDef.map((l) => l.nama).filter((n) => n.trim() !== "") : lampiranPilihan;
 
   // baris: Draf = butir turunan dihitung dari isian terkini + butir manual tersimpan; Aktif/Arsip = semua butir tersimpan
   const baris: BarisTampil[] = useMemo(() => {
     const tersimpan = butir.filter((b) => !modeDraf || b.asal === "manual").map(dariButir);
     if (!modeDraf) return tersimpan;
-    const lampiranNama = lampiranDef.map((l) => l.nama.trim()).filter(Boolean);
-    const turunan = turunkanButirDariTemplat(
-      bagianMentah.filter((b) => b.nama.trim() !== "").map(mentahKeBagian),
-      lampiranNama,
-      lampiranDef.filter((l) => l.nama.trim() !== ""),
-    );
+    const turunan = turunkanButirDariTemplat(bagianMentah.filter((b) => b.nama.trim() !== "").map(mentahKeBagian));
     const pratinjau: BarisTampil[] = turunan.map((t) => {
       const p = t.parameter as unknown as Record<string, unknown>;
       return {
@@ -191,11 +176,10 @@ export function PapanAturan({
         pratinjau: true,
         bagian: t.bagian ?? str(p.bagian),
         tipe: str(p.tipe),
-        lampiran: str(p.nama),
       };
     });
     return [...pratinjau, ...tersimpan];
-  }, [butir, modeDraf, bagianMentah, lampiranDef]);
+  }, [butir, modeDraf, bagianMentah]);
 
   const kelompok = useMemo(() => {
     const terlihat = baris.filter((b) => {
@@ -222,8 +206,7 @@ export function PapanAturan({
         const i = bagianMentah.findIndex((x) => x.nama.trim() === a.bagian);
         if (i >= 0) return setModalForm({ mode: "ubah", awal: { ...formDariAsal(a, bagianMentah[i]), kode: b.kode }, butir: null, asal: a, hanyaPertanyaan: false });
       }
-      // wajib, pustaka, dan sitasi diatur di formulir bagian; lampiran di tab Lampiran
-      if (a?.jenisAturan === "lampiran" && b.lampiran) return saatBukaLampiran(b.lampiran);
+      // wajib, pustaka, dan sitasi diatur di formulir bagian
       if (a?.bagian) return saatBukaBagian(a.bagian);
       return;
     }
@@ -414,7 +397,6 @@ export function PapanAturan({
               {n}
             </option>
           ))}
-          <option value={KELOMPOK_LAMPIRAN}>{KELOMPOK_LAMPIRAN}</option>
           <option value={KELOMPOK_UMUM}>{KELOMPOK_UMUM}</option>
         </Pilihan>
         <Pilihan label="Jenis" name="filter-jenis" className="w-44" value={filterJenis} onChange={(e) => setFilterJenis(e.target.value as typeof filterJenis)}>
@@ -538,7 +520,6 @@ export function PapanAturan({
           mode={modalForm.mode}
           awal={modalForm.awal}
           bagian={namaBagian}
-          lampiran={namaLampiran}
           kodeTerpakai={kodeTerpakai}
           kunciIsi={!modeDraf}
           hanyaPertanyaan={modalForm.hanyaPertanyaan}

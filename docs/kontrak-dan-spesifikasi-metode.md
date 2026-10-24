@@ -784,3 +784,18 @@ Menyusun kalimat petunjuk dari ketentuan: [J1] daftar pustaka memakai kalimat re
 
 Tempat isian mengikuti ketentuan: [J12] daftar `[butir 1; butir 2; ...]` (bagian Kata Kunci memakai "kata kunci n") dengan pemisah bagian; [J15] tabel menurut `kolomTabel` (kolom "Bulan 1–12" diperluas dua belas nomor bulan; kolom "No" diberi nomor baris; judul blok bila ada, bawaan "Tahun ke-1" untuk baris lama tanpa kolom); [J16] bagian teks `wajibTabel` mencetak "[Sisipkan tabel]" dan tabel kosong; [J17] gambar mencetak "[Sisipkan {keterangan} (JPG/PNG)]". Kop dan kepala mengikuti ukuran terukur dari PDF contoh (lihat `docs/perubahan-model.md`, putaran 3).
 
+
+## Pembaruan 24 Okt 2026: SEMAR hanya untuk isi proposal
+
+Sumber keputusan: `docs/arah-isi-saja-2026-10-24.md`. Lampiran dan halaman depan milik BIMA; SEMAR tidak memeriksa lampiran.
+
+- **C-31 / MS-10 `buatDokumenTemplat`:** hanya Isian Substansi (kepala berlogo, SKEMA, pengantar, bagian A-H). Tanda tangan baru:
+  `buatDokumenTemplat(templat, bagian, skema, periode, paket?: {kepala?})`; argumen `lampiran`, `paket.kop`, `paket.lampiranTemplat`, dan
+  `paket.mode` dihapus. `namaBerkasTemplat(skema, templat)` selalu `Isian-Substansi-<kode>-v<n>-<status>.docx`. Cabang halaman depan dan
+  halaman lampiran (kop BIMA, "PROTEKSI ISI PROPOSAL", bagian 1-6, surat) dihapus dari algoritma MS-10.
+- **C-03 / MS-13 `turunkanButirDariTemplat`:** `turunkanButirDariTemplat(bagian)`; Post-Condition [Q3], [Q9], [J8] (LMP-nn dan FMT-nn) dan
+  penomoran LMP/FMT pada [Q4], [Q10] dihapus.
+- **C-19 `cekLampiran` dan `cekFormatLampiran`:** dihapus dari SEMAR; tipe parameter `lampiran_wajib` dan `lampiran_format` dan
+  `KonteksPeriksa.lampiranWajib` dihapus. `periksaSatuButir` tidak lagi mengenali kedua tipe itu (jatuh ke cabang "tidak dikenali").
+- **Templat lampiran BIMA tiruan:** `src/lib/bima/lampiran.ts` (`lampiranWajibSkema`, `templatLampiran`) dan `lampiran-dokumen.ts`
+  (`buatDokumenLampiran`) milik BIMA, bukan kontrak SEMAR.

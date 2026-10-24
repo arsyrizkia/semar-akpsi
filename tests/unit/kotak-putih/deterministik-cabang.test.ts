@@ -2,7 +2,7 @@
 // MS-02 hitungKata, MS-03 cocokkanSitasi, MS-13 cekKataKunci, serta pengarah periksaSatuButir dan state machine status Proposal.
 import { describe, expect, it } from "vitest";
 import type { ButirCek, DokumenPeriksa, KonteksPeriksa, ParameterButir } from "@/lib/kontrak/tipe";
-import { cekKataKunci, cekLampiran, cocokkanSitasi, entriPustaka, nomorSitasi, periksaBanyakButir, periksaSatuButir } from "@/lib/pemeriksa/deterministik/pemeriksa";
+import { cekKataKunci, cocokkanSitasi, entriPustaka, nomorSitasi, periksaBanyakButir, periksaSatuButir } from "@/lib/pemeriksa/deterministik/pemeriksa";
 import { barisBukanNaratif, fmt, hitungKata, normalisasiJudul } from "@/lib/pemeriksa/deterministik/teks";
 import { transisiProposal } from "@/lib/pengajuan/aturan";
 
@@ -21,7 +21,6 @@ const konteks: KonteksPeriksa = {
     { urutan: 1, nama: "Ringkasan", batasKata: 10, wajib: true },
     { urutan: 2, nama: "Daftar Pustaka", batasKata: null, wajib: true },
   ],
-  lampiranWajib: [],
 };
 const butir = (parameter: ParameterButir | null, jenis: "deterministik" | "semantik" = "deterministik"): ButirCek => ({
   id: "b1",
@@ -146,7 +145,6 @@ describe("cekLampiran dan pengarah periksaSatuButir: cabang", () => {
       [{ tipe: "sitasi_bernomor" }, "Gagal"],
       [{ tipe: "pustaka_berurutan" }, "Lolos"],
       [{ tipe: "jumlah_referensi_sama" }, "Gagal"],
-      [{ tipe: "lampiran_wajib", nama: "L" }, "Lolos"],
     ];
     for (const [p, harapan] of tipe) expect(periksaSatuButir(butir(p), d, konteks).status, p.tipe).toBe(harapan);
   });
@@ -160,11 +158,6 @@ describe("cekLampiran dan pengarah periksaSatuButir: cabang", () => {
     const hasil = periksaBanyakButir([butir({ tipe: "bagian_terisi", bagian: "Ringkasan" }), butir({ tipe: "semantik" } as unknown as ParameterButir, "semantik")], d, konteks);
     expect(hasil).toHaveLength(1);
     expect(hasil[0].batasDilanggar).toBeNull();
-  });
-  it("KP-cekLampiran-01: daftar wajib kosong memakai nama butir; daftar wajib berisi dibandingkan dua arah", () => {
-    expect(cekLampiran(dok({ lampiranAda: ["X"] }), konteks, "X").angkaPembukti).toContain("1 dari 1");
-    const k = { ...konteks, lampiranWajib: ["A", "B"] };
-    expect(cekLampiran(dok({ lampiranAda: ["A"] }), k, "B").angkaPembukti).toContain('belum ada: "B"');
   });
 });
 
