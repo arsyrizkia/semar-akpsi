@@ -19,7 +19,6 @@ describe("bersihkanIsianDraf (simpan draf yang belum lengkap)", () => {
         { nama: "Ringkasan", batasKata: 300, wajib: true },
         { nama: "Daftar Pustaka", batasKata: null, wajib: false },
       ],
-      lampiran: ["Surat Pernyataan Mitra"],
       periodeBerlakuId: "p1",
     });
   });
@@ -39,6 +38,6 @@ describe("bersihkanIsianDraf (simpan draf yang belum lengkap)", () => {
 
   it("KH-bersihkanIsianDraf-04: spasi di nama dan batas dipangkas; batas tepat 1 sah (batas bawah)", () => {
     const r = bersihkanIsianDraf({ bagian: [{ nama: "  Metode ", batas: " 1 ", tanpaBatas: false, wajib: false }], periodeBerlakuId: "" });
-    expect(r).toEqual({ bagian: [{ nama: "Metode", batasKata: 1, wajib: false }], lampiran: ["Lampiran A"], periodeBerlakuId: null });
+    expect(r).toEqual({ bagian: [{ nama: "Metode", batasKata: 1, wajib: false }], periodeBerlakuId: null });
   });
 });

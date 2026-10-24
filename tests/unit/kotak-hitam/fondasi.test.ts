@@ -64,9 +64,9 @@ describe("proposal contoh", () => {
 });
 
 describe("turunan butir dari templat", () => {
-  it("KH-turunkanButir-01: membuat butir bagian wajib, batas kata, dan lampiran", () => {
+  it("KH-turunkanButir-01: membuat butir bagian wajib dan batas kata (tanpa butir lampiran)", () => {
     const b = turunkanButirDariTemplat([{ nama: "Ringkasan", batasKata: 300, wajib: true }, { nama: "Kata Kunci", batasKata: null, wajib: true }]);
-    expect(b.map((x) => x.parameter.tipe)).toEqual(["bagian_terisi", "batas_kata", "bagian_terisi", "lampiran_wajib"]);
+    expect(b.map((x) => x.parameter.tipe)).toEqual(["bagian_terisi", "batas_kata", "bagian_terisi"]);
     expect(b.every((x) => x.asal === "templat" && x.jenis === "deterministik")).toBe(true);
   });
 });

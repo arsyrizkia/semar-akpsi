@@ -45,7 +45,7 @@ describe("validasiButir", () => {
     }
   });
 
-  it("KH-validasiButir-03: butir semantik wajib pertanyaan dan bagian; lampiran menentukan komponen", () => {
+  it("KH-validasiButir-03: butir semantik wajib pertanyaan dan bagian; lampiran tidak lagi diperiksa SEMAR", () => {
     const kurang = validasiButir({ ...MASUKAN_BUTIR_KOSONG, jenis: "semantik", kode: "MIT-S1", deskripsi: "Surat mitra" });
     expect(kurang.ok).toBe(false);
     const r = validasiButir({
@@ -59,8 +59,8 @@ describe("validasiButir", () => {
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.nilai.parameter).toEqual({ tipe: "semantik", bagian: "Metode", lampiran: "Surat Pernyataan Mitra" });
-      expect(r.nilai.komponen).toBe("6. Surat pernyataan mitra");
+      expect(r.nilai.parameter).toEqual({ tipe: "semantik", bagian: "Metode" });
+      expect(r.nilai.komponen).toBe("1. Kesesuaian isi per bagian");
       expect(r.nilai.aturanHitung).toBeNull();
     }
   });

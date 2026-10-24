@@ -56,7 +56,7 @@ describe("Isian Substansi Proposal: struktur templat", () => {
     expect(kepalaBawaan("dasar").subjudul).toBe("SKEMA PENELITIAN DASAR (PENELITIAN DASAR FUNDAMENTAL DAN PENELITIAN KERJA SAMA ANTAR PERGURUAN TINGGI)");
     expect(kepalaBawaan("terapan").subjudul).toBe("SKEMA PENELITIAN TERAPAN");
     expect(templat.label).toBe("struktur mengikuti Isian Substansi Proposal");
-    expect(templat.lampiranWajib).toEqual(["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"]);
+    expect(templat.lampiranWajib).toBeUndefined(); // lampiran milik BIMA (docs/arah-isi-saja-2026-10-24.md)
   });
 
   it("KH-isianSubstansi-04: kalimat petunjuk resmi per bagian, angka batas diisi dari batas kata bagian", () => {
