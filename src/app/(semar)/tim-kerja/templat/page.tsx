@@ -13,12 +13,12 @@ import { TombolSusunVersi } from "./tombol-susun";
 export const metadata: Metadata = { title: "J-02 Templat Proposal" };
 export const dynamic = "force-dynamic";
 
-type Param = { skema?: string; versi?: string; hasil?: string; jumlah?: string };
+type Param = { skema?: string; versi?: string; hasil?: string; jumlah?: string; det?: string; sem?: string; baru?: string };
 
 /** J-02 Templat Proposal (UC-01). Hanya Tim Kerja DPPM dengan hak pengelola (NFR 3.2). Pilihan skema dan versi tersimpan di URL. */
 export default async function Halaman({ searchParams }: { searchParams: Promise<Param> }) {
   await wajibPengelola();
-  const { skema: skemaParam, versi: versiParam, hasil, jumlah } = await searchParams;
+  const { skema: skemaParam, versi: versiParam, hasil, jumlah, det, sem, baru } = await searchParams;
   const [skema, masaBerjalan] = await Promise.all([daftarSkema(), masaPengusulanBerjalan()]);
 
   if (skema.length === 0) {
@@ -39,6 +39,8 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
     if (perId && perId.skemaId === skemaTerpilih.id) dilihat = perId.templat;
   }
   const jumlahButir = Number.parseInt(jumlah ?? "", 10);
+  const jumlahDet = Number.parseInt(det ?? "", 10);
+  const jumlahSem = Number.parseInt(sem ?? "", 10);
   const urlSusun = (id: string) => `/tim-kerja/templat/${id}/susun`;
   const urlUnduh = (id: string) => `/api/semar/templat/${id}/unduh`;
 
@@ -66,10 +68,15 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
       {hasil === "terbit" && dilihat?.status === "Terbit" ? (
         <Alert jenis="sukses" judul={`Templat versi ${dilihat.versi} telah terbit`} className="mb-6">
           <p>
-            {Number.isFinite(jumlahButir) ? `${formatAngka(jumlahButir)} butir cek draf dibuat dari templat ini. ` : ""}Tinjau butir itu di Aturan Pemeriksaan lalu simpan versi basis aturannya agar berlaku.
+            {Number.isFinite(jumlahButir)
+              ? Number.isFinite(jumlahDet) && Number.isFinite(jumlahSem)
+                ? `${formatAngka(jumlahDet)} butir deterministik dan ${formatAngka(jumlahSem)} butir semantik dibuat sebagai draf dari templat ini. `
+                : `${formatAngka(jumlahButir)} butir cek draf dibuat dari templat ini. `
+              : ""}
+            Kelola butir itu di Aturan Pemeriksaan (aktifkan, asah pertanyaan semantik, uji pada contoh), lalu simpan versi basis aturannya agar berlaku.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={`/tim-kerja/aturan?skema=${skemaTerpilih.id}`} className={kelasTombol("utama", "sm")}>Buka Aturan Pemeriksaan</Link>
+            <Link href={`/tim-kerja/aturan?skema=${skemaTerpilih.id}${baru ? `&sorot=${encodeURIComponent(baru)}` : ""}`} className={kelasTombol("utama", "sm")}>Buka Aturan Pemeriksaan</Link>
           </div>
         </Alert>
       ) : null}

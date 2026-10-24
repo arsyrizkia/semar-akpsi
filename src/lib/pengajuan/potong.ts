@@ -109,7 +109,7 @@ const hitung = (s: string, c: string) => s.split(c).length - 1;
  */
 export function lepasTandaIsian(baris: string[]): string[] {
   // tempat isian kosong "[ ]" dan tempat gambar "[Sisipkan ...]" dari generator templat bukan isi pengusul
-  const hasil = baris.map((b) => b.trim()).filter((b) => b && !/^\[\s*(?:…|\.{3})?\s*\]$/.test(b) && !/^\[\s*sisipkan\b[^\]]*\]$/i.test(b) && !/^\[\d+\]$/.test(b) && !/^\[\s*kata kunci 1\b[^\]]*kata kunci 2\b[^\]]*\]$/i.test(b));
+  const hasil = baris.map((b) => b.trim()).filter((b) => b && !/^\[\s*(?:…|\.{3})?\s*\]$/.test(b) && !/^\[\s*sisipkan\b[^\]]*\]$/i.test(b) && !/^\[\d+\]$/.test(b) && !/^\[\s*(?:kata kunci|butir) 1\b[^\]]*(?:kata kunci|butir) 2\b[^\]]*\]$/i.test(b) && !/^\[\s*(?:kata kunci|butir) 1\s*\]$/i.test(b));
   if (hasil.length === 0) return [];
   if (hasil[hasil.length - 1] === "]") hasil.pop();
   if (hasil[0] === "[") hasil.shift();

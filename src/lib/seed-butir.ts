@@ -1,31 +1,47 @@
 /**
  * Penurunan butir cek dari templat (turunkanButirCek pada UC-01; dipakai juga seed). Skema parameter sama dengan ParameterButir di kontrak.
- * Butir diturunkan dari KETENTUAN per bagian (UC-01 M-12), bukan hanya batas kata:
- *  - wajib          -> BGN-nn   bagian terisi          (periksaBagianTerisi)
- *  - batas kata     -> KTA-nn   hitungKata
- *  - jenis daftar   -> KAT-nn   cekKataKunci           ("Kata kunci tepat 5, dipisahkan titik koma (;)")
- *  - wajib gambar   -> GBR-nn   periksaDiagramAlir
- *  - jenis tabel    -> TBL-nn   cekTabel
- *  - sitasi bernomor -> SIT-01 dan daftar pustaka -> SIT-02, SIT-03   cocokkanSitasi
- *  - lampiran wajib -> LMP-nn   cekLampiran; lampiran berformulir -> FMT-nn cekLampiran (kalimat kunci templat)
+ * Butir diturunkan dari KETENTUAN per bagian (UC-01 M-12, putaran 3), deterministik DAN semantik:
+ *  - wajib             -> BGN-nn   bagian terisi          (periksaBagianTerisi)          Deterministik
+ *  - batas maksimal    -> KTA-nn   hitungKata                                            Deterministik
+ *  - batas minimal     -> KTM-nn   hitungKata (minimal)                                  Deterministik
+ *  - tipe daftar       -> KAT-nn   cekKataKunci           ("tepat N butir, pemisah ;")   Deterministik
+ *  - wajib gambar      -> GBR-nn   periksaDiagramAlir (keterangan gambar)                Deterministik
+ *                         UNS-nn   kesesuaian isi gambar dengan bagian                    Semantik
+ *  - tipe tabel / wajib tabel -> TBL-nn cekTabel (kolom wajib)                           Deterministik
+ *  - frasa wajib       -> FRS-nn   periksaFrasa (satu butir per frasa)                   Deterministik
+ *  - sitasi bernomor   -> SIT-01 dan tipe daftar_pustaka -> SIT-02, SIT-03  cocokkanSitasi  Deterministik
+ *  - unsur isi         -> UNS-nn   nilaiSemantik, satu butir per unsur                   Semantik
+ *  - lampiran wajib    -> LMP-nn   cekLampiran; lampiran berformulir -> FMT-nn cekLampiran (kalimat kunci templat)
  * Penomoran nn dua digit terpisah per awalan, mengikuti urutan bagian.
  */
 import type { BagianTemplatDto, ParameterButir } from "./kontrak/tipe";
 import type { LampiranTemplat } from "./templat/paket";
+import { adalahDaftarPustaka, frasaTerisi, keteranganGambar, kolomTerisi, perluTabel, pertanyaanUnsur, unsurTerisi } from "./templat/isian-substansi";
 import { formatAngka } from "@/lib/utils";
+import { normalisasiJudul } from "./pemeriksa/deterministik/teks";
 
 export type BagianSeed = Pick<BagianTemplatDto, "nama" | "batasKata" | "wajib"> &
-  Partial<Pick<BagianTemplatDto, "jenisIsian" | "jumlahButir" | "pemisah" | "wajibGambar" | "sitasiBernomor" | "daftarPustaka">>;
+  Partial<
+    Pick<
+      BagianTemplatDto,
+      "jenisIsian" | "jumlahButir" | "pemisah" | "wajibGambar" | "sitasiBernomor" | "daftarPustaka" | "batasMin" | "wajibTabel" | "kolomTabel" | "judulTabel" | "ketGambar" | "frasaWajib" | "unsurIsi"
+    >
+  >;
 
 export interface ButirSeed {
   kode: string;
   deskripsi: string;
-  jenis: "deterministik";
+  jenis: "deterministik" | "semantik";
   asal: "templat";
   komponen: string;
   pemeriksa: string;
   parameter: ParameterButir;
-  aturanHitung: string;
+  aturanHitung: string | null;
+  /** hanya butir semantik */
+  pertanyaan: string | null;
+  contohJawaban: string | null;
+  /** bagian templat asal butir (untuk pratinjau M-12); null = butir lampiran */
+  bagian: string | null;
 }
 
 const NAMA_PEMISAH: Record<string, string> = { ";": "titik koma", ",": "koma", "|": "garis tegak", "/": "garis miring" };
@@ -33,12 +49,15 @@ const nn = (n: number) => String(n).padStart(2, "0");
 
 export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: string[], lampiranTemplat: LampiranTemplat[] = []): ButirSeed[] {
   const hasil: ButirSeed[] = [];
-  const n = { BGN: 0, KTA: 0, KAT: 0, GBR: 0, TBL: 0 };
-  const dasar = { jenis: "deterministik", asal: "templat" } as const;
+  const n = { BGN: 0, KTA: 0, KTM: 0, KAT: 0, GBR: 0, TBL: 0, FRS: 0, UNS: 0 };
+  const det = { jenis: "deterministik", asal: "templat", pertanyaan: null, contohJawaban: null } as const;
+  const sem = { jenis: "semantik", asal: "templat", pemeriksa: "nilaiSemantik", aturanHitung: null } as const;
   for (const x of bagian) {
+    const bg = x as BagianTemplatDto;
     if (x.wajib) {
       hasil.push({
-        ...dasar,
+        ...det,
+        bagian: x.nama,
         kode: `BGN-${nn(++n.BGN)}`,
         deskripsi: `Bagian wajib "${x.nama}" terisi di naskah`,
         komponen: "Screening",
@@ -49,7 +68,8 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
     }
     if (x.batasKata != null) {
       hasil.push({
-        ...dasar,
+        ...det,
+        bagian: x.nama,
         kode: `KTA-${nn(++n.KTA)}`,
         deskripsi: `Bagian “${x.nama}” tidak melebihi ${formatAngka(x.batasKata)} kata`,
         komponen: "2. Jumlah kata per bagian",
@@ -58,47 +78,99 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
         aturanHitung: `Jumlah kata bagian "${x.nama}" <= ${x.batasKata}; tanpa toleransi; kalimat petunjuk templat, diagram, tabel, dan gambar tidak dihitung.`,
       });
     }
+    if (x.batasMin != null) {
+      hasil.push({
+        ...det,
+        bagian: x.nama,
+        kode: `KTM-${nn(++n.KTM)}`,
+        deskripsi: `Bagian “${x.nama}” sekurang-kurangnya ${formatAngka(x.batasMin)} kata`,
+        komponen: "2. Jumlah kata per bagian",
+        pemeriksa: "hitungKata",
+        parameter: { tipe: "batas_kata_min", bagian: x.nama, batas: x.batasMin },
+        aturanHitung: `Jumlah kata bagian "${x.nama}" >= ${x.batasMin}; kalimat petunjuk templat, diagram, tabel, dan gambar tidak dihitung.`,
+      });
+    }
     if (x.jenisIsian === "daftar" && x.jumlahButir != null && x.jumlahButir >= 1 && x.pemisah) {
       const nama = NAMA_PEMISAH[x.pemisah] ?? `"${x.pemisah}"`;
       hasil.push({
-        ...dasar,
+        ...det,
+        bagian: x.nama,
         kode: `KAT-${nn(++n.KAT)}`,
-        deskripsi: `Kata kunci tepat ${x.jumlahButir}, dipisahkan ${nama} (${x.pemisah})`,
+        deskripsi: normalisasiJudul(x.nama) === "kata kunci" ? `Kata kunci tepat ${x.jumlahButir}, dipisahkan ${nama} (${x.pemisah})` : `${x.nama}: tepat ${x.jumlahButir} butir, dipisahkan ${nama} (${x.pemisah})`,
         komponen: "2. Jumlah kata per bagian",
         pemeriksa: "cekKataKunci",
-        parameter: { tipe: "kata_kunci", jumlah: x.jumlahButir, pemisah: x.pemisah },
+        parameter: { tipe: "kata_kunci", jumlah: x.jumlahButir, pemisah: x.pemisah, bagian: x.nama },
         aturanHitung: `Isian bagian "${x.nama}" berupa daftar tepat ${x.jumlahButir} butir yang dipisahkan ${nama} (${x.pemisah}); butir boleh berupa frasa, tidak boleh kosong, dan pemisah tidak boleh bercampur.`,
       });
     }
     if (x.wajibGambar) {
+      const ket = keteranganGambar(bg);
       hasil.push({
-        ...dasar,
+        ...det,
+        bagian: x.nama,
         kode: `GBR-${nn(++n.GBR)}`,
-        deskripsi: `Bagian “${x.nama}” memuat gambar (diagram alir penelitian)`,
+        deskripsi: `Bagian “${x.nama}” memuat gambar (${ket})`,
         komponen: "1. Kesesuaian isi per bagian",
         pemeriksa: "periksaDiagramAlir",
-        parameter: { tipe: "diagram_alir", bagian: x.nama },
-        aturanHitung: `Bagian "${x.nama}" memuat keterangan gambar yang menyebut diagram alir.`,
+        parameter: { tipe: "diagram_alir", bagian: x.nama, keterangan: ket },
+        aturanHitung: `Bagian "${x.nama}" memuat gambar berketerangan yang menyebut "${ket}".`,
+      });
+      hasil.push({
+        ...sem,
+        bagian: x.nama,
+        kode: `UNS-${nn(++n.UNS)}`,
+        deskripsi: `Gambar (${ket}) pada bagian “${x.nama}” sesuai dengan isi bagian`,
+        komponen: "1. Kesesuaian isi per bagian",
+        parameter: { tipe: "semantik", bagian: x.nama },
+        pertanyaan: `Apakah ${ket} yang dirujuk di bagian ${x.nama} menggambarkan isi bagian itu dengan sesuai?`,
+        contohJawaban: null,
       });
     }
-    if (x.jenisIsian === "tabel") {
+    if (perluTabel(bg)) {
+      const kolom = kolomTerisi(bg);
       hasil.push({
-        ...dasar,
+        ...det,
+        bagian: x.nama,
         kode: `TBL-${nn(++n.TBL)}`,
-        deskripsi: `Bagian “${x.nama}” memuat tabel`,
+        deskripsi: kolom.length ? `Bagian “${x.nama}” memuat tabel berkolom ${kolom.join("; ")}` : `Bagian “${x.nama}” memuat tabel`,
         komponen: "1. Kesesuaian isi per bagian",
         pemeriksa: "cekTabel",
-        parameter: { tipe: "tabel_wajib", bagian: x.nama },
-        aturanHitung: `Bagian "${x.nama}" memuat tabel (penanda tabel, keterangan "Tabel n", atau baris berkolom No, kegiatan, dan bulan).`,
+        parameter: kolom.length ? { tipe: "tabel_wajib", bagian: x.nama, kolom } : { tipe: "tabel_wajib", bagian: x.nama },
+        aturanHitung: `Bagian "${x.nama}" memuat tabel (penanda tabel, keterangan "Tabel n", atau baris berkolom No, kegiatan, dan bulan)${kolom.length ? `; kolom wajib: ${kolom.join("; ")}` : ""}.`,
+      });
+    }
+    for (const frasa of frasaTerisi(bg)) {
+      hasil.push({
+        ...det,
+        bagian: x.nama,
+        kode: `FRS-${nn(++n.FRS)}`,
+        deskripsi: `Bagian “${x.nama}” memuat kalimat “${frasa}”`,
+        komponen: "1. Kesesuaian isi per bagian",
+        pemeriksa: "periksaFrasa",
+        parameter: { tipe: "frasa_wajib", bagian: x.nama, frasa },
+        aturanHitung: `Kalimat "${frasa}" muncul persis (huruf besar-kecil dan spasi berlebih diabaikan) di bagian "${x.nama}".`,
+      });
+    }
+    for (const u of unsurTerisi(bg)) {
+      hasil.push({
+        ...sem,
+        bagian: x.nama,
+        kode: `UNS-${nn(++n.UNS)}`,
+        deskripsi: `${x.nama} memuat ${u.unsur.trim()}`,
+        komponen: "1. Kesesuaian isi per bagian",
+        parameter: { tipe: "semantik", bagian: x.nama },
+        pertanyaan: pertanyaanUnsur(x.nama, u),
+        contohJawaban: null,
       });
     }
   }
 
-  const pustaka = bagian.find((b) => b.daftarPustaka)?.nama;
+  const pustaka = bagian.find((b) => adalahDaftarPustaka(b))?.nama;
   const komponenSitasi = "3. Sitasi dan daftar pustaka";
   if (bagian.some((b) => b.sitasiBernomor)) {
     hasil.push({
-      ...dasar,
+      ...det,
+      bagian: bagian.find((b) => b.sitasiBernomor)?.nama ?? null,
       kode: "SIT-01",
       deskripsi: "Sitasi dalam paragraf memakai penomoran [n]",
       komponen: komponenSitasi,
@@ -110,7 +182,8 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
   if (pustaka) {
     hasil.push(
       {
-        ...dasar,
+        ...det,
+        bagian: pustaka,
         kode: "SIT-02",
         deskripsi: `Daftar pustaka ("${pustaka}") bernomor dan berurutan sesuai urutan pengutipan pertama`,
         komponen: komponenSitasi,
@@ -119,7 +192,8 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
         aturanHitung: `Entri "${pustaka}" bernomor 1, 2, 3, ...; nomor pertama kali dikutip berurutan tanpa melompat.`,
       },
       {
-        ...dasar,
+        ...det,
+        bagian: pustaka,
         kode: "SIT-03",
         deskripsi: "Setiap sitasi [n] ada di daftar pustaka dan setiap pustaka disitasi",
         komponen: komponenSitasi,
@@ -133,7 +207,8 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
   let f = 0;
   lampiranWajib.forEach((nama, i) => {
     hasil.push({
-      ...dasar,
+      ...det,
+      bagian: null,
       kode: `LMP-${nn(i + 1)}`,
       deskripsi: `Lampiran "${nama}" dilampirkan`,
       komponen: "Lampiran",
@@ -146,7 +221,8 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
   for (const l of lampiranTemplat) {
     if (l.jenis !== "formulir" || l.kunci.length === 0 || !lampiranWajib.some((w) => w.trim().toLowerCase() === l.nama.trim().toLowerCase())) continue;
     hasil.push({
-      ...dasar,
+      ...det,
+      bagian: null,
       kode: `FMT-${nn(++f)}`,
       deskripsi: `Lampiran "${l.nama}" sesuai format templat`,
       komponen: "Lampiran",

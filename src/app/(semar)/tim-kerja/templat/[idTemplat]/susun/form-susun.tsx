@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Download, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { Alert, Badge, Bagian, Button, CegatTinggalkan, Input, KepalaHalaman, KotakCentang, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu } from "@/components/ui";
-import { periksaKelengkapan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
+import { mentahKeBagian, periksaKelengkapan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
+import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import { petunjukResmi, ringkasKetentuan } from "@/lib/templat/isian-substansi";
 import { BAGIAN_DEPAN, lampiranBawaan, type KopTemplat, type LampiranTemplat } from "@/lib/templat/paket";
 import { PESAN_LENGKAPI } from "@/lib/templat/status";
 import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
 import { aksiSimpanDraf, aksiTerbitkan } from "../../aksi";
-import { ModalKetentuan, type KetentuanBisaDiganti } from "./modal-ketentuan";
+import { ModalKetentuan } from "./modal-ketentuan";
 import { ModalLampiran } from "./modal-lampiran";
 
 interface Props {
@@ -42,8 +43,15 @@ const dariTemplat = (t: TemplatTampil): IsianForm => ({
     jumlahButir: b.jumlahButir == null ? "" : String(b.jumlahButir),
     pemisah: b.pemisah ?? "",
     wajibGambar: b.wajibGambar ?? false,
+    ketGambar: b.ketGambar ?? "",
     sitasiBernomor: b.sitasiBernomor ?? false,
     daftarPustaka: b.daftarPustaka ?? false,
+    batasMin: b.batasMin == null ? "" : String(b.batasMin),
+    wajibTabel: b.wajibTabel ?? false,
+    kolomTabel: [...(b.kolomTabel ?? [])],
+    judulTabel: b.judulTabel ?? "",
+    frasaWajib: [...(b.frasaWajib ?? [])],
+    unsurIsi: (b.unsurIsi ?? []).map((u) => ({ unsur: u.unsur, pertanyaan: u.pertanyaan ?? "" })),
   })),
   lampiran: [...t.lampiranWajib],
   lampiranDef: t.lampiranTemplat.map((l) => ({ ...l })),
@@ -53,20 +61,9 @@ const dariTemplat = (t: TemplatTampil): IsianForm => ({
 });
 
 /** Chip ringkasan ketentuan satu baris isian (sama dengan kolom Ketentuan di J-02). */
-function chipBaris(b: BarisBagianMentah): string[] {
-  return ringkasKetentuan({
-    urutan: 0,
-    nama: b.nama,
-    wajib: b.wajib,
-    batasKata: b.tanpaBatas || !/^\d+$/.test(b.batas.trim()) ? null : Number(b.batas),
-    jenisIsian: b.jenisIsian ?? "teks",
-    jumlahButir: b.jumlahButir ? Number(b.jumlahButir) : null,
-    pemisah: b.pemisah ?? null,
-    wajibGambar: b.wajibGambar,
-    sitasiBernomor: b.sitasiBernomor,
-    daftarPustaka: b.daftarPustaka,
-  });
-}
+const chipBaris = (b: BarisBagianMentah): string[] => ringkasKetentuan(mentahKeBagian(b));
+
+const BAGIAN_BARU: BarisBagianMentah = { nama: "", batas: "", tanpaBatas: true, wajib: true, petunjuk: "", jenisIsian: "teks", jumlahButir: "", pemisah: "", wajibGambar: false, ketGambar: "", sitasiBernomor: false, daftarPustaka: false, batasMin: "", wajibTabel: false, kolomTabel: [], judulTabel: "", frasaWajib: [], unsurIsi: [] };
 
 const sidikIsian = (i: IsianForm) => JSON.stringify(i);
 
@@ -79,6 +76,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
   const [modal, setModal] = useState(false);
   const [galatModal, setGalatModal] = useState<string | null>(null);
   const [ketentuanDi, setKetentuanDi] = useState<number | null>(null);
+  const [bagianBaru, setBagianBaru] = useState(false);
   const [lampiranDi, setLampiranDi] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -102,10 +100,14 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
     [isian],
   );
   const kelengkapan = useMemo(() => periksaKelengkapan(masukan), [masukan]);
+  // butir cek yang akan diturunkan dari isian saat ini (M-01: jumlah deterministik dan semantik)
+  const turunan = useMemo(() => turunkanButirDariTemplat(isian.bagian.filter((b) => b.nama.trim() !== "").map(mentahKeBagian), isian.lampiran.filter((l) => l.trim() !== ""), masukan.lampiranTemplat), [isian, masukan]);
+  const jumlahSem = turunan.filter((b) => b.jenis === "semantik").length;
+  const jumlahDet = turunan.length - jumlahSem;
   const tandai = sudahCoba && !kelengkapan.lengkap;
 
   const ubahKop = (ubah: Partial<KopTemplat>) => setIsian((s) => ({ ...s, kop: { ...s.kop, ...ubah } }));
-  const ubahKetentuan = (i: number, k: KetentuanBisaDiganti) => ubahBaris(i, k);
+  const gantiBaris = (i: number, baris: BarisBagianMentah) => setIsian((s) => ({ ...s, bagian: s.bagian.map((b, j) => (j === i ? baris : b)) }));
   const ubahBaris = (i: number, ubah: Partial<BarisBagianMentah>) => setIsian((s) => ({ ...s, bagian: s.bagian.map((b, j) => (j === i ? { ...b, ...ubah } : b)) }));
 
   async function simpan(): Promise<boolean> {
@@ -167,7 +169,7 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
       setModal(false);
       // s.10 atau 9a tampil di J-02 sesudah modal ditutup
       const dasar = `/tim-kerja/templat?skema=${skemaId}&versi=${templat.id}`;
-      router.push(h.hasil === "terbit" ? `${dasar}&hasil=terbit&jumlah=${h.jumlahButir}` : `${dasar}&hasil=draf`);
+      router.push(h.hasil === "terbit" ? `${dasar}&hasil=terbit&jumlah=${h.jumlahButir}&det=${h.jumlahDeterministik}&sem=${h.jumlahSemantik}&baru=${encodeURIComponent(h.kodeBaru.join(","))}` : `${dasar}&hasil=draf`);
     });
   }
 
@@ -330,9 +332,12 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
           varian="sekunder"
           ukuran="sm"
           className="mt-3"
-          onClick={() =>
-            setIsian((s) => ({ ...s, bagian: [...s.bagian, { nama: "", batas: "", tanpaBatas: false, wajib: true, petunjuk: "", jenisIsian: "teks", jumlahButir: "", pemisah: "", wajibGambar: false, sitasiBernomor: false, daftarPustaka: false }] }))
-          }
+          onClick={() => {
+            // "Tambah Bagian" membuka M-12 untuk baris baru; Batal di modal membuang baris itu lagi
+            setKetentuanDi(isian.bagian.length);
+            setBagianBaru(true);
+            setIsian((s) => ({ ...s, bagian: [...s.bagian, { ...BAGIAN_BARU }] }));
+          }}
         >
           <Plus aria-hidden className="size-4" /> Tambah Bagian
         </Button>
@@ -396,7 +401,20 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
       </Bagian>
 
       {ketentuanDi !== null && isian.bagian[ketentuanDi] ? (
-        <ModalKetentuan buka indeks={ketentuanDi} bagian={isian.bagian} saatUbah={(b) => !b && setKetentuanDi(null)} saatTerapkan={(k) => ubahKetentuan(ketentuanDi, k)} />
+        <ModalKetentuan
+          buka
+          indeks={ketentuanDi}
+          bagian={isian.bagian}
+          baru={bagianBaru}
+          saatUbah={(b) => {
+            if (!b) {
+              setKetentuanDi(null);
+              setBagianBaru(false);
+            }
+          }}
+          saatBatalBaru={() => setIsian((s) => ({ ...s, bagian: s.bagian.filter((_, j) => j !== ketentuanDi) }))}
+          saatTerapkan={(k) => gantiBaris(ketentuanDi, k)}
+        />
       ) : null}
       {lampiranDi !== null && isian.lampiran[lampiranDi] !== undefined ? (
         <ModalLampiran
@@ -429,7 +447,10 @@ export function FormSusun({ skemaId, namaSkema, templat, periode, masaBerjalan }
           <dt className="text-teks-redup">Lampiran Wajib</dt>
           <dd className="angka font-semibold">{isian.lampiran.length}</dd>
         </dl>
-        <p className="mt-3 text-teks-redup">
+        <p className="mt-3 font-semibold">
+          {masaBerjalan ? "Saat diterbitkan nanti akan" : "Akan"} membuat <span className="angka">{jumlahDet}</span> butir deterministik dan <span className="angka">{jumlahSem}</span> butir semantik (draf); kelola di Aturan Pemeriksaan.
+        </p>
+        <p className="mt-2 text-teks-redup">
           {masaBerjalan
             ? "Masa pengusulan sedang berjalan: templat akan disimpan sebagai draf untuk periode berikutnya; templat yang berlaku tidak berubah dan butir cek belum diturunkan."
             : `Templat versi ${templat.versi} menggantikan templat yang berlaku dan butir cek turunannya dibuat sebagai draf.`}

@@ -9,7 +9,7 @@ import * as s from "@/db/schema";
 import { simpanBerkas } from "./berkas";
 import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type DefinisiContoh, type VarianContoh } from "./contoh/proposal";
 import { turunkanButirDariTemplat } from "./seed-butir";
-import { bagianBawaan, kepalaBawaan } from "./templat/isian-substansi";
+import { bagianBawaan, kepalaBawaan, keKolomBagian } from "./templat/isian-substansi";
 import { KOP_BAWAAN, lampiranBawaan } from "./templat/paket";
 import akunJson from "../../data/contoh/akun.json";
 import katalogJson from "../../data/contoh/katalog-butir.json";
@@ -132,7 +132,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       })
       .returning();
     templatBaris[sk.kode] = t.id;
-    await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, ...b })));
+    await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, ...keKolomBagian(b) })));
 
     const [basis] = await db
       .insert(s.basisAturan)
@@ -150,7 +150,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
 
     const turunan = turunkanButirDariTemplat(bagian, templatJson.lampiranWajib, lampiranTemplat);
     const butir = [
-      ...turunan.map((b) => ({ ...b, templatId: t.id, pertanyaan: null, contohJawaban: null })),
+      ...turunan.map((b) => ({ ...b, templatId: t.id })),
       ...katalogJson.butir.map((b) => ({
         kode: b.kode,
         deskripsi: b.deskripsi,

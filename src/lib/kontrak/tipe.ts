@@ -39,15 +39,17 @@ export type ParameterButir =
   | { tipe: "batas_kata"; bagian: string; batas: number }
   | { tipe: "lampiran_wajib"; nama: string }
   | { tipe: "lampiran_format"; nama: string; kunci: string[] }
-  | { tipe: "kata_kunci"; jumlah: number; pemisah: string }
+  | { tipe: "kata_kunci"; jumlah: number; pemisah: string; bagian?: string }
+  | { tipe: "batas_kata_min"; bagian: string; batas: number }
+  | { tipe: "frasa_wajib"; bagian: string; frasa: string }
   | { tipe: "sitasi_bernomor"; pustaka?: string }
   | { tipe: "pustaka_berurutan"; pustaka?: string }
   | { tipe: "jumlah_referensi_sama"; pustaka?: string }
   | { tipe: "struktur_judul" }
   | { tipe: "judul_sama" }
   | { tipe: "bagian_terisi"; bagian: string }
-  | { tipe: "diagram_alir"; bagian: string }
-  | { tipe: "tabel_wajib"; bagian: string }
+  | { tipe: "diagram_alir"; bagian: string; keterangan?: string }
+  | { tipe: "tabel_wajib"; bagian: string; kolom?: string[] }
   | { tipe: "semantik"; bagian: string; lampiran?: string };
 
 /** Butir cek sebagaimana dibaca fungsi pemeriksa (turunan baris butir_cek). */
@@ -66,8 +68,17 @@ export interface ButirCek {
   status: StatusButir;
 }
 
-/** Jenis tempat isian sebuah bagian templat: teks bebas, daftar bersambung pemisah (kata kunci), atau tabel (jadwal). */
-export type JenisIsian = "teks" | "daftar" | "tabel";
+/**
+ * Tipe Isian sebuah bagian templat: teks bebas, daftar bersambung pemisah (kata kunci), tabel (jadwal), atau daftar pustaka bernomor.
+ * "daftar_pustaka" disimpan di basis data sebagai jenis_isian "teks" dengan daftar_pustaka true (kode lama di produksi tetap membacanya).
+ */
+export type JenisIsian = "teks" | "daftar" | "tabel" | "daftar_pustaka";
+
+/** Satu unsur isi yang harus dimuat sebuah bagian (menjadi satu butir semantik); pertanyaan null/kosong = disusun otomatis. */
+export interface UnsurIsi {
+  unsur: string;
+  pertanyaan?: string | null;
+}
 
 export interface BagianTemplatDto {
   urutan: number;
@@ -93,6 +104,20 @@ export interface BagianTemplatDto {
   sitasiBernomor?: boolean | null;
   /** bagian ini adalah daftar pustaka yang dicocokkan dengan sitasi */
   daftarPustaka?: boolean | null;
+  /** batas kata minimal (opsional); batasKata = maksimal */
+  batasMin?: number | null;
+  /** tabel wajib di dalam bagian bertipe teks */
+  wajibTabel?: boolean | null;
+  /** kolom wajib tabel (jenisIsian "tabel" atau wajibTabel), mis. ["No", "Nama Kegiatan", "Bulan 1–12"] */
+  kolomTabel?: string[] | null;
+  /** judul blok tabel, mis. "Tahun ke-1" */
+  judulTabel?: string | null;
+  /** keterangan gambar wajib, mis. "diagram alir penelitian" (dipakai bila wajibGambar) */
+  ketGambar?: string | null;
+  /** kalimat yang harus muncul persis di bagian ini */
+  frasaWajib?: string[] | null;
+  /** unsur isi yang harus dimuat (butir semantik, satu per unsur) */
+  unsurIsi?: UnsurIsi[] | null;
 }
 
 /** Kepala dokumen templat (di atas bagian A): judul, subjudul skema, kalimat pengantar. */

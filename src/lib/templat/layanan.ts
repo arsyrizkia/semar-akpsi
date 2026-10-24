@@ -11,7 +11,7 @@ import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/wak
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
-import { bagianDariBaris, kepalaDariBaris } from "./isian-substansi";
+import { bagianDariBaris, kepalaDariBaris, keKolomBagian } from "./isian-substansi";
 import { kopDariBaris, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
 import { batasKataValid, bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
 import { putuskanTerbitkan } from "./status";
@@ -151,22 +151,7 @@ export async function susunVersiBaru(skemaId: string, pelaku: Pelaku): Promise<{
       })
       .returning();
     if (berlaku && berlaku.bagian.length > 0) {
-      await tx.insert(bagianTemplat).values(
-        berlaku.bagian.map((b) => ({
-          templatId: t.id,
-          urutan: b.urutan,
-          nama: b.nama,
-          batasKata: b.batasKata,
-          wajib: b.wajib,
-          petunjuk: b.petunjuk ?? null,
-          jenisIsian: b.jenisIsian ?? null,
-          jumlahButir: b.jumlahButir ?? null,
-          pemisah: b.pemisah ?? null,
-          wajibGambar: b.wajibGambar ?? null,
-          sitasiBernomor: b.sitasiBernomor ?? null,
-          daftarPustaka: b.daftarPustaka ?? null,
-        })),
-      );
+      await tx.insert(bagianTemplat).values(berlaku.bagian.map((b) => ({ templatId: t.id, urutan: b.urutan, ...keKolomBagian(b) })));
     }
     return t.id;
   });
@@ -180,7 +165,7 @@ async function simpanIsian(db: Db, templatId: string, isian: MasukanKelengkapan)
   await db.delete(bagianTemplat).where(eq(bagianTemplat.templatId, templatId));
   const bagian = isian.bagian.map(bagianTersimpan);
   if (bagian.length > 0) {
-    await db.insert(bagianTemplat).values(bagian.map((b, i) => ({ templatId, urutan: i + 1, ...b })));
+    await db.insert(bagianTemplat).values(bagian.map((b, i) => ({ templatId, urutan: i + 1, ...keKolomBagian(b) })));
   }
   const lampiran = isian.lampiran.map((l) => l.trim());
   await db
@@ -201,7 +186,7 @@ export type HasilTerbitkan =
   | { hasil: "tidak-ditemukan"; pesan: string }
   | { hasil: "tidak-lengkap"; kelengkapan: HasilKelengkapan }
   | { hasil: "draf-disimpan"; versi: number }
-  | { hasil: "terbit"; versi: number; jumlahButir: number };
+  | { hasil: "terbit"; versi: number; jumlahButir: number; jumlahDeterministik: number; jumlahSemantik: number; kodeBaru: string[] };
 
 export interface MasukanTerbitkan {
   skemaId: string;
@@ -236,7 +221,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
   const bagian = m.isian.bagian.map(bagianTersimpan);
   const lampiran = m.isian.lampiran.map((l) => l.trim());
 
-  const jumlahButir = await db.transaction(async (tx) => {
+  const turunanBaru = await db.transaction(async (tx) => {
     // gantiTemplatBerlaku, arsipkan, nonaktifkan (langkah 9)
     const lama = await tx
       .select()
@@ -262,21 +247,26 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
           pemeriksa: b.pemeriksa,
           parameter: b.parameter as unknown as Record<string, unknown>, // aturParameter(parameter)
           aturanHitung: b.aturanHitung,
+          pertanyaan: b.pertanyaan,
+          contohJawaban: b.contohJawaban,
           status: "Draf" as const,
           urutan: ++urutan,
         })),
       );
     }
-    return turunan.length;
+    return turunan;
   });
+  const jumlahButir = turunanBaru.length;
+  const jumlahSemantik = turunanBaru.filter((b) => b.jenis === "semantik").length;
+  const jumlahDeterministik = jumlahButir - jumlahSemantik;
 
   await catatLogAudit({
     aktor: m.pelaku.idBima,
     aksi: "templat.terbit",
     objek: `templat:${t.id}`,
-    rincian: { skemaId: m.skemaId, versi: t.versi, jumlahButirDraf: jumlahButir, periodeBerlakuId: m.isian.periodeBerlakuId },
+    rincian: { skemaId: m.skemaId, versi: t.versi, jumlahButirDraf: jumlahButir, jumlahDeterministik, jumlahSemantik, periodeBerlakuId: m.isian.periodeBerlakuId },
   });
-  return { hasil: "terbit", versi: t.versi, jumlahButir };
+  return { hasil: "terbit", versi: t.versi, jumlahButir, jumlahDeterministik, jumlahSemantik, kodeBaru: turunanBaru.map((b) => b.kode) };
 }
 
 /* ------------------------------ riwayat versi dan draf (J-02, J-02b) ------------------------------ */

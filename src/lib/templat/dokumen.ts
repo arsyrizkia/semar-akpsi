@@ -15,7 +15,7 @@
 import { AlignmentType, BorderStyle, Document, Footer, HeadingLevel, HeightRule, ImageRun, LineRuleType, Packer, Paragraph, ShadingType, Tab, TabStopType, Table, TableCell, TableLayoutType, TableRow, TextRun, VerticalAlign, WidthType } from "docx";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak/tipe";
 import { normalisasiJudul } from "@/lib/pemeriksa/deterministik/teks";
-import { JUDUL_DOKUMEN_BAWAAN, PENGANTAR_ISIAN_SUBSTANSI, TEMPAT_ISIAN, judulBerhuruf, lengkapiBagian, petunjukBagian } from "./isian-substansi";
+import { JUDUL_DOKUMEN_BAWAAN, PENGANTAR_ISIAN_SUBSTANSI, TEMPAT_ISIAN, adalahDaftarPustaka, judulBerhuruf, keteranganGambar, kolomTerisi, lengkapiBagian, petunjukBagian } from "./isian-substansi";
 import { LOGO_KEMENTERIAN_BASE64 } from "./aset/logo-kementerian";
 import { BAGIAN_DEPAN, KOP_BAWAAN, labelIsian, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
 
@@ -98,8 +98,13 @@ interface OpsiParagraf extends OpsiTeks {
   sesudah?: number;
   sebelum?: number;
   indentKiri?: number;
+  indentKanan?: number;
   halamanBaru?: boolean;
   garisBawah?: boolean;
+  /** tebal garis bawah (per delapan poin); bawaan 12 */
+  tebalGaris?: number;
+  /** tinggi baris pasti (twip): meniru jarak baris contoh yang terukur */
+  barisPasti?: number;
   judul?: boolean;
   jagaDenganBerikut?: boolean;
 }
@@ -121,9 +126,11 @@ function para(isi: string | TextRun[], o: OpsiParagraf = {}): Paragraph {
     alignment: o.tengah ? AlignmentType.CENTER : o.kanan ? AlignmentType.RIGHT : o.rataPenuh ? AlignmentType.JUSTIFIED : undefined,
     pageBreakBefore: o.halamanBaru,
     keepNext: o.jagaDenganBerikut,
-    spacing: { after: o.sesudah ?? 0, before: o.sebelum ?? 0 },
-    indent: o.indentKiri ? { left: o.indentKiri } : undefined,
-    border: o.garisBawah ? { bottom: garis(12) } : undefined,
+    spacing: { after: o.sesudah ?? 0, before: o.sebelum ?? 0, ...(o.barisPasti ? { line: o.barisPasti, lineRule: LineRuleType.EXACT } : {}) },
+    indent: o.indentKiri || o.indentKanan ? { left: o.indentKiri, right: o.indentKanan } : undefined,
+    border: o.garisBawah ? { bottom: garis(o.tebalGaris ?? 12) } : undefined,
+    // tanda paragraf ikut ukuran huruf supaya paragraf kosong (garis pemisah) tidak membengkak ke ukuran bawaan
+    run: o.ukuran ? { size: o.ukuran } : undefined,
     children: typeof isi === "string" ? [run(isi, o)] : isi,
   });
 }
@@ -134,6 +141,8 @@ interface OpsiSel {
   latar?: string;
   bingkai?: boolean;
   span?: number;
+  /** garis tipis di bawah sel tanpa bingkai (garis kop halaman depan) */
+  garisBawah?: number;
   margin?: { atas: number; bawah: number; kiri: number; kanan: number };
   tengahVertikal?: boolean;
 }
@@ -141,7 +150,7 @@ const sel = (o: OpsiSel) =>
   new TableCell({
     width: { size: o.lebar, type: WidthType.DXA },
     columnSpan: o.span,
-    borders: o.bingkai === false ? TANPA_BINGKAI : BINGKAI,
+    borders: o.bingkai === false ? (o.garisBawah ? { ...TANPA_BINGKAI, bottom: garis(o.garisBawah) } : TANPA_BINGKAI) : BINGKAI,
     shading: o.latar ? { type: ShadingType.CLEAR, fill: o.latar, color: "auto" } : undefined,
     margins: o.margin ? { top: o.margin.atas, bottom: o.margin.bawah, left: o.margin.kiri, right: o.margin.kanan } : undefined,
     verticalAlign: o.tengahVertikal ? VerticalAlign.CENTER : undefined,
@@ -173,8 +182,9 @@ const logo = (px: number) => new ImageRun({ type: "png", data: LOGO(), transform
 
 /* ------------------------------ halaman depan (Roboto) ------------------------------ */
 
-const LEBAR_DEPAN = 8626;
-const M_DEPAN = { atas: 1134, bawah: 1134, kiri: 1640, kanan: 1640 };
+// ukuran terukur dari contoh no. 6 halaman 1 (pt): isi x 85 sampai 524, kop mulai y 34,5; teks kop mulai x 141
+const LEBAR_DEPAN = 8786;
+const M_DEPAN = { atas: 690, bawah: 1134, kiri: 1700, kanan: 1420 };
 const T_DEPAN: OpsiTeks = { font: FONT_DEPAN, ukuran: 16 };
 const M_SEL_DEPAN = { atas: 50, bawah: 50, kiri: 80, kanan: 80 };
 
@@ -229,91 +239,130 @@ function bagianDepanKonten(kunci: string, nomor: number, d: (typeof BAGIAN_DEPAN
 
 function halamanDepan(kop: KopTemplat): (Paragraph | Table)[] {
   const o: (Paragraph | Table)[] = [];
-  const wLogo = 1100;
+  // logo 48 x 48 pt di kiri; kolom logo selebar 56 pt supaya teks kop mulai di x = 141 pt (margin kiri 85 pt); tanpa bantalan sel
+  const wLogo = 1120;
   const baris = [kop.lembaga, kop.alamat, kop.laman].filter(Boolean);
+  const NOL = { atas: 0, bawah: 0, kiri: 0, kanan: 0 };
   o.push(
     tabelTetap(
       [wLogo, LEBAR_DEPAN - wLogo],
       [
         new TableRow({
+          height: { value: 960, rule: HeightRule.EXACT },
           children: [
-            sel({ lebar: wLogo, bingkai: false, tengahVertikal: true, isi: [new Paragraph({ children: [logo(48)] })] }),
-            sel({ lebar: LEBAR_DEPAN - wLogo, bingkai: false, tengahVertikal: true, isi: baris.map((t) => para(t, { font: FONT_DEPAN_MEDIUM, ukuran: 19 })) }),
+            sel({ lebar: wLogo, bingkai: false, garisBawah: 8, margin: NOL, isi: [new Paragraph({ children: [logo(64)] })] }),
+            sel({
+              lebar: LEBAR_DEPAN - wLogo,
+              bingkai: false,
+              garisBawah: 8,
+              margin: NOL,
+              // tiga baris 10 pt, jarak 10,5 pt; baris pertama Medium; blok teks mulai 7,5 pt di bawah puncak logo (terukur dari contoh)
+              isi: baris.map((t, i) => para(t, { font: i === 0 ? FONT_DEPAN_MEDIUM : FONT_DEPAN, ukuran: 20, barisPasti: 211, sebelum: i === 0 ? 165 : 0 })),
+            }),
           ],
         }),
       ],
       true,
     ),
   );
-  o.push(para("", { garisBawah: true, sesudah: 160, ukuran: 8 }));
-  o.push(para("PROTEKSI ISI PROPOSAL", { ...T_DEPAN, font: FONT_DEPAN_MEDIUM, tengah: true, sebelum: 200 }));
-  o.push(para(kop.proteksi, { ...T_DEPAN, ukuran: 15, tengah: true, sesudah: 20 }));
-  o.push(para([run(kop.judulProposal, { font: FONT_DEPAN_MEDIUM, ukuran: 18, warna: "FFFFFF", latar: HITAM })], { tengah: true, sesudah: 20 }));
-  o.push(para("Rencana Pelaksanaan Penelitian: tahun .... s.d. tahun ....", { ...T_DEPAN, font: FONT_DEPAN_MEDIUM, ukuran: 15, tengah: true }));
-  o.push(para("NO. DOKUMEN: ....", { ...T_DEPAN, ukuran: 15, tengah: true, sesudah: 160 }));
+  o.push(para("PROTEKSI ISI PROPOSAL", { ...T_DEPAN, font: FONT_DEPAN_MEDIUM, ukuran: 20, tengah: true, sebelum: 208, barisPasti: 211 }));
+  // kalimat larangan: dua baris di tengah, lebar teks ±370 pt (contoh no. 6: baris pertama berakhir di "bentuk apapun")
+  o.push(para(kop.proteksi, { ...T_DEPAN, ukuran: 15, tengah: true, sesudah: 0, barisPasti: 176, indentKiri: 690, indentKanan: 690 }));
+  o.push(para([run(kop.judulProposal, { font: FONT_DEPAN_MEDIUM, ukuran: 20, warna: "FFFFFF", latar: HITAM })], { tengah: true, sesudah: 0, barisPasti: 211, ukuran: 20 }));
+  o.push(para("Rencana Pelaksanaan Penelitian: tahun .... s.d. tahun ....", { ...T_DEPAN, font: FONT_DEPAN_MEDIUM, ukuran: 15, tengah: true, barisPasti: 176 }));
+  o.push(para("NO. DOKUMEN: ....", { ...T_DEPAN, ukuran: 15, tengah: true, sesudah: 160, barisPasti: 176 }));
   BAGIAN_DEPAN.filter((d) => kop.depan[d.kunci]).forEach((d, i) => o.push(...bagianDepanKonten(d.kunci, i + 1, d)));
   return o;
 }
 
 /* ------------------------------ Isian Substansi (Avenir Next LT Pro + Calibri) ------------------------------ */
 
-const LEBAR_ISIAN = 8906;
-const M_ISIAN = { atas: 1134, bawah: 1134, kiri: 1500, kanan: 1500 };
+// ukuran terukur dari contoh no. 1 halaman 1 (pt): isi x 72 sampai 522,5; kepala mulai y 45; teks kepala mulai x 141
+const LEBAR_ISIAN = 9026;
+const M_ISIAN = { atas: 900, bawah: 1134, kiri: 1440, kanan: 1440 };
 const M_SEL_ISIAN = { atas: 40, bawah: 40, kiri: 100, kanan: 100 };
 
 function kepalaIsian(kepala: KepalaTemplatDto): (Paragraph | Table)[] {
-  const wLogo = 1250;
-  const kanan: Paragraph[] = [para(kepala.judulDokumen, { font: FONT_ISIAN_JUDUL, ukuran: 22 })];
-  if (kepala.subjudul) kanan.push(para(kepala.subjudul, { font: FONT_ISIAN_JUDUL, ukuran: 24, tebal: true, sesudah: 40 }));
-  if (kepala.pengantar) kanan.push(para(kepala.pengantar, { font: FONT_ISIAN_JUDUL, ukuran: 17, miring: true, rataPenuh: true }));
+  // logo 60 x 60 pt di kiri; kolom logo 69 pt supaya teks mulai di x = 141 pt; judul 12 pt reguler, SKEMA 12 pt tebal (jarak 14,4 pt), pengantar 9 pt miring (jarak 11 pt)
+  const wLogo = 1380;
+  const NOL = { atas: 0, bawah: 0, kiri: 0, kanan: 0 };
+  const kanan: Paragraph[] = [para(kepala.judulDokumen, { font: FONT_ISIAN_JUDUL, ukuran: 24, barisPasti: 288 })];
+  if (kepala.subjudul) kanan.push(para(kepala.subjudul, { font: FONT_ISIAN_JUDUL, ukuran: 24, tebal: true, barisPasti: 288 }));
+  if (kepala.pengantar) kanan.push(para(kepala.pengantar, { font: FONT_ISIAN_JUDUL, ukuran: 18, miring: true, rataPenuh: true, barisPasti: 220 }));
   return [
     tabelTetap(
       [wLogo, LEBAR_ISIAN - wLogo],
       [
         new TableRow({
           children: [
-            sel({ lebar: wLogo, bingkai: false, tengahVertikal: true, isi: [new Paragraph({ children: [logo(70)] })] }),
-            sel({ lebar: LEBAR_ISIAN - wLogo, bingkai: false, tengahVertikal: true, isi: kanan }),
+            sel({ lebar: wLogo, bingkai: false, margin: NOL, isi: [new Paragraph({ children: [logo(80)] })] }),
+            sel({ lebar: LEBAR_ISIAN - wLogo, bingkai: false, margin: NOL, isi: kanan }),
           ],
         }),
       ],
       true,
     ),
-    para("", { garisBawah: true, sesudah: 160, ukuran: 8 }),
+    para("", { garisBawah: true, tebalGaris: 12, sebelum: 0, sesudah: 300, ukuran: 2, barisPasti: 20 }),
   ];
 }
 
 const isiIsian = (teks: string, o: OpsiParagraf = {}) => para(teks, { font: FONT_ISIAN, ukuran: 22, rataPenuh: true, ...o });
 
-function tabelJadwal(): Table {
-  const lebar = [380, 2200, ...Array.from({ length: 12 }, () => 505)];
+const POLA_KOLOM_BULAN = /^bulan\s*1\s*[–-]\s*12$/i;
+
+/**
+ * Tabel isian menurut kolom wajib bagian. Kolom "Bulan 1–12" diperluas menjadi dua belas kolom sempit di bawah kepala "Bulan" (gaya jadwal
+ * contoh BIMA); tanpa kolom bulan, kolom dibagi rata dan diberi tiga baris kosong. `judul` (mis. "Tahun ke-1") menjadi baris judul blok.
+ */
+function tabelIsian(kolomWajib: string[], judul: string | null): Table {
+  const kolom = kolomWajib.length ? kolomWajib : ["No", "Nama Kegiatan", "Bulan 1–12"];
+  const adaBulan = kolom.some((k) => POLA_KOLOM_BULAN.test(k));
+  const lain = kolom.filter((k) => !POLA_KOLOM_BULAN.test(k));
   const bulan = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  const lebarBulan = adaBulan ? 12 * 505 : 0;
+  const sisa = LEBAR_ISIAN - lebarBulan;
+  const lebarLain = lain.map((k) => (/^no\.?$/i.test(k) ? 380 : Math.floor((sisa - lain.filter((x) => /^no\.?$/i.test(x)).length * 380) / Math.max(1, lain.filter((x) => !/^no\.?$/i.test(x)).length)))) ;
+  const jumlahTetap = lebarLain.reduce((a, b) => a + b, 0);
+  if (lebarLain.length) lebarLain[lebarLain.length - 1] += sisa - jumlahTetap;
+  const lebar = adaBulan ? [...lebarLain, ...bulan.map(() => 505)] : lebarLain;
   const m = { atas: 20, bawah: 20, kiri: 40, kanan: 40 };
   const sl = (t: string, i: number, tebal: boolean, span = 1) =>
-    sel({ lebar: span === 1 ? lebar[i] : lebar.slice(i, i + span).reduce((a, b) => a + b, 0), span, margin: m, isi: [para(t, { font: FONT_ISIAN, ukuran: 18, tebal, tengah: span > 1 || i !== 1 })] });
-  return tabelTetap(lebar, [
-    new TableRow({ children: [sl("Tahun ke-1", 0, true, 14)] }),
-    new TableRow({ tableHeader: true, children: [sl("No", 0, true), sl("Nama Kegiatan", 1, true), sl("Bulan", 2, true, 12)] }),
-    new TableRow({ tableHeader: true, children: [sl("", 0, false), sl("", 1, false), ...bulan.map((b, i) => sl(b, i + 2, true))] }),
-    ...[1, 2, 3, 4].map((n) => new TableRow({ children: [sl(String(n), 0, false), sl("", 1, false), ...bulan.map((_, i) => sl("", i + 2, false))] })),
-  ]);
+    sel({ lebar: lebar.slice(i, i + span).reduce((a, b) => a + b, 0), span, margin: m, isi: [para(t, { font: FONT_ISIAN, ukuran: 18, tebal, tengah: span > 1 || /^no\.?$/i.test(t) || !tebal })] });
+  const baris: TableRow[] = [];
+  if (judul) baris.push(new TableRow({ children: [sl(judul, 0, true, lebar.length)] }));
+  if (adaBulan) {
+    // kepala dua tingkat: kolom biasa, "Bulan" melebar di atas dua belas nomor bulan
+    baris.push(new TableRow({ tableHeader: true, children: [...lain.map((k, i) => sl(k, i, true)), sl("Bulan", lain.length, true, 12)] }));
+    baris.push(new TableRow({ tableHeader: true, children: [...lain.map((_, i) => sl("", i, false)), ...bulan.map((b, i) => sl(b, lain.length + i, true))] }));
+  } else {
+    baris.push(new TableRow({ tableHeader: true, children: lain.map((k, i) => sl(k, i, true)) }));
+  }
+  for (const n of [1, 2, 3, 4]) baris.push(new TableRow({ children: lebar.map((_, i) => sl(i === 0 && /^no\.?$/i.test(lain[0] ?? "") ? String(n) : "", i, false)) }));
+  return tabelTetap(lebar, baris);
 }
 
-/** Tempat isian sebuah bagian menurut jenis dan ketentuannya (meniru contoh BIMA). */
+/** Tempat isian sebuah bagian menurut tipe dan ketentuannya (meniru contoh BIMA). */
 function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
   const o: (Paragraph | Table)[] = [];
   if (b.jenisIsian === "daftar") {
-    const butir = Array.from({ length: b.jumlahButir ?? 5 }, (_, i) => `kata kunci ${i + 1}`);
+    // daftar kata kunci mengikuti contoh ("kata kunci 1"); daftar lain memakai "butir 1"
+    const label = normalisasiJudul(b.nama) === "kata kunci" ? "kata kunci" : "butir";
+    const butir = Array.from({ length: b.jumlahButir ?? 5 }, (_, i) => `${label} ${i + 1}`);
     o.push(isiIsian(`[${butir.join(`${b.pemisah ?? ";"} `)}]`));
   } else if (b.jenisIsian === "tabel") {
-    o.push(tabelJadwal());
+    o.push(tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || (kolomTerisi(b).length === 0 ? "Tahun ke-1" : null)));
     o.push(isiIsian("", { sesudah: 0 }));
-  } else if (b.daftarPustaka) {
+  } else if (adalahDaftarPustaka(b)) {
     o.push(isiIsian("[1] "));
   } else {
     o.push(isiIsian(TEMPAT_ISIAN));
   }
-  if (b.wajibGambar) o.push(isiIsian("[Sisipkan diagram alir penelitian (JPG/PNG)]", { miring: true }));
+  if (b.wajibTabel && b.jenisIsian !== "tabel") {
+    o.push(isiIsian("[Sisipkan tabel]", { miring: true }));
+    o.push(tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || null));
+    o.push(isiIsian("", { sesudah: 0 }));
+  }
+  if (b.wajibGambar) o.push(isiIsian(`[Sisipkan ${keteranganGambar(b)} (JPG/PNG)]`, { miring: true }));
   return o;
 }
 

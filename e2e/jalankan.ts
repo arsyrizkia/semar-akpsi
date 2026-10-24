@@ -199,6 +199,52 @@ async function isi(page: Page, selektor: string, nilai: string) {
   if (nilai) await page.type(selektor, nilai);
 }
 const isiLabel = async (page: Page, label: string, nilai: string) => isi(page, await selektorLabel(page, label), nilai);
+/** Mencentang kotak centang menurut teks labelnya (di dalam modal bila ada). */
+async function centang(page: Page, label: string) {
+  const ada = await page.evaluate((l) => {
+    const akar = document.querySelector("[role=dialog]") ?? document;
+    const lab = [...akar.querySelectorAll("label")].find((x) => (x.textContent ?? "").replace(/\s+/g, " ").trim() === l) as HTMLLabelElement | undefined;
+    lab?.click();
+    return Boolean(lab);
+  }, label);
+  yakin(ada, `kotak centang "${label}" tidak ditemukan`);
+}
+/**
+ * "Tambah Bagian" membuka M-12; helper mengisi nama, batas maksimal, tipe daftar (jumlah butir, pemisah) dan unsur isi, lalu Terapkan.
+ * Mengembalikan nomor baris bagian baru di J-02b.
+ */
+async function tambahBagian(page: Page, nama: string, o: { batas?: string; daftar?: { butir: string }; unsur?: string[]; tanpaTerapkan?: boolean } = {}): Promise<number> {
+  await klik(page, "Tambah Bagian");
+  await tungguModal(page, "Tambah Bagian");
+  await isiLabel(page, "Nama Bagian", nama);
+  if (o.batas) {
+    await centang(page, "Tanpa batas maksimal");
+    await isiLabel(page, "Maksimal", o.batas);
+  }
+  if (o.daftar) {
+    await pilihLabel(page, "Tipe Isian", (t) => t.startsWith("Daftar ("));
+    await isiLabel(page, "Jumlah Butir", o.daftar.butir);
+  }
+  let n = 0;
+  for (const u of o.unsur ?? []) {
+    await klik(page, "Tambah Unsur Isi");
+    await isiLabel(page, `Unsur ${++n}`, u);
+  }
+  if (o.tanpaTerapkan) return 0;
+  await klik(page, "Terapkan");
+  await tungguModalTutup(page);
+  return page.$$eval("input[aria-label^='Nama Bagian baris']", (e) => e.length);
+}
+/** Tangkapan bukti putaran 3 (1440 px) ke docs/bukti-e2e/uc01r3-<nama>.png; dilewati pada run terfilter yang tidak menulis dokumen. */
+async function buktiR3(page: Page, nama: string, elemen?: string) {
+  const berkas = path.join(ROOT, "docs", "bukti-e2e", `uc01r3-${nama}.png`);
+  await new Promise((r) => setTimeout(r, 300));
+  if (elemen) {
+    const el = await page.$(elemen);
+    if (el) return void (await el.screenshot({ path: berkas }));
+  }
+  await page.screenshot({ path: berkas });
+}
 async function pilih(page: Page, selektor: string, cocok: (teks: string) => boolean): Promise<string> {
   await page.waitForSelector(selektor, { timeout: 10_000 });
   const opsi = await page.$$eval(`${selektor} option`, (os) => os.map((o) => ({ v: (o as HTMLOptionElement).value, t: o.textContent ?? "" })));
@@ -512,7 +558,9 @@ async function utama() {
       yakin(jalur(page).endsWith("/susun"), "Susun Versi Baru tidak membuka J-02b");
       await judulTab("J-02b");
       await foto(page, "j02b-draf");
-      await klik(page, "Tambah Bagian");
+      // bagian baru lewat M-12 lalu namanya dikosongkan di tabel: isian bertanda S-2
+      const barisUji = await tambahBagian(page, "Bagian Uji S2");
+      await isi(page, `input[aria-label='Nama Bagian baris ${barisUji}']`, "");
       await klik(page, "Terbitkan");
       await adaTeks(page, "Lengkapi isian yang ditandai");
       yakin((await page.$$("[aria-invalid=true]")).length > 0, "isian kosong tidak ditandai aria-invalid");
@@ -537,13 +585,25 @@ async function utama() {
       await tungguModalTutup(page);
       yakin((await teksHalaman(page)).includes("5 butir · pemisah ;"), "chip ringkasan '5 butir · pemisah ;' tidak tampil sesudah Terapkan");
       c("M-12: validasi jumlah butir di dekat isian (Terapkan nonaktif), Terapkan memperbarui chip ketentuan");
-      await klik(page, "Atur Ketentuan", 0);
+      // M-12 komprehensif: tipe isian, batas kata minimal dan maksimal, wajib memuat dengan label jenis butir, petunjuk otomatis, pratinjau butir
+      await klik(page, "Atur Ketentuan", 1);
       await tungguModal(page, "Ketentuan Bagian");
-      await adaTeks(page, "Aturan format baku");
-      yakin(!(await page.$("[role=dialog] select")), "M-12 tidak boleh lagi memuat pilihan jenis isian (format baku)");
-      await klik(page, "Batal");
+      const m12 = await page.$eval("[role=dialog]", (e) => (e as HTMLElement).innerText);
+      for (const x of ["Tipe Isian", "Batas Kata", "Wajib Memuat", "Petunjuk Pengisian", "Susun ulang petunjuk", "Butir cek yang akan lahir dari bagian ini", "Unsur isi", "Frasa wajib", "Deterministik", "Semantik"]) yakin(m12.includes(x), `M-12 tanpa "${x}"`);
+      yakin(m12.includes("Ringkasan memuat urgensi") && /UNS\s+Ringkasan memuat tujuan\s+Semantik/.test(m12), "pratinjau butir M-12 tanpa butir semantik per unsur Ringkasan");
+      await isiLabel(page, "Minimal", "500");
+      await adaTeks(page, "Minimal tidak boleh melebihi maksimal");
+      yakin(await page.evaluate(() => [...document.querySelectorAll("[role=dialog] button")].some((b) => b.textContent?.trim() === "Terapkan" && (b as HTMLButtonElement).disabled)), "Terapkan seharusnya nonaktif saat minimal melebihi maksimal");
+      await isiLabel(page, "Minimal", "100");
+      await klik(page, "Terapkan");
       await tungguModalTutup(page);
-      c("M-12: aturan format baku tampil hanya-baca; Batal tidak mengubah isian");
+      yakin((await teksHalaman(page)).includes("100–300 kata"), "chip '100–300 kata' tidak tampil sesudah Terapkan");
+      await klik(page, "Atur Ketentuan", 1);
+      await tungguModal(page, "Ketentuan Bagian");
+      await isiLabel(page, "Minimal", "");
+      await klik(page, "Terapkan");
+      await tungguModalTutup(page);
+      c("M-12: tipe isian, batas minimal dan maksimal (validasi di dekat isian), Wajib Memuat berlabel Deterministik/Semantik, petunjuk otomatis, pratinjau butir turunan");
       // M-13 Templat Lampiran
       await klik(page, "Atur Templat Lampiran", 0);
       await tungguModal(page, "Templat Lampiran");
@@ -552,12 +612,20 @@ async function utama() {
       await klik(page, "Batal");
       await tungguModalTutup(page);
       c("M-13: Templat Lampiran (formulir bertemplat dengan kalimat kunci) dapat dibuka dan ditutup");
+      // keputusan Arsy 23 Okt: Tambah Bagian "Bidang Keilmuan" bertipe daftar 3 butir (;) dengan unsur isi, lalu Terbitkan
+      await tambahBagian(page, "Bidang Keilmuan", { daftar: { butir: "3" }, unsur: ["bidang keilmuan utama penelitian"], tanpaTerapkan: true });
+      await foto(page, "m12-tambah-bagian-daftar");
+      await buktiR3(page, "m12-daftar-unsur", "[role=dialog]");
+      await klik(page, "Terapkan");
+      await tungguModalTutup(page);
+      yakin((await teksHalaman(page)).includes("3 butir · pemisah ;") && (await teksHalaman(page)).includes("1 unsur isi"), "chip '3 butir · pemisah ;' dan '1 unsur isi' tidak tampil untuk bagian baru");
+      await buktiR3(page, "j02b-chip-ketentuan");
       await klik(page, "Unduh Pratinjau (.docx)");
       await adaTeks(page, "Pratinjau diunduh dari isian yang baru disimpan.");
-      c("J-02b: Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh");
+      c("J-02b: Tambah Bagian membuka M-12 (tipe daftar 3 butir, unsur isi), chip ketentuan tampil; Unduh Pratinjau (.docx) menyimpan draf lalu mengunduh");
       const idDraf = jalur(page).split("/")[3];
       const paket = await unduh(page, `/api/semar/templat/${idDraf}/unduh`);
-      const perlu = ["A. JUDUL", "C. KATA KUNCI", "Tuliskan judul usulan penelitian maksimal 20 kata", "Kementerian Pendidikan Tinggi, Sains, dan Teknologi", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "bersedia menjadi mitra", "[kata kunci 1; kata kunci 2; kata kunci 3; kata kunci 4; kata kunci 5]", "[Sisipkan diagram alir penelitian (JPG/PNG)]"];
+      const perlu = ["A. JUDUL", "C. KATA KUNCI", "Tuliskan judul usulan penelitian maksimal 20 kata", "Kementerian Pendidikan Tinggi, Sains, dan Teknologi", "PROPOSAL PENELITIAN", "PROTEKSI ISI PROPOSAL", "SURAT PERNYATAAN", "bersedia menjadi mitra", "[kata kunci 1; kata kunci 2; kata kunci 3; kata kunci 4; kata kunci 5]", "[butir 1; butir 2; butir 3]", "BIDANG KEILMUAN", "[Sisipkan diagram alir penelitian (JPG/PNG)]"];
       const kurang = perlu.filter((x) => !paket.html.includes(x));
       yakin(paket.status === 200 && kurang.length === 0, `paket .docx kurang: ${kurang.join(" | ") || `status ${paket.status}`}`);
       const isianSaja = await unduh(page, `/api/semar/templat/${idDraf}/unduh?mode=isian`);
@@ -567,6 +635,7 @@ async function utama() {
       await tungguModal(page, "Konfirmasi Terbitkan");
       const ringkas = await page.$eval("[role=dialog]", (e) => (e as HTMLElement).innerText);
       yakin(ringkas.includes("Penelitian Dasar") && /Bagian/.test(ringkas) && /Lampiran Wajib/.test(ringkas), `ringkasan M-01 tidak lengkap: ${ringkas.slice(0, 160)}`);
+      yakin(/akan membuat \d+ butir deterministik dan \d+ butir semantik \(draf\); kelola di Aturan Pemeriksaan/i.test(ringkas), `M-01 tanpa jumlah butir turunan: ${ringkas.slice(0, 300)}`);
       await foto(page, "m01-konfirmasi-terbitkan");
       await klik(page, "Batal");
       await tungguModalTutup(page);
@@ -577,11 +646,26 @@ async function utama() {
       await page.waitForFunction(() => location.pathname === "/tim-kerja/templat" && location.search.includes("hasil=terbit"), { timeout: 60_000 });
       await adaTeks(page, "telah terbit");
       const t = await teksHalaman(page);
-      yakin(/butir cek draf dibuat/.test(t), "jumlah butir draf tidak ditampilkan");
+      yakin(/\d+ butir deterministik dan \d+ butir semantik dibuat sebagai draf/.test(t), "jumlah butir draf deterministik dan semantik tidak ditampilkan");
       yakin((await jumlahTombol(page, "Buka Aturan Pemeriksaan")) === 1, "tombol Buka Aturan Pemeriksaan tidak ada");
+      await buktiR3(page, "j02-terbit-butir");
       yakin((await jumlahTombol(page, "Unduh Templat (.docx)", true)) >= 1, "Unduh Templat (.docx) tidak ada sesudah terbit");
       await foto(page, "j02-terbit");
       c("jalur utama: M-01 Terbitkan, hasil s.10 tampil di J-02 dengan jumlah butir draf, Buka Aturan Pemeriksaan, Unduh Templat (.docx)");
+      // aturan DIBUAT dari templat, DIKELOLA di J-03: tombol membuka J-03 dengan butir turunan baru tersorot (deterministik dan semantik)
+      await klik(page, "Buka Aturan Pemeriksaan");
+      await page.waitForFunction(() => location.pathname === "/tim-kerja/aturan" && location.search.includes("sorot="), { timeout: 60_000 });
+      await adaTeks(page, "Bidang Keilmuan: tepat 3 butir", 60_000);
+      const j03 = await teksHalaman(page);
+      yakin(j03.includes("Bidang Keilmuan memuat bidang keilmuan utama penelitian"), "J-03 tanpa butir semantik turunan dari unsur isi bagian baru");
+      yakin(j03.includes("Ringkasan memuat urgensi") && j03.includes("Metode memuat prosedur penelitian"), "J-03 tanpa butir semantik turunan bagian bawaan (pemetaan ISI-xx)");
+      const jenisTurunan = await page.$$eval("tbody tr[id^='butir-UNS-']", (e) => e.map((x) => (x as HTMLElement).innerText));
+      yakin(jenisTurunan.length >= 16 && jenisTurunan.every((x) => /Semantik/i.test(x)), `butir UNS-nn di J-03: ${jenisTurunan.length}`);
+      const tersorot = await page.$$eval("tbody tr[aria-current]", (e) => e.length);
+      yakin(tersorot >= 20, `butir turunan baru tidak tersorot (${tersorot})`);
+      await foto(page, "j03-butir-turunan-baru");
+      await buktiR3(page, "j03-butir-turunan");
+      c("J-03 dibuka dari Buka Aturan Pemeriksaan: butir turunan baru tersorot, deterministik (KAT bagian baru) dan semantik (UNS per unsur isi, pemetaan ISI-xx)");
     });
 
     await skenario("UC-01 9a: masa berjalan, draf disimpan, Buka Draf, Back", page, async (c) => {
@@ -603,10 +687,7 @@ async function utama() {
       c("pesan 9a persis, Buka Draf dan Unduh Pratinjau (.docx); templat berlaku tidak berubah");
       await klik(page, "Buka Draf Versi", 0, { awalan: true });
       await adaTeks(page, "Penyusunan Templat");
-      await klik(page, "Tambah Bagian");
-      const n = await page.$$eval("input[aria-label^='Nama Bagian baris']", (e) => e.length);
-      await isi(page, `input[aria-label='Nama Bagian baris ${n}']`, "Bagian Tambahan 9a");
-      await isi(page, `input[aria-label='Batas Kata baris ${n}']`, "120");
+      await tambahBagian(page, "Bagian Tambahan 9a", { batas: "120" });
       await adaTeks(page, "Ada perubahan yang belum disimpan");
       await klik(page, "Simpan Draf");
       await adaTeks(page, "tersimpan. Buka lagi kapan saja");
@@ -1086,10 +1167,7 @@ async function utama() {
       const versiLama = Number((await teksHalaman(page)).match(/Templat Berlaku, Versi (\d+)/)?.[1] ?? 0);
       await klik(page, "Susun Versi Baru");
       await adaTeks(page, "Penyusunan Templat");
-      await klik(page, "Tambah Bagian");
-      const n = await page.$$eval("input[aria-label^='Nama Bagian baris']", (e) => e.length);
-      await isi(page, `input[aria-label='Nama Bagian baris ${n}']`, BARU);
-      await isi(page, `input[aria-label='Batas Kata baris ${n}']`, "300");
+      await tambahBagian(page, BARU, { batas: "300" });
       await pilihLabel(page, "Periode Berlaku", () => true);
       // 2. pratinjau .docx (menyimpan draf dulu) memuat bagian baru
       await klik(page, "Unduh Pratinjau (.docx)");
@@ -1548,15 +1626,15 @@ async function utama() {
 
     await skenario("Tautan langsung tanpa sesi mempertahankan tujuan sesudah masuk (lanjut)", page, async (c) => {
       await page.deleteCookie(...(await page.cookies(base)));
-      await page.goto(url("/tim-kerja/aturan?butir=ISI-01"), { waitUntil: "domcontentloaded" });
+      await page.goto(url("/tim-kerja/aturan?butir=UNS-01"), { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => location.pathname === "/masuk" && location.search.includes("lanjut="), { timeout: 30_000 });
       await klik(page, "Masuk dengan akun BIMA");
       await adaTeks(page, "Masuk (simulasi)");
       const href = await page.$eval("a[href*='idBima=dppm-pengelola']", (a) => a.getAttribute("href"));
       yakin(href && href.includes("lanjut="), `akun BIMA tidak membawa tujuan: ${href}`);
       await page.evaluate((h) => (document.querySelector(`a[href='${h}']`) as HTMLElement).click(), href);
-      await page.waitForFunction(() => location.pathname === "/tim-kerja/aturan" && location.search.includes("butir=ISI-01"), { timeout: 60_000 });
-      c("tautan J-03 ?butir=ISI-01 tanpa sesi: masuk lewat BIMA lalu mendarat di tautan semula");
+      await page.waitForFunction(() => location.pathname === "/tim-kerja/aturan" && location.search.includes("butir=UNS-01"), { timeout: 60_000 });
+      c("tautan J-03 ?butir=UNS-01 tanpa sesi: masuk lewat BIMA lalu mendarat di tautan semula");
     });
 
     await skenario("M-08: sesudah Tutup, satu kali Back keluar dari J-05", page, async (c) => {

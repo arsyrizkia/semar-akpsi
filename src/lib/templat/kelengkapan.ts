@@ -3,7 +3,7 @@
  * Setiap baris bagian harus punya nama dan batas kata (angka bulat > 0, atau dicentang "Tanpa batas kata"),
  * ketentuan bagian (M-12) harus sah, isian "Periode Berlaku" harus terisi, dan templat memuat sekurang-kurangnya satu bagian.
  */
-import type { JenisIsian } from "../kontrak/tipe";
+import type { BagianTemplatDto, JenisIsian, UnsurIsi } from "../kontrak/tipe";
 import type { KopTemplat, LampiranTemplat } from "./paket";
 
 export interface KetentuanMentah {
@@ -15,8 +15,21 @@ export interface KetentuanMentah {
   /** isian mentah "Pemisah" (jenis daftar) */
   pemisah: string;
   wajibGambar: boolean;
+  /** keterangan gambar wajib, mis. "diagram alir penelitian" */
+  ketGambar: string;
   sitasiBernomor: boolean;
+  /** penanda lama; tipe isian "daftar_pustaka" sama artinya */
   daftarPustaka: boolean;
+  /** isian mentah batas kata minimal (kosong = tanpa minimal) */
+  batasMin: string;
+  /** tabel wajib di dalam bagian teks */
+  wajibTabel: boolean;
+  kolomTabel: string[];
+  judulTabel: string;
+  /** frasa wajib, satu per entri */
+  frasaWajib: string[];
+  /** unsur isi wajib, satu per entri; pertanyaan kosong = disusun otomatis */
+  unsurIsi: UnsurIsi[];
 }
 
 export const KETENTUAN_KOSONG: KetentuanMentah = {
@@ -25,8 +38,15 @@ export const KETENTUAN_KOSONG: KetentuanMentah = {
   jumlahButir: "",
   pemisah: "",
   wajibGambar: false,
+  ketGambar: "",
   sitasiBernomor: false,
   daftarPustaka: false,
+  batasMin: "",
+  wajibTabel: false,
+  kolomTabel: [],
+  judulTabel: "",
+  frasaWajib: [],
+  unsurIsi: [],
 };
 
 export interface BarisBagianMentah extends Partial<KetentuanMentah> {
@@ -56,6 +76,10 @@ export interface GalatKetentuan {
   pemisah: string | null;
   sitasiBernomor: string | null;
   daftarPustaka: string | null;
+  batasMin: string | null;
+  kolomTabel: string | null;
+  frasaWajib: string | null;
+  unsurIsi: string | null;
 }
 
 export interface HasilKelengkapan {
@@ -76,22 +100,38 @@ export const jumlahButirValid = (s: string): boolean => /^\d{1,3}$/.test(s.trim(
 export const PESAN_DAFTAR_PUSTAKA_GANDA = "Hanya satu bagian yang boleh ditandai daftar pustaka";
 export const PESAN_SITASI_TANPA_PUSTAKA = "Sitasi bernomor butuh satu bagian yang ditandai daftar pustaka";
 
+/** Penanda bagian daftar pustaka pada isian mentah: tipe "daftar_pustaka" atau penanda lama. */
+export const mentahPustaka = (b: Pick<BarisBagianMentah, "jenisIsian" | "daftarPustaka">): boolean => b.jenisIsian === "daftar_pustaka" || b.daftarPustaka === true;
+
+const adaKosong = (x: string[]) => x.some((v) => v.trim() === "");
+
 /**
- * Validasi ketentuan seluruh bagian (aturan M-12): jenis daftar wajib berjumlah butir bilangan bulat >= 1 dan berpemisah satu karakter;
- * maksimal satu bagian berpenanda daftar pustaka; sitasi bernomor butuh bagian daftar pustaka. Hasil sepanjang `bagian`, null = sah.
+ * Validasi ketentuan seluruh bagian (aturan M-12): daftar wajib berjumlah butir bilangan bulat >= 1 dan berpemisah satu karakter;
+ * batas minimal bilangan bulat >= 1 dan tidak melebihi batas maksimal; tabel butuh sekurang-kurangnya satu kolom terisi; frasa dan unsur
+ * isi tidak boleh kosong; maksimal satu bagian daftar pustaka; sitasi bernomor butuh bagian daftar pustaka. Hasil sepanjang `bagian`, null = sah.
  */
 export function periksaKetentuan(bagian: BarisBagianMentah[]): (GalatKetentuan | null)[] {
-  const jumlahPustaka = bagian.filter((b) => b.daftarPustaka === true).length;
+  const jumlahPustaka = bagian.filter(mentahPustaka).length;
   const adaPustaka = jumlahPustaka > 0;
   return bagian.map((b) => {
-    const g: GalatKetentuan = { jumlahButir: null, pemisah: null, sitasiBernomor: null, daftarPustaka: null };
+    const g: GalatKetentuan = { jumlahButir: null, pemisah: null, sitasiBernomor: null, daftarPustaka: null, batasMin: null, kolomTabel: null, frasaWajib: null, unsurIsi: null };
     if (b.jenisIsian === "daftar") {
       if (!jumlahButirValid(b.jumlahButir ?? "")) g.jumlahButir = "Isi bilangan bulat 1 atau lebih";
       if ((b.pemisah ?? "").length !== 1) g.pemisah = "Isi tepat satu karakter, misalnya ;";
     }
-    if (b.daftarPustaka === true && jumlahPustaka > 1) g.daftarPustaka = PESAN_DAFTAR_PUSTAKA_GANDA;
+    const min = (b.batasMin ?? "").trim();
+    if (min !== "") {
+      if (!batasKataValid(min)) g.batasMin = "Isi angka bulat lebih dari 0, atau kosongkan";
+      else if (!b.tanpaBatas && batasKataValid(b.batas) && Number(min) > Number(b.batas.trim())) g.batasMin = "Minimal tidak boleh melebihi maksimal";
+    }
+    const kolom = b.kolomTabel ?? [];
+    if (b.jenisIsian === "tabel" && kolom.length === 0) g.kolomTabel = "Tabel butuh sekurang-kurangnya satu kolom";
+    else if ((b.jenisIsian === "tabel" || b.wajibTabel === true) && adaKosong(kolom)) g.kolomTabel = "Nama kolom tidak boleh kosong";
+    if (adaKosong(b.frasaWajib ?? [])) g.frasaWajib = "Frasa wajib tidak boleh kosong";
+    if (adaKosong((b.unsurIsi ?? []).map((u) => u.unsur))) g.unsurIsi = "Unsur isi tidak boleh kosong";
+    if (mentahPustaka(b) && jumlahPustaka > 1) g.daftarPustaka = PESAN_DAFTAR_PUSTAKA_GANDA;
     if (b.sitasiBernomor === true && !adaPustaka) g.sitasiBernomor = PESAN_SITASI_TANPA_PUSTAKA;
-    return g.jumlahButir || g.pemisah || g.sitasiBernomor || g.daftarPustaka ? g : null;
+    return Object.values(g).some(Boolean) ? g : null;
   });
 }
 
@@ -115,7 +155,7 @@ export function periksaKelengkapan(m: MasukanKelengkapan): HasilKelengkapan {
   return { lengkap, bagian, lampiran, periode, tanpaBagian };
 }
 
-/** Nilai tersimpan satu bagian (kolom bagian_templat). */
+/** Nilai tersimpan satu bagian (kolom bagian_templat; "daftar_pustaka" dipetakan ke kolom oleh keKolomBagian). */
 export interface BagianTersimpan {
   nama: string;
   batasKata: number | null;
@@ -128,19 +168,41 @@ export interface BagianTersimpan {
   wajibGambar?: boolean;
   sitasiBernomor?: boolean;
   daftarPustaka?: boolean;
+  batasMin?: number | null;
+  wajibTabel?: boolean;
+  kolomTabel?: string[] | null;
+  judulTabel?: string | null;
+  ketGambar?: string | null;
+  frasaWajib?: string[] | null;
+  unsurIsi?: UnsurIsi[] | null;
 }
+
+const bersih = (x: string[] | undefined) => (x ?? []).map((v) => v.trim()).filter(Boolean);
 
 function ketentuanTersimpan(b: BarisBagianMentah): Omit<BagianTersimpan, "nama" | "batasKata" | "wajib"> {
   if (b.jenisIsian === undefined) return {};
   const daftar = b.jenisIsian === "daftar";
+  const pustaka = mentahPustaka(b);
+  const tabel = b.jenisIsian === "tabel" || b.wajibTabel === true;
+  const kolom = bersih(b.kolomTabel);
+  const frasa = bersih(b.frasaWajib);
+  const unsur = (b.unsurIsi ?? []).filter((u) => u.unsur.trim() !== "").map((u) => ({ unsur: u.unsur.trim(), pertanyaan: u.pertanyaan?.trim() ? u.pertanyaan.trim() : null }));
+  const min = (b.batasMin ?? "").trim();
   return {
     petunjuk: b.petunjuk ?? "",
-    jenisIsian: b.jenisIsian,
+    jenisIsian: pustaka ? "daftar_pustaka" : b.jenisIsian,
     jumlahButir: daftar && jumlahButirValid(b.jumlahButir ?? "") ? Number((b.jumlahButir ?? "").trim()) : null,
     pemisah: daftar && (b.pemisah ?? "").length === 1 ? (b.pemisah ?? "") : null,
     wajibGambar: b.wajibGambar === true,
     sitasiBernomor: b.sitasiBernomor === true,
-    daftarPustaka: b.daftarPustaka === true,
+    daftarPustaka: pustaka,
+    batasMin: batasKataValid(min) ? Number(min) : null,
+    wajibTabel: b.jenisIsian === "tabel" ? false : b.wajibTabel === true,
+    kolomTabel: tabel && kolom.length ? kolom : null,
+    judulTabel: tabel && (b.judulTabel ?? "").trim() ? (b.judulTabel ?? "").trim() : null,
+    ketGambar: b.wajibGambar === true && (b.ketGambar ?? "").trim() ? (b.ketGambar ?? "").trim() : null,
+    frasaWajib: frasa.length ? frasa : null,
+    unsurIsi: unsur.length ? unsur : null,
   };
 }
 
@@ -171,4 +233,11 @@ export function bersihkanIsianDraf(m: MasukanKelengkapan): IsianDrafBersih {
     lampiran: m.lampiran.map((l) => l.trim()).filter((l) => l !== ""),
     periodeBerlakuId: m.periodeBerlakuId || null,
   };
+}
+
+/** Isian mentah satu bagian menjadi BagianTemplatDto (untuk chip ringkasan, pratinjau butir turunan, dan hitungan M-01); nilai tak sah dianggap kosong. */
+export function mentahKeBagian(b: BarisBagianMentah): BagianTemplatDto {
+  const batasSah = !b.tanpaBatas && batasKataValid(b.batas);
+  const t = bagianTersimpan({ ...b, jenisIsian: b.jenisIsian ?? "teks", tanpaBatas: !batasSah });
+  return { urutan: 0, ...t, batasKata: batasSah ? Number(b.batas.trim()) : null };
 }

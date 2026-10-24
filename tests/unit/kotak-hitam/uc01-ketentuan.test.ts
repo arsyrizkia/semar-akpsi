@@ -145,13 +145,14 @@ describe("turunkanButirCek per ketentuan dan lampiran (Contract C-03)", () => {
     expect(per("GBR")).toHaveLength(1);
     expect(per("TBL")).toHaveLength(1);
     expect(per("SIT")).toHaveLength(3);
-    expect(b.every((x) => x.jenis === "deterministik" && x.asal === "templat")).toBe(true);
+    expect(b.every((x) => x.asal === "templat")).toBe(true);
+    expect(b.filter((x) => x.jenis === "semantik").every((x) => x.kode.startsWith("UNS-"))).toBe(true);
   });
   it("KH-turunkanButirCek-21: tanpa ketentuan tidak ada butir tambahan; daftar tanpa jumlah/pemisah sah tidak menurunkan KAT; pemisah lain dinamai", () => {
     expect(turunkanButirDariTemplat([{ nama: "A", batasKata: null, wajib: false, jenisIsian: "teks" }], [])).toEqual([]);
     expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: null, pemisah: ";" }], [])).toEqual([]);
     const b = turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "," }], []);
-    expect(b[0].deskripsi).toBe("Kata kunci tepat 3, dipisahkan koma (,)");
+    expect(b[0].deskripsi).toBe("K: tepat 3 butir, dipisahkan koma (,)");
     expect(turunkanButirDariTemplat([{ nama: "K", batasKata: null, wajib: false, jenisIsian: "daftar", jumlahButir: 3, pemisah: "#" }], [])[0].deskripsi).toContain('"#"');
   });
   it("KH-turunkanButirCek-22: sitasi bernomor tanpa bagian pustaka hanya SIT-01; pustaka tanpa sitasi bernomor SIT-02 dan SIT-03 dengan nama pustaka di parameter", () => {
@@ -206,8 +207,8 @@ describe("bagian templat dan kop (Class Diagram BagianTemplat, C-31)", () => {
     const c = (n: string) => ringkasKetentuan(bagianDariBaris({ urutan: 1, nama: n, batasKata: n === "Judul" ? 20 : null, wajib: true }));
     expect(c("Judul")).toEqual(["≤ 20 kata"]);
     expect(c("Kata Kunci")).toEqual(["5 butir · pemisah ;"]);
-    expect(c("Metode")).toEqual(["wajib gambar"]);
-    expect(c("Jadwal Penelitian")).toEqual(["tabel"]);
+    expect(c("Metode")).toEqual(["gambar: diagram alir penelitian"]);
+    expect(c("Jadwal Penelitian")).toEqual(["tabel: 3 kolom"]);
     expect(c("Daftar Pustaka")).toEqual(["sitasi bernomor", "daftar pustaka"]);
     expect(ringkasKetentuan({ urutan: 1, nama: "Z", batasKata: 1500, wajib: true, jenisIsian: "daftar" })).toEqual(["≤ 1.500 kata", "? butir · pemisah ?"]);
   });

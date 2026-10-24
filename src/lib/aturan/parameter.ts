@@ -60,6 +60,8 @@ const KOMPONEN_LAMPIRAN: Record<string, string> = {
 export const PEMERIKSA_PER_TIPE: Record<ParameterButir["tipe"], string> = {
   bagian_wajib: "cocokkanStrukturJudul",
   batas_kata: "hitungKata",
+  batas_kata_min: "hitungKata",
+  frasa_wajib: "periksaFrasa",
   lampiran_wajib: "cekLampiran",
   lampiran_format: "cekLampiran",
   kata_kunci: "cekKataKunci",

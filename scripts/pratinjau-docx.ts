@@ -54,6 +54,19 @@ async function bangun(skema: "dasar" | "terapan") {
   );
 }
 
+/** Halaman 1 contoh pada 96 dpi (1 pt = 1,333 px), skala yang sama dengan halaman A4 docx-preview (794 px), untuk perbandingan kop. */
+function rujukanKop(pdf: string, nama: string): string | null {
+  const berkas = path.join(CONTOH, pdf);
+  if (!existsSync(berkas)) return null;
+  try {
+    const awalan = path.join(TMP, nama);
+    execFileSync("pdftoppm", ["-r", "96", "-png", "-f", "1", "-l", "1", berkas, awalan]);
+    return execFileSync("sh", ["-c", `ls "${awalan}"*.png | head -1`]).toString().trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function rujukan(pdf: string, halaman: number, nama: string): string | null {
   const berkas = path.join(CONTOH, pdf);
   if (!existsSync(berkas)) return null;
@@ -104,7 +117,7 @@ async function utama() {
       if (!kotak) throw new Error("kotak halaman tidak terbaca");
       return lembar(kotak.y, { ...kotak, height: kotak.height }, berkas);
     };
-    const shotIsian = async (berkas: string) => {
+    const shotIsian = async (berkas: string, tinggi = 1e6) => {
       const h = await page.evaluateHandle(() => [...document.querySelectorAll("table")].find((t) => (t as HTMLElement).innerText.trim().startsWith("Isian Substansi Proposal")) ?? null);
       const el = h.asElement();
       // tanpa pemisah halaman di docx-preview: beri ruang atas supaya lembar tidak memuat ekor halaman depan
@@ -113,9 +126,19 @@ async function utama() {
       if (!kotak) throw new Error("kepala Isian Substansi tidak ditemukan");
       const dasar = await halaman[0].boundingBox();
       if (!dasar) throw new Error("kotak halaman tidak terbaca");
-      return lembar(kotak.y - 76, { x: dasar.x, width: dasar.width, height: 1e6 }, berkas);
+      // margin atas lembar Isian Substansi 45 pt = 60 px (meniru contoh no. 1)
+      return lembar(kotak.y - 60, { x: dasar.x, width: dasar.width, height: tinggi }, berkas);
+    };
+    /** Puncak lembar (230 px = 172 pt) untuk perbandingan kop pada skala sama dengan rujukanKop. */
+    const puncak = async (i: number, berkas: string) => {
+      const kotak = await halaman[i].boundingBox();
+      if (!kotak) throw new Error("kotak halaman tidak terbaca");
+      await page.screenshot({ path: path.join(TMP, berkas), captureBeyondViewport: true, clip: { x: kotak.x, y: kotak.y, width: kotak.width, height: 230 } });
+      return path.join(TMP, berkas);
     };
     return {
+      kopDepan: await puncak(cari(/PROTEKSI ISI PROPOSAL/), `${skema}-kop-depan.png`),
+      kopIsian: await shotIsian(`${skema}-kop-isian.png`, 230),
       depan: await shot(cari(/PROTEKSI ISI PROPOSAL/), `${skema}-depan.png`),
       isian: await shotIsian(`${skema}-isian.png`),
       lampiran: skema === "dasar" ? await shot(cari(/SURAT PERNYATAAN/), `${skema}-lampiran.png`) : null,
@@ -151,6 +174,25 @@ async function utama() {
     );
     await page.screenshot({ path: path.join(KELUAR, `uc01-docx-${nama}.png`), fullPage: true });
     console.log("tulis", `uc01-docx-${nama}.png`);
+  }
+
+  // kop berdampingan dengan contoh pada skala sama (puncak lembar 230 px); tidak di-commit karena memuat potongan PDF asli
+  const kop: [string, string | null, string][] = [
+    ["isian", rujukanKop("1. Contoh Proposal Soshum.pdf", "k-isian"), dasar.kopIsian],
+    ["depan", rujukanKop("6. Contoh Proposal.pdf", "k-depan"), dasar.kopDepan],
+  ];
+  for (const [nama, ref, gen] of kop) {
+    if (!ref) {
+      console.log(`lewati perbandingan kop ${nama} (PDF contoh atau pdftoppm tidak ada)`);
+      continue;
+    }
+    await page.setViewport({ width: 1640, height: 300, deviceScaleFactor: 1 });
+    const uri = (f: string) => `data:image/png;base64,${readFileSync(f).toString("base64")}`;
+    await page.setContent(
+      `<!doctype html><body style="margin:0;background:#fff;font:600 14px Helvetica"><div style="display:flex;gap:24px;padding:8px;align-items:flex-start"><figure style="margin:0;width:794px"><figcaption style="padding:2px 0">Contoh BIMA (PDF), 96 dpi</figcaption><div style="width:794px;height:230px;overflow:hidden;border:1px solid #999"><img style="display:block;width:794px" src="${uri(ref)}"></div></figure><figure style="margin:0;width:794px"><figcaption style="padding:2px 0">Hasil generator (.docx, docx-preview), skala sama</figcaption><div style="width:794px;height:230px;overflow:hidden;border:1px solid #999"><img style="display:block;width:794px" src="${uri(gen)}"></div></figure></div></body>`,
+    );
+    await page.screenshot({ path: path.join(KELUAR, `uc01r3-kop-${nama}.png`), fullPage: true });
+    console.log("tulis", `uc01r3-kop-${nama}.png`);
   }
   await peramban.close();
 }

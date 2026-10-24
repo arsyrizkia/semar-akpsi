@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, useTransition } from "react";
+import { startTransition, useEffect, useMemo, useState, useTransition } from "react";
 import { Lock, Plus } from "lucide-react";
 import { Alert, Badge, Bagian, Button, Isian, KepalaHalaman, KotakCentang, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
 import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
@@ -21,7 +21,7 @@ interface Props {
   bagianPilihan: string[];
   lampiranPilihan: string[];
   masaBerjalan: boolean;
-  /** kode butir yang disorot lewat ?sorot= */
+  /** kode butir yang disorot lewat ?sorot=; boleh beberapa kode dipisah koma (butir turunan baru sesudah templat terbit) */
   sorotAwal: string | null;
 }
 
@@ -63,6 +63,8 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
   const [berhasilVersi, setBerhasilVersi] = useState<{ versi: number; tanggal: string } | null>(null);
   const [sorot, setSorot] = useState<string | null>(sorotAwal);
   const [tampilNonaktif, setTampilNonaktif] = useState(() => butir.some((b) => b.kode === sorotAwal && b.status === "Nonaktif"));
+  const sorotSet = useMemo(() => new Set((sorot ?? "").split(",").filter(Boolean)), [sorot]);
+  const sorotBanyak = sorotSet.size > 1; // beberapa butir baru: butir nonaktif berkode sama (versi templat lama) tidak ikut tersorot
 
   // kode butir dapat ditaut lewat #butir-KODE: sorot barisnya dan gulir ke sana
   useEffect(() => {
@@ -75,7 +77,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
     return () => window.removeEventListener("hashchange", dariUrl);
   }, []);
   useEffect(() => {
-    if (sorot) document.getElementById(`butir-${sorot}`)?.scrollIntoView({ block: "center" });
+    if (sorot) document.getElementById(`butir-${sorot.split(",")[0]}`)?.scrollIntoView({ block: "center" });
   }, [sorot]);
 
   const ubahMasukan = (ubah: Partial<MasukanButir>) => setMasukan((m) => ({ ...m, ...ubah }));
@@ -269,9 +271,9 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
               </TR>
             ) : null}
             {butir
-              .filter((b) => tampilNonaktif || b.status !== "Nonaktif" || b.kode === sorot)
+              .filter((b) => tampilNonaktif || b.status !== "Nonaktif" || (!sorotBanyak && sorotSet.has(b.kode)))
               .map((b) => (
-                <TR key={b.id} id={`butir-${b.kode}`} tersorot={sorot === b.kode} className={`scroll-mt-24 ${kelasDaftar(b) ?? ""}`}>
+                <TR key={b.id} id={`butir-${b.kode}`} tersorot={sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")} className={`scroll-mt-24 ${kelasDaftar(b) ?? ""}`}>
                   <TD className="whitespace-nowrap font-mono text-xs font-semibold">
                     <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline" translate="no">
                       {b.kode}

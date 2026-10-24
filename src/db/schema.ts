@@ -161,6 +161,14 @@ export const bagianTemplat = pgTable(
     wajibGambar: boolean("wajib_gambar"),
     sitasiBernomor: boolean("sitasi_bernomor"),
     daftarPustaka: boolean("daftar_pustaka"),
+    /** Ketentuan komprehensif (24 Okt 2026, aditif): batas minimal, tabel, keterangan gambar, frasa wajib, unsur isi. Tipe "daftar_pustaka" = jenis_isian "teks" + daftar_pustaka true. */
+    batasMin: integer("batas_min"),
+    wajibTabel: boolean("wajib_tabel"),
+    kolomTabel: jsonb("kolom_tabel").$type<string[]>(),
+    judulTabel: text("judul_tabel"),
+    ketGambar: text("ket_gambar"),
+    frasaWajib: jsonb("frasa_wajib").$type<string[]>(),
+    unsurIsi: jsonb("unsur_isi").$type<{ unsur: string; pertanyaan?: string | null }[]>(),
   },
   (t) => [index("bagian_templat_idx").on(t.templatId, t.urutan)],
 );

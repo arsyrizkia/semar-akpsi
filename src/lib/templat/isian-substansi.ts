@@ -10,7 +10,7 @@
  * disimpan di data templat (kolom bagian_templat); konstanta di berkas ini hanya NILAI BAWAAN saat menyusun versi baru atau seed, dan
  * penurun nilai untuk baris lama yang kolom barunya masih null (`lengkapiBagian`, `petunjukBagian`).
  */
-import type { BagianTemplatDto, JenisIsian, KepalaTemplatDto } from "../kontrak/tipe";
+import type { BagianTemplatDto, JenisIsian, KepalaTemplatDto, UnsurIsi } from "../kontrak/tipe";
 import { fmt, normalisasiJudul } from "../pemeriksa/deterministik/teks";
 
 export interface DefinisiBagianIsian {
@@ -26,8 +26,12 @@ export interface DefinisiBagianIsian {
   jumlahButir?: number;
   pemisah?: string;
   wajibGambar?: boolean;
+  ketGambar?: string;
   sitasiBernomor?: boolean;
   daftarPustaka?: boolean;
+  kolomTabel?: string[];
+  judulTabel?: string;
+  unsurIsi?: string[];
 }
 
 export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
@@ -38,6 +42,7 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
     batasDasar: 300,
     batasTerapan: 300,
     jenisIsian: "teks",
+    unsurIsi: ["urgensi", "tujuan", "metode", "luaran yang ditargetkan"],
   },
   {
     nama: "Kata Kunci",
@@ -56,6 +61,7 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
     batasTerapan: 1500,
     jenisIsian: "teks",
     sitasiBernomor: true,
+    unsurIsi: ["latar belakang", "rumusan permasalahan", "pendekatan pemecahan masalah", "state-of-the-art dan kebaruan", "peta jalan penelitian setidaknya 5 tahun"],
   },
   {
     nama: "Metode",
@@ -65,6 +71,8 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
     batasTerapan: 1000,
     jenisIsian: "teks",
     wajibGambar: true,
+    ketGambar: "diagram alir penelitian",
+    unsurIsi: ["prosedur penelitian", "hasil yang diharapkan", "indikator capaian yang ditargetkan", "anggota tim/mitra yang bertanggung jawab pada setiap tahapan"],
   },
   {
     nama: "Hasil yang Diharapkan",
@@ -72,6 +80,7 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
     batasDasar: null,
     batasTerapan: null,
     jenisIsian: "teks",
+    unsurIsi: ["hasil atau luaran yang dijanjikan"],
   },
   {
     nama: "Jadwal Penelitian",
@@ -79,6 +88,8 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
     batasDasar: null,
     batasTerapan: null,
     jenisIsian: "tabel",
+    kolomTabel: ["No", "Nama Kegiatan", "Bulan 1–12"],
+    judulTabel: "Tahun ke-1",
   },
   {
     nama: "Daftar Pustaka",
@@ -86,7 +97,7 @@ export const BAGIAN_ISIAN_SUBSTANSI: readonly DefinisiBagianIsian[] = [
       "Sitasi disusun dan ditulis berdasarkan sistem nomor sesuai dengan urutan pengutipan. Hanya pustaka yang disitasi pada usulan penelitian yang dicantumkan dalam Daftar Pustaka.",
     batasDasar: null,
     batasTerapan: null,
-    jenisIsian: "teks",
+    jenisIsian: "daftar_pustaka",
     sitasiBernomor: true,
     daftarPustaka: true,
   },
@@ -161,6 +172,7 @@ export function petunjukBagian(b: Pick<BagianTemplatDto, "nama" | "batasKata"> &
   return petunjukResmi(b.nama, b.batasKata);
 }
 
+/** Nilai ketentuan lengkap sebuah bagian (tanpa urutan); bentuk yang sama dipakai bawaan, seed, dan penyimpanan. */
 export interface BagianBawaan {
   nama: string;
   batasKata: number | null;
@@ -172,6 +184,13 @@ export interface BagianBawaan {
   wajibGambar: boolean;
   sitasiBernomor: boolean;
   daftarPustaka: boolean;
+  batasMin: number | null;
+  wajibTabel: boolean;
+  kolomTabel: string[] | null;
+  judulTabel: string | null;
+  ketGambar: string | null;
+  frasaWajib: string[] | null;
+  unsurIsi: UnsurIsi[] | null;
 }
 
 /** Bagian templat Isian Substansi untuk skema Dasar atau Terapan: nama, batas kata, wajib, petunjuk ({batas} tetap tertulis), ketentuan. */
@@ -187,27 +206,112 @@ export function bagianBawaan(skema: "dasar" | "terapan"): BagianBawaan[] {
     wajibGambar: d.wajibGambar ?? false,
     sitasiBernomor: d.sitasiBernomor ?? false,
     daftarPustaka: d.daftarPustaka ?? false,
+    batasMin: null,
+    wajibTabel: false,
+    kolomTabel: d.kolomTabel ?? null,
+    judulTabel: d.judulTabel ?? null,
+    ketGambar: d.ketGambar ?? null,
+    frasaWajib: null,
+    unsurIsi: d.unsurIsi ? d.unsurIsi.map((unsur) => ({ unsur, pertanyaan: null })) : null,
   }));
+}
+
+/** Penanda bagian daftar pustaka: tipe "daftar_pustaka" atau penanda daftarPustaka (baris lama). */
+export const adalahDaftarPustaka = (b: Pick<BagianTemplatDto, "jenisIsian" | "daftarPustaka">): boolean => b.jenisIsian === "daftar_pustaka" || b.daftarPustaka === true;
+
+/** Bagian perlu memuat tabel: bertipe tabel atau teks dengan "wajib tabel". */
+export const perluTabel = (b: Pick<BagianTemplatDto, "jenisIsian" | "wajibTabel">): boolean => b.jenisIsian === "tabel" || b.wajibTabel === true;
+
+/** Unsur isi yang terisi (unsur kosong dibuang). */
+export const unsurTerisi = (b: Pick<BagianTemplatDto, "unsurIsi">): UnsurIsi[] => (b.unsurIsi ?? []).filter((u) => u.unsur.trim() !== "");
+
+/** Frasa wajib yang terisi. */
+export const frasaTerisi = (b: Pick<BagianTemplatDto, "frasaWajib">): string[] => (b.frasaWajib ?? []).map((f) => f.trim()).filter(Boolean);
+
+/** Pertanyaan pemeriksaan otomatis sebuah unsur isi. */
+export const pertanyaanUnsur = (namaBagian: string, u: UnsurIsi): string => (u.pertanyaan?.trim() ? u.pertanyaan.trim() : `Apakah bagian ${namaBagian} memuat ${u.unsur.trim()}?`);
+
+/** Kolom tabel yang terisi. */
+export const kolomTerisi = (b: Pick<BagianTemplatDto, "kolomTabel">): string[] => (b.kolomTabel ?? []).map((k) => k.trim()).filter(Boolean);
+
+/** Keterangan gambar wajib ("diagram alir penelitian" bila belum diisi). */
+export const keteranganGambar = (b: Pick<BagianTemplatDto, "ketGambar">): string => b.ketGambar?.trim() || "diagram alir penelitian";
+
+const NAMA_PEMISAH: Record<string, string> = { ";": "titik koma", ",": "koma", "|": "garis tegak", "/": "garis miring" };
+
+/** Daftar dengan "dan" sebelum butir terakhir: "a, b, dan c". */
+const sebutkan = (x: string[]): string => (x.length <= 1 ? (x[0] ?? "") : x.length === 2 ? `${x[0]} dan ${x[1]}` : `${x.slice(0, -1).join(", ")}, dan ${x[x.length - 1]}`);
+
+/**
+ * Petunjuk pengisian yang disusun otomatis dari ketentuan bagian (tombol "Susun ulang petunjuk" di M-12). `{batas}` tetap tertulis supaya
+ * mengikuti Batas Kata. Bagian A-H bawaan memakai petunjuk resmi dari contoh, bukan hasil fungsi ini.
+ */
+export function susunPetunjuk(b: Pick<BagianTemplatDto, "nama" | "batasKata" | "jenisIsian" | "jumlahButir" | "pemisah" | "wajibGambar" | "sitasiBernomor" | "daftarPustaka" | "batasMin" | "wajibTabel" | "kolomTabel" | "judulTabel" | "ketGambar" | "frasaWajib" | "unsurIsi">): string {
+  const nama = b.nama.trim() || "bagian ini";
+  const kalimat: string[] = [];
+  if (adalahDaftarPustaka(b)) {
+    kalimat.push("Sitasi disusun dan ditulis berdasarkan sistem nomor sesuai dengan urutan pengutipan. Hanya pustaka yang disitasi pada usulan penelitian yang dicantumkan dalam Daftar Pustaka.");
+  } else if (b.jenisIsian === "daftar") {
+    const p = b.pemisah || ";";
+    kalimat.push(`Isian ${b.jumlahButir ?? "?"} butir ${nama.toLowerCase()} yang dipisahkan dengan tanda ${NAMA_PEMISAH[p] ?? `"${p}"`} (${p})`);
+  } else if (b.jenisIsian === "tabel") {
+    const k = kolomTerisi(b);
+    kalimat.push(`Isian berupa tabel${k.length ? ` dengan kolom ${sebutkan(k)}` : ""}${b.judulTabel?.trim() ? `, diberi judul blok "${b.judulTabel.trim()}"` : ""}`);
+  } else {
+    const adaMin = b.batasMin != null;
+    const adaMaks = b.batasKata != null;
+    const u = unsurTerisi(b).map((x) => x.unsur.trim());
+    const awal = `Isian ${nama.toLowerCase()}`;
+    if (adaMin && adaMaks) kalimat.push(`${awal} sebanyak ${b.batasMin} sampai {batas} kata${u.length ? ` yang memuat ${sebutkan(u)}` : ""}`);
+    else if (adaMaks) kalimat.push(`${awal} tidak lebih dari {batas} kata${u.length ? ` yang memuat ${sebutkan(u)}` : ""}`);
+    else if (adaMin) kalimat.push(`${awal} sekurang-kurangnya ${b.batasMin} kata${u.length ? ` yang memuat ${sebutkan(u)}` : ""}`);
+    else kalimat.push(u.length ? `${awal} yang memuat ${sebutkan(u)}` : `Isian ${nama.toLowerCase()}`);
+  }
+  if (b.jenisIsian === "daftar" || b.jenisIsian === "tabel") {
+    const u = unsurTerisi(b).map((x) => x.unsur.trim());
+    if (u.length) kalimat.push(`Isian memuat ${sebutkan(u)}`);
+  }
+  if (b.wajibGambar) kalimat.push(`Pada bagian ini wajib dilengkapi dengan ${keteranganGambar(b)} (format JPG/PNG)`);
+  if (b.wajibTabel && b.jenisIsian !== "tabel") {
+    const k = kolomTerisi(b);
+    kalimat.push(`Pada bagian ini wajib dilengkapi dengan tabel${k.length ? ` yang berkolom ${sebutkan(k)}` : ""}`);
+  }
+  if (b.sitasiBernomor && !adalahDaftarPustaka(b)) kalimat.push("Sitasi disusun dan ditulis berdasarkan sistem nomor sesuai dengan urutan pengutipan");
+  const f = frasaTerisi(b);
+  if (f.length) kalimat.push(`Wajib memuat kalimat: ${f.map((x) => `"${x}"`).join("; ")}`);
+  return `${kalimat.join(". ").replace(/\.$/, "")}.`;
 }
 
 /**
  * Melengkapi bagian templat: `huruf` dari urutan, dan ketentuan yang masih null (baris lama sebelum 23 Okt 2026) diturunkan dari nama
- * bagian Isian Substansi (selain itu teks tanpa ketentuan lain). `petunjuk` tidak diubah; baca lewat `petunjukBagian`.
+ * bagian Isian Substansi (selain itu teks tanpa ketentuan lain). Ketentuan baru (batas minimal, tabel, frasa, unsur isi) tidak diturunkan
+ * untuk baris lama. `petunjuk` tidak diubah; baca lewat `petunjukBagian`.
  */
 export function lengkapiBagian(bagian: BagianTemplatDto[]): BagianTemplatDto[] {
   const urut = [...bagian].sort((a, b) => a.urutan - b.urutan);
   return urut.map((b, i) => {
     const d = cari(b.nama);
-    const jenisIsian: JenisIsian = b.jenisIsian ?? d?.jenisIsian ?? "teks";
+    let jenisIsian: JenisIsian = b.jenisIsian ?? d?.jenisIsian ?? "teks";
+    const daftarPustaka = (b.daftarPustaka ?? d?.daftarPustaka ?? false) || jenisIsian === "daftar_pustaka";
+    if (daftarPustaka) jenisIsian = "daftar_pustaka";
+    const wajibGambar = b.wajibGambar ?? d?.wajibGambar ?? false;
+    const kolomTabel = b.kolomTabel ?? (b.jenisIsian == null ? (d?.kolomTabel ?? null) : null);
     return {
       ...b,
       huruf: hurufBagian(i),
       jenisIsian,
       jumlahButir: jenisIsian === "daftar" ? (b.jumlahButir ?? d?.jumlahButir ?? null) : null,
       pemisah: jenisIsian === "daftar" ? (b.pemisah ?? d?.pemisah ?? null) : null,
-      wajibGambar: b.wajibGambar ?? d?.wajibGambar ?? false,
+      wajibGambar,
       sitasiBernomor: b.sitasiBernomor ?? d?.sitasiBernomor ?? false,
-      daftarPustaka: b.daftarPustaka ?? d?.daftarPustaka ?? false,
+      daftarPustaka,
+      batasMin: b.batasMin ?? null,
+      wajibTabel: b.wajibTabel ?? false,
+      kolomTabel: kolomTabel && kolomTabel.length ? kolomTabel : null,
+      judulTabel: b.judulTabel ?? (b.jenisIsian == null ? (d?.judulTabel ?? null) : null),
+      ketGambar: wajibGambar ? (b.ketGambar ?? d?.ketGambar ?? null) : null,
+      frasaWajib: b.frasaWajib && b.frasaWajib.length ? b.frasaWajib : null,
+      unsurIsi: b.unsurIsi && b.unsurIsi.length ? b.unsurIsi : null,
     };
   });
 }
@@ -225,20 +329,59 @@ export function bagianDariBaris(b: {
   wajibGambar?: boolean | null;
   sitasiBernomor?: boolean | null;
   daftarPustaka?: boolean | null;
+  batasMin?: number | null;
+  wajibTabel?: boolean | null;
+  kolomTabel?: string[] | null;
+  judulTabel?: string | null;
+  ketGambar?: string | null;
+  frasaWajib?: string[] | null;
+  unsurIsi?: UnsurIsi[] | null;
 }): BagianTemplatDto {
   const lengkap = lengkapiBagian([{ ...b }])[0];
   delete lengkap.huruf; // huruf bergantung urutan dalam daftar; diisi lengkapiBagian atas seluruh daftar
   return lengkap;
 }
 
-/** Ringkasan ketentuan bagian sebagai chip pendek untuk kolom J-02: "≤ 20 kata", "5 butir · pemisah ;", "wajib gambar", dst. */
+/** Nilai kolom bagian_templat dari ketentuan bagian (tanpa templatId dan urutan). Tipe "daftar_pustaka" disimpan sebagai "teks" + daftar_pustaka true. */
+export function keKolomBagian(b: Partial<BagianTemplatDto> & { nama: string; batasKata: number | null; wajib: boolean }) {
+  const pustaka = b.jenisIsian === "daftar_pustaka" || b.daftarPustaka === true;
+  const jenis = b.jenisIsian == null ? null : pustaka ? "teks" : (b.jenisIsian as "teks" | "daftar" | "tabel");
+  return {
+    nama: b.nama,
+    batasKata: b.batasKata,
+    wajib: b.wajib,
+    petunjuk: b.petunjuk ?? null,
+    jenisIsian: jenis,
+    jumlahButir: b.jumlahButir ?? null,
+    pemisah: b.pemisah ?? null,
+    wajibGambar: b.wajibGambar ?? null,
+    sitasiBernomor: b.sitasiBernomor ?? null,
+    daftarPustaka: b.jenisIsian == null && b.daftarPustaka == null ? null : pustaka,
+    batasMin: b.batasMin ?? null,
+    wajibTabel: b.wajibTabel ?? null,
+    kolomTabel: b.kolomTabel && b.kolomTabel.length ? b.kolomTabel : null,
+    judulTabel: b.judulTabel ?? null,
+    ketGambar: b.ketGambar ?? null,
+    frasaWajib: b.frasaWajib && b.frasaWajib.length ? b.frasaWajib : null,
+    unsurIsi: b.unsurIsi && b.unsurIsi.length ? b.unsurIsi : null,
+  };
+}
+
+/** Ringkasan ketentuan bagian sebagai chip pendek untuk kolom J-02: "≤ 20 kata", "5 butir · pemisah ;", "gambar: diagram alir", "4 unsur isi", dst. */
 export function ringkasKetentuan(b: BagianTemplatDto): string[] {
   const hasil: string[] = [];
-  if (b.batasKata != null) hasil.push(`≤ ${fmt(b.batasKata)} kata`);
+  if (b.batasMin != null && b.batasKata != null) hasil.push(`${fmt(b.batasMin)}–${fmt(b.batasKata)} kata`);
+  else if (b.batasKata != null) hasil.push(`≤ ${fmt(b.batasKata)} kata`);
+  else if (b.batasMin != null) hasil.push(`≥ ${fmt(b.batasMin)} kata`);
   if (b.jenisIsian === "daftar") hasil.push(`${b.jumlahButir ?? "?"} butir · pemisah ${b.pemisah ?? "?"}`);
-  if (b.jenisIsian === "tabel") hasil.push("tabel");
-  if (b.wajibGambar) hasil.push("wajib gambar");
+  if (b.jenisIsian === "tabel") hasil.push(kolomTerisi(b).length ? `tabel: ${kolomTerisi(b).length} kolom` : "tabel");
+  else if (b.wajibTabel) hasil.push("tabel");
+  if (b.wajibGambar) hasil.push(`gambar: ${keteranganGambar(b)}`);
+  const u = unsurTerisi(b).length;
+  if (u > 0) hasil.push(`${u} unsur isi`);
+  const f = frasaTerisi(b).length;
+  if (f > 0) hasil.push(`${f} frasa wajib`);
   if (b.sitasiBernomor) hasil.push("sitasi bernomor");
-  if (b.daftarPustaka) hasil.push("daftar pustaka");
+  if (adalahDaftarPustaka(b)) hasil.push("daftar pustaka");
   return hasil;
 }
