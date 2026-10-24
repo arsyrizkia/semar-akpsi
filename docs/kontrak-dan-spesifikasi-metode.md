@@ -106,7 +106,7 @@ Tipe yang dirujuk berada di `kontrak/tipe.ts` (`ButirCek`, `DokumenPeriksa`, `Ko
 | Type of Value Returned | `ButirSeed[]` (`kode, deskripsi, jenis:"deterministik", asal:"templat", komponen, pemeriksa, parameter: ParameterButir, aturanHitung`) |
 | Pre-Conditions | [P1] Masukan sudah lolos C-01 (nama tidak kosong). Fungsi murni, tanpa basis data. |
 | Post-Conditions | [Q1] Untuk setiap bagian dengan `wajib = true`: tepat satu butir `BGN-nn` (`parameter = {tipe:"bagian_terisi", bagian}`, pemeriksa `periksaBagianTerisi`, komponen `Screening`); bagian terisi bila berisi kata atau penanda tabel/gambar.<br>[Q2] Untuk setiap bagian dengan `batasKata != null` (termasuk 0): tepat satu butir `KTA-nn` (`{tipe:"batas_kata", bagian, batas}`, pemeriksa `hitungKata`, komponen `2. Jumlah kata per bagian`).<br>[Q2a] Bagian `jenisIsian = "daftar"` dengan `jumlahButir >= 1` dan `pemisah`: butir `KAT-nn` (`{tipe:"kata_kunci", jumlah, pemisah}`, `cekKataKunci`, deskripsi "Kata kunci tepat 5, dipisahkan titik koma (;)"). Bagian `wajibGambar`: `GBR-nn` (`{tipe:"diagram_alir", bagian}`, `periksaDiagramAlir`). Bagian `jenisIsian = "tabel"`: `TBL-nn` (`{tipe:"tabel_wajib", bagian}`, `cekTabel`).<br>[Q2b] Bila ada bagian `sitasiBernomor`: `SIT-01` (`sitasi_bernomor`); bila ada bagian `daftarPustaka` (nama masuk parameter `pustaka`): `SIT-02` (`pustaka_berurutan`) dan `SIT-03` (`jumlah_referensi_sama`), semuanya `cocokkanSitasi`.<br>[Q3] Untuk setiap lampiran: tepat satu butir `LMP-nn` (`{tipe:"lampiran_wajib", nama}`, `cekLampiran`, komponen `Lampiran`); untuk lampiran berjenis formulir dengan kalimat kunci: tambahan `FMT-nn` (`{tipe:"lampiran_format", nama, kunci[]}`).<br>[Q4] Penomoran `nn` dua digit terpisah per awalan (BGN, KTA, KAT, GBR, TBL, LMP, FMT), mengikuti urutan masukan; urutan keluaran: per bagian (BGN, KTA, KAT, GBR, TBL), lalu SIT, lalu LMP, lalu FMT.<br>[Q5] Jumlah keluaran = bagian wajib + bagian berbatas kata + butir ketentuan + butir sitasi + lampiran + butir format.<br>[Q6] Semua butir `jenis = "deterministik"`, `asal = "templat"`; status `Draf` diberikan oleh pemanggil (C-02). |
-| Catatan | Daftar Pustaka dan Kata Kunci hanya menghasilkan butir bila ditandai wajib atau berbatas kata. Butir sitasi dan kata kunci tidak berasal dari templat (manual, UC-02). |
+| Catatan | Daftar Pustaka dan Kata Kunci hanya menghasilkan butir bila ditandai wajib atau berbatas kata. Butir sitasi dan kata kunci tidak berasal dari templat (manual, UC-02). **Diperluas pada putaran 3 (24 Okt 2026): butir semantik dan ketentuan baru, lihat bagian "Putaran 3 UC-01" di akhir berkas.** |
 
 ### C-04 TemplatProposal.arsipkan
 
@@ -739,4 +739,48 @@ Fungsi murni baru pada putaran 22 Okt 2026 dan kontrak induknya: `putuskanTerbit
 | Bagian formulir | Isi |
 |---|---|
 | Algorithm Specification | [J1] IF lampiran belum ada THEN Gagal; SET teks = normalisasi isi lampiran; [J2] IF teks kosong (pindaian) THEN Lolos "format belum diperiksa"; SET hilang = kalimat kunci yang tidak ada di teks (huruf kecil, tanda baca dan spasi ganda dibuang); [J3] IF hilang kosong THEN Lolos "n dari n kalimat kunci"; [J4] ELSE Gagal dengan daftar yang belum ada. |
+
+## Putaran 3 UC-01 (24 Okt 2026): ketentuan bagian komprehensif
+
+Pembaruan C-01, C-03, C-17, C-31, MS-10, MS-13, MS-15, MS-16 serta MS baru MS-18 (periksaFrasa dan periksaBatasMin) dan MS-19 (susunPetunjuk). Sumber keputusan: `docs/arah-uc01-2026-10-23.md` bagian 6.
+
+### Model ketentuan sebuah bagian (Class Diagram BagianTemplat)
+
+Atribut: `nama`, `tipeIsian` (`teks` | `daftar` | `tabel` | `daftar_pustaka`), `batasMin` (opsional), `batasKata` (maksimal, opsional), `wajib`, `petunjuk`, dan **Wajib Memuat**: `wajibGambar` + `ketGambar`, `wajibTabel` (di dalam bagian teks) + `kolomTabel` + `judulTabel`, `sitasiBernomor`, `frasaWajib[]`, `unsurIsi[]` (`unsur`, `pertanyaan` opsional); untuk tipe daftar `jumlahButir` dan `pemisah` (`;` `,` `/`). Tipe `daftar_pustaka` disimpan sebagai `jenis_isian = teks` dengan `daftar_pustaka = true` supaya kode produksi lama tetap membaca baris yang sama.
+
+### C-01 periksaKelengkapan (tambahan)
+
+| Bagian formulir | Isi |
+|---|---|
+| Arguments Received (tambahan) | Tiap `BarisBagianMentah` memuat `batasMin: string`, `wajibTabel`, `kolomTabel: string[]`, `judulTabel`, `ketGambar`, `frasaWajib: string[]`, `unsurIsi: {unsur; pertanyaan}[]`, dan `jenisIsian` boleh `daftar_pustaka`. |
+| Post-Conditions (tambahan) | [Q8] `ketentuan.batasMin` terisi bila `batasMin` tidak kosong dan bukan bilangan bulat > 0, atau melebihi `batas` (saat `tanpaBatas = false` dan `batas` sah).<br>[Q9] `ketentuan.kolomTabel` terisi bila tipe `tabel` tanpa kolom terisi, atau ada nama kolom kosong (tipe `tabel` atau `wajibTabel`).<br>[Q10] `ketentuan.frasaWajib` terisi bila ada frasa kosong; `ketentuan.unsurIsi` terisi bila ada unsur kosong.<br>[Q11] Tipe `daftar`: jumlah butir bilangan bulat >= 1 dan pemisah tepat satu karakter (seperti sebelumnya).<br>[Q12] Paling banyak satu bagian bertipe `daftar_pustaka` (atau berpenanda `daftarPustaka`); `sitasiBernomor` pada suatu bagian butuh satu bagian `daftar_pustaka`.<br>[Q13] `lengkap = false` bila ada `ketentuan` non-null pada baris mana pun. |
+
+### C-03 turunkanButirCek (pengganti [Q1]-[Q6] untuk bagian)
+
+| Bagian formulir | Isi |
+|---|---|
+| Arguments Received | `bagian: BagianSeed[]` memuat ketentuan penuh (atribut di atas); `lampiranWajib`; `lampiranTemplat` |
+| Type of Value Returned | `ButirSeed[]` = `{kode, deskripsi, jenis: "deterministik" \| "semantik", asal: "templat", komponen, pemeriksa, parameter, aturanHitung, pertanyaan, contohJawaban, bagian}` |
+| Post-Conditions | [Q1] `wajib` → `BGN-nn` (Deterministik, `periksaBagianTerisi`).<br>[Q2] `batasKata != null` → `KTA-nn` (`hitungKata`); `batasMin != null` → `KTM-nn` (`{tipe:"batas_kata_min"}`, `hitungKata` minimal).<br>[Q3] tipe `daftar` dengan jumlah dan pemisah → `KAT-nn` (`{tipe:"kata_kunci", jumlah, pemisah, bagian}`, `cekKataKunci`); deskripsi "Kata kunci tepat N, dipisahkan titik koma (;)" untuk bagian Kata Kunci, selain itu "<Nama>: tepat N butir, dipisahkan ...".<br>[Q4] `wajibGambar` → `GBR-nn` (Deterministik, `{tipe:"diagram_alir", bagian, keterangan}`, bawaan keterangan "diagram alir penelitian") **dan** satu `UNS-nn` Semantik (kesesuaian isi gambar dengan bagian; pemetaan ISI-03S).<br>[Q5] tipe `tabel` atau `wajibTabel` → `TBL-nn` (`cekTabel`, parameter memuat `kolom` bila ada).<br>[Q6] setiap frasa wajib terisi → `FRS-nn` (`{tipe:"frasa_wajib", bagian, frasa}`, `periksaFrasa`).<br>[Q7] setiap unsur isi terisi → satu `UNS-nn` Semantik (`nilaiSemantik`, `{tipe:"semantik", bagian}`, `pertanyaan` = hasil sunting atau "Apakah bagian {nama} memuat {unsur}?"). Butir ini berjalan di J-08/UC-09 seperti butir semantik manual (mesin membaca `parameter.bagian` dan `pertanyaan`).<br>[Q8] `sitasiBernomor` → `SIT-01`; bagian `daftar_pustaka` → `SIT-02`, `SIT-03` (`cocokkanSitasi`).<br>[Q9] lampiran seperti sebelumnya (`LMP-nn`, `FMT-nn`).<br>[Q10] Penomoran `nn` terpisah per awalan (BGN, KTA, KTM, KAT, GBR, TBL, FRS, UNS, LMP, FMT), mengikuti urutan bagian; urutan keluaran per bagian: BGN, KTA, KTM, KAT, GBR, UNS gambar, TBL, FRS, UNS unsur; lalu SIT; LMP; FMT.<br>[Q11] Butir tetap bergembok di J-03 (4a); status `Draf` diberikan C-02. |
+| Catatan | Pemetaan butir semantik katalog lama: ISI-01 → UNS (4 unsur Ringkasan); ISI-02 → UNS (5 unsur Pendahuluan); ISI-04 → UNS (unsur "anggota tim/mitra ..." pada Metode); ISI-05S → UNS (Hasil yang Diharapkan); ISI-03S → UNS kesesuaian gambar (Metode); ISI-05D → BGN (Hasil yang Diharapkan wajib). Butir lampiran semantik (LMP-S1, ART-S1/S2, MIT-S1) tetap manual. |
+
+### C-17 / MS-13 cekKataKunci (tambahan)
+
+Argumen keempat `bagianDaftar?: string`. [J10] Bila bagian bernama "Kata Kunci" (atau tidak disebut) isian dibaca dari `dokumen.kataKunci`; [J11] bagian daftar lain dibaca dari `teksPerBagian[bagian]`, sebutan "butir" menggantikan "kata kunci" di angka pembukti dan nama bagian di `bagian`/`batasDilanggar`. Jalur J1-J9 tidak berubah.
+
+### MS-15 cekTabel (tambahan) dan periksaDiagramAlir (tambahan)
+
+`cekTabel(dokumen, bagian, kolom?)`: [J6] tanpa bukti tabel → Gagal; [J7] tanpa kolom wajib → Lolos seperti J1-J4; [J8] bukti hanya penanda "[tabel]" dari DOCX dan tak satu pun kolom terbaca → Lolos dengan catatan "isi kolom tidak terbaca ... belum dapat diperiksa" (isi tabel DOCX tidak diekstrak); sebagian kolom terbaca → Gagal; [J9] semua kolom terbaca → Lolos, selain itu Gagal "belum ada: ...". Kolom "Bulan a–b" cukup dengan kata "bulan". `periksaDiagramAlir(dokumen, bagian, keterangan?)`: [J5] keterangan khusus (bukan "diagram alir") dicari pada baris "Gambar n ..." yang memuatnya; [J6] bila tidak ada tetapi ada gambar lain tetap Lolos sebagai gambar; tanpa gambar Gagal dengan menyebut keterangan.
+
+### MS-18 periksaFrasa dan periksaBatasMin
+
+`periksaFrasa(dokumen, bagian, frasa)`: [J1] normalisasi (huruf kecil, tanda baca dan spasi ganda dibuang) teks bagian memuat frasa → Lolos; [J2] selain itu Gagal "Bagian X harus memuat kalimat ...". `periksaBatasMin(dokumen, bagian, batas)`: [J1] jumlah kata >= batas → Lolos; [J2] selain itu Gagal dengan selisih; [J3] bagian tidak ditemukan dicatat pada angka pembukti.
+
+### MS-19 susunPetunjuk
+
+Menyusun kalimat petunjuk dari ketentuan: [J1] daftar pustaka memakai kalimat resmi; [J2] daftar: "Isian N butir ... dipisahkan dengan tanda <nama pemisah>"; [J3] tabel: kolom dan judul blok; [J4] teks dengan minimal, maksimal (`{batas}`), keduanya, atau tanpa batas; [J5] unsur isi ("yang memuat a, b, dan c"; dua unsur "a dan b"); [J6] gambar, [J7] tabel wajib, [J8] sitasi bernomor, [J9] frasa wajib sebagai kalimat tambahan. Bagian A-H bawaan memakai petunjuk resmi dari contoh, bukan fungsi ini.
+
+### C-31 / MS-10 buatDokumenTemplat (tambahan)
+
+Tempat isian mengikuti ketentuan: [J12] daftar `[butir 1; butir 2; ...]` (bagian Kata Kunci memakai "kata kunci n") dengan pemisah bagian; [J15] tabel menurut `kolomTabel` (kolom "Bulan 1–12" diperluas dua belas nomor bulan; kolom "No" diberi nomor baris; judul blok bila ada, bawaan "Tahun ke-1" untuk baris lama tanpa kolom); [J16] bagian teks `wajibTabel` mencetak "[Sisipkan tabel]" dan tabel kosong; [J17] gambar mencetak "[Sisipkan {keterangan} (JPG/PNG)]". Kop dan kepala mengikuti ukuran terukur dari PDF contoh (lihat `docs/perubahan-model.md`, putaran 3).
 

@@ -96,7 +96,7 @@ async function skenario(nama: string, page: Page, kerja: (catat: (c: string) => 
     catatan.push("tanpa galat konsol");
   } catch (e) {
     lulus = false;
-    catatan.push(`GAGAL: ${e instanceof Error ? e.message : String(e)}`);
+    catatan.push(`GAGAL: ${e instanceof Error ? e.message : String(e)}${galatKonsol.length ? ` | konsol: ${galatKonsol.slice(0, 2).join(" | ").slice(0, 400)}` : ""}`);
     masalah.push(`${nama}: ${e instanceof Error ? e.message : String(e)}`);
     try {
       await foto(page, `gagal-${nama.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40)}`);

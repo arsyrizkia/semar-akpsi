@@ -320,7 +320,8 @@ function tabelIsian(kolomWajib: string[], judul: string | null): Table {
   const lain = kolom.filter((k) => !POLA_KOLOM_BULAN.test(k));
   const bulan = Array.from({ length: 12 }, (_, i) => String(i + 1));
   const lebarBulan = adaBulan ? 12 * 505 : 0;
-  const sisa = LEBAR_ISIAN - lebarBulan;
+  // lebar dalam sel isian: lebar tabel bagian dikurangi bantalan sel kiri dan kanan (2 x 100 twip) dan sedikit ruang bingkai
+  const sisa = LEBAR_ISIAN - 240 - lebarBulan;
   const lebarLain = lain.map((k) => (/^no\.?$/i.test(k) ? 380 : Math.floor((sisa - lain.filter((x) => /^no\.?$/i.test(x)).length * 380) / Math.max(1, lain.filter((x) => !/^no\.?$/i.test(x)).length)))) ;
   const jumlahTetap = lebarLain.reduce((a, b) => a + b, 0);
   if (lebarLain.length) lebarLain[lebarLain.length - 1] += sisa - jumlahTetap;

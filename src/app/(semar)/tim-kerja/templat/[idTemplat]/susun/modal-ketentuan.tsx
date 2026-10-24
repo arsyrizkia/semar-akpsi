@@ -190,8 +190,8 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
           ) : null}
           {jenis === "tabel" ? (
             <div className="space-y-3">
-              <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Nama Kegiatan, atau Bulan 1–12" labelTambah="Tambah Kolom" />
-              <Isian label="Judul Blok (opsional)" name="judul-tabel" autoComplete="off" className="max-w-xs" placeholder="mis. Tahun ke-1" value={k.judulTabel ?? ""} onChange={(e) => ubah({ judulTabel: e.target.value })} />
+              <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Nama Kegiatan, atau Bulan 1–12…" labelTambah="Tambah Kolom" />
+              <Isian label="Judul Blok (opsional)" name="judul-tabel" autoComplete="off" className="max-w-xs" placeholder="mis. Tahun ke-1…" value={k.judulTabel ?? ""} onChange={(e) => ubah({ judulTabel: e.target.value })} />
               <p className="flex items-center gap-2 text-xs text-teks-redup">
                 <LencanaJenis jenis="deterministik" /> tabel ada dan kolom wajib terbaca (cekTabel)
               </p>
@@ -229,7 +229,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
                 <LencanaJenis jenis="semantik" />
               </span>
             </div>
-            {k.wajibGambar ? <Isian label="Keterangan Gambar" name="ket-gambar" autoComplete="off" className="max-w-md" placeholder="diagram alir penelitian" value={k.ketGambar ?? ""} onChange={(e) => ubah({ ketGambar: e.target.value })} /> : null}
+            {k.wajibGambar ? <Isian label="Keterangan Gambar" name="ket-gambar" autoComplete="off" className="max-w-md" placeholder="mis. diagram alir penelitian…" value={k.ketGambar ?? ""} onChange={(e) => ubah({ ketGambar: e.target.value })} /> : null}
           </div>
 
           {jenis !== "tabel" ? (
@@ -238,7 +238,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
                 <KotakCentang id="k-tabel" label="Tabel di dalam bagian" checked={k.wajibTabel ?? false} onCheckedChange={(v) => ubah({ wajibTabel: v === true })} />
                 <LencanaJenis jenis="deterministik" />
               </div>
-              {k.wajibTabel ? <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="kolom wajib (opsional)" labelTambah="Tambah Kolom" /> : null}
+              {k.wajibTabel ? <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Uraian…" labelTambah="Tambah Kolom" /> : null}
             </div>
           ) : null}
 
@@ -261,7 +261,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
               <p className="text-sm font-medium text-primer-900">Frasa wajib</p>
               <LencanaJenis jenis="deterministik" />
             </div>
-            <DaftarIsian label="Frasa" nilai={k.frasaWajib ?? []} saatUbah={(x) => ubah({ frasaWajib: x })} galat={galat?.frasaWajib} placeholder="kalimat yang harus muncul persis" labelTambah="Tambah Frasa" />
+            <DaftarIsian label="Frasa" nilai={k.frasaWajib ?? []} saatUbah={(x) => ubah({ frasaWajib: x })} galat={galat?.frasaWajib} placeholder="mis. Seluruh biaya sesuai RAB…" labelTambah="Tambah Frasa" />
           </div>
 
           <div className="space-y-2">
@@ -278,7 +278,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
                       className="min-w-0 flex-1"
                       name={`unsur-${i}`}
                       autoComplete="off"
-                      placeholder="mis. urgensi"
+                      placeholder="mis. urgensi…"
                       value={u.unsur}
                       onChange={(e) => ubah({ unsurIsi: (k.unsurIsi ?? []).map((x, j) => (j === i ? { ...x, unsur: e.target.value } : x)) })}
                     />
@@ -351,7 +351,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
             <ul className="space-y-1">
               {pratinjau.map((b, i) => (
                 <li key={`${b.kode}-${i}`} className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-abu-700">{b.kode.replace(/-\d+$/, "")}</span>
+                  <span translate="no" className="font-mono text-xs font-semibold text-abu-700">{b.kode.replace(/-\d+$/, "")}</span>
                   <span className="min-w-0 flex-1">{b.deskripsi}</span>
                   <LencanaJenis jenis={b.jenis} />
                 </li>

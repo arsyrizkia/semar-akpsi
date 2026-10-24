@@ -10,7 +10,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import puppeteer from "puppeteer-core";
-import { bagianBawaan, kepalaBawaan, lengkapiBagian } from "../src/lib/templat/isian-substansi";
+import { bagianBawaan, kepalaBawaan, lengkapiBagian, susunPetunjuk } from "../src/lib/templat/isian-substansi";
 import { buatDokumenTemplat } from "../src/lib/templat/dokumen";
 
 const akar = path.resolve(import.meta.dirname, "..");
@@ -174,6 +174,37 @@ async function utama() {
     );
     await page.screenshot({ path: path.join(KELUAR, `uc01-docx-${nama}.png`), fullPage: true });
     console.log("tulis", `uc01-docx-${nama}.png`);
+  }
+
+  // bagian tambahan (putaran 3): daftar 3 butir, tabel berkolom, gambar berketerangan; hanya hasil generator, boleh di-commit
+  {
+    // petunjuk otomatis seperti yang tersimpan dari M-12 ("Susun ulang petunjuk")
+    const tambahan = lengkapiBagian(
+      lengkapiBagian([
+      { urutan: 1, nama: "Bidang Keilmuan", batasKata: null, wajib: true, jenisIsian: "daftar", jumlahButir: 3, pemisah: ";", unsurIsi: [{ unsur: "bidang keilmuan utama penelitian" }] },
+      { urutan: 2, nama: "Rencana Biaya", batasKata: 200, wajib: true, wajibTabel: true, kolomTabel: ["No", "Uraian", "Volume", "Biaya"], wajibGambar: true, ketGambar: "peta lokasi penelitian", frasaWajib: ["Seluruh biaya sesuai RAB"] },
+      { urutan: 3, nama: "Rincian Tahap", batasKata: null, wajib: true, jenisIsian: "tabel", kolomTabel: ["Kode", "Tahap", "Penanggung Jawab"], judulTabel: "Tahap 1" },
+      ]).map((b) => ({ ...b, petunjuk: susunPetunjuk(b) })),
+    );
+    const bytes = await buatDokumenTemplat({ versi: 2, status: "Draf" }, tambahan, [], { kode: "PD", namaSkema: "Penelitian Dasar" }, { nama: "Seleksi 2026", tahun: 2026 }, { kepala: kepalaBawaan("dasar"), mode: "isian" });
+    await page.close();
+    page = await peramban.newPage();
+    await page.setViewport({ width: 1000, height: 1300, deviceScaleFactor: 1.5 });
+    await page.setContent(`<!doctype html><html><head><style>${FONT_CSS}</style></head><body><div id="k"></div></body></html>`);
+    await page.addScriptTag({ content: jszip });
+    await page.addScriptTag({ content: dp });
+    await page.evaluate(async (b64: string) => {
+      const bin = atob(b64);
+      const u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      // @ts-expect-error global dari docx-preview
+      await window.docx.renderAsync(u.buffer, document.getElementById("k"), undefined, { breakPages: true, ignoreLastRenderedPageBreak: false, useBase64URL: true });
+    }, Buffer.from(bytes).toString("base64"));
+    await new Promise((r) => setTimeout(r, 600));
+    const halaman = await page.$$("section.docx");
+    const kotak = await halaman[0].boundingBox();
+    if (kotak) await page.screenshot({ path: path.join(KELUAR, "uc01r3-docx-tambahan.png"), captureBeyondViewport: true, clip: { x: kotak.x, y: kotak.y, width: kotak.width, height: Math.min(kotak.height, 760) } });
+    console.log("tulis uc01r3-docx-tambahan.png");
   }
 
   // kop berdampingan dengan contoh pada skala sama (puncak lembar 230 px); tidak di-commit karena memuat potongan PDF asli
