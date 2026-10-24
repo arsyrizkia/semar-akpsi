@@ -25,7 +25,7 @@ import {
 import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { butirTerkunci, PESAN_TERKUNCI } from "./status";
-import { ringkasParameter, validasiButir, type GalatButir, type MasukanButir } from "./parameter";
+import { ringkasParameter, validasiButir, type GalatButir, type HasilValidasiButir, type MasukanButir, type NilaiButir } from "./parameter";
 import { validasiTanggalBerlaku } from "./tanggal";
 
 
@@ -130,6 +130,8 @@ export interface MasukanSimpanButir {
   /** id butir yang diubah; kosong = butir baru (create) */
   butirId?: string;
   masukan: MasukanButir;
+  /** nilai butir yang sudah dibangun formulir terstruktur (terstruktur.ts); melewati validasi "Aturan Hitung" teks bebas */
+  nilai?: NilaiButir;
   pelaku: Pelaku;
 }
 
@@ -144,7 +146,11 @@ export async function simpanButir(m: MasukanSimpanButir): Promise<HasilSimpanBut
     sasaran = b;
   }
 
-  const v = validasiButir(m.masukan);
+  // nilai dari klien tidak dipercaya begitu saja: kode, deskripsi, jenis, dan pasangan jenis-parameter diperiksa ulang
+  const nilaiSah = (n: NilaiButir) =>
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$/.test(n.kode.trim()) && n.deskripsi.trim() !== "" && (n.jenis === "semantik" ? n.parameter.tipe === "semantik" && (n.pertanyaan ?? "").trim() !== "" : n.parameter.tipe !== "semantik");
+  if (m.nilai && !nilaiSah(m.nilai)) return { ok: false, galat: { deskripsi: "Isian butir tidak sah" } };
+  const v: HasilValidasiButir = m.nilai ? { ok: true, nilai: { ...m.nilai, kode: m.nilai.kode.trim(), deskripsi: m.nilai.deskripsi.trim() } } : validasiButir(m.masukan);
   if (!v.ok) return { ok: false, galat: v.galat };
 
   return db.transaction(async (tx) => {
@@ -182,6 +188,29 @@ export async function simpanButir(m: MasukanSimpanButir): Promise<HasilSimpanBut
   });
 }
 
+export type HasilUbahPertanyaan = { ok: true; kode: string } | { ok: false; terkunci?: boolean; galat?: string; pesan?: string };
+
+/**
+ * Pada templat Aktif/Arsip aturan yang mengubah isi dokumen terkunci (4a), tetapi kalimat pertanyaan dan contoh jawaban butir semantik
+ * turunan templat tetap boleh diubah lewat UC-02 (berlaku sesudah "Simpan Versi"). Butir deterministik turunan ditolak dengan pesan 4a.
+ */
+export async function ubahPertanyaanSemantik(m: { skemaId: string; butirId: string; pertanyaan: string; contohJawaban: string; pelaku: Pelaku }): Promise<HasilUbahPertanyaan> {
+  const db = getDb();
+  const [b] = await db.select().from(butirCek).where(eq(butirCek.id, m.butirId));
+  if (!b) return { ok: false, pesan: "Butir tidak ditemukan. Muat ulang halaman." };
+  if (b.jenis !== "semantik") return { ok: false, terkunci: true, pesan: PESAN_TERKUNCI };
+  const pertanyaan = m.pertanyaan.trim();
+  if (!pertanyaan) return { ok: false, galat: "Pertanyaan Pemeriksaan wajib diisi" };
+  return db.transaction(async (tx) => {
+    const draf = await pastikanDrafBasis(tx, m.skemaId, m.pelaku.id);
+    const target = b.basisAturanId === draf.id ? b : await cariButirDenganKode(tx, draf.id, b.kode, b.asal);
+    if (!target) return { ok: false as const, pesan: "Butir tidak ditemukan pada versi yang sedang disusun." };
+    await tx.update(butirCek).set({ pertanyaan, contohJawaban: m.contohJawaban.trim() || null }).where(eq(butirCek.id, target.id));
+    await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "aturan.pertanyaan-ubah", objek: `butir:${target.id}`, rincian: { skemaId: m.skemaId, kode: target.kode } });
+    return { ok: true as const, kode: target.kode };
+  });
+}
+
 /** Cek 4a tanpa menyimpan apa pun: apakah tombol "Ubah" boleh membuka panel butir. */
 export async function periksaKunciButir(butirId: string): Promise<{ terkunci: boolean; pesan?: string }> {
   const [b] = await getDb().select().from(butirCek).where(eq(butirCek.id, butirId));
@@ -195,10 +224,12 @@ export async function nonaktifkanButir(m: { skemaId: string; butirId: string; pe
   const db = getDb();
   const [b] = await db.select().from(butirCek).where(eq(butirCek.id, m.butirId));
   if (!b) return { ok: false, pesan: "Butir tidak ditemukan. Muat ulang halaman." };
-  if (butirTerkunci(b.asal)) return { ok: false, terkunci: true, pesan: PESAN_TERKUNCI };
+  // status tetap boleh diubah lewat UC-02 untuk butir manual dan butir semantik turunan templat; butir deterministik turunan terkunci (4a)
+  const boleh = !butirTerkunci(b.asal) || b.jenis === "semantik";
+  if (!boleh) return { ok: false, terkunci: true, pesan: PESAN_TERKUNCI };
   return db.transaction(async (tx) => {
     const draf = await pastikanDrafBasis(tx, m.skemaId, m.pelaku.id);
-    const target = b.basisAturanId === draf.id ? b : await cariButirDenganKode(tx, draf.id, b.kode, "manual");
+    const target = b.basisAturanId === draf.id ? b : await cariButirDenganKode(tx, draf.id, b.kode, b.asal);
     if (!target) return { ok: false as const, pesan: "Butir tidak ditemukan pada versi yang sedang disusun." };
     await tx.update(butirCek).set({ status: "Nonaktif" }).where(eq(butirCek.id, target.id));
     await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "aturan.butir-nonaktifkan", objek: `butir:${target.id}`, rincian: { skemaId: m.skemaId, kode: target.kode } });

@@ -12,10 +12,11 @@
  * dalam sel tabel dan dibuka oleh `blokDariHtml`; bagian depan dan lampiran tidak ikut terpotong sebagai isian. Kalimat petunjuk, "[ ]", dan
  * "[Sisipkan ...]" tidak dihitung `hitungKata`. Logo disematkan dari src/lib/templat/aset/logo-kementerian.ts.
  */
-import { AlignmentType, BorderStyle, Document, Footer, HeadingLevel, HeightRule, ImageRun, LineRuleType, Packer, Paragraph, ShadingType, Tab, TabStopType, Table, TableCell, TableLayoutType, TableRow, TextRun, VerticalAlign, WidthType } from "docx";
+import { AlignmentType, BorderStyle, Document, Footer, HeadingLevel, HeightRule, ImageRun, LineRuleType, Packer, Paragraph, ShadingType, Tab, TabStopType, Table, TableCell, TableLayoutType, TableRow, TextRun, VerticalAlign, VerticalMergeType, WidthType } from "docx";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak/tipe";
 import { normalisasiJudul } from "@/lib/pemeriksa/deterministik/teks";
 import { JUDUL_DOKUMEN_BAWAAN, PENGANTAR_ISIAN_SUBSTANSI, TEMPAT_ISIAN, adalahDaftarPustaka, judulBerhuruf, keteranganGambar, kolomTerisi, lengkapiBagian, petunjukBagian } from "./isian-substansi";
+import { judulBlokTahun, pecahKotak, uraiKolomRentang, type KolomRentang } from "./kolom-rentang";
 import { LOGO_KEMENTERIAN_BASE64 } from "./aset/logo-kementerian";
 import { BAGIAN_DEPAN, KOP_BAWAAN, labelIsian, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
 
@@ -308,37 +309,84 @@ function kepalaIsian(kepala: KepalaTemplatDto): (Paragraph | Table)[] {
 
 const isiIsian = (teks: string, o: OpsiParagraf = {}) => para(teks, { font: FONT_ISIAN, ukuran: 22, rataPenuh: true, ...o });
 
-const POLA_KOLOM_BULAN = /^bulan\s*1\s*[–-]\s*12$/i;
-
 /**
- * Tabel isian menurut kolom wajib bagian. Kolom "Bulan 1–12" diperluas menjadi dua belas kolom sempit di bawah kepala "Bulan" (gaya jadwal
- * contoh BIMA); tanpa kolom bulan, kolom dibagi rata dan diberi tiga baris kosong. `judul` (mis. "Tahun ke-1") menjadi baris judul blok.
+ * Tabel isian menurut kolom wajib bagian (Contract C-31, MS-10 [J11]). Kolom berbentuk rentang ("Bulan 1–12", "Bulan 1-24") menjadi kepala
+ * dua tingkat gaya jadwal contoh BIMA: sel "<Nama>" menggabung kolom di atas kotak-kotak angka (gridSpan), kolom lain menggabung dua baris
+ * kepala (vMerge). Rentang lebih dari 12 dipecah per tahun: satu tabel per 12 kotak ("Tahun ke-1", "Tahun ke-2", ...), sisa menjadi tabel
+ * terakhir. Tanpa rentang, kolom dibagi rata dan diberi empat baris kosong. `judul` (mis. "Tahun ke-1") menjadi baris judul blok.
  */
-function tabelIsian(kolomWajib: string[], judul: string | null): Table {
+function tabelIsian(kolomWajib: string[], judul: string | null): Table[] {
   const kolom = kolomWajib.length ? kolomWajib : ["No", "Nama Kegiatan", "Bulan 1–12"];
-  const adaBulan = kolom.some((k) => POLA_KOLOM_BULAN.test(k));
-  const lain = kolom.filter((k) => !POLA_KOLOM_BULAN.test(k));
-  const bulan = Array.from({ length: 12 }, (_, i) => String(i + 1));
-  const lebarBulan = adaBulan ? 12 * 505 : 0;
+  const idxRentang = kolom.findIndex((k) => uraiKolomRentang(k) !== null);
+  const rentang = idxRentang >= 0 ? uraiKolomRentang(kolom[idxRentang]) : null;
+  if (!rentang) return [satuTabelIsian(kolom, null, 0, judul)];
+  const potongan = pecahKotak(rentang.jumlah);
+  return potongan.map((n, i) => satuTabelIsian(kolom, rentang, n, judulBlokTahun(judul, i + 1, potongan.length)));
+}
+
+const LEBAR_KOTAK = 505;
+
+/** Satu tabel: `kotak` kotak angka bagi kolom rentang pertama (diberi nomor 1..kotak), kolom lain tetap. */
+function satuTabelIsian(kolom: string[], rentang: KolomRentang | null, kotak: number, judul: string | null): Table {
+  const nomorKolom = (k: string) => /^no\.?$/i.test(k);
+  const idx = rentang ? kolom.findIndex((k) => uraiKolomRentang(k) !== null) : -1;
+  const lain = kolom.filter((_, i) => i !== idx);
+  const angka = Array.from({ length: kotak }, (_, i) => String(i + 1));
   // lebar dalam sel isian: lebar tabel bagian dikurangi bantalan sel kiri dan kanan (2 x 100 twip) dan sedikit ruang bingkai
-  const sisa = LEBAR_ISIAN - 240 - lebarBulan;
-  const lebarLain = lain.map((k) => (/^no\.?$/i.test(k) ? 380 : Math.floor((sisa - lain.filter((x) => /^no\.?$/i.test(x)).length * 380) / Math.max(1, lain.filter((x) => !/^no\.?$/i.test(x)).length)))) ;
-  const jumlahTetap = lebarLain.reduce((a, b) => a + b, 0);
-  if (lebarLain.length) lebarLain[lebarLain.length - 1] += sisa - jumlahTetap;
-  const lebar = adaBulan ? [...lebarLain, ...bulan.map(() => 505)] : lebarLain;
+  const sisa = LEBAR_ISIAN - 240 - kotak * LEBAR_KOTAK;
+  const jumlahNo = lain.filter(nomorKolom).length;
+  const jumlahBiasa = lain.length - jumlahNo;
+  const lebarLain = lain.map((k) => (nomorKolom(k) ? 380 : Math.floor((sisa - jumlahNo * 380) / Math.max(1, jumlahBiasa))));
+  if (lebarLain.length) lebarLain[lebarLain.length - 1] += sisa - lebarLain.reduce((a, b) => a + b, 0);
+  // kolom rentang berada di posisinya semula di antara kolom lain
+  const lebar: number[] = [];
+  const urutan: ("lain" | "kotak")[] = [];
+  let li = 0;
+  kolom.forEach((_, i) => {
+    if (i === idx) {
+      for (let j = 0; j < kotak; j++) {
+        lebar.push(LEBAR_KOTAK);
+        urutan.push("kotak");
+      }
+    } else {
+      lebar.push(lebarLain[li++]);
+      urutan.push("lain");
+    }
+  });
   const m = { atas: 20, bawah: 20, kiri: 40, kanan: 40 };
-  const sl = (t: string, i: number, tebal: boolean, span = 1) =>
-    sel({ lebar: lebar.slice(i, i + span).reduce((a, b) => a + b, 0), span, margin: m, isi: [para(t, { font: FONT_ISIAN, ukuran: 18, tebal, tengah: span > 1 || /^no\.?$/i.test(t) || !tebal })] });
+  const sl = (t: string, i: number, tebal: boolean, span = 1, vm?: (typeof VerticalMergeType)[keyof typeof VerticalMergeType]) =>
+    new TableCell({
+      width: { size: lebar.slice(i, i + span).reduce((a, b) => a + b, 0), type: WidthType.DXA },
+      columnSpan: span > 1 ? span : undefined,
+      verticalMerge: vm,
+      borders: BINGKAI,
+      margins: { top: m.atas, bottom: m.bawah, left: m.kiri, right: m.kanan },
+      children: [para(t, { font: FONT_ISIAN, ukuran: 18, tebal, tengah: span > 1 || nomorKolom(t) || !tebal })],
+    });
   const baris: TableRow[] = [];
   if (judul) baris.push(new TableRow({ children: [sl(judul, 0, true, lebar.length)] }));
-  if (adaBulan) {
-    // kepala dua tingkat: kolom biasa, "Bulan" melebar di atas dua belas nomor bulan
-    baris.push(new TableRow({ tableHeader: true, children: [...lain.map((k, i) => sl(k, i, true)), sl("Bulan", lain.length, true, 12)] }));
-    baris.push(new TableRow({ tableHeader: true, children: [...lain.map((_, i) => sl("", i, false)), ...bulan.map((b, i) => sl(b, lain.length + i, true))] }));
+  if (rentang) {
+    // kepala dua tingkat: kolom biasa menggabung dua baris (vMerge); kepala rentang melebar di atas kotak angka (gridSpan)
+    const atas: TableCell[] = [];
+    const bawah: TableCell[] = [];
+    let pos = 0;
+    let ki = 0;
+    for (const u of urutan) {
+      if (u === "lain") {
+        atas.push(sl(lain[ki++], pos, true, 1, VerticalMergeType.RESTART));
+        bawah.push(sl("", pos, false, 1, VerticalMergeType.CONTINUE));
+        pos += 1;
+      } else if (pos === urutan.indexOf("kotak")) {
+        atas.push(sl(rentang.nama, pos, true, kotak));
+        angka.forEach((a, j) => bawah.push(sl(a, pos + j, true)));
+        pos += kotak;
+      }
+    }
+    baris.push(new TableRow({ tableHeader: true, children: atas }), new TableRow({ tableHeader: true, children: bawah }));
   } else {
     baris.push(new TableRow({ tableHeader: true, children: lain.map((k, i) => sl(k, i, true)) }));
   }
-  for (const n of [1, 2, 3, 4]) baris.push(new TableRow({ children: lebar.map((_, i) => sl(i === 0 && /^no\.?$/i.test(lain[0] ?? "") ? String(n) : "", i, false)) }));
+  for (const n of [1, 2, 3, 4]) baris.push(new TableRow({ children: lebar.map((_, i) => sl(urutan[i] === "lain" && i === 0 && nomorKolom(kolom[0] ?? "") ? String(n) : "", i, false)) }));
   return tabelTetap(lebar, baris);
 }
 
@@ -351,7 +399,8 @@ function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
     const butir = Array.from({ length: b.jumlahButir ?? 5 }, (_, i) => `${label} ${i + 1}`);
     o.push(isiIsian(`[${butir.join(`${b.pemisah ?? ";"} `)}]`));
   } else if (b.jenisIsian === "tabel") {
-    o.push(tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || (kolomTerisi(b).length === 0 ? "Tahun ke-1" : null)));
+    const tabel = tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || (kolomTerisi(b).length === 0 ? "Tahun ke-1" : null));
+    tabel.forEach((t, i) => (i > 0 ? o.push(pemisahTabel()) : undefined, o.push(t)));
     o.push(isiIsian("", { sesudah: 0 }));
   } else if (adalahDaftarPustaka(b)) {
     o.push(isiIsian("[1] "));
@@ -360,7 +409,7 @@ function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
   }
   if (b.wajibTabel && b.jenisIsian !== "tabel") {
     o.push(isiIsian("[Sisipkan tabel]", { miring: true }));
-    o.push(tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || null));
+    tabelIsian(kolomTerisi(b), b.judulTabel?.trim() || null).forEach((t, i) => (i > 0 ? o.push(pemisahTabel()) : undefined, o.push(t)));
     o.push(isiIsian("", { sesudah: 0 }));
   }
   if (b.wajibGambar) o.push(isiIsian(`[Sisipkan ${keteranganGambar(b)} (JPG/PNG)]`, { miring: true }));

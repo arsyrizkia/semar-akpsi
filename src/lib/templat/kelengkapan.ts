@@ -186,7 +186,7 @@ function ketentuanTersimpan(b: BarisBagianMentah): Omit<BagianTersimpan, "nama" 
   const tabel = b.jenisIsian === "tabel" || b.wajibTabel === true;
   const kolom = bersih(b.kolomTabel);
   const frasa = bersih(b.frasaWajib);
-  const unsur = (b.unsurIsi ?? []).filter((u) => u.unsur.trim() !== "").map((u) => ({ unsur: u.unsur.trim(), pertanyaan: u.pertanyaan?.trim() ? u.pertanyaan.trim() : null }));
+  const unsur = (b.unsurIsi ?? []).filter((u) => u.unsur.trim() !== "").map((u) => ({ unsur: u.unsur.trim(), pertanyaan: u.pertanyaan?.trim() ? u.pertanyaan.trim() : null, ...(u.contoh?.trim() ? { contoh: u.contoh.trim() } : {}) }));
   const min = (b.batasMin ?? "").trim();
   return {
     petunjuk: b.petunjuk ?? "",

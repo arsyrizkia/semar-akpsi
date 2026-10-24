@@ -1,6 +1,6 @@
 /**
  * Menu sidebar per peran (docs/arah-perbaikan-2026-10-22.md, NFR 5.1). Murni, tanpa basis data.
- * - Tim Kerja pengelola: Templat & Aturan (J-02 daftar, J-02a rincian, J-03 = tab Aturan Pemeriksaan), Penugasan Reviewer, Pemantauan Kesesuaian.
+ * - Tim Kerja pengelola: Templat Proposal (J-02 daftar, J-02a rincian; J-03 Aturan Pemeriksaan hanya tab di rincian, tanpa menu sendiri), Penugasan Reviewer, Pemantauan Kesesuaian.
  * - Tim Kerja non-pengelola: Penugasan Reviewer, Pemantauan Kesesuaian.
  * - Reviewer: Daftar Penugasan.
  * - Pengusul: tanpa menu.
@@ -21,7 +21,7 @@ export interface PeranMenu {
 }
 
 const TIM_KERJA: (ItemMenu & { hanyaPengelola: boolean })[] = [
-  { href: "/tim-kerja/templat", kode: "J-02", nama: "Templat & Aturan", awalan: "/tim-kerja/templat", awalanLain: ["/tim-kerja/aturan"], hanyaPengelola: true },
+  { href: "/tim-kerja/templat", kode: "J-02", nama: "Templat Proposal", awalan: "/tim-kerja/templat", awalanLain: ["/tim-kerja/aturan"], hanyaPengelola: true },
   { href: "/tim-kerja/penugasan", kode: "J-04", nama: "Penugasan Reviewer", awalan: "/tim-kerja/penugasan", hanyaPengelola: false },
   { href: "/tim-kerja/pemantauan", kode: "J-05", nama: "Pemantauan Kesesuaian", awalan: "/tim-kerja/pemantauan", hanyaPengelola: false },
 ];

@@ -168,7 +168,7 @@ export const bagianTemplat = pgTable(
     judulTabel: text("judul_tabel"),
     ketGambar: text("ket_gambar"),
     frasaWajib: jsonb("frasa_wajib").$type<string[]>(),
-    unsurIsi: jsonb("unsur_isi").$type<{ unsur: string; pertanyaan?: string | null }[]>(),
+    unsurIsi: jsonb("unsur_isi").$type<{ unsur: string; pertanyaan?: string | null; contoh?: string | null }[]>(),
   },
   (t) => [index("bagian_templat_idx").on(t.templatId, t.urutan)],
 );

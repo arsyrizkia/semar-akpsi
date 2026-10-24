@@ -5,8 +5,8 @@ import { itemAktif, menuUntukPeran } from "@/lib/menu";
 const nama = (m: { nama: string }[]) => m.map((x) => x.nama);
 
 describe("menuUntukPeran", () => {
-  it("KH-menuUntukPeran-01: Tim Kerja pengelola melihat tiga menu berurutan (Templat & Aturan menggantikan dua menu lama)", () => {
-    expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: true }))).toEqual(["Templat & Aturan", "Penugasan Reviewer", "Pemantauan Kesesuaian"]);
+  it("KH-menuUntukPeran-01: Tim Kerja pengelola melihat tiga menu berurutan (Aturan Pemeriksaan hanya tab di rincian templat, tanpa menu sendiri)", () => {
+    expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: true }))).toEqual(["Templat Proposal", "Penugasan Reviewer", "Pemantauan Kesesuaian"]);
   });
   it("KH-menuUntukPeran-02: Tim Kerja non-pengelola hanya Penugasan dan Pemantauan", () => {
     expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: false }))).toEqual(["Penugasan Reviewer", "Pemantauan Kesesuaian"]);

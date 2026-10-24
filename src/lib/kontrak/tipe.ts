@@ -78,6 +78,8 @@ export type JenisIsian = "teks" | "daftar" | "tabel" | "daftar_pustaka";
 export interface UnsurIsi {
   unsur: string;
   pertanyaan?: string | null;
+  /** contoh jawaban untuk butir semantik unsur ini (aditif, 24 Okt 2026) */
+  contoh?: string | null;
 }
 
 export interface BagianTemplatDto {

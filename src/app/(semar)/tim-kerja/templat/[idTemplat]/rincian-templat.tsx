@@ -10,7 +10,7 @@ import { dapatDisunting, dapatSusunVersiBaru, masaBerjalanUntuk, statusTampil, T
 import { lampiranBawaan, type KopTemplat } from "@/lib/templat/paket";
 import { PESAN_DRAF_9A, PESAN_LENGKAPI } from "@/lib/templat/status";
 import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
-import type { ButirTampil, TampilanAturan } from "@/lib/aturan/layanan";
+import type { TampilanAturan } from "@/lib/aturan/layanan";
 import { formatAngka, formatTanggal } from "@/lib/utils";
 import { PapanAturan } from "../../aturan/papan-aturan";
 import { aksiSimpanDraf, aksiSusunVersiBaru, aksiTerbitkan } from "../aksi";
@@ -53,7 +53,8 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const [bagianBaru, setBagianBaru] = useState(false);
   const [lampiranDi, setLampiranDi] = useState<number | null>(null);
   const [lampiranBaru, setLampiranBaru] = useState(false);
-  const [sorotBagian, setSorotBagian] = useState<string | null>(null);
+  const [fokusBagian, setFokusBagian] = useState<string | null>(null);
+  const [ubahRingkas, setUbahRingkas] = useState(true);
   const ref = useRef<HTMLDivElement | null>(null);
 
   const kotor = bisaSunting && sidikIsian(isian) !== tersimpan;
@@ -164,21 +165,10 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
     });
   }
 
-  /** 4a: butir turunan dibuka dari tab Aturan; mengarah ke bagian atau lampiran asalnya (M-12/M-13 langsung terbuka bila Draf). */
-  function bukaAsal(b: ButirTampil) {
-    if (b.lampiran && !b.bagian) {
-      pilihTab("lampiran");
-      const i = isian.lampiran.findIndex((l) => l.trim().toLowerCase() === b.lampiran!.trim().toLowerCase());
-      if (bisaSunting && i >= 0) setLampiranDi(i);
-      return;
-    }
-    pilihTab("bagian");
-    const i = isian.bagian.findIndex((x) => x.nama.trim().toLowerCase() === (b.bagian ?? "").trim().toLowerCase());
-    setSorotBagian(i >= 0 ? isian.bagian[i].nama : null);
-    if (bisaSunting && i >= 0) {
-      setBagianBaru(false);
-      setKetentuanDi(i);
-    }
+  /** "Atur aturan bagian ini" di M-12 ringkas: tab Aturan Pemeriksaan tersaring dan tersorot untuk bagian itu. */
+  function aturAturanBagian(nama: string) {
+    setFokusBagian(nama);
+    pilihTab("aturan");
   }
 
   const namaPeriode = periode.find((p) => p.id === isian.periodeId)?.nama ?? "-";
@@ -192,7 +182,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
       <KepalaHalaman
         kode="J-02a"
         judul={`${namaSkema} versi ${templat.versi}`}
-        remah={[{ label: "Templat & Aturan" }, { label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: `${namaSkema} versi ${templat.versi}` }]}
+        remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: `${namaSkema} versi ${templat.versi}` }]}
         aksi={
           bisaSunting ? (
             <>
@@ -297,8 +287,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
             bisaSunting={bisaSunting}
             tandai={tandai}
             kelengkapan={kelengkapan}
-            sorotNama={sorotBagian}
-            saatUbah={(i) => (setBagianBaru(false), setKetentuanDi(i))}
+            saatUbah={(i) => (setBagianBaru(false), setUbahRingkas(true), setKetentuanDi(i))}
             saatHapus={(i) => setIsian((s) => ({ ...s, bagian: s.bagian.filter((_, j) => j !== i) }))}
             saatGeser={(i, arah) =>
               setIsian((s) => {
@@ -313,6 +302,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
               // "Tambah Bagian" membuka M-12 untuk baris baru; Batal di modal membuang baris itu lagi
               setKetentuanDi(isian.bagian.length);
               setBagianBaru(true);
+              setUbahRingkas(false);
               setIsian((s) => ({ ...s, bagian: [...s.bagian, { ...BAGIAN_BARU }] }));
             }}
           />
@@ -321,18 +311,40 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
         <TabsContent value="aturan">
           {aturan ? (
             <PapanAturan
-              key={`${skemaId}:${aturan.periode.id}`}
+              key={`${skemaId}:${aturan.periode.id}:${fokusBagian ?? ""}`}
               skemaId={skemaId}
               namaSkema={namaSkema}
               templatId={templat.id}
+              statusTemplat={templat.status}
+              adaDraf={adaDraf}
               periode={aturan.periode}
-              hanyaBaca={templat.status === "Arsip"}
-              saatBukaAsal={bukaAsal}
               tampilan={aturan.tampilan}
-              bagianPilihan={aturan.bagianPilihan}
+              bagianPilihan={aturan.bagianPilihan.length ? aturan.bagianPilihan : templat.bagian.map((b) => b.nama)}
               lampiranPilihan={aturan.lampiranPilihan}
               masaBerjalan={masaBerjalanUntuk(sakelarBerjalan, aturan.periode.id, periodeBerjalanId)}
               sorotAwal={sorotAwal}
+              bagianMentah={isian.bagian}
+              lampiranDef={isian.lampiran.map((nama, i) => ({ ...(isian.lampiranDef[i] ?? lampiranBawaan(nama)), nama: nama.trim() }))}
+              saatUbahBagian={(i, b) => setIsian((s) => ({ ...s, bagian: s.bagian.map((x, j) => (j === i ? b : x)) }))}
+              saatBukaBagian={(nama) => {
+                pilihTab("bagian");
+                const i = isian.bagian.findIndex((x) => x.nama.trim() === nama);
+                if (bisaSunting && i >= 0) {
+                  setBagianBaru(false);
+                  setUbahRingkas(true);
+                  setKetentuanDi(i);
+                }
+              }}
+              saatBukaLampiran={(nama) => {
+                pilihTab("lampiran");
+                const i = isian.lampiran.findIndex((x) => x.trim() === nama.trim());
+                if (bisaSunting && i >= 0) {
+                  setLampiranBaru(false);
+                  setLampiranDi(i);
+                }
+              }}
+              saatSusunVersiBaru={susunVersiBaru}
+              fokusBagian={fokusBagian}
             />
           ) : (
             <p className="text-sm text-teks-redup">Belum ada periode seleksi.</p>
@@ -366,6 +378,8 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           indeks={ketentuanDi}
           bagian={isian.bagian}
           baru={bagianBaru}
+          ringkas={ubahRingkas && !bagianBaru}
+          saatAturAturan={aturAturanBagian}
           saatUbah={(b) => {
             if (!b) {
               setKetentuanDi(null);

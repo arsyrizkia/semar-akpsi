@@ -6,6 +6,7 @@ import { Badge, Button, Isian, KotakCentang, Modal, Pilihan } from "@/components
 import type { JenisIsian } from "@/lib/kontrak/tipe";
 import { batasKataValid, mentahKeBagian, mentahPustaka, periksaKetentuan, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
 import { pertanyaanUnsur, susunPetunjuk } from "@/lib/templat/isian-substansi";
+import { PETUNJUK_KOLOM_RENTANG } from "@/lib/templat/kolom-rentang";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 
 interface Props {
@@ -18,6 +19,10 @@ interface Props {
   saatBatalBaru?: () => void;
   /** isian tersunting dikembalikan utuh sebagai pengganti baris bagian */
   saatTerapkan: (b: BarisBagianMentah) => void;
+  /** "Ubah Bagian": formulir ringkas (Nama Bagian, Batas Kata, Petunjuk Pengisian, Wajib); formulir lengkap hanya untuk "Tambah Bagian" */
+  ringkas?: boolean;
+  /** tautan "Atur aturan bagian ini": menutup modal dan membuka tab Aturan Pemeriksaan tersaring dan tersorot untuk bagian ini */
+  saatAturAturan?: (namaBagian: string) => void;
 }
 
 const TIPE: { nilai: JenisIsian; label: string; ket: string }[] = [
@@ -53,10 +58,11 @@ function Kelompok({ judul, keterangan, children }: { judul: string; keterangan?:
 }
 
 /** Daftar isian yang bisa ditambah dan dihapus (kolom tabel, frasa wajib). */
-function DaftarIsian({ label, nilai, saatUbah, galat, placeholder, labelTambah }: { label: string; nilai: string[]; saatUbah: (x: string[]) => void; galat?: string | null; placeholder: string; labelTambah: string }) {
+function DaftarIsian({ label, nilai, saatUbah, galat, placeholder, labelTambah, petunjuk }: { label: string; nilai: string[]; saatUbah: (x: string[]) => void; galat?: string | null; placeholder: string; labelTambah: string; petunjuk?: string }) {
   return (
     <div>
       <p className="mb-1 text-sm font-medium text-primer-900">{label}</p>
+      {petunjuk ? <p className="mb-2 text-xs text-teks-redup">{petunjuk}</p> : null}
       <ul className="space-y-2">
         {nilai.map((v, i) => (
           <li key={i} className="flex items-center gap-2">
@@ -96,7 +102,7 @@ export function ModalKetentuan(props: Props) {
   return props.buka ? <IsiModal {...props} /> : null;
 }
 
-function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTerapkan }: Props) {
+function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTerapkan, ringkas = false, saatAturAturan }: Props) {
   const [k, setK] = useState<BarisBagianMentah>(() => ({ ...bagian[indeks], kolomTabel: [...(bagian[indeks].kolomTabel ?? [])], frasaWajib: [...(bagian[indeks].frasaWajib ?? [])], unsurIsi: (bagian[indeks].unsurIsi ?? []).map((u) => ({ ...u })) }));
   // petunjuk mengikuti ketentuan sampai disunting manual; bagian yang sudah punya petunjuk (mis. resmi dari contoh) dianggap manual
   const [manual, setManual] = useState(() => (bagian[indeks].petunjuk ?? "").trim() !== "");
@@ -136,7 +142,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
       buka={buka}
       saatUbah={tutup}
       ukuran="lg"
-      judul={baru ? "Tambah Bagian" : "Ketentuan Bagian"}
+      judul={baru ? "Tambah Bagian" : ringkas ? "Ubah Bagian" : "Ketentuan Bagian"}
       deskripsi={nama ? `Bagian: ${nama}` : "Atur nama, tipe isian, batas kata, dan hal yang wajib dimuat."}
       kaki={
         <>
@@ -159,9 +165,10 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
       <div className="space-y-4">
         <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
           <Isian label="Nama Bagian" name="nama-bagian" autoComplete="off" className="min-w-64 flex-1" value={k.nama} galat={galatNama} onChange={(e) => ubah({ nama: e.target.value })} />
-          <KotakCentang className="pt-7" id="k-wajib" label="Wajib terisi" checked={k.wajib} onCheckedChange={(v) => ubah({ wajib: v === true })} />
+          <KotakCentang className="pt-7" id="k-wajib" label="Wajib" checked={k.wajib} onCheckedChange={(v) => ubah({ wajib: v === true })} />
         </div>
 
+        {ringkas ? null : (
         <Kelompok judul="Tipe Isian" keterangan="Menentukan bentuk tempat isian di templat dan butir yang diturunkan.">
           <Pilihan label="Tipe Isian" name="tipe-isian" value={jenis} onChange={(e) => ubahTipe(e.target.value as JenisIsian)} className="max-w-sm">
             {TIPE.map((t) => (
@@ -190,7 +197,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
           ) : null}
           {jenis === "tabel" ? (
             <div className="space-y-3">
-              <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Nama Kegiatan, atau Bulan 1–12…" labelTambah="Tambah Kolom" />
+              <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Nama Kegiatan, atau Bulan 1–12…" labelTambah="Tambah Kolom" petunjuk={PETUNJUK_KOLOM_RENTANG} />
               <Isian label="Judul Blok (opsional)" name="judul-tabel" autoComplete="off" className="max-w-xs" placeholder="mis. Tahun ke-1…" value={k.judulTabel ?? ""} onChange={(e) => ubah({ judulTabel: e.target.value })} />
               <p className="flex items-center gap-2 text-xs text-teks-redup">
                 <LencanaJenis jenis="deterministik" /> tabel ada dan kolom wajib terbaca (cekTabel)
@@ -208,10 +215,11 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
             </p>
           ) : null}
         </Kelompok>
+        )}
 
         <Kelompok judul="Batas Kata" keterangan="Kosongkan Minimal bila tidak ada batas bawah.">
           <div className="flex flex-wrap items-start gap-4">
-            <Isian label="Minimal" name="batas-min" inputMode="numeric" autoComplete="off" className="w-32" value={k.batasMin ?? ""} galat={galat?.batasMin} onChange={(e) => ubah({ batasMin: e.target.value })} />
+            {ringkas ? null : <Isian label="Minimal" name="batas-min" inputMode="numeric" autoComplete="off" className="w-32" value={k.batasMin ?? ""} galat={galat?.batasMin} onChange={(e) => ubah({ batasMin: e.target.value })} />}
             <Isian label="Maksimal" name="batas-kata" inputMode="numeric" autoComplete="off" className="w-32" value={k.tanpaBatas ? "" : k.batas} disabled={k.tanpaBatas} galat={galatBatas} onChange={(e) => ubah({ batas: e.target.value })} />
             <KotakCentang className="pt-7" id="k-tanpa-batas" label="Tanpa batas maksimal" checked={k.tanpaBatas} onCheckedChange={(v) => ubah({ tanpaBatas: v === true })} />
           </div>
@@ -220,6 +228,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
           </p>
         </Kelompok>
 
+        {ringkas ? null : (
         <Kelompok judul="Wajib Memuat" keterangan="Setiap pilihan menjadi butir cek. Label di kanan menunjukkan jenis butir yang lahir.">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -238,7 +247,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
                 <KotakCentang id="k-tabel" label="Tabel di dalam bagian" checked={k.wajibTabel ?? false} onCheckedChange={(v) => ubah({ wajibTabel: v === true })} />
                 <LencanaJenis jenis="deterministik" />
               </div>
-              {k.wajibTabel ? <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Uraian…" labelTambah="Tambah Kolom" /> : null}
+              {k.wajibTabel ? <DaftarIsian label="Kolom Wajib" nilai={k.kolomTabel ?? []} saatUbah={(x) => ubah({ kolomTabel: x })} galat={galat?.kolomTabel} placeholder="mis. Uraian…" labelTambah="Tambah Kolom" petunjuk={PETUNJUK_KOLOM_RENTANG} /> : null}
             </div>
           ) : null}
 
@@ -309,6 +318,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
             </Button>
           </div>
         </Kelompok>
+        )}
 
         <Kelompok judul="Petunjuk Pengisian" keterangan="Disusun otomatis dari pilihan di atas; sunting manual bila perlu. {batas} diganti Batas Kata maksimal.">
           <Isian
@@ -338,6 +348,21 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
           </div>
         </Kelompok>
 
+        {ringkas ? (
+          saatAturAturan ? (
+            <div className="border-t border-primer-100 pt-4">
+              <button type="button" className="cursor-pointer text-sm font-semibold text-primer-800 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={adaGalat} onClick={() => {
+                  setDiterapkan(true);
+                  saatTerapkan({ ...k, nama: k.nama.trim(), daftarPustaka: mentahPustaka(k) });
+                  saatUbah(false);
+                  saatAturAturan(k.nama.trim());
+                }}>
+                Atur aturan bagian ini
+              </button>
+              <p className="mt-1 text-xs text-teks-redup">Batas kata minimal, format, tabel, gambar, sitasi, frasa, dan unsur isi diatur di tab Aturan Pemeriksaan.</p>
+            </div>
+          ) : null
+        ) : (
         <section aria-labelledby="pratinjau-butir" className="border-t border-primer-100 pt-4">
           <h3 id="pratinjau-butir" className="text-sm font-semibold text-primer-800">
             Butir cek yang akan lahir dari bagian ini
@@ -359,6 +384,7 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
             </ul>
           )}
         </section>
+        )}
       </div>
     </Modal>
   );

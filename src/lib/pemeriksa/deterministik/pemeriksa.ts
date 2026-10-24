@@ -3,6 +3,7 @@
  * Nama fungsi mengikuti seq-uc06.puml: cocokkanStrukturJudul, hitungKata, cekKataKunci, cocokkanSitasi, cekLampiran.
  * Setiap fungsi mengembalikan status Lolos/Gagal dengan angka pembukti.
  */
+import { uraiKolomRentang } from "@/lib/templat/kolom-rentang";
 import type {
   BagianTemplatDto,
   ButirCek,
@@ -204,9 +205,12 @@ export function cekTabel(dokumen: DokumenPeriksa, bagian: string, kolom?: string
   if (!kolom || kolom.length === 0) return lolos(`tabel ditemukan (${bukti})`, bagian);
   // kolom wajib: dicari di teks bagian; "Bulan 1–12" cukup dengan kata "bulan"; isi tabel DOCX tidak terbaca (hanya penanda)
   const teks = normFrasa(baris.join(" "));
+  // kolom rentang ("Bulan 1–24") dianggap ada bila kepala "Bulan" ada dan angka-angkanya terbaca sebagai baris nomor (atau berkasnya DOCX, isi sel tak terbaca)
+  const adaBarisAngka = baris.some((b) => POLA_BARIS_BULAN.test(b));
   const ada = (k: string) => {
-    const dasar = normFrasa(k.replace(/\s*\d+\s*[–-]\s*\d+\s*$/, ""));
-    return dasar !== "" && teks.includes(dasar);
+    const rentang = uraiKolomRentang(k);
+    const dasar = normFrasa(rentang ? rentang.nama : k.replace(/\s*\d+\s*[–-]\s*\d+\s*$/, ""));
+    return dasar !== "" && teks.includes(dasar) && (!rentang || penandaDocx || adaBarisAngka);
   };
   const hilang = kolom.filter((k) => !ada(k));
   const daftar = kolom.join("; ");

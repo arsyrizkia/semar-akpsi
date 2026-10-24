@@ -10,6 +10,7 @@
  * disimpan di data templat (kolom bagian_templat); konstanta di berkas ini hanya NILAI BAWAAN saat menyusun versi baru atau seed, dan
  * penurun nilai untuk baris lama yang kolom barunya masih null (`lengkapiBagian`, `petunjukBagian`).
  */
+import { ringkasKolomTabel } from "./kolom-rentang";
 import type { BagianTemplatDto, JenisIsian, KepalaTemplatDto, UnsurIsi } from "../kontrak/tipe";
 import { fmt, normalisasiJudul } from "../pemeriksa/deterministik/teks";
 
@@ -374,7 +375,7 @@ export function ringkasKetentuan(b: BagianTemplatDto): string[] {
   else if (b.batasKata != null) hasil.push(`≤ ${fmt(b.batasKata)} kata`);
   else if (b.batasMin != null) hasil.push(`≥ ${fmt(b.batasMin)} kata`);
   if (b.jenisIsian === "daftar") hasil.push(`${b.jumlahButir ?? "?"} butir · pemisah ${b.pemisah ?? "?"}`);
-  if (b.jenisIsian === "tabel") hasil.push(kolomTerisi(b).length ? `tabel: ${kolomTerisi(b).length} kolom` : "tabel");
+  if (b.jenisIsian === "tabel") hasil.push(kolomTerisi(b).length ? `tabel: ${ringkasKolomTabel(kolomTerisi(b))}` : "tabel");
   else if (b.wajibTabel) hasil.push("tabel");
   if (b.wajibGambar) hasil.push(`gambar: ${keteranganGambar(b)}`);
   const u = unsurTerisi(b).length;

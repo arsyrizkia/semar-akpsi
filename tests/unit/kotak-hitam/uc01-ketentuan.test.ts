@@ -208,7 +208,7 @@ describe("bagian templat dan kop (Class Diagram BagianTemplat, C-31)", () => {
     expect(c("Judul")).toEqual(["≤ 20 kata"]);
     expect(c("Kata Kunci")).toEqual(["5 butir · pemisah ;"]);
     expect(c("Metode")).toEqual(["gambar: diagram alir penelitian"]);
-    expect(c("Jadwal Penelitian")).toEqual(["tabel: 3 kolom"]);
+    expect(c("Jadwal Penelitian")).toEqual(["tabel: No, Nama Kegiatan, Bulan ×12"]);
     expect(c("Daftar Pustaka")).toEqual(["sitasi bernomor", "daftar pustaka"]);
     expect(ringkasKetentuan({ urutan: 1, nama: "Z", batasKata: 1500, wajib: true, jenisIsian: "daftar" })).toEqual(["≤ 1.500 kata", "? butir · pemisah ?"]);
   });

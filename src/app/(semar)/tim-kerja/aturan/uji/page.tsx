@@ -24,7 +24,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   if (!skemaTerpilih) {
     return (
       <>
-        <KepalaHalaman kode="J-03b" judul="Hasil Uji pada Contoh" remah={[{ label: "Templat & Aturan", href: "/tim-kerja/templat" }, { label: "Hasil Uji" }]} />
+        <KepalaHalaman kode="J-03b" judul="Hasil Uji pada Contoh" remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Hasil Uji" }]} />
         <KeadaanKosong judul="Belum ada skema pendanaan">Jalankan &ldquo;Reset &amp; isi data demo&rdquo; di Pusat Demo.</KeadaanKosong>
       </>
     );
@@ -44,7 +44,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         kode="J-03b"
         judul="Hasil Uji pada Contoh"
         keterangan={dasar ? `${skemaTerpilih.namaSkema}, basis aturan versi ${dasar.versi}${tampilan.draf ? " (sedang disusun)" : ""}` : skemaTerpilih.namaSkema}
-        remah={[{ label: "Templat & Aturan", href: "/tim-kerja/templat" }, { label: "Aturan Pemeriksaan", href: urlKembali }, { label: "Hasil Uji" }]}
+        remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Aturan Pemeriksaan", href: urlKembali }, { label: "Hasil Uji" }]}
         aksi={
           <>
             <Link href={`/tim-kerja/aturan/uji?${kueri}`} className={kelasTombol("sekunder")}>

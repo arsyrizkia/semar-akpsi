@@ -33,7 +33,7 @@ export const dariTemplat = (t: TemplatTampil): IsianForm => ({
     kolomTabel: [...(b.kolomTabel ?? [])],
     judulTabel: b.judulTabel ?? "",
     frasaWajib: [...(b.frasaWajib ?? [])],
-    unsurIsi: (b.unsurIsi ?? []).map((u) => ({ unsur: u.unsur, pertanyaan: u.pertanyaan ?? "" })),
+    unsurIsi: (b.unsurIsi ?? []).map((u) => ({ unsur: u.unsur, pertanyaan: u.pertanyaan ?? "", contoh: u.contoh ?? "" })),
   })),
   lampiran: [...t.lampiranWajib],
   lampiranDef: t.lampiranTemplat.map((l) => ({ ...l })),

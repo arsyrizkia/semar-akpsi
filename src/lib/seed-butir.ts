@@ -160,7 +160,7 @@ export function turunkanButirDariTemplat(bagian: BagianSeed[], lampiranWajib: st
         komponen: "1. Kesesuaian isi per bagian",
         parameter: { tipe: "semantik", bagian: x.nama },
         pertanyaan: pertanyaanUnsur(x.nama, u),
-        contohJawaban: null,
+        contohJawaban: u.contoh?.trim() || null,
       });
     }
   }

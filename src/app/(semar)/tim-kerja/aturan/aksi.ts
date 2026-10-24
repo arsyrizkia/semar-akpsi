@@ -4,12 +4,14 @@ import { pelakuPengelola, PESAN_BUKAN_PENGELOLA } from "@/lib/aturan/akses";
 import {
   nonaktifkanButir,
   simpanButir,
+  ubahPertanyaanSemantik,
+  type HasilUbahPertanyaan,
   simpanVersiBaru,
   type HasilNonaktifkan,
   type HasilSimpanButir,
   type HasilSimpanVersi,
 } from "@/lib/aturan/layanan";
-import type { MasukanButir } from "@/lib/aturan/parameter";
+import type { MasukanButir, NilaiButir } from "@/lib/aturan/parameter";
 
 type Galat = { ok: false; pesan: string };
 const tolak: Galat = { ok: false, pesan: PESAN_BUKAN_PENGELOLA };
@@ -23,6 +25,28 @@ export async function aksiSimpanButir(skemaId: string, butirId: string | null, m
     return await simpanButir({ skemaId, butirId: butirId ?? undefined, masukan, pelaku });
   } catch (e) {
     return pesanGalat(e, "Gagal menyimpan butir");
+  }
+}
+
+/** "Simpan Butir" dari formulir terstruktur: nilai dibangun di klien lewat bangunNilaiButir dan divalidasi ulang di sini. */
+export async function aksiSimpanButirTerstruktur(skemaId: string, butirId: string | null, nilai: NilaiButir): Promise<Awaited<ReturnType<typeof aksiSimpanButir>>> {
+  const pelaku = await pelakuPengelola();
+  if (!pelaku) return tolak;
+  try {
+    return await simpanButir({ skemaId, butirId: butirId ?? undefined, masukan: { jenis: nilai.jenis, kode: nilai.kode, deskripsi: nilai.deskripsi, aturanHitung: nilai.aturanHitung ?? "", pertanyaan: nilai.pertanyaan ?? "", contohJawaban: nilai.contohJawaban ?? "", bagian: "", lampiran: "" }, nilai, pelaku });
+  } catch (e) {
+    return pesanGalat(e, "Gagal menyimpan butir");
+  }
+}
+
+/** Ubah pertanyaan dan contoh jawaban butir semantik turunan templat (boleh pada templat Aktif). */
+export async function aksiUbahPertanyaan(skemaId: string, butirId: string, pertanyaan: string, contohJawaban: string): Promise<HasilUbahPertanyaan | Galat> {
+  const pelaku = await pelakuPengelola();
+  if (!pelaku) return tolak;
+  try {
+    return await ubahPertanyaanSemantik({ skemaId, butirId, pertanyaan, contohJawaban, pelaku });
+  } catch (e) {
+    return pesanGalat(e, "Gagal menyimpan pertanyaan");
   }
 }
 

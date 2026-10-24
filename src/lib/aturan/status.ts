@@ -10,6 +10,9 @@ export const STATUS_BUTIR: readonly StatusButir[] = ["Draf", "Aktif", "Perlu dit
 
 export const PESAN_TERKUNCI = "Nilai butir ini berasal dari templat dan hanya dapat diubah melalui jendela J-02 Templat Proposal";
 
+/** Tambahan prototipe pada M-04 (revisi 24 Okt 2026): arah perubahan lewat versi baru, dan apa yang tetap boleh diubah. */
+export const KETERANGAN_TERKUNCI = "Aturan isi bagian pada templat Aktif diubah lewat Susun Versi Baru. Pertanyaan semantik, contoh jawaban, status, dan butir di luar isi bagian tetap dapat diubah di tab Aturan Pemeriksaan.";
+
 /**
  * Transisi yang didefinisikan:
  * - simpanVersi: Draf dan Perlu ditinjau menjadi Aktif (UC-02 langkah 7; butir ditinjau ulang lalu disahkan);

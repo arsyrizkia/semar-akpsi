@@ -28,7 +28,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
 
   return (
     <>
-      <KepalaHalaman kode="J-02" judul="Templat Proposal" remah={[{ label: "Templat & Aturan" }]} aksi={<TemplatBaru skema={skema} periode={periode} periodeAwal={periodeBerjalan} skemaAwal={penyaring.skema} />} />
+      <KepalaHalaman kode="J-02" judul="Templat Proposal" remah={[{ label: "Templat Proposal" }]} aksi={<TemplatBaru skema={skema} periode={periode} periodeAwal={periodeBerjalan} skemaAwal={penyaring.skema} />} />
       <PenyaringDaftarTemplat skema={skema} tahun={daftarTahun([...semua, ...periode])} nilai={penyaring} />
 
       {baris.length === 0 ? (

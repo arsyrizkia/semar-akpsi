@@ -3,66 +3,141 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useState, useTransition } from "react";
-import { Lock, Plus } from "lucide-react";
+import { Lock, Plus, X } from "lucide-react";
 import { Alert, Badge, Button, Isian, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
-import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
-import { butirTerkunci, PESAN_TERKUNCI } from "@/lib/aturan/status";
+import { ringkasParameter } from "@/lib/aturan/parameter";
+import { butirTerkunci, KETERANGAN_TERKUNCI, PESAN_TERKUNCI } from "@/lib/aturan/status";
 import type { ButirTampil, TampilanAturan } from "@/lib/aturan/layanan";
+import {
+  FORM_ATURAN_KOSONG,
+  KELOMPOK_LAMPIRAN,
+  KELOMPOK_UMUM,
+  asalAturanButir,
+  bangunNilaiButir,
+  dapatDiubahDiBagian,
+  formDariAsal,
+  formDariButir,
+  hapusDariBagian,
+  infoJenis,
+  kelompokkanAturan,
+  terapkanKeBagian,
+  type AsalAturan,
+  type BarisAturan,
+  type FormAturan,
+} from "@/lib/aturan/terstruktur";
+import { dapatSusunVersiBaru } from "@/lib/templat/daftar";
+import { mentahKeBagian, type BarisBagianMentah } from "@/lib/templat/kelengkapan";
+import { turunkanButirDariTemplat } from "@/lib/seed-butir";
+import type { LampiranTemplat } from "@/lib/templat/paket";
+import type { StatusTemplat } from "@/lib/templat/status";
 import type { PeriodePilihan } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
-import { aksiNonaktifkan, aksiSimpanButir, aksiSimpanVersi } from "./aksi";
+import { aksiNonaktifkan, aksiSimpanButirTerstruktur, aksiSimpanVersi, aksiUbahPertanyaan } from "./aksi";
+import { FormAturanModal } from "./form-aturan";
 
 interface Props {
   skemaId: string;
   namaSkema: string;
   /** templat yang sedang dibuka di J-02a; ikut di tautan Uji pada Contoh supaya "kembali" mendarat di templat yang sama */
   templatId: string;
+  statusTemplat: StatusTemplat;
+  /** skema sudah punya draf menunggu: Susun Versi Baru tidak ditawarkan */
+  adaDraf: boolean;
   /** periode templat ini; basis aturan yang ditampilkan adalah basis skema untuk periode itu */
   periode: PeriodePilihan;
-  /** Arsip: hanya-baca (tanpa Ubah, Nonaktifkan, Tambah Butir, Simpan Versi) */
-  hanyaBaca?: boolean;
-  /** 4a: butir turunan templat dibuka dari modal M-04; J-02a mengalihkan ke tab Bagian/Lampiran asal butir */
-  saatBukaAsal: (b: ButirTampil) => void;
   tampilan: TampilanAturan;
+  /** nama bagian dan lampiran templat ini (urutan templat) untuk templat Aktif/Arsip; untuk Draf dipakai isian terkini */
   bagianPilihan: string[];
   lampiranPilihan: string[];
   masaBerjalan: boolean;
   /** kode butir yang disorot lewat ?sorot=; boleh beberapa kode dipisah koma (butir turunan baru sesudah templat terbit) */
   sorotAwal: string | null;
+  /** hanya Draf: isian bagian dan lampiran terkini, serta penulis ketentuan bagian (satu sumber data) */
+  bagianMentah: BarisBagianMentah[];
+  lampiranDef: LampiranTemplat[];
+  saatUbahBagian: (indeks: number, baris: BarisBagianMentah) => void;
+  saatBukaBagian: (nama: string) => void;
+  saatBukaLampiran: (nama: string) => void;
+  saatSusunVersiBaru: () => void;
+  /** bagian yang difokuskan dari tautan "Atur aturan bagian ini" di M-12 */
+  fokusBagian: string | null;
 }
 
+/** Satu baris di daftar aturan: butir tersimpan (basis aturan) atau butir turunan yang dihitung dari isian templat Draf. */
+interface BarisTampil extends BarisAturan {
+  key: string;
+  deskripsi: string;
+  jenis: "deterministik" | "semantik";
+  asal: "templat" | "manual";
+  status: ButirTampil["status"];
+  ringkasan: string;
+  butir: ButirTampil | null;
+  asalAturan: AsalAturan | null;
+  ditandaiPemantauan: boolean;
+  /** hasil hitung dari isian Draf (belum terbit) */
+  pratinjau: boolean;
+}
+
+type ModalForm = { mode: "tambah" | "ubah"; awal: FormAturan; butir: ButirTampil | null; asal: AsalAturan | null; hanyaPertanyaan: boolean } | null;
 type FilterStatusButir = "" | "Aktif" | "Draf" | "Perlu ditinjau" | "Nonaktif";
-type ModalButir = { mode: "tambah" } | { mode: "ubah"; butir: ButirTampil } | null;
-
-const dariButir = (b: ButirTampil): MasukanButir => ({
-  jenis: b.jenis,
-  kode: b.kode,
-  deskripsi: b.deskripsi,
-  aturanHitung: b.aturanHitung ?? "",
-  pertanyaan: b.pertanyaan ?? "",
-  contohJawaban: b.contohJawaban ?? "",
-  bagian: b.bagian ?? "",
-  lampiran: b.lampiran ?? "",
-});
-
-/** Setelah galat tampil, fokus ke isian bertanda pertama (menunggu render selesai). */
-const fokusGalatPertama = (selektor: string) => setTimeout(() => document.querySelector<HTMLElement>(`${selektor} [aria-invalid="true"]`)?.focus(), 50);
 
 const kodeDariHash = (h: string) => (h.startsWith("#butir-") ? decodeURIComponent(h.slice(7)) : null);
+const fokusGalatPertama = (selektor: string) => setTimeout(() => document.querySelector<HTMLElement>(`${selektor} [aria-invalid="true"]`)?.focus(), 50);
+const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
-export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca = false, saatBukaAsal, tampilan, bagianPilihan, lampiranPilihan, masaBerjalan, sorotAwal }: Props) {
+function dariButir(b: ButirTampil): BarisTampil {
+  const p = b.parameter;
+  return {
+    key: b.id,
+    kode: b.kode,
+    deskripsi: b.deskripsi,
+    jenis: b.jenis,
+    asal: b.asal,
+    status: b.status,
+    ringkasan: b.ringkasan,
+    butir: b,
+    asalAturan: b.asal === "templat" ? asalAturanButir({ kode: b.kode, deskripsi: b.deskripsi, parameter: p }) : null,
+    ditandaiPemantauan: b.ditandaiPemantauan,
+    pratinjau: false,
+    bagian: b.bagian,
+    tipe: str(p?.tipe),
+    lampiran: str(p?.nama) ?? b.lampiran,
+  };
+}
+
+export function PapanAturan({
+  skemaId,
+  namaSkema,
+  templatId,
+  statusTemplat,
+  adaDraf,
+  periode,
+  tampilan,
+  bagianPilihan,
+  lampiranPilihan,
+  masaBerjalan,
+  sorotAwal,
+  bagianMentah,
+  lampiranDef,
+  saatUbahBagian,
+  saatBukaBagian,
+  saatBukaLampiran,
+  saatSusunVersiBaru,
+  fokusBagian,
+}: Props) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();
   const { nyata, draf, butir } = tampilan;
   const dasar = draf ?? nyata;
+  const modeDraf = statusTemplat === "Draf";
+  const hanyaBaca = statusTemplat === "Arsip";
 
-  const [modalButir, setModalButir] = useState<ModalButir>(null); // M-02
-  const [masukan, setMasukan] = useState<MasukanButir>(MASUKAN_BUTIR_KOSONG);
-  const [galat, setGalat] = useState<GalatButir>({});
+  const [modalForm, setModalForm] = useState<ModalForm>(null); // M-02
   const [galatModal, setGalatModal] = useState<string | null>(null);
   const [nonaktif, setNonaktif] = useState<ButirTampil | null>(null); // M-03
   const [galatNonaktif, setGalatNonaktif] = useState<string | null>(null);
-  const [terkunci, setTerkunci] = useState<ButirTampil | null>(null); // M-04
+  const [hapusAturan, setHapusAturan] = useState<BarisTampil | null>(null); // konfirmasi Hapus (aturan isi bagian, Draf)
+  const [terkunci, setTerkunci] = useState(false); // M-04
   const [modalVersi, setModalVersi] = useState(false); // M-05
   const [tanggal, setTanggal] = useState("");
   const [galatVersi, setGalatVersi] = useState<string | null>(null);
@@ -70,10 +145,10 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
   const [sorot, setSorot] = useState<string | null>(sorotAwal);
   const [filterJenis, setFilterJenis] = useState<"" | "deterministik" | "semantik">("");
   const [filterStatus, setFilterStatus] = useState<FilterStatusButir>(() => (butir.some((b) => b.kode === sorotAwal && b.status === "Nonaktif") ? "Nonaktif" : ""));
+  const [filterBagian, setFilterBagian] = useState<string>(fokusBagian ?? "");
   const sorotSet = useMemo(() => new Set((sorot ?? "").split(",").filter(Boolean)), [sorot]);
   const sorotBanyak = sorotSet.size > 1; // beberapa butir baru: butir nonaktif berkode sama (versi templat lama) tidak ikut tersorot
 
-  // kode butir dapat ditaut lewat #butir-KODE: sorot barisnya dan gulir ke sana
   useEffect(() => {
     const dariUrl = () => {
       const k = kodeDariHash(window.location.hash);
@@ -87,32 +162,138 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
     if (sorot) document.getElementById(`butir-${sorot.split(",")[0]}`)?.scrollIntoView({ block: "center" });
   }, [sorot]);
 
-  const ubahMasukan = (ubah: Partial<MasukanButir>) => setMasukan((m) => ({ ...m, ...ubah }));
+  const namaBagian = modeDraf ? bagianMentah.filter((b) => b.nama.trim() !== "").map((b) => b.nama.trim()) : bagianPilihan;
+  const namaLampiran = modeDraf ? lampiranDef.map((l) => l.nama).filter((n) => n.trim() !== "") : lampiranPilihan;
+
+  // baris: Draf = butir turunan dihitung dari isian terkini + butir manual tersimpan; Aktif/Arsip = semua butir tersimpan
+  const baris: BarisTampil[] = useMemo(() => {
+    const tersimpan = butir.filter((b) => !modeDraf || b.asal === "manual").map(dariButir);
+    if (!modeDraf) return tersimpan;
+    const lampiranNama = lampiranDef.map((l) => l.nama.trim()).filter(Boolean);
+    const turunan = turunkanButirDariTemplat(
+      bagianMentah.filter((b) => b.nama.trim() !== "").map(mentahKeBagian),
+      lampiranNama,
+      lampiranDef.filter((l) => l.nama.trim() !== ""),
+    );
+    const pratinjau: BarisTampil[] = turunan.map((t) => {
+      const p = t.parameter as unknown as Record<string, unknown>;
+      return {
+        key: `p-${t.kode}`,
+        kode: t.kode,
+        deskripsi: t.deskripsi,
+        jenis: t.jenis,
+        asal: "templat",
+        status: "Draf",
+        ringkasan: ringkasParameter({ jenis: t.jenis, aturanHitung: t.aturanHitung, pertanyaan: t.pertanyaan, parameter: p }),
+        butir: null,
+        asalAturan: asalAturanButir({ kode: t.kode, deskripsi: t.deskripsi, parameter: p }),
+        ditandaiPemantauan: false,
+        pratinjau: true,
+        bagian: t.bagian ?? str(p.bagian),
+        tipe: str(p.tipe),
+        lampiran: str(p.nama),
+      };
+    });
+    return [...pratinjau, ...tersimpan];
+  }, [butir, modeDraf, bagianMentah, lampiranDef]);
+
+  const kelompok = useMemo(() => {
+    const terlihat = baris.filter((b) => {
+      if (sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")) return true;
+      if (filterJenis && b.jenis !== filterJenis) return false;
+      return filterStatus ? b.status === filterStatus : b.status !== "Nonaktif";
+    });
+    const semua = kelompokkanAturan(terlihat, namaBagian, filterBagian !== "");
+    return filterBagian ? semua.filter((k) => k.nama === filterBagian) : semua;
+  }, [baris, sorotSet, sorotBanyak, filterJenis, filterStatus, filterBagian, namaBagian]);
+
+  const kodeTerpakai = useMemo(() => baris.filter((b) => b.status !== "Nonaktif").map((b) => b.kode), [baris]);
 
   function bukaTambah() {
-    setGalat({});
     setGalatModal(null);
-    setMasukan(MASUKAN_BUTIR_KOSONG);
-    setModalButir({ mode: "tambah" });
+    setModalForm({ mode: "tambah", awal: { ...FORM_ATURAN_KOSONG, bagian: filterBagian && namaBagian.includes(filterBagian) ? filterBagian : "" }, butir: null, asal: null, hanyaPertanyaan: false });
   }
 
-  function klikUbah(b: ButirTampil) {
-    if (butirTerkunci(b.asal)) return setTerkunci(b); // 4a: panel butir tidak dibuka
-    setGalat({});
+  function klikUbah(b: BarisTampil) {
     setGalatModal(null);
-    setMasukan(dariButir(b));
-    setModalButir({ mode: "ubah", butir: b });
+    if (b.pratinjau) {
+      const a = b.asalAturan;
+      if (dapatDiubahDiBagian(a)) {
+        const i = bagianMentah.findIndex((x) => x.nama.trim() === a.bagian);
+        if (i >= 0) return setModalForm({ mode: "ubah", awal: { ...formDariAsal(a, bagianMentah[i]), kode: b.kode }, butir: null, asal: a, hanyaPertanyaan: false });
+      }
+      // wajib, pustaka, dan sitasi diatur di formulir bagian; lampiran di tab Lampiran
+      if (a?.jenisAturan === "lampiran" && b.lampiran) return saatBukaLampiran(b.lampiran);
+      if (a?.bagian) return saatBukaBagian(a.bagian);
+      return;
+    }
+    const t = b.butir!;
+    if (butirTerkunci(t.asal)) {
+      // 4a: butir semantik turunan masih boleh diubah pertanyaan dan contohnya; selebihnya terkunci
+      if (t.jenis === "semantik" && !hanyaBaca) {
+        const f = formDariButir({ kode: t.kode, deskripsi: t.deskripsi, jenis: t.jenis, parameter: t.parameter, pertanyaan: t.pertanyaan, contohJawaban: t.contohJawaban });
+        const a = b.asalAturan;
+        const awal: FormAturan = {
+          ...(f ?? FORM_ATURAN_KOSONG),
+          jenisAturan: a?.jenisAturan === "unsur" || a?.jenisAturan === "gambar" ? "unsur" : "semantik_bebas",
+          bagian: t.bagian ?? "",
+          unsur: a?.unsur ?? "",
+          pertanyaan: t.pertanyaan ?? "",
+          contoh: t.contohJawaban ?? "",
+        };
+        return setModalForm({ mode: "ubah", awal, butir: t, asal: a, hanyaPertanyaan: true });
+      }
+      return setTerkunci(true);
+    }
+    const f = formDariButir({ kode: t.kode, deskripsi: t.deskripsi, jenis: t.jenis, parameter: t.parameter, pertanyaan: t.pertanyaan, contohJawaban: t.contohJawaban });
+    if (!f) return beriTahu.galat(`Parameter butir ${t.kode} tidak dikenali formulir. Nonaktifkan lalu tambahkan butir baru.`);
+    setModalForm({ mode: "ubah", awal: f, butir: t, asal: null, hanyaPertanyaan: false });
   }
 
-  function simpanButir(e: React.FormEvent) {
-    e.preventDefault();
+  function tutupForm() {
+    setModalForm(null);
     setGalatModal(null);
+  }
+
+  function simpanForm(f: FormAturan) {
+    if (!modalForm) return;
+    setGalatModal(null);
+    const info = infoJenis(f.jenisAturan);
+    // 1) aturan menempel pada isi bagian pada Draf: ditulis ke ketentuan bagian (satu sumber data)
+    if (modeDraf && info?.terikatIsi && !modalForm.butir) {
+      const i = bagianMentah.findIndex((x) => x.nama.trim() === f.bagian);
+      if (i < 0) return setGalatModal("Bagian tidak ditemukan pada draf ini.");
+      saatUbahBagian(i, terapkanKeBagian(bagianMentah[i], f, { frasa: modalForm.asal?.frasa, unsur: modalForm.asal?.unsur }));
+      tutupForm();
+      beriTahu.sukses(`Aturan ditulis ke ketentuan bagian "${f.bagian}". Simpan Draf untuk menyimpannya; butir turunannya ikut berubah.`);
+      return;
+    }
     mulai(async () => {
-      const r = await aksiSimpanButir(skemaId, modalButir?.mode === "ubah" ? modalButir.butir.id : null, masukan);
-      if (r.ok && "butirId" in r) {
-        // setter dan refresh dalam satu transisi: pesan dan data segar tampil serentak
+      // 2) butir semantik turunan pada templat Aktif: hanya pertanyaan dan contoh jawaban
+      if (modalForm.hanyaPertanyaan && modalForm.butir) {
+        const r = await aksiUbahPertanyaan(skemaId, modalForm.butir.id, f.pertanyaan, f.contoh);
+        if (!r.ok) {
+          if ("terkunci" in r && r.terkunci) {
+            tutupForm();
+            return setTerkunci(true);
+          }
+          return setGalatModal(("galat" in r && r.galat) || ("pesan" in r && r.pesan) || "Gagal menyimpan pertanyaan");
+        }
         startTransition(() => {
-          setModalButir(null);
+          tutupForm();
+          beriTahu.sukses(`Butir ${r.kode} diperbarui pada versi yang sedang disusun.`);
+          setSorot(r.kode);
+          router.refresh();
+        });
+        return;
+      }
+      // 3) butir manual
+      const h = bangunNilaiButir(f, { kodeTerpakai, kodeAsal: modalForm.butir?.kode });
+      if (!h.ok) return setGalatModal(Object.values(h.galat)[0] ?? "Isian belum lengkap");
+      const r = await aksiSimpanButirTerstruktur(skemaId, modalForm.butir?.id ?? null, h.nilai);
+      if (r.ok && "butirId" in r) {
+        startTransition(() => {
+          tutupForm();
           beriTahu.sukses(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
           setSorot(r.kode);
           router.refresh();
@@ -120,12 +301,11 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
         return;
       }
       if ("terkunci" in r && r.terkunci) {
-        setModalButir(null);
-        if (modalButir?.mode === "ubah") setTerkunci(modalButir.butir);
-        return;
+        tutupForm();
+        return setTerkunci(true);
       }
-      if ("galat" in r) setGalat(r.galat);
-      if ("pesan" in r && r.pesan) setGalatModal(r.pesan);
+      if ("galat" in r && Object.keys(r.galat).length) setGalatModal(Object.values(r.galat)[0] ?? null);
+      else if ("pesan" in r && r.pesan) setGalatModal(r.pesan);
       fokusGalatPertama("#form-butir");
     });
   }
@@ -137,9 +317,8 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
       const r = await aksiNonaktifkan(skemaId, nonaktif.id);
       if (!r.ok) {
         if ("terkunci" in r && r.terkunci) {
-          const b = nonaktif;
           setNonaktif(null);
-          return setTerkunci(b);
+          return setTerkunci(true);
         }
         return setGalatNonaktif(r.pesan);
       }
@@ -151,19 +330,27 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
     });
   }
 
+  function konfirmasiHapusAturan() {
+    const b = hapusAturan;
+    const a = b?.asalAturan;
+    if (!b || !dapatDiubahDiBagian(a)) return setHapusAturan(null);
+    const i = bagianMentah.findIndex((x) => x.nama.trim() === a.bagian);
+    if (i >= 0) saatUbahBagian(i, hapusDariBagian(bagianMentah[i], { jenisAturan: a.jenisAturan, frasa: a.frasa, unsur: a.unsur }));
+    setHapusAturan(null);
+    beriTahu.sukses(`Aturan ${b.kode} dihapus dari ketentuan bagian "${a.bagian}". Simpan Draf untuk menyimpannya.`);
+  }
+
   function simpanVersi(e: React.FormEvent) {
     e.preventDefault();
     setGalatVersi(null);
     mulai(async () => {
       const r = await aksiSimpanVersi(skemaId, periode.id, tanggal);
       if (!r.ok) {
-        // 8a: ditolak di dalam modal, basis aturan tidak berubah
-        setGalatVersi(r.pesan);
+        setGalatVersi(r.pesan); // 8a: ditolak di dalam modal, basis aturan tidak berubah
         fokusGalatPertama("#form-versi");
         return;
       }
       if ("versi" in r) {
-        // pesan "tersimpan" dipasang bersama data segar (kepala tabel versi baru), bukan lebih dulu
         startTransition(() => {
           setModalVersi(false);
           setBerhasilVersi({ versi: r.versi, tanggal: r.tanggalBerlaku });
@@ -176,13 +363,9 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
   }
 
   const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}&templat=${templatId}`;
-  const terlihat = butir.filter((b) => {
-    const tersorot = sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif");
-    if (tersorot) return true;
-    if (filterJenis && b.jenis !== filterJenis) return false;
-    return filterStatus ? b.status === filterStatus : b.status !== "Nonaktif";
-  });
-  const kelasDaftar = (b: ButirTampil) => (b.status === "Perlu ditinjau" ? "bg-peringatan-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
+  const kelasBaris = (b: BarisTampil) => (b.status === "Perlu ditinjau" ? "bg-peringatan-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
+  const bolehSusunBaru = dapatSusunVersiBaru(statusTemplat, adaDraf);
+  const bisaHapus = (b: BarisTampil) => b.pratinjau && dapatDiubahDiBagian(b.asalAturan);
 
   return (
     <>
@@ -217,7 +400,23 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
         </div>
       </div>
 
+      {modeDraf ? (
+        <p className="mb-4 text-sm text-teks-redup">Aturan yang menempel pada isi bagian ditulis ke ketentuan bagian: simpan draf agar tersimpan dan ikut di .docx.</p>
+      ) : statusTemplat === "Terbit" ? (
+        <p className="mb-4 text-sm text-teks-redup">Templat Aktif: aturan isi bagian terkunci (ubah lewat versi baru). Pertanyaan semantik, contoh jawaban, status, dan butir di luar isi bagian tetap dapat diubah di sini.</p>
+      ) : null}
+
       <div className="mb-4 flex flex-wrap items-end gap-4">
+        <Pilihan label="Bagian" name="filter-bagian" className="w-56" value={filterBagian} onChange={(e) => setFilterBagian(e.target.value)}>
+          <option value="">Semua</option>
+          {namaBagian.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+          <option value={KELOMPOK_LAMPIRAN}>{KELOMPOK_LAMPIRAN}</option>
+          <option value={KELOMPOK_UMUM}>{KELOMPOK_UMUM}</option>
+        </Pilihan>
         <Pilihan label="Jenis" name="filter-jenis" className="w-44" value={filterJenis} onChange={(e) => setFilterJenis(e.target.value as typeof filterJenis)}>
           <option value="">Semua</option>
           <option value="deterministik">Deterministik</option>
@@ -230,6 +429,11 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
           <option value="Perlu ditinjau">Perlu ditinjau</option>
           <option value="Nonaktif">Nonaktif</option>
         </Pilihan>
+        {filterBagian ? (
+          <Button varian="hantu" ukuran="sm" onClick={() => setFilterBagian("")}>
+            <X aria-hidden className="size-4" /> Hapus penyaring bagian
+          </Button>
+        ) : null}
       </div>
 
       {berhasilVersi ? (
@@ -238,31 +442,43 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
         </Alert>
       ) : null}
 
-      <div>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Kode</TH>
-              <TH>Deskripsi</TH>
-              <TH>Jenis</TH>
-              <TH>Asal</TH>
-              <TH>Parameter</TH>
-              <TH>Status</TH>
-              <TH>
-                <span className="sr-only">Aksi</span>
-              </TH>
-            </TR>
-          </THead>
-          <TBody>
-            {terlihat.length === 0 ? (
+      {kelompok.length === 0 ? (
+        <p className="rounded-md border border-dashed border-primer-300 px-4 py-8 text-center text-sm text-teks-redup">
+          {baris.length === 0 ? "Belum ada butir cek. Terbitkan templat atau tekan “Tambah Butir”." : "Tidak ada butir yang cocok dengan penyaring."}
+        </p>
+      ) : null}
+
+      {kelompok.map((k) => (
+        <section key={k.nama} aria-labelledby={`kel-${k.nama}`} className="mt-6 first:mt-0" data-kelompok={k.nama}>
+          <h3 id={`kel-${k.nama}`} className="mb-2 flex items-center gap-2 text-sm font-semibold text-primer-800">
+            {k.huruf ? <span className="rounded-sm bg-abu-100 px-1.5 py-0.5 font-mono text-xs text-abu-700">{k.huruf}</span> : null}
+            {k.nama}
+            <span className="angka text-xs font-normal text-teks-redup">{k.butir.length} aturan</span>
+          </h3>
+          <Table>
+            <THead>
               <TR>
-                <TD colSpan={7} className="py-6 text-center text-teks-redup">
-                  {butir.length === 0 ? "Belum ada butir cek. Terbitkan templat atau tekan \u201CTambah Butir\u201D." : "Tidak ada butir yang cocok dengan penyaring."}
-                </TD>
+                <TH>Kode</TH>
+                <TH>Deskripsi</TH>
+                <TH>Jenis</TH>
+                <TH>Asal</TH>
+                <TH>Aturan</TH>
+                <TH>Status</TH>
+                <TH>
+                  <span className="sr-only">Aksi</span>
+                </TH>
               </TR>
-            ) : null}
-            {terlihat.map((b) => (
-                <TR key={b.id} id={`butir-${b.kode}`} tersorot={sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")} className={`scroll-mt-24 ${kelasDaftar(b) ?? ""}`}>
+            </THead>
+            <TBody>
+              {k.butir.length === 0 ? (
+                <TR>
+                  <TD colSpan={7} className="py-4 text-center text-teks-redup">
+                    Belum ada aturan untuk bagian ini.
+                  </TD>
+                </TR>
+              ) : null}
+              {k.butir.map((b) => (
+                <TR key={b.key} id={`butir-${b.kode}`} tersorot={sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")} className={`scroll-mt-24 ${kelasBaris(b) ?? ""}`}>
                   <TD className="whitespace-nowrap font-mono text-xs font-semibold">
                     <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline" translate="no">
                       {b.kode}
@@ -272,9 +488,9 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
                   <TD className="capitalize">{b.jenis}</TD>
                   <TD className="whitespace-nowrap">
                     {butirTerkunci(b.asal) ? (
-                      <button type="button" onClick={() => saatBukaAsal(b)} className="inline-flex cursor-pointer items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat bagian asalnya di templat">
+                      <span className="inline-flex items-center gap-1" title={modeDraf ? "Diturunkan dari ketentuan bagian" : "Nilai butir ini terkunci; ubah lewat versi baru templat"}>
                         <Lock aria-hidden className="size-4 text-teks-redup" /> templat<span className="sr-only"> (terkunci)</span>
-                      </button>
+                      </span>
                     ) : (
                       "manual"
                     )}
@@ -282,7 +498,7 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
                   <TD className="min-w-56 max-w-md text-xs text-primer-800">{b.ringkasan}</TD>
                   <TD>
                     <LencanaStatus status={b.status} />
-                    {b.ditandaiPemantauan ? (
+                    {b.ditandaiPemantauan && b.butir ? (
                       <Link href={`/tim-kerja/pemantauan?periode=${periode.id}&skema=${skemaId}&butir=${encodeURIComponent(b.kode)}`} className="mt-1 block text-xs text-primer-800 underline underline-offset-2">
                         ditandai di Pemantauan
                       </Link>
@@ -294,15 +510,13 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
                         <Button varian="sekunder" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk} aria-label={`Ubah butir ${b.kode}`}>
                           Ubah
                         </Button>
-                        {!butirTerkunci(b.asal) ? (
-                          <Button
-                            varian="hantu"
-                            ukuran="sm"
-                            className="text-bata-700 hover:bg-bata-100"
-                            onClick={() => (setGalatNonaktif(null), setNonaktif(b))}
-                            disabled={sibuk}
-                            aria-label={`Nonaktifkan butir ${b.kode}`}
-                          >
+                        {bisaHapus(b) ? (
+                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => setHapusAturan(b)} disabled={sibuk} aria-label={`Hapus aturan ${b.kode}`}>
+                            Hapus
+                          </Button>
+                        ) : null}
+                        {b.butir && (!butirTerkunci(b.asal) || b.jenis === "semantik") ? (
+                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => (setGalatNonaktif(null), setNonaktif(b.butir))} disabled={sibuk} aria-label={`Nonaktifkan butir ${b.kode}`}>
                             Nonaktifkan
                           </Button>
                         ) : null}
@@ -311,97 +525,40 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
                   </TD>
                 </TR>
               ))}
-          </TBody>
-        </Table>
-      </div>
+            </TBody>
+          </Table>
+        </section>
+      ))}
 
-      {/* M-02 Form Butir (Tambah/Ubah) */}
-      <Modal
-        kode="M-02"
-        ukuran="lg"
-        buka={modalButir !== null}
-        saatUbah={(b) => !sibuk && !b && setModalButir(null)}
-        judul={modalButir?.mode === "ubah" ? `Ubah Butir ${modalButir.butir.kode}` : "Tambah Butir"}
-        kaki={
+      {/* M-02 Form Butir (Tambah/Ubah), terstruktur */}
+      {modalForm ? (
+        <FormAturanModal
+          mode={modalForm.mode}
+          awal={modalForm.awal}
+          bagian={namaBagian}
+          lampiran={namaLampiran}
+          kodeTerpakai={kodeTerpakai}
+          kunciIsi={!modeDraf}
+          hanyaPertanyaan={modalForm.hanyaPertanyaan}
+          keKetentuan={(j) => modeDraf && infoJenis(j)?.terikatIsi === true && !modalForm.butir}
+          sibuk={sibuk}
+          galatServer={galatModal}
+          saatSimpan={simpanForm}
+          saatBatal={tutupForm}
+        />
+      ) : null}
+
+      {/* Hapus aturan isi bagian (Draf) */}
+      <ModalKonfirmasi kode="M-03" buka={hapusAturan !== null} saatUbah={(b) => !b && setHapusAturan(null)} judul="Konfirmasi Hapus Aturan" labelKonfirmasi="Hapus" bahaya saatKonfirmasi={konfirmasiHapusAturan}>
+        {hapusAturan ? (
           <>
-            <Button varian="sekunder" onClick={() => setModalButir(null)} disabled={sibuk}>
-              Batal
-            </Button>
-            <Button type="submit" form="form-butir" memuat={sibuk}>
-              Simpan Butir
-            </Button>
-          </>
-        }
-      >
-        <form id="form-butir" onSubmit={simpanButir} noValidate className="grid gap-4 md:grid-cols-2">
-          {galatModal ? (
-            <p role="alert" className="rounded-md border-l-4 border-bata-600 bg-bata-100 px-3 py-2 font-medium text-bata-700 md:col-span-2">
-              {galatModal}
+            <p>
+              Aturan <span className="font-mono font-semibold" translate="no">{hapusAturan.kode}</span>: {hapusAturan.deskripsi}
             </p>
-          ) : null}
-          <Isian label="Kode" name="kode" autoComplete="off" spellCheck={false} wajib value={masukan.kode} disabled={modalButir?.mode === "ubah"} galat={galat.kode} onChange={(e) => ubahMasukan({ kode: e.target.value })} />
-          <Pilihan label="Jenis" name="jenis" wajib value={masukan.jenis} disabled={modalButir?.mode === "ubah"} galat={galat.jenis} onChange={(e) => ubahMasukan({ jenis: e.target.value as MasukanButir["jenis"] })}>
-            <option value="">Pilih jenis</option>
-            <option value="deterministik">Deterministik</option>
-            <option value="semantik">Semantik</option>
-          </Pilihan>
-          <Isian label="Deskripsi" name="deskripsi" autoComplete="off" wajib className="md:col-span-2" value={masukan.deskripsi} galat={galat.deskripsi} onChange={(e) => ubahMasukan({ deskripsi: e.target.value })} />
-
-          {masukan.jenis === "deterministik" ? (
-            <>
-              <Isian
-                label="Aturan Hitung"
-                name="aturan-hitung"
-                autoComplete="off"
-                wajib
-                className="md:col-span-2"
-                value={masukan.aturanHitung}
-                galat={galat.aturanHitung}
-                petunjuk={CONTOH_ATURAN_HITUNG}
-                onChange={(e) => ubahMasukan({ aturanHitung: e.target.value })}
-              />
-              <Pilihan
-                label="Bagian yang Diperiksa"
-                name="bagian"
-                value={masukan.bagian}
-                galat={galat.bagian}
-                petunjuk="Hanya perlu untuk aturan yang bergantung pada satu bagian, misalnya diagram alir atau bagian terisi."
-                onChange={(e) => ubahMasukan({ bagian: e.target.value })}
-              >
-                <option value="">(tidak ada)</option>
-                {bagianPilihan.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Pilihan>
-            </>
-          ) : null}
-
-          {masukan.jenis === "semantik" ? (
-            <>
-              <Isian label="Pertanyaan Pemeriksaan" name="pertanyaan" multibaris wajib className="md:col-span-2" value={masukan.pertanyaan} galat={galat.pertanyaan} onChange={(e) => ubahMasukan({ pertanyaan: e.target.value })} />
-              <Isian label="Contoh Jawaban" name="contoh-jawaban" multibaris className="md:col-span-2" value={masukan.contohJawaban} onChange={(e) => ubahMasukan({ contohJawaban: e.target.value })} />
-              <Pilihan label="Bagian yang Diperiksa" name="bagian" wajib value={masukan.bagian} galat={galat.bagian} onChange={(e) => ubahMasukan({ bagian: e.target.value })}>
-                <option value="">Pilih bagian</option>
-                {bagianPilihan.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Pilihan>
-              <Pilihan label="Lampiran yang Diperiksa" name="lampiran" petunjuk="Kosongkan bila yang diperiksa adalah teks bagian." value={masukan.lampiran} onChange={(e) => ubahMasukan({ lampiran: e.target.value })}>
-                <option value="">(tidak ada)</option>
-                {lampiranPilihan.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Pilihan>
-            </>
-          ) : null}
-        </form>
-      </Modal>
+            <p className="mt-2 text-teks-redup">Aturan dihapus dari ketentuan bagian pada draf ini; petunjuk dan .docx ikut berubah setelah Simpan Draf.</p>
+          </>
+        ) : null}
+      </ModalKonfirmasi>
 
       {/* M-03 Konfirmasi Nonaktifkan */}
       <ModalKonfirmasi
@@ -420,9 +577,7 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
             <p>
               Butir <span className="font-mono font-semibold" translate="no">{nonaktif.kode}</span>: {nonaktif.deskripsi}
             </p>
-            <p className="mt-2 text-teks-redup">
-              Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.
-            </p>
+            <p className="mt-2 text-teks-redup">Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.</p>
           </>
         ) : null}
       </ModalKonfirmasi>
@@ -431,27 +586,33 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
       <Modal
         kode="M-04"
         ukuran="sm"
-        buka={terkunci !== null}
-        saatUbah={(b) => !b && setTerkunci(null)}
+        buka={terkunci}
+        saatUbah={setTerkunci}
         judul="Butir Turunan Templat"
         kaki={
           <>
-            <Button varian="sekunder" onClick={() => setTerkunci(null)}>
+            <Button varian="sekunder" onClick={() => setTerkunci(false)}>
               Tutup
             </Button>
-            <Button
-              onClick={() => {
-                const b = terkunci;
-                setTerkunci(null);
-                if (b) saatBukaAsal(b);
-              }}
-            >
-              Buka Templat Proposal
-            </Button>
+            {bolehSusunBaru ? (
+              <Button
+                onClick={() => {
+                  setTerkunci(false);
+                  saatSusunVersiBaru();
+                }}
+              >
+                Susun Versi Baru
+              </Button>
+            ) : (
+              <Link href="/tim-kerja/templat" className={kelasTombol("utama")}>
+                Buka Templat Proposal
+              </Link>
+            )}
           </>
         }
       >
         <p>{PESAN_TERKUNCI}</p>
+        <p className="mt-2 text-teks-redup">{KETERANGAN_TERKUNCI}</p>
       </Modal>
 
       {/* M-05 Simpan Versi (8a ditolak di dalam modal) */}
@@ -483,11 +644,7 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
             autoComplete="off"
             value={tanggal}
             galat={galatVersi}
-            petunjuk={
-              masaBerjalan
-                ? `Masa pengusulan sedang berjalan (${formatTanggal(periode.tanggalBuka)} sampai ${formatTanggal(periode.tanggalTutup)}): pilih tanggal di luar rentang itu.`
-                : undefined
-            }
+            petunjuk={masaBerjalan ? `Masa pengusulan sedang berjalan (${formatTanggal(periode.tanggalBuka)} sampai ${formatTanggal(periode.tanggalTutup)}): pilih tanggal di luar rentang itu.` : undefined}
             onChange={(e) => setTanggal(e.target.value)}
           />
         </form>
@@ -495,3 +652,4 @@ export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca 
     </>
   );
 }
+
