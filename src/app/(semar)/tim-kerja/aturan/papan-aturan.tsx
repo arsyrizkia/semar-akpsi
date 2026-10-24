@@ -487,8 +487,10 @@ export function PapanAturan({
                   <TD className="min-w-48">{b.deskripsi}</TD>
                   <TD className="capitalize">{b.jenis}</TD>
                   <TD className="whitespace-nowrap">
-                    {butirTerkunci(b.asal) ? (
-                      <span className="inline-flex items-center gap-1" title={modeDraf ? "Diturunkan dari ketentuan bagian" : "Nilai butir ini terkunci; ubah lewat versi baru templat"}>
+                    {b.pratinjau ? (
+                      <span title="Diturunkan dari ketentuan bagian templat">bagian</span>
+                    ) : butirTerkunci(b.asal) ? (
+                      <span className="inline-flex items-center gap-1" title="Nilai butir ini terkunci; ubah lewat versi baru templat">
                         <Lock aria-hidden className="size-4 text-teks-redup" /> templat<span className="sr-only"> (terkunci)</span>
                       </span>
                     ) : (

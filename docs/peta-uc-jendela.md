@@ -9,9 +9,9 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | Kode | Layar | Peran | Rute | UC |
 |---|---|---|---|---|
 | J-01 | Masuk | Tim Kerja DPPM, Reviewer | `/masuk` (`/` diarahkan ke sini; SSO tiruan lewat `/bima/masuk` lalu `/api/sso/callback`) | - |
-| J-02 | Templat Proposal | Tim Kerja (pengelola) | `/tim-kerja/templat?skema=&versi=&hasil=` | UC-01 |
-| J-02b | Penyusunan Templat | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]/susun` | UC-01 s.4-7 |
-| J-03 | Aturan Pemeriksaan | Tim Kerja (pengelola) | `/tim-kerja/aturan?skema=&periode=&sorot=` (juga `butir=`) | UC-02 |
+| J-02 | Templat Proposal (daftar) | Tim Kerja (pengelola) | `/tim-kerja/templat?tahun=&skema=&status=` | UC-01 s.1-3 |
+| J-02a | Rincian Templat (tab Bagian, Aturan Pemeriksaan, Lampiran, Halaman Depan) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=&periode=&sorot=&hasil=` (`/susun` mengalihkan) | UC-01 s.4-10 |
+| J-03 | Aturan Pemeriksaan (tab di J-02a, tanpa menu sendiri) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=aturan`; `/tim-kerja/aturan?skema=&periode=&sorot=` (juga `butir=`) mengalihkan ke sini | UC-02 |
 | J-03b | Hasil Uji pada Contoh | Tim Kerja (pengelola) | `/tim-kerja/aturan/uji?skema=&periode=` | UC-02 s.6 |
 | J-04 | Penugasan Reviewer | Tim Kerja | `/tim-kerja/penugasan` (tautan lama `?susun=1` dialihkan ke J-04b periode aktif) | UC-03 s.1 |
 | J-04b | Usulan Penugasan | Tim Kerja | `/tim-kerja/penugasan/[idPeriode]?hal=&halT=` (`?susun=1` hanya dari skenario S-1; parameter dibuang dari URL sesudah Susun otomatis) | UC-03 s.2-8 |
@@ -257,3 +257,17 @@ Dua sasaran. Lokal: `next start` di laptop ke Neon `ap-southeast-1` (jeda laptop
 | Pindah ke halaman 2 usulan | ±2 dtk | 0,7 dtk |
 
 Pada run produksi yang sama: kotak masuk BIMA menerima tepat 10.000 penugasan (tanpa ganda), sebaran beban 80-81 per reviewer (124 reviewer bersedia), tabel 50 baris per halaman (200 halaman), dan sesudah meninggalkan skala nyata J-07 "Semua Selesai" dan "Baru" tepat satu baris. (Hasil ukur lama, run produksi sebelum keputusan 22 Okt; sejak itu data skala tetap ada di kotak masuk B-2 sampai Reset, dan e2e memeriksanya.)
+
+### Rancangan ulang UC-01 (24 Okt 2026): WND ringkas
+
+| Dari | Pemicu | Ke | Jenis |
+|---|---|---|---|
+| J-02 | "Templat Baru" | M-14 (Skema Pendanaan, Periode Berlaku) lalu "Susun Versi Baru" membuka J-02a Draf | modal ke layar |
+| J-02 | ketuk baris; "Unduh (.docx)" | J-02a; unduhan | layar; unduhan |
+| J-02a (Draf) | "Ubah" bagian / "Tambah Bagian" | M-12 ringkas / M-12 lengkap | modal |
+| M-12 ringkas | "Atur aturan bagian ini" | tab Aturan tersaring untuk bagian itu | tab |
+| J-02a tab Aturan | "Tambah Butir" / "Ubah" | M-02 terstruktur (Bagian, Jenis Aturan, parameter) | modal |
+| J-02a tab Aturan (Aktif) | "Ubah" butir isi bagian | M-04 (4a) dengan "Susun Versi Baru" | modal |
+| J-02a (Draf) | "Terbitkan" | M-01 lalu J-02a Aktif `?hasil=terbit` / Draf `?hasil=draf` (9a) | modal ke layar |
+| J-02a (Aktif) | "Susun Versi Baru" | J-02a Draf versi berikutnya | layar |
+| J-02a tab Aturan | "Uji pada Contoh" lalu "Kembali ke Aturan Pemeriksaan" | J-03b lalu tab Aturan | layar |

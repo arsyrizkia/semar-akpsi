@@ -17,7 +17,8 @@
     "laporan-uji": "tsx scripts/laporan-uji.ts",
     "rencana-uji": "tsx scripts/rencana-uji.ts",
     "label-ui": "tsx scripts/label-ui.ts",
-    "pratinjau-docx": "tsx scripts/pratinjau-docx.ts"
+    "pratinjau-docx": "tsx scripts/pratinjau-docx.ts",
+    "pratinjau-jadwal": "tsx scripts/pratinjau-jadwal.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

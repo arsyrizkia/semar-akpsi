@@ -53,6 +53,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const [bagianBaru, setBagianBaru] = useState(false);
   const [lampiranDi, setLampiranDi] = useState<number | null>(null);
   const [lampiranBaru, setLampiranBaru] = useState(false);
+  const [sorotAturan, setSorotAturan] = useState<string | null>(sorotAwal);
   const [fokusBagian, setFokusBagian] = useState<string | null>(null);
   const [ubahRingkas, setUbahRingkas] = useState(true);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -128,7 +129,9 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
     if (!kelengkapan.lengkap) {
       // S-2: tanda ada di isian; pindah ke tab yang memuat isian bertanda lalu gulir ke sana
       const perluBagian = kelengkapan.tanpaBagian || kelengkapan.bagian.some((b) => b?.nama || b?.batas || b?.ketentuan);
-      setTab(perluBagian ? "bagian" : "lampiran");
+      const perluLampiran = kelengkapan.lampiran.some(Boolean);
+      if (perluBagian) setTab("bagian");
+      else if (perluLampiran) setTab("lampiran");
       setTimeout(() => (ref.current?.querySelector<HTMLElement>('[data-tanda="ya"]') ?? ref.current?.querySelector<HTMLElement>('[role="alert"]'))?.scrollIntoView({ block: "center" }), 80);
       return;
     }
@@ -257,8 +260,8 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
               ukuran="sm"
               onClick={() => {
                 window.history.replaceState(null, "", urlTabAturan(templat.id, { sorot: hasil.baru }));
+                setSorotAturan(hasil.baru);
                 setTab("aturan");
-                router.refresh();
               }}
             >
               Buka Aturan Pemeriksaan
@@ -311,7 +314,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
         <TabsContent value="aturan">
           {aturan ? (
             <PapanAturan
-              key={`${skemaId}:${aturan.periode.id}:${fokusBagian ?? ""}`}
+              key={`${skemaId}:${aturan.periode.id}:${fokusBagian ?? ""}:${sorotAturan ?? ""}`}
               skemaId={skemaId}
               namaSkema={namaSkema}
               templatId={templat.id}
@@ -322,7 +325,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
               bagianPilihan={aturan.bagianPilihan.length ? aturan.bagianPilihan : templat.bagian.map((b) => b.nama)}
               lampiranPilihan={aturan.lampiranPilihan}
               masaBerjalan={masaBerjalanUntuk(sakelarBerjalan, aturan.periode.id, periodeBerjalanId)}
-              sorotAwal={sorotAwal}
+              sorotAwal={sorotAturan}
               bagianMentah={isian.bagian}
               lampiranDef={isian.lampiran.map((nama, i) => ({ ...(isian.lampiranDef[i] ?? lampiranBawaan(nama)), nama: nama.trim() }))}
               saatUbahBagian={(i, b) => setIsian((s) => ({ ...s, bagian: s.bagian.map((x, j) => (j === i ? b : x)) }))}

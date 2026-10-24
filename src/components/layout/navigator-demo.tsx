@@ -64,6 +64,26 @@ function useCatatanSkenario(jalur: string): string | null {
     return null;
   }
 }
+/**
+ * Kueri alamat saat ini (mis. "tab=aturan") agar tab Aturan Pemeriksaan di J-02a dikenali sebagai J-03. Dibaca oleh PembacaKueri di dalam
+ * Suspense (useSearchParams) dan dibagikan lewat penyimpanan kecil ini, supaya NavigatorDemo sendiri tidak memerlukan Suspense.
+ */
+let kueriSaatIni = "";
+const pendengarKueri = new Set<() => void>();
+const langgananKueri = (cb: () => void) => {
+  pendengarKueri.add(cb);
+  return () => void pendengarKueri.delete(cb);
+};
+function PembacaKueri() {
+  const kueri = useSearchParams().toString();
+  useEffect(() => {
+    if (kueri === kueriSaatIni) return;
+    kueriSaatIni = kueri;
+    pendengarKueri.forEach((f) => f());
+  }, [kueri]);
+  return null;
+}
+
 /** Menangkap ?catatan= lalu membersihkannya dari URL. Dipasang dalam Suspense karena memakai useSearchParams. */
 function PenangkapCatatan() {
   const catatan = useSearchParams().get("catatan");
@@ -91,7 +111,7 @@ function PenangkapCatatan() {
  */
 export function NavigatorDemo() {
   const jalur = usePathname();
-  const kueri = useSearchParams().toString();
+  const kueri = useSyncExternalStore(langgananKueri, () => kueriSaatIni, () => "");
   const router = useRouter();
   const terbuka = useSyncExternalStore(langganan, bacaTerbuka, () => false);
   const cookieSkenario = useSyncExternalStore(tanpaLangganan, bacaCookieSkenario, () => null);
@@ -187,6 +207,7 @@ export function NavigatorDemo() {
   const penangkap = (
     <Suspense fallback={null}>
       <PenangkapCatatan />
+      <PembacaKueri />
     </Suspense>
   );
 
