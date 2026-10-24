@@ -90,7 +90,7 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                   </TD>
                   <TD angka>
                     {v.versiTemplat && sesi.pengelola && v.templatId ? (
-                      <Link href={`/tim-kerja/templat?skema=${p.skema.id}&versi=${v.templatId}`} className={tautan}>
+                      <Link href={`/tim-kerja/templat/${v.templatId}`} className={tautan}>
                         v{v.versiTemplat}
                       </Link>
                     ) : v.versiTemplat ? (

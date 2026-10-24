@@ -10,5 +10,12 @@
     "bukaHariRelatif": -21,
     "tutupHariRelatif": 14,
     "batasBebanReviewer": 2
+  },
+  "periodeBerikut": {
+    "tahun": 2027,
+    "nama": "Seleksi Pendanaan 2027 (contoh sementara)",
+    "buka": "2027-03-01",
+    "tutup": "2027-04-30",
+    "batasBebanReviewer": 2
   }
 }

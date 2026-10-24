@@ -7,6 +7,7 @@
  */
 import { and, desc, eq, like } from "drizzle-orm";
 import { getDb } from "@/db";
+import { ambilPeriodeBerjalanId } from "@/lib/waktu";
 import { bimaBerkas, bimaProposal, skemaPendanaan, templatProposal } from "@/db/schema";
 import { simpanBerkas } from "../berkas";
 
@@ -23,13 +24,14 @@ export async function daftarSkemaBima(): Promise<OpsiSkemaBima[]> {
   const db = getDb();
   const skema = await db.select().from(skemaPendanaan).orderBy(skemaPendanaan.kode);
   const hasil: OpsiSkemaBima[] = [];
+  const berjalan = await ambilPeriodeBerjalanId();
   for (const s of skema) {
-    const [t] = await db
-      .select({ lampiranWajib: templatProposal.lampiranWajib })
+    const daftar = await db
+      .select({ lampiranWajib: templatProposal.lampiranWajib, periodeBerlakuId: templatProposal.periodeBerlakuId })
       .from(templatProposal)
       .where(and(eq(templatProposal.skemaId, s.id), eq(templatProposal.status, "Terbit")))
-      .orderBy(desc(templatProposal.versi))
-      .limit(1);
+      .orderBy(desc(templatProposal.versi));
+    const t = daftar.find((x) => x.periodeBerlakuId === berjalan) ?? daftar[0];
     hasil.push({ kode: s.kode, nama: s.namaSkema, lampiranWajib: t?.lampiranWajib ?? [], adaTemplat: Boolean(t) });
   }
   return hasil;

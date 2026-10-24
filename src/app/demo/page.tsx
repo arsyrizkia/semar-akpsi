@@ -24,7 +24,7 @@ interface BarisUc {
 }
 
 const UC: BarisUc[] = [
-  { kode: "UC-01", judul: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", layar: "J-02, J-02b" },
+  { kode: "UC-01", judul: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", layar: "J-02, J-02a, J-03" },
   { kode: "UC-01-S1", judul: "Mengelola templat: skema belum punya templat (S-1)", peran: "Tim Kerja (pengelola)", layar: "J-02", catatan: "Skema contoh tanpa templat" },
   { kode: "UC-02", judul: "Mengelola aturan pemeriksaan", peran: "Tim Kerja (pengelola)", layar: "J-03, J-03b" },
   { kode: "UC-03", judul: "Menugaskan reviewer", peran: "Tim Kerja DPPM", layar: "J-04, J-04b" },

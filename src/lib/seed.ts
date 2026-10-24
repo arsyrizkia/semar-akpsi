@@ -104,6 +104,11 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       batasBebanReviewer: skemaJson.periode.batasBebanReviewer,
     })
     .returning();
+  /* periode berikutnya (2027): belum dibuka; hanya muncul di pilihan Periode Berlaku templat dan penyaring Tahun */
+  const pb = skemaJson.periodeBerikut;
+  if (pb) {
+    await db.insert(s.periodeSeleksi).values({ tahun: pb.tahun, nama: pb.nama, tanggalBuka: new Date(`${pb.buka}T00:00:00+07:00`), tanggalTutup: new Date(`${pb.tutup}T23:59:59+07:00`), batasBebanReviewer: pb.batasBebanReviewer });
+  }
 
   /* templat terbit + basis aturan + butir */
   const pengelolaId = akunId("dppm-pengelola");

@@ -5,8 +5,8 @@ import { itemAktif, menuUntukPeran } from "@/lib/menu";
 const nama = (m: { nama: string }[]) => m.map((x) => x.nama);
 
 describe("menuUntukPeran", () => {
-  it("KH-menuUntukPeran-01: Tim Kerja pengelola melihat empat menu berurutan", () => {
-    expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: true }))).toEqual(["Templat Proposal", "Aturan Pemeriksaan", "Penugasan Reviewer", "Pemantauan Kesesuaian"]);
+  it("KH-menuUntukPeran-01: Tim Kerja pengelola melihat tiga menu berurutan (Templat & Aturan menggantikan dua menu lama)", () => {
+    expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: true }))).toEqual(["Templat & Aturan", "Penugasan Reviewer", "Pemantauan Kesesuaian"]);
   });
   it("KH-menuUntukPeran-02: Tim Kerja non-pengelola hanya Penugasan dan Pemantauan", () => {
     expect(nama(menuUntukPeran({ peran: "tim_kerja", pengelola: false }))).toEqual(["Penugasan Reviewer", "Pemantauan Kesesuaian"]);
@@ -23,8 +23,9 @@ describe("itemAktif", () => {
   const menu = menuUntukPeran({ peran: "tim_kerja", pengelola: true });
   it("KH-itemAktif-01: jalur layar dan layar turunannya menandai menu induk", () => {
     expect(itemAktif(menu, "/tim-kerja/templat")?.kode).toBe("J-02");
-    expect(itemAktif(menu, "/tim-kerja/templat/abc/susun")?.kode).toBe("J-02");
-    expect(itemAktif(menu, "/tim-kerja/aturan/uji")?.kode).toBe("J-03");
+    expect(itemAktif(menu, "/tim-kerja/templat/abc")?.kode).toBe("J-02");
+    expect(itemAktif(menu, "/tim-kerja/aturan")?.kode).toBe("J-02");
+    expect(itemAktif(menu, "/tim-kerja/aturan/uji")?.kode).toBe("J-02");
     expect(itemAktif(menu, "/tim-kerja/penugasan/periode-1")?.kode).toBe("J-04");
   });
   it("KH-itemAktif-02: J-05b (rincian proposal) menandai Pemantauan Kesesuaian", () => {

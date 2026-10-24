@@ -1,238 +1,102 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert, Badge, Bagian, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TombolUnduh, TR } from "@/components/ui";
+import { FileText } from "lucide-react";
+import { KeadaanKosong, KepalaHalaman, LencanaStatus, TombolUnduh } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
-import { ambilDrafTemplat, ambilTemplatBerlaku, ambilTemplatPerId, daftarSkema, daftarVersiTemplat, type TemplatTampil } from "@/lib/templat/layanan";
-import { hurufBagian, ringkasKetentuan } from "@/lib/templat/isian-substansi";
-import { PESAN_DRAF_9A } from "@/lib/templat/status";
-import { masaPengusulanBerjalan } from "@/lib/waktu";
+import { adaPenyaring, bacaPenyaring, daftarTahun, saringDaftar, statusTampil, urutkanDaftar } from "@/lib/templat/daftar";
+import { daftarPeriode, daftarSemuaTemplat, daftarSkema } from "@/lib/templat/layanan";
+import { ambilPeriodeBerjalanId } from "@/lib/waktu";
 import { formatAngka, formatTanggal } from "@/lib/utils";
-import { PilihSkema } from "./pilih-skema";
-import { TombolSusunVersi } from "./tombol-susun";
+import { PenyaringDaftarTemplat } from "./penyaring-daftar";
+import { TemplatBaru } from "./templat-baru";
 
 export const metadata: Metadata = { title: "J-02 Templat Proposal" };
 export const dynamic = "force-dynamic";
 
-type Param = { skema?: string; versi?: string; hasil?: string; jumlah?: string; det?: string; sem?: string; baru?: string };
+type Param = { tahun?: string; skema?: string; status?: string };
 
-/** J-02 Templat Proposal (UC-01). Hanya Tim Kerja DPPM dengan hak pengelola (NFR 3.2). Pilihan skema dan versi tersimpan di URL. */
+/** Kolom daftar di layar lebar; di layar sempit tiap baris menjadi kartu ringkas. */
+const KOLOM = "md:grid md:grid-cols-[minmax(0,2.2fr)_3.5rem_minmax(0,1.4fr)_6.5rem_4.5rem_7rem_7rem_9rem] md:items-center md:gap-x-3";
+
+/** J-02 Daftar Templat (UC-01 langkah 1-3). Hanya Tim Kerja DPPM dengan hak pengelola (NFR 3.2). Penyaring tersimpan di URL; baris menuju J-02a. */
 export default async function Halaman({ searchParams }: { searchParams: Promise<Param> }) {
   await wajibPengelola();
-  const { skema: skemaParam, versi: versiParam, hasil, jumlah, det, sem, baru } = await searchParams;
-  const [skema, masaBerjalan] = await Promise.all([daftarSkema(), masaPengusulanBerjalan()]);
-
-  if (skema.length === 0) {
-    return (
-      <>
-        <KepalaHalaman kode="J-02" judul="Templat Proposal" remah={[{ label: "Templat Proposal" }]} />
-        <KeadaanKosong judul="Belum ada skema pendanaan">Jalankan &ldquo;Reset &amp; isi data demo&rdquo; di Pusat Demo.</KeadaanKosong>
-      </>
-    );
-  }
-  const skemaTerpilih = skema.find((s) => s.id === skemaParam) ?? skema[0];
-  const [berlaku, draf, riwayat] = await Promise.all([ambilTemplatBerlaku(skemaTerpilih.id), ambilDrafTemplat(skemaTerpilih.id), daftarVersiTemplat(skemaTerpilih.id)]);
-
-  // versi yang dilihat: pilihan di URL (harus milik skema ini), selain itu templat yang berlaku
-  let dilihat: TemplatTampil | null = berlaku;
-  if (versiParam) {
-    const perId = await ambilTemplatPerId(versiParam);
-    if (perId && perId.skemaId === skemaTerpilih.id) dilihat = perId.templat;
-  }
-  const jumlahButir = Number.parseInt(jumlah ?? "", 10);
-  const jumlahDet = Number.parseInt(det ?? "", 10);
-  const jumlahSem = Number.parseInt(sem ?? "", 10);
-  const urlSusun = (id: string) => `/tim-kerja/templat/${id}/susun`;
-  const urlUnduh = (id: string) => `/api/semar/templat/${id}/unduh`;
+  const penyaring = bacaPenyaring(await searchParams);
+  const [semua, skema, periode, periodeBerjalan] = await Promise.all([daftarSemuaTemplat(), daftarSkema(), daftarPeriode(), ambilPeriodeBerjalanId()]);
+  const baris = urutkanDaftar(saringDaftar(semua, penyaring));
+  const namaSkemaFilter = skema.find((s) => s.id === penyaring.skema)?.namaSkema;
 
   return (
     <>
-      <KepalaHalaman
-        kode="J-02"
-        judul="Templat Proposal"
-        keterangan="Bagian, batas kata, dan lampiran wajib per skema pendanaan."
-        remah={[{ label: "Templat Proposal" }]}
-        aksi={
-          draf ? (
-            <Link href={urlSusun(draf.id)} className={kelasTombol(hasil === "terbit" ? "sekunder" : "utama")}>Buka Draf Versi {draf.versi}</Link>
-          ) : (
-            <TombolSusunVersi skemaId={skemaTerpilih.id} sekunder={hasil === "terbit"} />
-          )
-        }
-      />
+      <KepalaHalaman kode="J-02" judul="Templat Proposal" remah={[{ label: "Templat & Aturan" }]} aksi={<TemplatBaru skema={skema} periode={periode} periodeAwal={periodeBerjalan} skemaAwal={penyaring.skema} />} />
+      <PenyaringDaftarTemplat skema={skema} tahun={daftarTahun([...semua, ...periode])} nilai={penyaring} />
 
-      <div className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <PilihSkema skema={skema} skemaId={skemaTerpilih.id} />
-        {masaBerjalan ? <p className="pb-2 text-sm text-teks-redup">Masa pengusulan sedang berjalan: templat baru disimpan sebagai draf untuk periode berikutnya.</p> : null}
-      </div>
-
-      {hasil === "terbit" && dilihat?.status === "Terbit" ? (
-        <Alert jenis="sukses" judul={`Templat versi ${dilihat.versi} telah terbit`} className="mb-6">
-          <p>
-            {Number.isFinite(jumlahButir)
-              ? Number.isFinite(jumlahDet) && Number.isFinite(jumlahSem)
-                ? `${formatAngka(jumlahDet)} butir deterministik dan ${formatAngka(jumlahSem)} butir semantik dibuat sebagai draf dari templat ini. `
-                : `${formatAngka(jumlahButir)} butir cek draf dibuat dari templat ini. `
-              : ""}
-            Kelola butir itu di Aturan Pemeriksaan (aktifkan, asah pertanyaan semantik, uji pada contoh), lalu simpan versi basis aturannya agar berlaku.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={`/tim-kerja/aturan?skema=${skemaTerpilih.id}${baru ? `&sorot=${encodeURIComponent(baru)}` : ""}`} className={kelasTombol("utama", "sm")}>Buka Aturan Pemeriksaan</Link>
+      {baris.length === 0 ? (
+        <KeadaanKosong
+          judul={penyaring.tahun !== null ? "Belum ada templat untuk tahun ini" : adaPenyaring(penyaring) ? "Tidak ada templat yang cocok dengan penyaring" : "Belum ada templat"}
+          ikon={FileText}
+          aksi={<TemplatBaru skema={skema} periode={periode} periodeAwal={periodeBerjalan} skemaAwal={penyaring.skema} />}
+        >
+          {namaSkemaFilter ? namaSkemaFilter : null}
+        </KeadaanKosong>
+      ) : (
+        <section aria-label="Daftar templat">
+          <div className={`${KOLOM} hidden border-b border-primer-200 px-3 pb-2 text-xs font-semibold text-primer-800`} aria-hidden>
+            <span>Skema</span>
+            <span className="text-right">Versi</span>
+            <span>Periode Berlaku</span>
+            <span>Status</span>
+            <span className="text-right">Bagian</span>
+            <span className="text-right">Butir Cek (Det./Sem.)</span>
+            <span>Diperbarui</span>
+            <span />
           </div>
-        </Alert>
-      ) : null}
-      {hasil === "draf" && dilihat?.status === "Draf" ? (
-        <Alert jenis="peringatan" className="mb-6">
-          <p>{PESAN_DRAF_9A}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={urlSusun(dilihat.id)} className={kelasTombol("sekunder", "sm")}>Buka Draf Versi {dilihat.versi}</Link>
-            <TombolUnduh href={urlUnduh(dilihat.id)} ukuran="sm">
-              Unduh Pratinjau (.docx)
-            </TombolUnduh>
-          </div>
-        </Alert>
-      ) : null}
-
-      <Bagian
-        judul={dilihat ? (dilihat.id === berlaku?.id ? `Templat Berlaku, Versi ${dilihat.versi}` : `Versi ${dilihat.versi} (${dilihat.status})`) : "Templat Berlaku"}
-        aksi={
-          dilihat ? (
-            <span className="flex flex-wrap gap-2">
-              <TombolUnduh href={urlUnduh(dilihat.id)}>Unduh Templat (.docx)</TombolUnduh>
-              <TombolUnduh href={`${urlUnduh(dilihat.id)}?mode=isian`}>Unduh Isian Substansi (.docx)</TombolUnduh>
-            </span>
-          ) : undefined
-        }
-      >
-        {dilihat ? (
-          <div className="mb-3 text-sm">
-            <p className="font-semibold text-primer-900">{dilihat.kepala.judulDokumen}</p>
-            {dilihat.kepala.subjudul ? <p className="font-semibold text-primer-900">{dilihat.kepala.subjudul}</p> : null}
-            {dilihat.kepala.pengantar ? <p className="mt-1 max-w-3xl text-teks-redup">{dilihat.kepala.pengantar}</p> : null}
-            <p className="mt-1 text-teks-redup">Kop: {dilihat.kop.lembaga}</p>
-          </div>
-        ) : null}
-        {dilihat ? (
-          <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
-            <span>{skemaTerpilih.namaSkema}</span>
-            <LencanaStatus status={dilihat.status} />
-            <span>
-              Periode berlaku: <strong className="font-semibold text-primer-900">{dilihat.periodeBerlakuNama ?? "belum ditetapkan"}</strong>
-            </span>
-            {dilihat.diterbitkanPada ? <span>Terbit {formatTanggal(dilihat.diterbitkanPada)}</span> : null}
-            {dilihat.id !== berlaku?.id && berlaku ? (
-              <Link href={`/tim-kerja/templat?skema=${skemaTerpilih.id}`} className="font-semibold text-primer-800 underline underline-offset-2">
-                Lihat templat berlaku
-              </Link>
-            ) : null}
-          </p>
-        ) : null}
-        <Table>
-          <THead>
-            <TR>
-              <TH>Kode</TH>
-              <TH>Nama Bagian</TH>
-              <TH>Ketentuan</TH>
-              <TH>Wajib</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {dilihat && dilihat.bagian.length > 0 ? (
-              dilihat.bagian.map((b, i) => (
-                <TR key={b.urutan}>
-                  <TD className="font-semibold">{hurufBagian(i)}</TD>
-                  <TD>{b.nama}</TD>
-                  <TD>
-                    <span className="flex flex-wrap gap-1">
-                      {ringkasKetentuan(b).map((c) => (
-                        <Badge key={c}>{c}</Badge>
-                      ))}
-                    </span>
-                  </TD>
-                  <TD>{b.wajib ? "Ya" : "Tidak"}</TD>
-                </TR>
-              ))
-            ) : (
-              <TR>
-                <TD colSpan={4} className="py-6 text-center text-teks-redup">
-                  Skema ini belum memiliki templat
-                </TD>
-              </TR>
-            )}
-          </TBody>
-        </Table>
-        {dilihat ? (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-primer-800">Lampiran Wajib</h3>
-            {dilihat.lampiranWajib.length > 0 ? (
-              <ul className="mt-1 list-inside list-disc text-sm">
-                {dilihat.lampiranWajib.map((l, i) => (
-                  <li key={l}>
-                    {l} <span className="text-teks-redup">({dilihat.lampiranTemplat[i]?.jenis === "formulir" ? "formulir bertemplat" : "unggahan bebas"})</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-teks-redup">Tidak ada lampiran wajib.</p>
-            )}
-          </div>
-        ) : null}
-      </Bagian>
-
-      <Bagian judul="Riwayat Versi">
-        <Table>
-          <THead>
-            <TR>
-              <TH angka>Versi</TH>
-              <TH>Status</TH>
-              <TH>Periode Berlaku</TH>
-              <TH>Diterbitkan</TH>
-              <TH angka>Bagian</TH>
-              <TH>
-                <span className="sr-only">Aksi</span>
-              </TH>
-            </TR>
-          </THead>
-          <TBody>
-            {riwayat.length === 0 ? (
-              <TR>
-                <TD colSpan={6} className="py-6 text-center text-teks-redup">
-                  Belum ada versi templat untuk skema ini.
-                </TD>
-              </TR>
-            ) : null}
-            {riwayat.map((v) => (
-              <TR key={v.id} tersorot={dilihat?.id === v.id}>
-                <TD angka className="font-semibold">
-                  <Link href={`/tim-kerja/templat?skema=${skemaTerpilih.id}&versi=${v.id}`} className="underline underline-offset-2">
-                    {v.versi}
+          <ul className="divide-y divide-primer-100 rounded-md border border-primer-200 bg-white md:rounded-t-none md:border-t-0">
+            {baris.map((b) => (
+              <li key={b.id} className={`relative px-3 py-3 hover:bg-latar ${KOLOM}`}>
+                <div className="flex items-start justify-between gap-2 md:contents">
+                  <Link
+                    href={`/tim-kerja/templat/${b.id}`}
+                    className="min-w-0 font-semibold text-primer-900 after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+                  >
+                    {b.namaSkema}
+                    <span className="sr-only"> versi {b.versi}</span>
                   </Link>
-                </TD>
-                <TD>
-                  <LencanaStatus status={v.status} />
-                </TD>
-                <TD>{v.periodeBerlakuNama ?? "-"}</TD>
-                <TD>{formatTanggal(v.diterbitkanPada)}</TD>
-                <TD angka>{v.jumlahBagian}</TD>
-                <TD>
-                  <span className="flex flex-wrap justify-end gap-2">
-                    {v.status === "Draf" ? (
-                      <Link href={urlSusun(v.id)} className={kelasTombol("hantu", "sm")}>Buka Draf</Link>
-                    ) : (
-                      <Link href={`/tim-kerja/templat?skema=${skemaTerpilih.id}&versi=${v.id}`} className={kelasTombol("hantu", "sm")}>
-                          Lihat<span className="sr-only"> versi {v.versi}</span>
-                        </Link>
-                    )}
-                    <TombolUnduh href={urlUnduh(v.id)} ukuran="sm">
-                      Unduh Templat (.docx)
-                      <span className="sr-only"> versi {v.versi}</span>
-                    </TombolUnduh>
+                  <span className="angka shrink-0 text-sm text-teks-redup md:text-right md:text-teks">
+                    <span className="md:hidden">Versi </span>
+                    {b.versi}
                   </span>
-                </TD>
-              </TR>
+                </div>
+                <p className="mt-1 text-sm text-teks-redup md:mt-0 md:text-teks">
+                  <span className="md:hidden">Periode: </span>
+                  {b.periodeNama ?? "Belum ditetapkan"}
+                </p>
+                <div className="mt-2 md:mt-0">
+                  <LencanaStatus status={statusTampil(b.status)} />
+                </div>
+                <p className="angka mt-1 text-sm md:mt-0 md:text-right">
+                  <span className="text-teks-redup md:hidden">Bagian </span>
+                  {formatAngka(b.jumlahBagian)}
+                </p>
+                <p className="angka text-sm md:text-right">
+                  <span className="text-teks-redup md:hidden">Butir cek </span>
+                  {formatAngka(b.jumlahDeterministik)} / {formatAngka(b.jumlahSemantik)}
+                </p>
+                <p className="text-sm text-teks-redup md:text-teks">
+                  <span className="md:hidden">Diperbarui </span>
+                  {formatTanggal(b.diperbarui)}
+                </p>
+                <div className="relative z-10 mt-2 md:mt-0 md:text-right">
+                  <TombolUnduh href={`/api/semar/templat/${b.id}/unduh`} ukuran="sm">
+                    Unduh (.docx)
+                    <span className="sr-only"> {b.namaSkema} versi {b.versi}</span>
+                  </TombolUnduh>
+                </div>
+              </li>
             ))}
-          </TBody>
-        </Table>
-      </Bagian>
+          </ul>
+        </section>
+      )}
     </>
   );
 }

@@ -156,7 +156,7 @@ export async function siapkanSkalaNyata(): Promise<HasilSiapkanSkala> {
     }
   }
   if (!periode) {
-    const [utama] = await db.select().from(s.periodeSeleksi).where(sql`${s.periodeSeleksi.nama} not like ${NAMA_PERIODE_SKALA + "%"}`).orderBy(sql`${s.periodeSeleksi.tahun} desc, ${s.periodeSeleksi.tanggalBuka} desc`).limit(1);
+    const [utama] = await db.select().from(s.periodeSeleksi).where(sql`${s.periodeSeleksi.nama} not like ${NAMA_PERIODE_SKALA + "%"} and ${s.periodeSeleksi.tanggalBuka} <= now()`).orderBy(sql`${s.periodeSeleksi.tahun} desc, ${s.periodeSeleksi.tanggalBuka} desc`).limit(1);
     if (!utama) throw new Error('belum ada periode seleksi; jalankan "Reset & isi data demo" lebih dulu');
     // tahun sama, tanggal buka lebih awal supaya periode utama tetap "terbaru" bagi jendela lain
     [periode] = await db

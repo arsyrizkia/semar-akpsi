@@ -9,6 +9,9 @@ interface Props {
   saatUbah: (buka: boolean) => void;
   nilai: LampiranTemplat;
   saatTerapkan: (l: LampiranTemplat) => void;
+  /** lampiran baru dari "Tambah Lampiran": menutup tanpa Terapkan memanggil `saatBatalBaru` (penambahan dibatalkan) */
+  baru?: boolean;
+  saatBatalBaru?: () => void;
 }
 
 const baris = (x: string) => x.split(/\r?\n/).map((y) => y.trim()).filter(Boolean);
@@ -18,7 +21,9 @@ export function ModalLampiran(props: Props) {
   return props.buka ? <IsiModal {...props} /> : null;
 }
 
-function IsiModal({ buka, saatUbah, nilai, saatTerapkan }: Props) {
+function IsiModal({ buka, saatUbah, nilai, saatTerapkan, baru, saatBatalBaru }: Props) {
+  const [nama, setNama] = useState(nilai.nama);
+  const [diterapkan, setDiterapkan] = useState(false);
   const [jenis, setJenis] = useState<JenisLampiran>(nilai.jenis);
   const [judul, setJudul] = useState(nilai.judul);
   const [kalimat, setKalimat] = useState(nilai.kalimat.join("\n"));
@@ -30,19 +35,28 @@ function IsiModal({ buka, saatUbah, nilai, saatTerapkan }: Props) {
     <Modal
       kode="M-13"
       buka={buka}
-      saatUbah={saatUbah}
+      saatUbah={(b) => {
+        if (!b && baru && !diterapkan) saatBatalBaru?.();
+        saatUbah(b);
+      }}
       ukuran="lg"
-      judul="Templat Lampiran"
-      deskripsi={`Lampiran: ${nilai.nama.trim() || "(tanpa nama)"}`}
+      judul={baru ? "Tambah Lampiran" : "Templat Lampiran"}
       kaki={
         <>
-          <Button varian="sekunder" onClick={() => saatUbah(false)}>
+          <Button
+            varian="sekunder"
+            onClick={() => {
+              if (baru && !diterapkan) saatBatalBaru?.();
+              saatUbah(false);
+            }}
+          >
             Batal
           </Button>
           <Button
-            disabled={Boolean(galat)}
+            disabled={Boolean(galat) || nama.trim() === ""}
             onClick={() => {
-              saatTerapkan({ nama: nilai.nama, jenis, judul: jenis === "formulir" ? judul.trim() : "", kalimat: jenis === "formulir" ? baris(kalimat) : [], kunci: jenis === "formulir" ? baris(kunci) : [], sertakan });
+              setDiterapkan(true);
+              saatTerapkan({ nama: nama.trim(), jenis, judul: jenis === "formulir" ? judul.trim() : "", kalimat: jenis === "formulir" ? baris(kalimat) : [], kunci: jenis === "formulir" ? baris(kunci) : [], sertakan });
               saatUbah(false);
             }}
           >
@@ -52,6 +66,7 @@ function IsiModal({ buka, saatUbah, nilai, saatTerapkan }: Props) {
       }
     >
       <div className="space-y-4">
+        <Isian label="Nama Lampiran" name="nama-lampiran" autoComplete="off" value={nama} galat={nama.trim() === "" ? "Nama lampiran wajib diisi" : null} onChange={(e) => setNama(e.target.value)} />
         <Pilihan label="Jenis Lampiran" name="jenis-lampiran" value={jenis} onChange={(e) => setJenis(e.target.value as JenisLampiran)}>
           <option value="unggahan">Unggahan bebas (mis. artikel)</option>
           <option value="formulir">Formulir bertemplat (mis. surat pernyataan)</option>

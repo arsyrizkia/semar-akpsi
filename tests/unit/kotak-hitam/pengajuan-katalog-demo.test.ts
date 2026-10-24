@@ -6,8 +6,10 @@ describe("jendelaDariJalur", () => {
   const kode = (jalur: string) => jendelaDariJalur(jalur)?.kode;
   it("KH-jendelaDariJalur-01: layar induk dan layar turunan dibedakan", () => {
     expect(kode("/tim-kerja/templat")).toBe("J-02");
-    expect(kode("/tim-kerja/templat/abc-123/susun")).toBe("J-02b");
-    expect(kode("/tim-kerja/aturan")).toBe("J-03");
+    expect(kode("/tim-kerja/templat/abc-123")).toBe("J-02a");
+    expect(jendelaDariJalur("/tim-kerja/templat/abc-123", "tab=bagian")?.kode).toBe("J-02a");
+    expect(jendelaDariJalur("/tim-kerja/templat/abc-123", "tab=aturan&sorot=BGN-01")?.kode).toBe("J-03");
+    expect(jendelaDariJalur("/tim-kerja/templat", "tahun=2026&status=Aktif")?.kode).toBe("J-02");
     expect(kode("/tim-kerja/aturan/uji")).toBe("J-03b");
     expect(kode("/tim-kerja/penugasan")).toBe("J-04");
     expect(kode("/tim-kerja/penugasan/per-1")).toBe("J-04b");
@@ -40,10 +42,10 @@ describe("alamat Pindah layar dan Pasang skenario", () => {
       expect(j.alamatPindah.startsWith("/"), j.kode).toBe(true);
       if (j.induk) expect(kodeSemua, j.kode).toContain(j.induk);
     }
-    for (const k of ["J-02b", "J-03b", "J-04b", "J-05b", "J-08b"]) expect(kodeSemua).toContain(k);
+    for (const k of ["J-02a", "J-03", "J-03b", "J-04b", "J-05b", "J-08b"]) expect(kodeSemua).toContain(k);
   });
   it("KH-alamatDemo-03: skenario layar turunan dikenal (siap dipasang lewat /demo/mulai)", () => {
-    expect(cariSkenario("J-02b", "draf")).toBeDefined();
+    expect(cariSkenario("J-02a", "draf")).toBeDefined();
     expect(cariSkenario("J-04b", "kekurangan")).toBeDefined();
     expect(cariSkenario("J-08b", "draf")).toBeDefined();
     expect(cariSkenario("J-08b", "tidak-ada")).toBeUndefined();

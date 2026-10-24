@@ -4,19 +4,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useState, useTransition } from "react";
 import { Lock, Plus } from "lucide-react";
-import { Alert, Badge, Bagian, Button, Isian, KepalaHalaman, KotakCentang, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
+import { Alert, Badge, Button, Isian, LencanaStatus, Modal, ModalKonfirmasi, Pilihan, Table, TBody, TD, TH, THead, TR, beriTahu, kelasTombol } from "@/components/ui";
 import { CONTOH_ATURAN_HITUNG, MASUKAN_BUTIR_KOSONG, type GalatButir, type MasukanButir } from "@/lib/aturan/parameter";
 import { butirTerkunci, PESAN_TERKUNCI } from "@/lib/aturan/status";
 import type { ButirTampil, TampilanAturan } from "@/lib/aturan/layanan";
-import type { PeriodePilihan, SkemaPilihan } from "@/lib/templat/layanan";
+import type { PeriodePilihan } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
 import { aksiNonaktifkan, aksiSimpanButir, aksiSimpanVersi } from "./aksi";
 
 interface Props {
-  skema: SkemaPilihan[];
   skemaId: string;
-  periodeDaftar: PeriodePilihan[];
+  namaSkema: string;
+  /** templat yang sedang dibuka di J-02a; ikut di tautan Uji pada Contoh supaya "kembali" mendarat di templat yang sama */
+  templatId: string;
+  /** periode templat ini; basis aturan yang ditampilkan adalah basis skema untuk periode itu */
   periode: PeriodePilihan;
+  /** Arsip: hanya-baca (tanpa Ubah, Nonaktifkan, Tambah Butir, Simpan Versi) */
+  hanyaBaca?: boolean;
+  /** 4a: butir turunan templat dibuka dari modal M-04; J-02a mengalihkan ke tab Bagian/Lampiran asal butir */
+  saatBukaAsal: (b: ButirTampil) => void;
   tampilan: TampilanAturan;
   bagianPilihan: string[];
   lampiranPilihan: string[];
@@ -25,6 +31,7 @@ interface Props {
   sorotAwal: string | null;
 }
 
+type FilterStatusButir = "" | "Aktif" | "Draf" | "Perlu ditinjau" | "Nonaktif";
 type ModalButir = { mode: "tambah" } | { mode: "ubah"; butir: ButirTampil } | null;
 
 const dariButir = (b: ButirTampil): MasukanButir => ({
@@ -43,12 +50,11 @@ const fokusGalatPertama = (selektor: string) => setTimeout(() => document.queryS
 
 const kodeDariHash = (h: string) => (h.startsWith("#butir-") ? decodeURIComponent(h.slice(7)) : null);
 
-export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, bagianPilihan, lampiranPilihan, masaBerjalan, sorotAwal }: Props) {
+export function PapanAturan({ skemaId, namaSkema, templatId, periode, hanyaBaca = false, saatBukaAsal, tampilan, bagianPilihan, lampiranPilihan, masaBerjalan, sorotAwal }: Props) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();
   const { nyata, draf, butir } = tampilan;
   const dasar = draf ?? nyata;
-  const namaSkema = skema.find((s) => s.id === skemaId)?.namaSkema ?? "";
 
   const [modalButir, setModalButir] = useState<ModalButir>(null); // M-02
   const [masukan, setMasukan] = useState<MasukanButir>(MASUKAN_BUTIR_KOSONG);
@@ -56,13 +62,14 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
   const [galatModal, setGalatModal] = useState<string | null>(null);
   const [nonaktif, setNonaktif] = useState<ButirTampil | null>(null); // M-03
   const [galatNonaktif, setGalatNonaktif] = useState<string | null>(null);
-  const [terkunci, setTerkunci] = useState(false); // M-04
+  const [terkunci, setTerkunci] = useState<ButirTampil | null>(null); // M-04
   const [modalVersi, setModalVersi] = useState(false); // M-05
   const [tanggal, setTanggal] = useState("");
   const [galatVersi, setGalatVersi] = useState<string | null>(null);
   const [berhasilVersi, setBerhasilVersi] = useState<{ versi: number; tanggal: string } | null>(null);
   const [sorot, setSorot] = useState<string | null>(sorotAwal);
-  const [tampilNonaktif, setTampilNonaktif] = useState(() => butir.some((b) => b.kode === sorotAwal && b.status === "Nonaktif"));
+  const [filterJenis, setFilterJenis] = useState<"" | "deterministik" | "semantik">("");
+  const [filterStatus, setFilterStatus] = useState<FilterStatusButir>(() => (butir.some((b) => b.kode === sorotAwal && b.status === "Nonaktif") ? "Nonaktif" : ""));
   const sorotSet = useMemo(() => new Set((sorot ?? "").split(",").filter(Boolean)), [sorot]);
   const sorotBanyak = sorotSet.size > 1; // beberapa butir baru: butir nonaktif berkode sama (versi templat lama) tidak ikut tersorot
 
@@ -90,7 +97,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
   }
 
   function klikUbah(b: ButirTampil) {
-    if (butirTerkunci(b.asal)) return setTerkunci(true); // 4a: panel butir tidak dibuka
+    if (butirTerkunci(b.asal)) return setTerkunci(b); // 4a: panel butir tidak dibuka
     setGalat({});
     setGalatModal(null);
     setMasukan(dariButir(b));
@@ -114,7 +121,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
       }
       if ("terkunci" in r && r.terkunci) {
         setModalButir(null);
-        setTerkunci(true);
+        if (modalButir?.mode === "ubah") setTerkunci(modalButir.butir);
         return;
       }
       if ("galat" in r) setGalat(r.galat);
@@ -130,8 +137,9 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
       const r = await aksiNonaktifkan(skemaId, nonaktif.id);
       if (!r.ok) {
         if ("terkunci" in r && r.terkunci) {
+          const b = nonaktif;
           setNonaktif(null);
-          return setTerkunci(true);
+          return setTerkunci(b);
         }
         return setGalatNonaktif(r.pesan);
       }
@@ -167,87 +175,70 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
     });
   }
 
-  const urlTemplat = `/tim-kerja/templat?skema=${skemaId}`;
-  const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}`;
-  const jumlahNonaktif = butir.filter((b) => b.status === "Nonaktif").length;
+  const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}&templat=${templatId}`;
+  const terlihat = butir.filter((b) => {
+    const tersorot = sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif");
+    if (tersorot) return true;
+    if (filterJenis && b.jenis !== filterJenis) return false;
+    return filterStatus ? b.status === filterStatus : b.status !== "Nonaktif";
+  });
   const kelasDaftar = (b: ButirTampil) => (b.status === "Perlu ditinjau" ? "bg-peringatan-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
 
   return (
     <>
-      <KepalaHalaman
-        kode="J-03"
-        judul="Aturan Pemeriksaan"
-        keterangan="Butir cek per skema dan periode seleksi."
-        remah={[{ label: "Aturan Pemeriksaan" }]}
-        aksi={
-          <>
-            {dasar ? (
-              <Link href={urlUji} className={kelasTombol("sekunder")}>
-                Uji pada Contoh
-              </Link>
-            ) : (
-              <Button varian="sekunder" disabled>
-                Uji pada Contoh
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
+          <span>
+            {namaSkema}, {periode.nama}
+          </span>
+          {nyata ? <span>Basis aturan berlaku: versi {nyata.versi}, sejak {formatTanggal(nyata.tanggalBerlaku)}.</span> : <span>Belum ada basis aturan.</span>}
+          {draf ? <Badge warna="netral">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {dasar ? (
+            <Link href={urlUji} className={kelasTombol("sekunder")}>
+              Uji pada Contoh
+            </Link>
+          ) : (
+            <Button varian="sekunder" disabled>
+              Uji pada Contoh
+            </Button>
+          )}
+          {hanyaBaca ? null : (
+            <>
+              <Button varian="sekunder" onClick={bukaTambah} disabled={sibuk}>
+                <Plus aria-hidden className="size-4" /> Tambah Butir
               </Button>
-            )}
-            <Button varian="sekunder" onClick={bukaTambah} disabled={sibuk}>
-              <Plus aria-hidden className="size-4" /> Tambah Butir
-            </Button>
-            <Button onClick={() => (setGalatVersi(null), setModalVersi(true))} disabled={sibuk || !draf} title={draf ? undefined : "Belum ada perubahan untuk disimpan sebagai versi baru"}>
-              Simpan Versi
-            </Button>
-          </>
-        }
-      />
+              <Button onClick={() => (setGalatVersi(null), setModalVersi(true))} disabled={sibuk || !draf} title={draf ? undefined : "Belum ada perubahan untuk disimpan sebagai versi baru"}>
+                Simpan Versi
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
-      <form method="get" className="mb-6 flex flex-wrap items-end gap-4">
-        <Pilihan label="Skema Pendanaan" name="skema" defaultValue={skemaId} className="w-full max-w-xs">
-          {skema.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.namaSkema}
-            </option>
-          ))}
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <Pilihan label="Jenis" name="filter-jenis" className="w-44" value={filterJenis} onChange={(e) => setFilterJenis(e.target.value as typeof filterJenis)}>
+          <option value="">Semua</option>
+          <option value="deterministik">Deterministik</option>
+          <option value="semantik">Semantik</option>
         </Pilihan>
-        <Pilihan label="Periode Seleksi" name="periode" defaultValue={periode.id} className="w-full max-w-md">
-          {periodeDaftar.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nama}
-            </option>
-          ))}
+        <Pilihan label="Status" name="filter-status" className="w-52" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatusButir)}>
+          <option value="">Semua (tanpa Nonaktif)</option>
+          <option value="Aktif">Aktif</option>
+          <option value="Draf">Draf</option>
+          <option value="Perlu ditinjau">Perlu ditinjau</option>
+          <option value="Nonaktif">Nonaktif</option>
         </Pilihan>
-        <Button type="submit" varian="sekunder">
-          Tampilkan
-        </Button>
-      </form>
+      </div>
 
       {berhasilVersi ? (
-        <Alert jenis="sukses" judul="Basis aturan versi baru tersimpan" className="mb-6">
+        <Alert jenis="sukses" judul="Basis aturan versi baru tersimpan" className="mb-4">
           Basis aturan versi {berhasilVersi.versi} tersimpan dan berlaku mulai {formatTanggal(berhasilVersi.tanggal)}.
         </Alert>
       ) : null}
 
-      <Bagian
-        judul={`Butir Cek ${namaSkema}`}
-        aksi={
-          jumlahNonaktif > 0 ? (
-            <KotakCentang id="tampil-nonaktif" label={`Tampilkan butir nonaktif (${jumlahNonaktif})`} checked={tampilNonaktif} onCheckedChange={(v) => setTampilNonaktif(v === true)} />
-          ) : undefined
-        }
-      >
-        <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-teks-redup">
-          {nyata ? (
-            <span>
-              Basis aturan berlaku: versi {nyata.versi}, sejak {formatTanggal(nyata.tanggalBerlaku)}.
-            </span>
-          ) : (
-            <span>Skema ini belum memiliki basis aturan.</span>
-          )}
-          {draf ? <Badge warna="netral">Versi {draf.versi} sedang disusun, belum berlaku</Badge> : null}
-          <Link href={urlTemplat} className="font-semibold text-primer-800 underline underline-offset-2">
-            Templat Proposal {namaSkema}
-          </Link>
-        </p>
-
+      <div>
         <Table>
           <THead>
             <TR>
@@ -263,16 +254,14 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
             </TR>
           </THead>
           <TBody>
-            {butir.length === 0 ? (
+            {terlihat.length === 0 ? (
               <TR>
                 <TD colSpan={7} className="py-6 text-center text-teks-redup">
-                  Belum ada butir cek. Terbitkan templat di Templat Proposal atau tekan &ldquo;Tambah Butir&rdquo;.
+                  {butir.length === 0 ? "Belum ada butir cek. Terbitkan templat atau tekan \u201CTambah Butir\u201D." : "Tidak ada butir yang cocok dengan penyaring."}
                 </TD>
               </TR>
             ) : null}
-            {butir
-              .filter((b) => tampilNonaktif || b.status !== "Nonaktif" || (!sorotBanyak && sorotSet.has(b.kode)))
-              .map((b) => (
+            {terlihat.map((b) => (
                 <TR key={b.id} id={`butir-${b.kode}`} tersorot={sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")} className={`scroll-mt-24 ${kelasDaftar(b) ?? ""}`}>
                   <TD className="whitespace-nowrap font-mono text-xs font-semibold">
                     <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline" translate="no">
@@ -283,9 +272,9 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                   <TD className="capitalize">{b.jenis}</TD>
                   <TD className="whitespace-nowrap">
                     {butirTerkunci(b.asal) ? (
-                      <Link href={urlTemplat} className="inline-flex items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat Templat Proposal">
+                      <button type="button" onClick={() => saatBukaAsal(b)} className="inline-flex cursor-pointer items-center gap-1 underline-offset-2 hover:underline" title="Nilai butir ini terkunci; ubah lewat bagian asalnya di templat">
                         <Lock aria-hidden className="size-4 text-teks-redup" /> templat<span className="sr-only"> (terkunci)</span>
-                      </Link>
+                      </button>
                     ) : (
                       "manual"
                     )}
@@ -300,7 +289,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
                     ) : null}
                   </TD>
                   <TD className="whitespace-nowrap">
-                    {b.status !== "Nonaktif" ? (
+                    {b.status !== "Nonaktif" && !hanyaBaca ? (
                       <span className="flex justify-end gap-1">
                         <Button varian="sekunder" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk} aria-label={`Ubah butir ${b.kode}`}>
                           Ubah
@@ -324,7 +313,7 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
               ))}
           </TBody>
         </Table>
-      </Bagian>
+      </div>
 
       {/* M-02 Form Butir (Tambah/Ubah) */}
       <Modal
@@ -442,17 +431,23 @@ export function PapanAturan({ skema, skemaId, periodeDaftar, periode, tampilan, 
       <Modal
         kode="M-04"
         ukuran="sm"
-        buka={terkunci}
-        saatUbah={setTerkunci}
+        buka={terkunci !== null}
+        saatUbah={(b) => !b && setTerkunci(null)}
         judul="Butir Turunan Templat"
         kaki={
           <>
-            <Button varian="sekunder" onClick={() => setTerkunci(false)}>
+            <Button varian="sekunder" onClick={() => setTerkunci(null)}>
               Tutup
             </Button>
-            <Link href={urlTemplat} className={kelasTombol("utama")}>
+            <Button
+              onClick={() => {
+                const b = terkunci;
+                setTerkunci(null);
+                if (b) saatBukaAsal(b);
+              }}
+            >
               Buka Templat Proposal
-            </Link>
+            </Button>
           </>
         }
       >

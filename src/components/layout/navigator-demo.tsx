@@ -91,6 +91,7 @@ function PenangkapCatatan() {
  */
 export function NavigatorDemo() {
   const jalur = usePathname();
+  const kueri = useSearchParams().toString();
   const router = useRouter();
   const terbuka = useSyncExternalStore(langganan, bacaTerbuka, () => false);
   const cookieSkenario = useSyncExternalStore(tanpaLangganan, bacaCookieSkenario, () => null);
@@ -102,7 +103,7 @@ export function NavigatorDemo() {
   const sebelumnyaTerbuka = useRef(false);
 
   const catatanSkenario = useCatatanSkenario(jalur);
-  const jendela = jendelaDariJalur(jalur);
+  const jendela = jendelaDariJalur(jalur, kueri);
   const [kodeCookie, idCookie] = cookieSkenario?.split("/") ?? [];
   const jendelaCookie = kodeCookie ? cariJendela(kodeCookie) : undefined;
   const skenarioCookie = kodeCookie && idCookie ? cariSkenario(kodeCookie, idCookie) : undefined;

@@ -7,7 +7,7 @@ import { and, eq, inArray, max } from "drizzle-orm";
 import { getDb } from "@/db";
 import { basisAturan, butirCek, dokumenContoh, periodeSeleksi, skemaPendanaan } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
-import { masaPengusulanBerjalan } from "@/lib/waktu";
+import { masaPengusulanBerjalanPada } from "@/lib/waktu";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
 import type { ButirCek, DokumenPeriksa, HasilUjiContoh, JenisButir, ParameterButir, StatusButir } from "@/lib/kontrak";
 import { ambilKonteksTemplat, ambilDrafTemplat, ambilTemplatBerlaku, type Pelaku } from "@/lib/templat/layanan";
@@ -116,8 +116,8 @@ export async function daftarButirBerlaku(skemaId: string, periodeId: string | nu
 }
 
 /** Pilihan "Bagian yang Diperiksa" dan "Lampiran yang Diperiksa" pada panel butir. */
-export async function pilihanBagianLampiran(skemaId: string): Promise<{ bagian: string[]; lampiran: string[] }> {
-  const t = (await ambilTemplatBerlaku(skemaId)) ?? (await ambilDrafTemplat(skemaId));
+export async function pilihanBagianLampiran(skemaId: string, periodeId?: string | null): Promise<{ bagian: string[]; lampiran: string[] }> {
+  const t = (await ambilTemplatBerlaku(skemaId, periodeId)) ?? (await ambilDrafTemplat(skemaId, periodeId));
   return { bagian: t?.bagian.map((b) => b.nama) ?? [], lampiran: t?.lampiranWajib ?? [] };
 }
 
@@ -317,7 +317,7 @@ export async function simpanVersiBaru(m: MasukanSimpanVersi): Promise<HasilSimpa
 
   const semua = await semuaBasisSkema(db, m.skemaId);
   const sebelumnya = semua.filter((b) => !adalahDraf(b)).sort((a, b) => b.versi - a.versi)[0];
-  const berjalan = m.masaBerjalan ?? (await masaPengusulanBerjalan()); // masaPengusulanBerjalan() pada periode
+  const berjalan = m.masaBerjalan ?? (await masaPengusulanBerjalanPada(m.periodeId)); // masaPengusulanBerjalan() pada periode
   const v = validasiTanggalBerlaku(m.tanggalBerlaku, periode, berjalan, sebelumnya?.tanggalBerlaku);
   if (!v.ok) return { ok: false, alasan: "tanggal", pesan: v.pesan }; // 8a: basis aturan tidak berubah
 

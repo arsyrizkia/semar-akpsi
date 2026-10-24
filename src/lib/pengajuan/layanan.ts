@@ -24,7 +24,7 @@ import { simpanBerkas } from "../berkas";
 import { bima, type RingkasanProposalBima } from "../bima/client";
 import { antrekanPemeriksaanSemantik } from "../kontrak";
 import { jalankanPemeriksaanDeterministik } from "../pemeriksa/deterministik";
-import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "../waktu";
+import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDemo } from "../waktu";
 import { adalahPengajuanPertama, hitungMasaPengusulan, statusSetelahPemeriksaan, transisiProposal } from "./aturan";
 import { ekstrakNaskah, ekstrakTeksLampiran } from "./ekstraksi";
 import { bagianDariBaris } from "../templat/isian-substansi";
@@ -45,7 +45,7 @@ export async function ambilPeriodeBerjalan(): Promise<Periode> {
   const [p] = await getDb()
     .select()
     .from(periodeSeleksi)
-    .where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`))
+    .where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka()))
     .orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka))
     .limit(1);
   if (!p) throw new Error("belum ada periode seleksi");

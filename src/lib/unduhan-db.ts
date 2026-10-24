@@ -1,6 +1,7 @@
 /** Pembacaan basis data untuk rute unduhan (api/semar/*). Fungsi murni ada di unduhan.ts. */
 import { and, asc, desc, eq, or } from "drizzle-orm";
 import { getDb } from "@/db";
+import { ambilPeriodeBerjalanId } from "@/lib/waktu";
 import { bagianTemplat, bimaBerkas, penugasanReviewer, periodeSeleksi, proposal, skemaPendanaan, templatProposal, versiProposal } from "@/db/schema";
 import type { BagianTemplatDto } from "@/lib/kontrak/tipe";
 import type { IdentitasTemplatDokumen, PaketDokumen, PeriodeDokumen, SkemaDokumen } from "@/lib/templat/dokumen";
@@ -41,7 +42,7 @@ export async function dataTemplatById(idTemplat: string): Promise<DataTemplatUnd
   return t ? lengkapiTemplat(t) : null;
 }
 
-/** Templat Terbit terbaru sebuah skema; `idSkema` boleh id (uuid) atau kode skema. */
+/** Templat Terbit sebuah skema untuk periode berjalan (selain itu yang terbaru); `idSkema` boleh id (uuid) atau kode skema. */
 export async function dataTemplatTerbit(idSkema: string): Promise<DataTemplatUnduh | null> {
   const db = getDb();
   const [skema] = await db
@@ -49,12 +50,14 @@ export async function dataTemplatTerbit(idSkema: string): Promise<DataTemplatUnd
     .from(skemaPendanaan)
     .where(adalahUuid(idSkema) ? or(eq(skemaPendanaan.id, idSkema), eq(skemaPendanaan.kode, idSkema)) : eq(skemaPendanaan.kode, idSkema));
   if (!skema) return null;
-  const [t] = await db
+  const daftar = await db
     .select()
     .from(templatProposal)
     .where(and(eq(templatProposal.skemaId, skema.id), eq(templatProposal.status, "Terbit")))
-    .orderBy(desc(templatProposal.versi))
-    .limit(1);
+    .orderBy(desc(templatProposal.versi));
+  // Aktif per periode: yang berlaku untuk periode berjalan didahulukan, bukan sekadar versi tertinggi
+  const berjalan = await ambilPeriodeBerjalanId();
+  const t = daftar.find((x) => x.periodeBerlakuId === berjalan) ?? daftar[0];
   return t ? lengkapiTemplat(t) : null;
 }
 

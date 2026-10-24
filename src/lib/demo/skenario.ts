@@ -684,7 +684,7 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     }
 
     /* layar turunan (b): menyiapkan keadaan induknya lalu membuka layar turunan itu */
-    case "J-02b/draf": {
+    case "J-02a/draf": {
       const h = await siapkanSkenario("J-02", "draf-tersimpan");
       const [skemaPd] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
       const [draf] = await db
@@ -692,11 +692,11 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
         .from(s.templatProposal)
         .where(and(eq(s.templatProposal.skemaId, skemaPd.id), eq(s.templatProposal.status, "Draf")))
         .limit(1);
-      return { ...h, tujuan: draf ? `/tim-kerja/templat/${draf.id}/susun` : h.tujuan, catatan: "Draf versi berikutnya skema PD terbuka di layar penyusunan; Unduh Pratinjau (.docx) dan Terbitkan tersedia di sini." };
+      return { ...h, tujuan: draf ? `/tim-kerja/templat/${draf.id}` : h.tujuan, catatan: "Draf versi berikutnya skema PD terbuka di rincian templat; Unduh Pratinjau (.docx) dan Terbitkan tersedia di sini." };
     }
     case "J-03b/hasil": {
       const h = await siapkanSkenario("J-03", "normal");
-      return { ...h, tujuan: (await tujuanAturan()).replace("/tim-kerja/aturan?", "/tim-kerja/aturan/uji?"), catatan: "Laporan Uji pada Contoh atas contoh A, B, dan C; Kembali ke Aturan Pemeriksaan membuka J-03." };
+      return { ...h, tujuan: (await tujuanAturan()).replace("/tim-kerja/aturan?", "/tim-kerja/aturan/uji?"), catatan: "Laporan Uji pada Contoh atas contoh A, B, dan C; Kembali ke Aturan Pemeriksaan membuka tab Aturan (J-03)." };
     }
     case "J-04b/siap":
     case "J-04b/menunggu":

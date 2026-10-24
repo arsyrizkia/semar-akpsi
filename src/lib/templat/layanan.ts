@@ -7,7 +7,7 @@ import { and, desc, eq, inArray, max, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposal } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
-import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
+import { masaPengusulanBerjalan, masaPengusulanBerjalanPada, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
@@ -15,6 +15,7 @@ import { bagianDariBaris, kepalaDariBaris, keKolomBagian } from "./isian-substan
 import { kopDariBaris, lampiranDariBaris, type KopTemplat, type LampiranTemplat } from "./paket";
 import { batasKataValid, bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
 import { putuskanTerbitkan } from "./status";
+import type { BarisDaftar } from "./daftar";
 
 export interface Pelaku {
   /** akun.id; boleh null (mis. pada pengujian) */
@@ -91,27 +92,32 @@ async function muatTemplat(db: Db, t: typeof templatProposal.$inferSelect): Prom
   };
 }
 
-/** ambilTemplatBerlaku: templat berstatus Terbit untuk skema (null = skema belum punya templat, SubFlow S-1). */
-export async function ambilTemplatBerlaku(skemaId: string): Promise<TemplatTampil | null> {
+/**
+ * ambilTemplatBerlaku: templat berstatus Terbit (Aktif) untuk skema (null = skema belum punya templat, SubFlow S-1).
+ * Aktif dihitung per periode: satu skema boleh punya satu templat Aktif untuk tiap periode. Dengan `periodeId`, templat
+ * Aktif periode itu didahulukan; selain itu atau bila tidak ada, templat Aktif dengan versi terbaru.
+ */
+export async function ambilTemplatBerlaku(skemaId: string, periodeId?: string | null): Promise<TemplatTampil | null> {
   const db = getDb();
-  const [t] = await db
+  const daftar = await db
     .select()
     .from(templatProposal)
     .where(and(eq(templatProposal.skemaId, skemaId), eq(templatProposal.status, "Terbit")))
-    .orderBy(desc(templatProposal.versi))
-    .limit(1);
+    .orderBy(desc(templatProposal.versi));
+  const t = (periodeId ? daftar.find((x) => x.periodeBerlakuId === periodeId) : undefined) ?? daftar[0];
   return t ? muatTemplat(db, t) : null;
 }
 
 /** Draf tersimpan (hasil "Susun Versi Baru" atau alur 9a); sequence diagram S-3. */
-export async function ambilDrafTemplat(skemaId: string): Promise<TemplatTampil | null> {
+export async function ambilDrafTemplat(skemaId: string, periodeId?: string | null): Promise<TemplatTampil | null> {
   const db = getDb();
-  const [t] = await db
+  const daftar = await db
     .select()
     .from(templatProposal)
     .where(and(eq(templatProposal.skemaId, skemaId), eq(templatProposal.status, "Draf")))
-    .orderBy(desc(templatProposal.versi))
-    .limit(1);
+    .orderBy(desc(templatProposal.versi));
+  // draf per periode: draf tanpa periode juga cocok (belum ditetapkan)
+  const t = periodeId === undefined ? daftar[0] : daftar.find((x) => x.periodeBerlakuId === periodeId || x.periodeBerlakuId === null);
   return t ? muatTemplat(db, t) : null;
 }
 
@@ -128,12 +134,12 @@ export async function ambilKonteksTemplat(skemaId: string): Promise<{ bagianTemp
  * "Susun Versi Baru" (langkah 4): templat Draf bernomor versi berikutnya, isian awal disalin dari templat yang berlaku.
  * Bila skema sudah punya draf tersimpan, draf itu dibuka kembali (S-3). Skema tanpa templat menghasilkan versi 1 (S-1).
  */
-export async function susunVersiBaru(skemaId: string, pelaku: Pelaku): Promise<{ templat: TemplatTampil; dilanjutkan: boolean }> {
+export async function susunVersiBaru(skemaId: string, pelaku: Pelaku, periodeId: string | null = null): Promise<{ templat: TemplatTampil; dilanjutkan: boolean }> {
   const db = getDb();
-  const draf = await ambilDrafTemplat(skemaId);
+  const draf = await ambilDrafTemplat(skemaId, periodeId);
   if (draf) return { templat: draf, dilanjutkan: true };
 
-  const berlaku = await ambilTemplatBerlaku(skemaId);
+  const berlaku = await ambilTemplatBerlaku(skemaId, periodeId);
   const [{ nilai }] = await db.select({ nilai: max(templatProposal.versi) }).from(templatProposal).where(eq(templatProposal.skemaId, skemaId));
   const versi = (nilai ?? 0) + 1;
 
@@ -144,7 +150,7 @@ export async function susunVersiBaru(skemaId: string, pelaku: Pelaku): Promise<{
         skemaId,
         versi,
         status: "Draf",
-        periodeBerlakuId: null,
+        periodeBerlakuId: periodeId,
         lampiranWajib: berlaku?.lampiranWajib ?? [],
         dibuatOleh: pelaku.id,
         ...(berlaku ? { judulDokumen: berlaku.kepala.judulDokumen, subjudul: berlaku.kepala.subjudul, pengantar: berlaku.kepala.pengantar, kop: berlaku.kop, lampiranTemplat: berlaku.lampiranTemplat } : {}),
@@ -210,7 +216,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
 
   await simpanIsian(db, t.id, m.isian);
 
-  const berjalan = m.masaBerjalan ?? (await cekPengusulanBerjalan()); // langkah 8
+  const berjalan = m.masaBerjalan ?? (await masaPengusulanBerjalanPada(m.isian.periodeBerlakuId)); // langkah 8 (per periode)
   if (putuskanTerbitkan({ lengkap: true, masaBerjalan: berjalan }) === "draf-disimpan") {
     // 9a: tetap Draf, templat yang berlaku tidak berubah, butir tidak diturunkan
     await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.simpan-draf", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, alasan: "masa pengusulan berjalan" } });
@@ -226,7 +232,7 @@ export async function terbitkan(m: MasukanTerbitkan): Promise<HasilTerbitkan> {
     const lama = await tx
       .select()
       .from(templatProposal)
-      .where(and(eq(templatProposal.skemaId, m.skemaId), eq(templatProposal.status, "Terbit")));
+      .where(and(eq(templatProposal.skemaId, m.skemaId), eq(templatProposal.status, "Terbit"), m.isian.periodeBerlakuId ? eq(templatProposal.periodeBerlakuId, m.isian.periodeBerlakuId) : undefined));
     const drafBasis = await pastikanDrafBasis(tx, m.skemaId, m.pelaku.id);
     await gantiTemplatBerlaku(tx, { baruId: t.id, lamaIds: lama.map((l) => l.id), drafBasisId: drafBasis.id, waktu });
 
@@ -299,6 +305,41 @@ export async function daftarVersiTemplat(skemaId: string): Promise<VersiTemplatB
   }));
 }
 
+/** Semua versi templat semua skema untuk J-02 Daftar Templat, dengan jumlah butir cek turunan (deterministik, semantik). */
+export async function daftarSemuaTemplat(): Promise<BarisDaftar[]> {
+  const db = getDb();
+  const [templat, skema, periode, bagian] = await Promise.all([
+    db.select().from(templatProposal),
+    db.select().from(skemaPendanaan),
+    db.select().from(periodeSeleksi),
+    db.select().from(bagianTemplat).orderBy(bagianTemplat.urutan),
+  ]);
+  const namaSkema = new Map(skema.map((s) => [s.id, s.namaSkema]));
+  const per = new Map(periode.map((p) => [p.id, p]));
+  const bagianPer = new Map<string, (typeof bagian)[number][]>();
+  for (const b of bagian) bagianPer.set(b.templatId, [...(bagianPer.get(b.templatId) ?? []), b]);
+  return templat.map((t) => {
+    const bg = (bagianPer.get(t.id) ?? []).map(bagianDariBaris);
+    const turunan = turunkanButirDariTemplat(bg, t.lampiranWajib, lampiranDariBaris(t.lampiranTemplat, t.lampiranWajib));
+    const sem = turunan.filter((b) => b.jenis === "semantik").length;
+    const p = t.periodeBerlakuId ? per.get(t.periodeBerlakuId) : undefined;
+    return {
+      id: t.id,
+      skemaId: t.skemaId,
+      namaSkema: namaSkema.get(t.skemaId) ?? "",
+      versi: t.versi,
+      status: t.status,
+      tahun: p?.tahun ?? null,
+      periodeId: t.periodeBerlakuId,
+      periodeNama: p?.nama ?? null,
+      jumlahBagian: bg.length,
+      jumlahDeterministik: turunan.length - sem,
+      jumlahSemantik: sem,
+      diperbarui: (t.diterbitkanPada ?? t.dibuatPada).toISOString(),
+    };
+  });
+}
+
 /** Templat menurut id (versi mana pun) beserta skemanya; null bila tidak ada atau id bukan uuid. */
 export async function ambilTemplatPerId(templatId: string): Promise<{ templat: TemplatTampil; skemaId: string } | null> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templatId)) return null;
@@ -338,6 +379,7 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /** cekPengusulanBerjalan() (seq-uc01 langkah 8): nama metode sequence untuk masaPengusulanBerjalan. */
 export const cekPengusulanBerjalan = masaPengusulanBerjalan;
+export { masaPengusulanBerjalanPada };
 
 /** turunkanButirCek() (seq-uc01 langkah 10): butir cek terkunci (asal templat) dari bagian dan lampiran wajib. */
 export const turunkanButirCek = turunkanButirDariTemplat;

@@ -56,46 +56,47 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
   },
   {
     kode: "J-02",
-    nama: "Templat Proposal",
+    nama: "Templat Proposal (daftar)",
     peran: "Tim Kerja (pengelola)",
     rute: [],
-    pola: "^/tim-kerja/templat/?$",
+    pola: "^/tim-kerja/templat/?(\\?.*)?$",
     peranSesi: "tim_kerja",
     hanyaPengelola: true,
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/templat",
     skenario: [
-      { id: "normal", nama: "Templat berlaku", ringkas: "Skema PD punya templat terbit; masa pengusulan ditutup (Terbitkan berakhir di jalur utama)." },
-      { id: "tanpa-templat", nama: "Skema belum punya templat (S-1)", ringkas: "Skema PK tanpa templat; Susun Versi Baru membuat versi 1." },
-      { id: "masa-berjalan", nama: "Masa pengusulan berjalan (9a)", ringkas: "Terbitkan menyimpan templat sebagai draf untuk periode berikutnya." },
+      { id: "normal", nama: "Templat berlaku", ringkas: "Skema PD punya templat Aktif; masa pengusulan ditutup (Terbitkan berakhir di jalur utama)." },
+      { id: "tanpa-templat", nama: "Skema belum punya templat (S-1)", ringkas: "Skema PK tanpa templat; Templat Baru membuat versi 1." },
+      { id: "masa-berjalan", nama: "Masa pengusulan berjalan (9a)", ringkas: "Terbitkan untuk periode berjalan menyimpan templat sebagai draf; periode 2027 tidak terpengaruh." },
       { id: "draf-tersimpan", nama: "Draf tersimpan", ringkas: "Draf versi berikutnya sudah ada dan dibuka kembali." },
     ],
   },
   {
-    kode: "J-02b",
-    nama: "Penyusunan Templat",
+    kode: "J-02a",
+    nama: "Rincian Templat (tab Bagian, Lampiran, Halaman Depan)",
     peran: "Tim Kerja (pengelola)",
     induk: "J-02",
     rute: [],
-    pola: "^/tim-kerja/templat/[^/]+/susun",
+    pola: "^/tim-kerja/templat/[^/]+/?(\\?.*)?$",
     peranSesi: "tim_kerja",
     hanyaPengelola: true,
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/templat",
-    skenario: [{ id: "draf", nama: "Draf versi baru terbuka", ringkas: "Draf versi berikutnya skema PD disiapkan dan dibuka di layar penyusunan." }],
+    skenario: [{ id: "draf", nama: "Draf versi baru terbuka", ringkas: "Draf versi berikutnya skema PD disiapkan dan dibuka di rincian templat." }],
   },
   {
     kode: "J-03",
-    nama: "Aturan Pemeriksaan",
+    nama: "Aturan Pemeriksaan (tab di J-02a)",
     peran: "Tim Kerja (pengelola)",
+    induk: "J-02a",
     rute: [],
-    pola: "^/tim-kerja/aturan/?$",
+    pola: "^/tim-kerja/templat/[^/]+/?\\?(.*&)?tab=aturan(&.*)?$",
     peranSesi: "tim_kerja",
     hanyaPengelola: true,
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/aturan",
     skenario: [
-      { id: "normal", nama: "Normal", ringkas: "Tabel butir skema PD; masa pengusulan ditutup." },
+      { id: "normal", nama: "Normal", ringkas: "Tab Aturan Pemeriksaan skema PD pada templat Aktif; masa pengusulan ditutup." },
       { id: "perlu-ditinjau", nama: "Ada butir Perlu ditinjau (dari UC-04)", ringkas: "Satu butir manual ditandai Perlu ditinjau dari J-05." },
       { id: "uji-tanggal", nama: "Uji tanggal berlaku (8a)", ringkas: "Masa pengusulan berjalan; tanggal berlaku di tengah masa ditolak." },
     ],
@@ -277,8 +278,10 @@ export function cariSkenario(kodeJendela: string, id: string): SkenarioDemo | un
 }
 
 /** Jendela yang sedang dibuka menurut alamat halaman: pola (layar turunan dan layar induk persis) didahulukan, lalu awalan terpanjang. */
-export function jendelaDariJalur(jalur: string): JendelaDemo | undefined {
-  const lewatPola = KATALOG_JENDELA.find((j) => j.pola && new RegExp(j.pola).test(jalur));
+export function jendelaDariJalur(jalur: string, kueri = ""): JendelaDemo | undefined {
+  // pola menguji jalur beserta kueri ("/jalur?tab=aturan") supaya tab J-03 dibedakan dari J-02a; pola terpanjang (paling khusus) menang
+  const lengkap = kueri ? `${jalur}?${kueri}` : jalur;
+  const lewatPola = KATALOG_JENDELA.filter((j) => j.pola && new RegExp(j.pola).test(lengkap)).sort((a, b) => (b.pola?.length ?? 0) - (a.pola?.length ?? 0))[0];
   if (lewatPola) return lewatPola;
   let terbaik: { j: JendelaDemo; panjang: number } | undefined;
   for (const j of KATALOG_JENDELA) {

@@ -5,7 +5,7 @@ import { akun as tabelAkun, penugasanReviewer, periodeSeleksi, proposal, skemaPe
 import { ambilSesi, pastikanAkunDariBima, type SesiSemar } from "@/lib/auth";
 import { COOKIE_BIMA, COOKIE_SEMAR, buatSesiBima, buatSesiSemar, opsiCookie } from "@/lib/sesi";
 import { cariJendela, type JendelaDemo } from "@/lib/demo/katalog";
-import { ambilPeriodeAktif } from "@/lib/waktu";
+import { ambilPeriodeAktif, periodeSudahDibuka } from "@/lib/waktu";
 
 export const dynamic = "force-dynamic";
 
@@ -37,18 +37,18 @@ export async function GET(req: NextRequest) {
 
     let tujuan = jendela.alamatPindah;
     // id layar dicari dari data yang sudah ada; bila belum ada, jatuh ke layar induk
-    if (jendela.kode === "J-02b") {
+    if (jendela.kode === "J-02a") {
       const [d] = await db.select({ id: templatProposal.id }).from(templatProposal).where(eq(templatProposal.status, "Draf")).orderBy(desc(templatProposal.dibuatPada)).limit(1);
-      if (d) tujuan = `/tim-kerja/templat/${d.id}/susun`;
+      if (d) tujuan = `/tim-kerja/templat/${d.id}`;
     } else if (jendela.kode === "J-03" || jendela.kode === "J-03b") {
-      const [periode] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+      const [periode] = await db.select().from(periodeSeleksi).where(periodeSudahDibuka()).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
       const [skema] = await db.select().from(skemaPendanaan).where(eq(skemaPendanaan.kode, "PD"));
       if (periode && skema) tujuan = `/tim-kerja/aturan${jendela.kode === "J-03b" ? "/uji" : ""}?skema=${skema.id}&periode=${periode.id}`;
     } else if (jendela.kode === "J-04b") {
       const periode = await ambilPeriodeAktif();
       if (periode) tujuan = `/tim-kerja/penugasan/${periode.id}`;
     } else if (jendela.kode === "J-05") {
-      const [periode] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+      const [periode] = await db.select().from(periodeSeleksi).where(periodeSudahDibuka()).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
       const [skema] = await db.select().from(skemaPendanaan).where(eq(skemaPendanaan.kode, "PD"));
       if (periode && skema) tujuan = `/tim-kerja/pemantauan?skema=${skema.id}&periode=${periode.id}`;
     } else if (jendela.kode === "J-05b") {

@@ -9,7 +9,7 @@ import { akun, penugasanReviewer, periodeSeleksi, proposal, skemaPendanaan, vers
 import { pastikanAkunMassal } from "@/lib/auth";
 import { bima, BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
-import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
+import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
 import { periksaSyarat, susunUsulanMurni } from "./aturan";
 import { bolehDipindahkan } from "./status";
@@ -451,7 +451,7 @@ export async function ambilRingkasanPeriode(periodeId: string): Promise<Ringkasa
 export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriode[]; jumlahBerjalan: number }> {
   const db = getDb();
   const [semua, berjalan, sekarang] = await Promise.all([
-    db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)),
+    db.select().from(periodeSeleksi).where(periodeSudahDibuka()).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)),
     masaPengusulanBerjalan(),
     waktuDemo(),
   ]);

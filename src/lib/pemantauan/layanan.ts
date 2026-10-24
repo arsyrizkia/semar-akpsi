@@ -18,12 +18,12 @@ import {
   versiProposal,
 } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
-import { NAMA_PERIODE_SKALA } from "@/lib/waktu";
+import { NAMA_PERIODE_SKALA, periodeSudahDibuka } from "@/lib/waktu";
 import { pilahButirDitandai } from "./status-butir";
 import { rekapKesesuaian, type BarisGagal, type BarisNilai, type HasilRekap, type InfoButir } from "./rekap";
 
 export async function daftarPeriode() {
-  return getDb().select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
+  return getDb().select().from(periodeSeleksi).where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka())).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
 }
 
 export async function daftarSkema() {

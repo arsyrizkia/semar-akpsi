@@ -3,8 +3,9 @@
  * Prototipe hanya memiliki satu periode berjalan: sakelar masaPengusulan adalah penentu tunggal
  * apakah pengusulan dianggap berjalan atau ditutup; geserHari menggeser tampilan/perhitungan tanggal.
  */
-import { desc, eq, notLike } from "drizzle-orm";
+import { and, desc, eq, lte, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
+import { masaBerjalanUntuk } from "@/lib/templat/daftar";
 import { pengaturanDemo, periodeSeleksi } from "@/db/schema";
 
 export type PengaturanDemo = typeof pengaturanDemo.$inferSelect;
@@ -25,7 +26,7 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
   if (ubah.masaPengusulan) {
     // Sakelar masa menggeser tanggalTutup periode berjalan supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
     // dengan statusnya: "ditutup" = tanggalTutup semenit lalu (hari ini); "berjalan" = tanggalTutup dua pekan lagi.
-    const [p] = await db.select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+    const [p] = await db.select().from(periodeSeleksi).where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka())).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
     if (p) {
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
@@ -41,6 +42,30 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
     .update(pengaturanDemo)
     .set({ ...ubah, diperbaruiPada: new Date() })
     .where(eq(pengaturanDemo.id, 1));
+}
+
+/**
+ * Syarat "periode sudah dibuka" (tanggal buka sudah lewat). Periode mendatang (mis. Seleksi Pendanaan 2027, belum dibuka)
+ * hanya muncul di pilihan Periode Berlaku templat; jendela lain yang memakai "periode berjalan/terbaru" mengabaikannya.
+ */
+export const periodeSudahDibuka = () => lte(periodeSeleksi.tanggalBuka, new Date());
+
+/** Id periode berjalan: periode nonskala terbaru yang sudah dibuka (null bila belum ada periode). */
+export async function ambilPeriodeBerjalanId(): Promise<string | null> {
+  const [p] = await getDb()
+    .select({ id: periodeSeleksi.id })
+    .from(periodeSeleksi)
+    .where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka()))
+    .orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka))
+    .limit(1);
+  return p?.id ?? null;
+}
+
+export { masaBerjalanUntuk };
+
+/** masaPengusulanBerjalan() khusus satu periode (9a UC-01, 8a UC-02). */
+export async function masaPengusulanBerjalanPada(periodeId: string | null): Promise<boolean> {
+  return masaBerjalanUntuk(await masaPengusulanBerjalan(), periodeId, await ambilPeriodeBerjalanId());
 }
 
 /** Waktu sekarang menurut jam demo. */
@@ -67,7 +92,7 @@ export async function ambilPeriodeAktif(): Promise<PeriodeSeleksi | null> {
     const [p] = await db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeAktifId));
     if (p) return p;
   }
-  const [terbaru] = await db.select().from(periodeSeleksi).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
+  const [terbaru] = await db.select().from(periodeSeleksi).where(periodeSudahDibuka()).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
   return terbaru ?? null;
 }
 

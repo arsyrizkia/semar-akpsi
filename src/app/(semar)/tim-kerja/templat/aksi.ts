@@ -7,11 +7,11 @@ import type { MasukanKelengkapan } from "@/lib/templat/kelengkapan";
 export type HasilSusun = { ok: true; templat: TemplatTampil; dilanjutkan: boolean } | { ok: false; pesan: string };
 
 /** Tombol "Susun Versi Baru" (UC-01 langkah 4, S-1, S-3). */
-export async function aksiSusunVersiBaru(skemaId: string): Promise<HasilSusun> {
+export async function aksiSusunVersiBaru(skemaId: string, periodeId: string | null = null): Promise<HasilSusun> {
   const pelaku = await pelakuPengelola();
   if (!pelaku) return { ok: false, pesan: PESAN_BUKAN_PENGELOLA };
   try {
-    const r = await susunVersiBaru(skemaId, pelaku);
+    const r = await susunVersiBaru(skemaId, pelaku, periodeId);
     return { ok: true, ...r };
   } catch (e) {
     return { ok: false, pesan: e instanceof Error ? e.message : "Gagal menyusun versi baru." };
