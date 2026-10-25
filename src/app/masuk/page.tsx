@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MasukCepat } from "@/components/layout/masuk-cepat";
 import { LogoSemar, SemarIlustrasi } from "@/components/merek";
 import { Alert, Button } from "@/components/ui";
 import { ambilSesi, targetSetelahMasuk } from "@/lib/auth";
+import { kelompokMasukCepat } from "@/lib/bima/sesi";
 import { jalurAman } from "@/lib/sesi";
 
 export const metadata: Metadata = { title: "J-01 Masuk" };
@@ -12,12 +14,19 @@ export const dynamic = "force-dynamic";
 /**
  * J-01 Masuk: Tim Kerja DPPM dan Reviewer. Pengusul tidak memakai jendela ini (mereka masuk dari BIMA langsung ke J-06).
  * Merek dan ilustrasi hanya di panel kiri (area merek, berkawung); sisi kanan bersih: satu judul, satu tombol, satu tautan demo.
+ * Popup "Masuk cepat (demo)" di kanan bawah langsung memasang sesi lewat SSO BIMA tiruan; akun pengusul diarahkan ke BIMA.
  */
 export default async function Masuk({ searchParams }: { searchParams: Promise<{ galat?: string; lanjut?: string }> }) {
   const { galat, lanjut: lanjutMentah } = await searchParams;
   const lanjut = jalurAman(lanjutMentah, "");
   const sesi = await ambilSesi();
   if (sesi) redirect(lanjut || targetSetelahMasuk(sesi.akun));
+  const { kelompok, tersembunyi } = await kelompokMasukCepat({
+    kembali: "/api/sso/callback",
+    lanjut,
+    kembaliPengusul: "/bima/pengajuan",
+    catatanPengusul: "Pengusul masuk ke BIMA, lalu membuka SEMAR dari halaman proposal.",
+  });
 
   return (
     <div className="grid min-h-dvh grid-rows-[auto_1fr] lg:grid-rows-1 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
@@ -56,6 +65,7 @@ export default async function Masuk({ searchParams }: { searchParams: Promise<{ 
           </p>
         </div>
       </main>
+      <MasukCepat kelompok={kelompok} tersembunyi={tersembunyi} />
     </div>
   );
 }

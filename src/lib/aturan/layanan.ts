@@ -10,7 +10,8 @@ import { catatLogAudit } from "@/lib/audit";
 import { masaPengusulanBerjalanPada } from "@/lib/waktu";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
 import type { ButirCek, DokumenPeriksa, HasilUjiContoh, JenisButir, ParameterButir, StatusButir } from "@/lib/kontrak";
-import { ambilKonteksTemplat, ambilDrafTemplat, ambilTemplatBerlaku, type Pelaku } from "@/lib/templat/layanan";
+import { ambilKonteksTemplat, ambilDrafTemplat, ambilTemplatBerlaku, ambilTemplatPerId, type Pelaku } from "@/lib/templat/layanan";
+import { turunkanButirDariTemplat, type ButirSeed } from "@/lib/seed-butir";
 import {
   adalahDraf,
   ambilDrafBasis,
@@ -237,6 +238,17 @@ export async function nonaktifkanButir(m: { skemaId: string; butirId: string; pe
 
 /* ------------------------------ Uji pada Contoh ------------------------------ */
 
+/** Baris J-03b: butir yang diuji (pratinjau turunan templat Draf memakai id "pratinjau-<kode>"). */
+export interface ButirUji {
+  id: string;
+  kode: string;
+  deskripsi: string;
+  status: StatusButir;
+}
+
+/** Asal butir yang diuji: isian tersimpan templat Draf (sama dengan tab Aturan) atau basis aturan (templat Terbit/Arsip). */
+export type SumberUji = { jenis: "templat-draf"; versi: number } | { jenis: "basis"; versi: number; tanggalBerlaku: string | null };
+
 export interface HasilUji {
   contoh: HasilUjiContoh[];
   /** true bila skema belum punya contoh sendiri sehingga semua contoh dipakai */
@@ -245,6 +257,9 @@ export interface HasilUji {
   peringatan: string[];
   /** kode butir yang diuji */
   jumlahButir: number;
+  /** butir yang diuji, urut baris J-03b */
+  butir: ButirUji[];
+  sumber: SumberUji | null;
 }
 
 function keDto(b: BarisButir): ButirCek {
@@ -264,17 +279,50 @@ function keDto(b: BarisButir): ButirCek {
   };
 }
 
-/** Tombol "Uji pada Contoh": butir versi yang sedang disusun (atau yang berlaku) diterapkan pada dokumen_contoh. */
-export async function ujiPadaContoh(skemaId: string, periodeId: string | null): Promise<HasilUji> {
+/** Butir turunan isian templat Draf sebagai DTO pemeriksa (belum tersimpan di basis aturan, berstatus Draf). */
+function turunanKeDto(t: ButirSeed): ButirCek {
+  return {
+    id: `pratinjau-${t.kode}`,
+    kode: t.kode,
+    deskripsi: t.deskripsi,
+    jenis: t.jenis,
+    asal: "templat",
+    komponen: t.komponen,
+    pemeriksa: t.pemeriksa,
+    parameter: t.parameter,
+    aturanHitung: t.aturanHitung,
+    pertanyaan: t.pertanyaan,
+    contohJawaban: t.contohJawaban,
+    status: "Draf",
+  };
+}
+
+/**
+ * Tombol "Uji pada Contoh". Dengan `templatId` templat Draf, butir yang diuji sama dengan tab Aturan templat itu: turunan isian
+ * tersimpan ditambah butir manual basis aturan. Selain itu butir versi yang sedang disusun (atau yang berlaku) diterapkan pada
+ * dokumen_contoh skema tersebut.
+ */
+export async function ujiPadaContoh(skemaId: string, periodeId: string | null, templatId?: string | null): Promise<HasilUji> {
   const db = getDb();
   const semua = await semuaBasisSkema(db, skemaId);
   const dasar = semua.find(adalahDraf) ?? pilihBasisNyata(semua, periodeId);
   const peringatan: string[] = [];
-  if (!dasar) return { contoh: [], semuaContoh: false, peringatan: ["Skema ini belum memiliki basis aturan untuk diuji."], jumlahButir: 0 };
+  const asal = templatId ? await ambilTemplatPerId(templatId) : null;
+  const templat = asal?.skemaId === skemaId ? asal.templat : null;
 
-  const butir = (await butirBasis(db, dasar.id)).filter((b) => b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan);
-  const det = butir.filter((b) => b.jenis === "deterministik").map(keDto);
-  const sem = butir.filter((b) => b.jenis === "semantik").map(keDto);
+  let butir: ButirCek[];
+  let sumber: SumberUji;
+  if (templat?.status === "Draf") {
+    const manual = dasar ? (await butirBasis(db, dasar.id)).filter((b) => b.asal === "manual" && b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan) : [];
+    butir = [...turunkanButirDariTemplat(templat.bagian).map(turunanKeDto), ...manual.map(keDto)];
+    sumber = { jenis: "templat-draf", versi: templat.versi };
+  } else {
+    if (!dasar) return { contoh: [], semuaContoh: false, peringatan: ["Skema ini belum memiliki basis aturan untuk diuji."], jumlahButir: 0, butir: [], sumber: null };
+    butir = (await butirBasis(db, dasar.id)).filter((b) => b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan).map(keDto);
+    sumber = { jenis: "basis", versi: dasar.versi, tanggalBerlaku: info(dasar).tanggalBerlaku };
+  }
+  const det = butir.filter((b) => b.jenis === "deterministik");
+  const sem = butir.filter((b) => b.jenis === "semantik");
 
   let dokumen = await db.select().from(dokumenContoh).where(eq(dokumenContoh.skemaId, skemaId));
   let semuaContoh = false;
@@ -285,7 +333,7 @@ export async function ujiPadaContoh(skemaId: string, periodeId: string | null): 
   dokumen.sort((a, b) => a.kode.localeCompare(b.kode));
   if (dokumen.length === 0) peringatan.push("Belum ada contoh proposal yang tersimpan di sistem.");
 
-  const konteks = await ambilKonteksTemplat(skemaId);
+  const konteks = templat ? { bagianTemplat: templat.bagian } : await ambilKonteksTemplat(skemaId);
   const hasil = await Promise.all(
     dokumen.map(async (d): Promise<HasilUjiContoh> => {
       const dok: DokumenPeriksa = {
@@ -317,7 +365,14 @@ export async function ujiPadaContoh(skemaId: string, periodeId: string | null): 
       return { dokumenKode: d.kode, dokumenNama: d.nama, deterministik, semantik };
     }),
   );
-  return { contoh: hasil, semuaContoh, peringatan: [...new Set(peringatan)], jumlahButir: butir.length };
+  return {
+    contoh: hasil,
+    semuaContoh,
+    peringatan: [...new Set(peringatan)],
+    jumlahButir: butir.length,
+    butir: butir.map((b) => ({ id: b.id, kode: b.kode, deskripsi: b.deskripsi, status: b.status })),
+    sumber,
+  };
 }
 
 /* ------------------------------ Simpan Versi ------------------------------ */

@@ -1660,7 +1660,9 @@ async function utama() {
       await buka(page, url("/demo/mulai?j=BIMA-2&s=normal"), "Ringkasan");
       const totalSetelah = Number((await page.$eval("[data-testid=total-penugasan]", (e) => e.textContent ?? "0")).replace(/\./g, ""));
       yakin(totalSetelah >= 10_000, `kotak masuk B-2 hanya memuat ${totalSetelah} penugasan; data skala nyata terhapus`);
-      await buka(page, url("/bima/masuk"), "Masuk (simulasi)");
+      await buka(page, url("/bima/masuk"), "Nama pengguna");
+      await page.click("[data-testid=masuk-cepat-pil]");
+      await page.waitForSelector("[data-testid=masuk-cepat-panel]", { timeout: 10_000 });
       const ketSembunyi = await page.$eval("[data-testid=akun-skala-tersembunyi]", (e) => e.textContent ?? "");
       yakin(ketSembunyi.includes("130 akun reviewer skala nyata disembunyikan"), `keterangan akun tersembunyi salah: ${ketSembunyi}`);
       const jumlahAkun = await page.$$eval("a[href*='/api/bima/sesi/masuk']", (a) => a.length);
@@ -1708,12 +1710,23 @@ async function utama() {
       await page.goto(url("/tim-kerja/aturan?butir=UNS-01"), { waitUntil: "domcontentloaded" });
       await page.waitForFunction(() => location.pathname === "/masuk" && location.search.includes("lanjut="), { timeout: 30_000 });
       await klik(page, "Masuk dengan akun BIMA");
-      await adaTeks(page, "Masuk (simulasi)");
-      const href = await page.$eval("a[href*='idBima=dppm-pengelola']", (a) => a.getAttribute("href"));
-      yakin(href && href.includes("lanjut="), `akun BIMA tidak membawa tujuan: ${href}`);
-      await page.evaluate((h) => (document.querySelector(`a[href='${h}']`) as HTMLElement).click(), href);
+      await adaTeks(page, "Nama pengguna");
+      await page.click("[data-testid=masuk-cepat-pil]");
+      await page.waitForSelector("[data-testid=masuk-cepat-panel]", { timeout: 10_000 });
+      const href = await page.$eval("[data-testid=masuk-cepat-panel] a[href*='idBima=dppm-pengelola']", (a) => a.getAttribute("href"));
+      yakin(href && href.includes("lanjut="), `Masuk cepat tidak membawa tujuan: ${href}`);
+      await page.keyboard.press("Escape");
+      // formulir: kata sandi salah kembali ke formulir (nama pengguna dan tujuan dipertahankan), kata sandi demo berhasil
+      await page.type("#namaPengguna", "dppm-pengelola");
+      await page.type("#kataSandi", "salah");
+      await Promise.all([page.waitForNavigation({ waitUntil: "domcontentloaded" }), page.click("button[type=submit]")]);
+      await adaTeks(page, "Nama pengguna atau kata sandi salah");
+      const dipertahankan = await page.$eval("#namaPengguna", (e) => (e as HTMLInputElement).value);
+      yakin(dipertahankan === "dppm-pengelola" && page.url().includes("lanjut="), `galat sandi: nama ${dipertahankan}, alamat ${page.url()}`);
+      await page.type("#kataSandi", "simulasi");
+      await page.click("button[type=submit]");
       await page.waitForFunction(() => location.pathname.startsWith("/tim-kerja/templat/") && location.search.includes("sorot=UNS-01"), { timeout: 60_000 });
-      c("tautan J-03 ?butir=UNS-01 tanpa sesi: masuk lewat BIMA lalu dialihkan ke tab Aturan dengan butir UNS-01 tersorot");
+      c("tautan J-03 ?butir=UNS-01 tanpa sesi: Masuk cepat membawa tujuan; formulir BIMA menolak kata sandi salah, lalu masuk dan dialihkan ke tab Aturan dengan butir UNS-01 tersorot");
     });
 
     await skenario("M-08: sesudah Tutup, satu kali Back keluar dari J-05", page, async (c) => {

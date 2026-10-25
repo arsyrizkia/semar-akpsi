@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Alert, Badge, Bagian, BarKeyakinan, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
 import { urlTabAturan } from "@/lib/templat/daftar";
-import { daftarButirBerlaku, ujiPadaContoh } from "@/lib/aturan/layanan";
+import { ujiPadaContoh } from "@/lib/aturan/layanan";
 import { adalahDeterministik, ringkasPerContoh, susunBarisUji, type SelUji } from "@/lib/aturan/uji";
 import { daftarPeriode, daftarSkema } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 // pengujian ikut memanggil layanan LLM untuk butir semantik (15 detik per bagian)
 export const maxDuration = 60;
 
-/** J-03b Hasil Uji pada Contoh (UC-02 langkah 6). Layar tersendiri dengan URL sendiri; data tidak berubah, hanya dibaca dan diuji. */
+/**
+ * J-03b Hasil Uji pada Contoh (UC-02 langkah 6). Layar tersendiri dengan URL sendiri; data tidak berubah, hanya dibaca dan diuji.
+ * Dibuka dari tab Aturan templat Draf (?templat=), butir yang diuji sama dengan tab itu: turunan isian draf tersimpan + butir manual.
+ */
 export default async function Halaman({ searchParams }: { searchParams: Promise<{ skema?: string; periode?: string; templat?: string }> }) {
   await wajibPengelola();
   const { skema: skemaParam, periode: periodeParam, templat } = await searchParams;
@@ -33,17 +36,22 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   const kueri = `skema=${skemaTerpilih.id}${periodeTerpilih ? `&periode=${periodeTerpilih.id}` : ""}${templat ? `&templat=${templat}` : ""}`;
   // kembali ke tab Aturan Pemeriksaan pada templat asal; tanpa templat, /tim-kerja/aturan memilih templat Aktif skema dan periode ini
   const urlKembali = templat ? urlTabAturan(templat, { periodeId: periodeTerpilih?.id }) : `/tim-kerja/aturan?skema=${skemaTerpilih.id}${periodeTerpilih ? `&periode=${periodeTerpilih.id}` : ""}`;
-  const [tampilan, uji] = await Promise.all([daftarButirBerlaku(skemaTerpilih.id, periodeTerpilih?.id ?? null), ujiPadaContoh(skemaTerpilih.id, periodeTerpilih?.id ?? null)]);
-  const baris = susunBarisUji(tampilan.butir, uji.contoh);
+  const uji = await ujiPadaContoh(skemaTerpilih.id, periodeTerpilih?.id ?? null, templat ?? null);
+  const baris = susunBarisUji(uji.butir, uji.contoh);
   const ringkasan = ringkasPerContoh(uji.contoh);
-  const dasar = tampilan.draf ?? tampilan.nyata;
+  const sumber = uji.sumber;
+  const keteranganSumber = !sumber
+    ? skemaTerpilih.namaSkema
+    : sumber.jenis === "templat-draf"
+      ? `${skemaTerpilih.namaSkema}, templat versi ${sumber.versi} (Draf, isian tersimpan)`
+      : `${skemaTerpilih.namaSkema}, basis aturan versi ${sumber.versi}${sumber.tanggalBerlaku ? "" : " (sedang disusun)"}`;
 
   return (
     <>
       <KepalaHalaman
         kode="J-03b"
         judul="Hasil Uji pada Contoh"
-        keterangan={dasar ? `${skemaTerpilih.namaSkema}, basis aturan versi ${dasar.versi}${tampilan.draf ? " (sedang disusun)" : ""}` : skemaTerpilih.namaSkema}
+        keterangan={keteranganSumber}
         remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Aturan Pemeriksaan", href: urlKembali }, { label: "Hasil Uji" }]}
         aksi={
           <>
@@ -141,7 +149,9 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
           </Table>
         )}
         <p className="mt-3 text-xs text-teks-redup">
-          Contoh proposal adalah data contoh sementara{dasar?.tanggalBerlaku ? `; basis aturan berlaku sejak ${formatTanggal(dasar.tanggalBerlaku)}` : ""}.
+          Contoh proposal adalah data contoh sementara
+          {sumber?.jenis === "basis" && sumber.tanggalBerlaku ? `; basis aturan berlaku sejak ${formatTanggal(sumber.tanggalBerlaku)}` : ""}
+          {sumber?.jenis === "templat-draf" ? "; perubahan yang belum disimpan di templat tidak ikut diuji" : ""}.
         </p>
       </Bagian>
     </>
