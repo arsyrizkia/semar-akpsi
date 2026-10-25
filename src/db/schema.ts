@@ -71,7 +71,7 @@ export const pengaturanDemo = pgTable("pengaturan_demo", {
   masaPengusulan: masaPengusulanEnum("masa_pengusulan").notNull().default("berjalan"),
   /** Pergeseran "jam demo" dalam hari terhadap waktu nyata (boleh negatif). */
   geserHari: integer("geser_hari").notNull().default(0),
-  /** Periode yang dibuka J-04. Kosong = periode terbaru. Diisi skenario skala nyata (10.000 proposal) agar skenario lain tidak ikut menanggung datanya. */
+  /** Periode yang dibuka J-04. Kosong = periode terbaru. Diisi skenario uji beban (10.000 proposal) agar skenario lain tidak ikut menanggung datanya. */
   periodeAktifId: uuid("periode_aktif_id"),
   diperbaruiPada: waktu("diperbarui_pada").defaultNow().notNull(),
 });

@@ -807,7 +807,7 @@ Sumber keputusan: `docs/arah-isi-saja-2026-10-24.md`. Lampiran dan halaman depan
 
 ## UC-03 untuk skala ribuan proposal (25 Okt 2026)
 
-Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: periode "Skala Nyata 2026 (1.200 proposal)", 30 reviewer bersedia (`demo/profil-skala.ts`).
+Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: periode "Simulasi Contoh 2026 (1.200 proposal)", 30 reviewer bersedia (`demo/profil-skala.ts`).
 
 ### C-13 susunPenugasan (perubahan)
 

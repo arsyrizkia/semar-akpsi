@@ -1,11 +1,11 @@
 /**
- * Skenario J-04 berskala besar (profil di demo/profil-skala.ts):
- *  - "Skala nyata" (skala10k): 10.000 proposal Terkirim, 130 reviewer rvw-skala-* dari 40 institusi, semua skema PD, tanpa naskah
- *    (J-08 hanya kerangka); uji beban.
+ * Skenario J-04 berskala besar (profil di demo/profil-skala.ts), keduanya simulasi (skala seleksi sebenarnya 79.210 usulan):
+ *  - "Uji beban" (skala10k): 10.000 proposal Terkirim, 130 reviewer rvw-skala-* dari 40 institusi, semua skema PD, tanpa naskah
+ *    (J-08 hanya kerangka).
  *  - "Contoh 1.200 proposal" (contoh1200): 1.200 proposal Terkirim (PD dan PT) dari 14 institusi yang timpang, 27 reviewer rvw-c12-*
  *    (3 tidak bersedia) ditambah reviewer-1..6 yang dapat masuk. Naskah dan hasil pemeriksaan disalin dari proposal skenario kecil
  *    PRP-2026-0004 (judul diganti judul proposal), jadi J-05b dan J-08 berisi.
- * Data massal dibuat set-based pada PERIODE TERSENDIRI berawalan "Skala Nyata" sehingga skenario lain tidak ikut menanggungnya: J-04
+ * Data massal dibuat set-based pada PERIODE TERSENDIRI berawalan "Simulasi " sehingga skenario lain tidak ikut menanggungnya: J-04
  * membukanya bila pengaturan_demo.periodeAktifId menunjuknya, dan semua pembaca periode lain mengecualikan namanya. Reset & isi data
  * demo (TRUNCATE) menghapusnya.
  */
@@ -14,7 +14,7 @@ import { getDb } from "@/db";
 import * as s from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
-import { PROFIL, type ProfilSkala } from "./profil-skala";
+import { NAMA_LAMA, NAMA_PERIODE_SKALA, PROFIL, type ProfilSkala } from "./profil-skala";
 
 const P10 = PROFIL.skala10k;
 export const JUMLAH_PROPOSAL_SKALA = P10.jumlahProposal;
@@ -112,7 +112,7 @@ async function buatProposalSkala10k(profil: ProfilSkala, periodeId: string, skem
   await db.execute(sql`
     INSERT INTO proposal (id_proposal, judul, skema_id, periode_id, pengusul_id, status, waktu_terkirim)
     SELECT ${profil.awalanIdProposal} || lpad(n::text, 5, '0'),
-           'Penelitian ' || (${sqlArr(TOPIK)})[1 + n % ${TOPIK.length}] || ' dengan ' || (${sqlArr(PENDEKATAN)})[1 + (n / ${TOPIK.length}) % ${PENDEKATAN.length}] || ' di wilayah ' || (${sqlArr(WILAYAH)})[1 + (n * 7) % ${WILAYAH.length}] || ' (skala nyata ' || lpad(n::text, 5, '0') || ')',
+           'Penelitian ' || (${sqlArr(TOPIK)})[1 + n % ${TOPIK.length}] || ' dengan ' || (${sqlArr(PENDEKATAN)})[1 + (n / ${TOPIK.length}) % ${PENDEKATAN.length}] || ' di wilayah ' || (${sqlArr(WILAYAH)})[1 + (n * 7) % ${WILAYAH.length}] || ' (uji beban ' || lpad(n::text, 5, '0') || ')',
            ${skemaPd}::uuid, ${periodeId}::uuid,
            (SELECT array_agg(id ORDER BY id_bima) FROM akun WHERE id_bima LIKE ${profil.awalanPengusul + "%"})[1 + (n * 37) % ${profil.jumlahPengusul}],
            'Terkirim', now() - ((n % 240) || ' minutes')::interval
@@ -219,6 +219,10 @@ async function buatDataMassal(profil: ProfilSkala, periodeId: string): Promise<v
 export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiapkanSkala> {
   const db = getDb();
   const mulai = Date.now();
+  // periode bernama lama ("Skala Nyata ...") diganti nama, datanya dipakai terus
+  for (const [lama, kunci] of Object.entries(NAMA_LAMA)) {
+    if (kunci === profil.kunci) await db.update(s.periodeSeleksi).set({ nama: profil.namaPeriode }).where(eq(s.periodeSeleksi.nama, lama));
+  }
   let [periode] = await db.select().from(s.periodeSeleksi).where(eq(s.periodeSeleksi.nama, profil.namaPeriode));
   let dibuatBaru = false;
 
@@ -240,7 +244,7 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
     const [utama] = await db
       .select()
       .from(s.periodeSeleksi)
-      .where(sql`${s.periodeSeleksi.nama} not like ${"Skala Nyata%"} and ${s.periodeSeleksi.tanggalBuka} <= now()`)
+      .where(sql`${s.periodeSeleksi.nama} not like ${NAMA_PERIODE_SKALA + "%"} and ${s.periodeSeleksi.tanggalBuka} <= now()`)
       .orderBy(sql`${s.periodeSeleksi.tahun} desc, ${s.periodeSeleksi.tanggalBuka} desc`)
       .limit(1);
     if (!utama) throw new Error('belum ada periode seleksi; jalankan "Reset & isi data demo" lebih dulu');
@@ -284,7 +288,7 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
   return { periodeId: periode.id, dibuatBaru, waktuBuatMs, waktuAturMs };
 }
 
-/** Skenario "Skala nyata: 10.000 proposal". */
+/** Skenario "Uji beban: 10.000 proposal". */
 export const siapkanSkalaNyata = () => siapkanProfilSkala(PROFIL.skala10k);
 
 /** Skenario UC-03 bawaan: 1.200 proposal Terkirim, reviewer contoh ikut dibagi. */

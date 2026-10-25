@@ -41,7 +41,7 @@ export async function pastikanAkunDariBima(idBima: string): Promise<Akun | null>
   return hasil;
 }
 
-/** Versi massal pastikanAkunDariBima: satu SELECT dan satu upsert per 500 akun (skenario skala nyata: ratusan reviewer). */
+/** Versi massal pastikanAkunDariBima: satu SELECT dan satu upsert per 500 akun (skenario uji beban: ratusan reviewer). */
 export async function pastikanAkunMassal(idBimaList: string[]): Promise<Akun[]> {
   const db = getDb();
   const hasil: Akun[] = [];

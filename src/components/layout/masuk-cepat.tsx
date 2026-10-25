@@ -94,7 +94,7 @@ export function MasukCepat({ kelompok, tersembunyi = 0 }: { kelompok: KelompokCe
             ))}
             {tersembunyi > 0 ? (
               <p data-testid="akun-skala-tersembunyi" className="border-t border-primer-200 pt-2 text-xs text-teks-redup">
-                {tersembunyi} akun reviewer data skala (10.000 dan 1.200 proposal) disembunyikan.
+                {tersembunyi} akun reviewer data simulasi (10.000 dan 1.200 proposal) disembunyikan.
               </p>
             ) : null}
           </div>

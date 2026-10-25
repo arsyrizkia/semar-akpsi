@@ -682,7 +682,7 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
   return { periode: semuaRingkas.filter((p) => p.ditutup), jumlahBerjalan: semuaRingkas.filter((p) => !p.ditutup).length };
 }
 
-/** Periode untuk J-04 (lama): periode aktif pengaturan demo (skenario skala nyata) atau periode terbaru menurut tahun. */
+/** Periode untuk J-04 (lama): periode aktif pengaturan demo (skenario uji beban) atau periode terbaru menurut tahun. */
 export const ambilPeriodeTerbaru = ambilPeriodeAktif;
 
 /* ------------------------------ metode seq-uc03 ------------------------------ */

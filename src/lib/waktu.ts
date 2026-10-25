@@ -32,7 +32,7 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
     }
-    // skenario skala nyata: periode aktif J-04 (periode tersendiri) ikut digeser supaya lencana dan tanggal tutupnya konsisten
+    // skenario uji beban: periode aktif J-04 (periode tersendiri) ikut digeser supaya lencana dan tanggal tutupnya konsisten
     const { periodeAktifId } = await ambilPengaturanDemo();
     if (periodeAktifId && periodeAktifId !== p?.id) {
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
@@ -82,7 +82,7 @@ export async function masaPengusulanBerjalan(): Promise<boolean> {
 
 export type PeriodeSeleksi = typeof periodeSeleksi.$inferSelect;
 
-/** Awalan nama periode skenario skala nyata; periode ini disembunyikan dari pilihan periode jendela lain. */
+/** Awalan nama periode skenario uji beban; periode ini disembunyikan dari pilihan periode jendela lain. */
 export { NAMA_PERIODE_SKALA };
 
 /** Periode yang dibuka J-04: periodeAktifId pada pengaturan demo bila ada, selain itu periode terbaru. */

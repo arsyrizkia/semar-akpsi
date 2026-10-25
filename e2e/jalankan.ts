@@ -347,17 +347,17 @@ async function bukaAturan(page: Page, base: string) {
   await adaTeks(page, "Tambah Butir", 60_000);
 }
 
-/** J-04: membuka J-04b untuk periode utama (bukan periode skala nyata) atau periode skala nyata. */
+/** J-04: membuka J-04b untuk periode utama (bukan periode uji beban) atau periode uji beban. */
 async function bukaUsulan(page: Page, skala: boolean | string = false) {
   await adaTeks(page, "Buka Usulan", 60_000);
   const href = await page.evaluate((s) => {
     const baris = [...document.querySelectorAll("tbody tr")].find((tr) => {
       const t = tr.textContent ?? "";
-      return typeof s === "string" ? t.includes(s) : s ? t.includes("Skala Nyata 2026 (10.000") : !t.includes("Skala Nyata");
+      return typeof s === "string" ? t.includes(s) : s ? t.includes("Simulasi Uji Beban 2026 (10.000") : !t.includes("Simulasi ");
     });
     return (baris?.querySelector("a[href^='/tim-kerja/penugasan/']") as HTMLAnchorElement | null)?.getAttribute("href") ?? null;
   }, skala);
-  yakin(href, typeof skala === "string" ? `baris periode "${skala}" tidak ada di J-04` : skala ? "baris periode Skala Nyata tidak ada di J-04" : "baris periode utama tidak ada di J-04");
+  yakin(href, typeof skala === "string" ? `baris periode "${skala}" tidak ada di J-04` : skala ? "baris periode Simulasi Uji Beban tidak ada di J-04" : "baris periode utama tidak ada di J-04");
   await Promise.all([page.waitForFunction((h) => location.pathname === h, { timeout: 60_000 }, href), page.evaluate((h) => (document.querySelector(`a[href='${h}']`) as HTMLElement).click(), href)]);
 }
 /* ------------------------------ server ------------------------------ */
@@ -905,7 +905,7 @@ async function utama() {
       await buka(page, url("/demo/mulai?k=UC-03"), "Usulan Penugasan", 300_000);
       await buka(page, url("/tim-kerja/penugasan"), "Penugasan Reviewer");
       await judulTab("J-04");
-      yakin((await teksHalaman(page)).includes("Skala Nyata 2026 (1.200 proposal)"), "periode contoh 1.200 proposal tidak ada di J-04");
+      yakin((await teksHalaman(page)).includes("Simulasi Contoh 2026 (1.200 proposal)"), "periode contoh 1.200 proposal tidak ada di J-04");
       await foto(page, "j04-daftar-periode");
       await bukaUsulan(page, "1.200 proposal");
       await adaTeks(page, "Susun Usulan Penugasan");
@@ -1595,12 +1595,12 @@ async function utama() {
       c("navigator ciut tidak menutupi tombol utama di J-04b (viewport 1440x900)");
     });
 
-    /* ---- J-04 skala nyata ---- */
-    await skenario("J-04 skala nyata: 10.000 proposal (S-1, susun, halaman dan Back, sebaran, M-07 tetapkan, kotak masuk BIMA)", page, async (c) => {
+    /* ---- J-04 uji beban ---- */
+    await skenario("J-04 uji beban: 10.000 proposal (S-1, susun, halaman dan Back, sebaran, M-07 tetapkan, kotak masuk BIMA)", page, async (c) => {
       const lama = (mulai: number) => ((Date.now() - mulai) / 1000).toFixed(1);
       let t = Date.now();
       await buka(page, url("/demo/mulai?j=J-04&s=skala"), "Penugasan Reviewer");
-      c(`menyiapkan skenario skala nyata (buka J-04): ${lama(t)} dtk`);
+      c(`menyiapkan skenario uji beban (buka J-04): ${lama(t)} dtk`);
       await bukaUsulan(page, true);
       await adaTeks(page, "Susun Usulan Penugasan");
       const awal = await teksHalaman(page);
@@ -1682,7 +1682,7 @@ async function utama() {
       c(`CATATAN WAKTU: susun ${waktuSusun} dtk, tetapkan ${waktuTetapkan} dtk (klik sampai pesan, ${process.env.E2E_BASE_URL ? `produksi ${new URL(process.env.E2E_BASE_URL).host}` : "lokal ke Neon"})`);
     });
 
-    await skenario("Skenario kecil tidak terpengaruh data skala nyata", page, async (c) => {
+    await skenario("Skenario kecil tidak terpengaruh data uji beban", page, async (c) => {
       const t = Date.now();
       await buka(page, url("/demo/mulai?j=J-04b&s=siap-kecil"), "Susun Usulan Penugasan");
       const waktu = ((Date.now() - t) / 1000).toFixed(1);
@@ -1690,8 +1690,8 @@ async function utama() {
       yakin(/(^|\D)\d proposal Terkirim belum punya reviewer/.test(panel), `skenario kecil memuat data skala: ${panel.slice(0, 160)}`);
       await buka(page, `${page.url().split("?")[0]}?tab=sebaran`, "Jumlah reviewer menurut beban");
       const sebaran = await page.$eval("[data-testid=ringkasan-sebaran]", (e) => e.textContent ?? "");
-      yakin(/^[1-9]\d? reviewer bersedia/.test(sebaran), `reviewer skala nyata ikut tampil di skenario kecil: ${sebaran}`);
-      c(`skenario J-04b siap sesudah skala nyata: ${waktu} dtk; ${sebaran.slice(0, 40)}`);
+      yakin(/^[1-9]\d? reviewer bersedia/.test(sebaran), `reviewer uji beban ikut tampil di skenario kecil: ${sebaran}`);
+      c(`skenario J-04b siap sesudah uji beban: ${waktu} dtk; ${sebaran.slice(0, 40)}`);
       await foto(page, "j04b-siap-sesudah-skala");
       await buka(page, url("/demo/mulai?j=J-07&s=selesai"), "Daftar Penugasan");
       const baris = await page.$$eval("table tbody tr", (r) => r.map((x) => x.textContent ?? ""));
@@ -1701,12 +1701,12 @@ async function utama() {
       yakin(barisBaru === 1, `J-07 Baru sesudah skala memuat ${barisBaru} baris`);
       await buka(page, url("/demo/mulai?j=BIMA-2&s=normal"), "Ringkasan");
       const totalSetelah = Number((await page.$eval("[data-testid=total-penugasan]", (e) => e.textContent ?? "0")).replace(/\./g, ""));
-      yakin(totalSetelah >= 10_000, `kotak masuk B-2 hanya memuat ${totalSetelah} penugasan; data skala nyata terhapus`);
+      yakin(totalSetelah >= 10_000, `kotak masuk B-2 hanya memuat ${totalSetelah} penugasan; data uji beban terhapus`);
       await buka(page, url("/bima/masuk"), "Username");
       await page.click("[data-testid=masuk-cepat-pil]");
       await page.waitForSelector("[data-testid=masuk-cepat-panel]", { timeout: 10_000 });
       const ketSembunyi = await page.$eval("[data-testid=akun-skala-tersembunyi]", (e) => e.textContent ?? "");
-      yakin(/\d+ akun reviewer data skala/.test(ketSembunyi) && Number(ketSembunyi.match(/\d+/)?.[0]) >= 130, `keterangan akun tersembunyi salah: ${ketSembunyi}`);
+      yakin(/\d+ akun reviewer data simulasi/.test(ketSembunyi) && Number(ketSembunyi.match(/\d+/)?.[0]) >= 130, `keterangan akun tersembunyi salah: ${ketSembunyi}`);
       const jumlahAkun = await page.$$eval("a[href*='/api/bima/sesi/masuk']", (a) => a.length);
       const adaSkala = await page.$$eval("a[href*='rvw-skala-']", (a) => a.length);
       yakin(adaSkala === 0 && jumlahAkun < 30, `/bima/masuk menampilkan ${jumlahAkun} akun, ${adaSkala} akun skala`);

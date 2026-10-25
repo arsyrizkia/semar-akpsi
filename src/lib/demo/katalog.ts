@@ -130,7 +130,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
       { id: "menunggu", nama: "Usulan menunggu penetapan (1.200)", ringkas: "1.200 usulan (batas beban 45) sudah disusun, belum ditetapkan.", mendaratDi: "J-04b" },
       { id: "kekurangan", nama: "Kekurangan reviewer (S-1)", ringkas: "Batas beban 35 untuk 1.200 proposal; Susun ditekan otomatis, panel S-1 menyarankan batas yang cukup.", mendaratDi: "J-04b" },
       { id: "ditetapkan", nama: "Sudah ditetapkan (1.200)", ringkas: "1.200 penugasan ditetapkan dan tercatat di kotak masuk BIMA.", mendaratDi: "J-04b" },
-      { id: "skala", nama: "Skala nyata: 10.000 proposal", ringkas: "10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100." },
+      { id: "skala", nama: "Uji beban: 10.000 proposal", ringkas: "Simulasi 10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100." },
     ],
   },
   {

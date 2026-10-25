@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * J-07 Daftar Penugasan: hanya proposal yang ditugaskan kepada reviewer yang sedang masuk (NFR 3.1). Seorang reviewer bisa menerima
- * puluhan sampai ratusan proposal (UC-03 skala nyata), jadi daftar berhalaman 25 baris dengan saringan tanda (Semua, Baru, Draf,
+ * puluhan sampai ratusan proposal (UC-03 skala besar), jadi daftar berhalaman 25 baris dengan saringan tanda (Semua, Baru, Draf,
  * Selesai) di URL; tanpa pencarian supaya tetap sederhana (NFR 5.1).
  */
 export default async function Halaman({ searchParams }: { searchParams: Promise<{ tanda?: string; hal?: string }> }) {

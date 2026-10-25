@@ -119,7 +119,7 @@ const PENGUSUL_SIKLUS = ["pengusul-1", "pengusul-2", "pengusul-3", "pengusul-1",
 /**
  * Mengembalikan proposal klon demo yang sudah ditugaskan (Ditetapkan/Diusulkan, belum dinilai) menjadi belum ditugaskan, beserta pesan
  * penugasannya di kotak masuk BIMA, supaya skenario J-04 selalu mulai bersih tanpa menumpuk proposal baru. PRP-2026-0004 (siap-reviewer),
- * penugasan yang sudah dinilai, dan data skala nyata tidak disentuh.
+ * penugasan yang sudah dinilai, dan data uji beban tidak disentuh.
  */
 async function daurUlangPenugasanKlon() {
   const db = getDb();
@@ -350,7 +350,7 @@ async function bersihkanDrafTemplat() {
 /* ------------------------------ pintu masuk ------------------------------ */
 
 export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsungJ08?: boolean } = {}): Promise<HasilSiapkan> {
-  // skenario skala nyata J-04 tidak boleh bocor ke jendela lain: periode J-04 kembali ke periode utama. Data skala nyata tetap
+  // skenario uji beban J-04 tidak boleh bocor ke jendela lain: periode J-04 kembali ke periode utama. Data uji beban tetap
   // tersimpan (kumpulan reviewernya hanya rvw-skala-*, jadi tidak menyentuh reviewer contoh) sampai "Reset & isi data demo".
   await setPeriodeAktif(null);
   switch (kode) {
@@ -530,14 +530,14 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
   const db = getDb();
   const kunci = `${kodeJendela}/${id}`;
 
-  // skala nyata mengaktifkan periode sendiri; semua skenario lain mengembalikan periode utama (data skala nyata tidak dihapus)
+  // uji beban mengaktifkan periode sendiri; semua skenario lain mengembalikan periode utama (data uji beban tidak dihapus)
   if (kunci === "J-04/skala") {
     const h = await siapkanSkalaNyata();
     const detik = (h.waktuBuatMs / 1000).toFixed(1);
     return {
       akun: "dppm-pengelola",
       tujuan: "/tim-kerja/penugasan",
-      catatan: `Skala nyata: 10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100 (turunkan ke 60 untuk memicu S-1). ${h.dibuatBaru ? `Data massal baru dibuat dalam ${detik} dtk.` : "Data massal sudah ada; penugasan lama dikosongkan."}`,
+      catatan: `Uji beban: simulasi 10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100 (turunkan ke 60 untuk memicu S-1). ${h.dibuatBaru ? `Data massal baru dibuat dalam ${detik} dtk.` : "Data massal sudah ada; penugasan lama dikosongkan."}`,
     };
   }
   await setPeriodeAktif(null);

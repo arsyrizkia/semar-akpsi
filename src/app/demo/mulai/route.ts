@@ -5,7 +5,7 @@ import { COOKIE_SKENARIO, cariJendela, cariSkenario, skenarioBawaan } from "@/li
 import { siapkanJalanPintas, siapkanSkenario, type HasilSkenario, type KodeJalanPintas } from "@/lib/demo/skenario";
 
 export const dynamic = "force-dynamic";
-/** Skenario skala nyata membuat 10.000 proposal pada pemakaian pertama. */
+/** Skenario uji beban membuat 10.000 proposal pada pemakaian pertama. */
 export const maxDuration = 300;
 
 const KODE = new Set<string>([

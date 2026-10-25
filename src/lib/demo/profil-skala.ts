@@ -1,13 +1,14 @@
 /**
  * Profil data demo berskala besar untuk UC-03 (murni, tanpa impor server; dipakai pembangkit demo/skala.ts, layanan penugasan,
- * dan daftar Masuk cepat). Setiap profil punya periode sendiri yang namanya berawalan NAMA_PERIODE_SKALA ("Skala Nyata"), jadi
- * semua pembaca periode lain (J-02, J-05, pengajuan) mengecualikannya, dan kumpulan reviewernya sendiri:
- *  - skala10k   : 10.000 proposal, 130 reviewer rvw-skala-* dari 40 institusi (uji beban);
+ * dan daftar Masuk cepat). Setiap profil punya periode sendiri yang namanya berawalan NAMA_PERIODE_SKALA ("Simulasi "), jadi
+ * semua pembaca periode lain (J-02, J-05, pengajuan) mengecualikannya, dan kumpulan reviewernya sendiri. Keduanya simulasi, bukan
+ * skala seleksi sebenarnya (naskah: 79.210 usulan 2026, 1.066-1.244 reviewer):
+ *  - skala10k   : uji beban 10.000 proposal, 130 reviewer rvw-skala-* dari 40 institusi;
  *  - contoh1200 : 1.200 proposal (PD dan PT) dari 14 institusi yang timpang, 28 reviewer rvw-c12-* (3 tidak bersedia) ditambah
  *                 reviewer-1..5 yang dapat masuk (30 bersedia), supaya hasil penetapan terlihat di J-07 reviewer contoh.
  */
-/** Awalan nama periode berskala besar; pembaca periode lain mengecualikannya (dipakai ulang oleh waktu.ts). */
-export const NAMA_PERIODE_SKALA = "Skala Nyata";
+/** Awalan nama periode simulasi berskala besar; pembaca periode lain mengecualikannya (dipakai ulang oleh waktu.ts). */
+export const NAMA_PERIODE_SKALA = "Simulasi ";
 
 export type KunciProfil = "skala10k" | "contoh1200";
 
@@ -36,7 +37,7 @@ export interface ProfilSkala {
 export const PROFIL: Record<KunciProfil, ProfilSkala> = {
   skala10k: {
     kunci: "skala10k",
-    namaPeriode: `${NAMA_PERIODE_SKALA} 2026 (10.000 proposal)`,
+    namaPeriode: `${NAMA_PERIODE_SKALA}Uji Beban 2026 (10.000 proposal)`,
     awalanIdProposal: "SKL-2026-",
     awalanReviewer: "rvw-skala-",
     awalanPengusul: "pgs-skala-",
@@ -52,7 +53,7 @@ export const PROFIL: Record<KunciProfil, ProfilSkala> = {
   },
   contoh1200: {
     kunci: "contoh1200",
-    namaPeriode: `${NAMA_PERIODE_SKALA} 2026 (1.200 proposal)`,
+    namaPeriode: `${NAMA_PERIODE_SKALA}Contoh 2026 (1.200 proposal)`,
     awalanIdProposal: "C12-2026-",
     awalanReviewer: "rvw-c12-",
     awalanPengusul: "pgs-c12-",
@@ -68,6 +69,12 @@ export const PROFIL: Record<KunciProfil, ProfilSkala> = {
     bobotInstitusi: [220, 160, 130, 110, 100, 90, 80, 70, 60, 50, 40, 35, 25, 30],
     porsiTerapan: 500 / 1200,
   },
+};
+
+/** Nama lama periode profil (sebelum 25 Okt 2026), diganti otomatis saat skenario disiapkan. */
+export const NAMA_LAMA: Record<string, KunciProfil> = {
+  "Skala Nyata 2026 (10.000 proposal)": "skala10k",
+  "Skala Nyata 2026 (1.200 proposal)": "contoh1200",
 };
 
 /** Profil periode menurut namanya; null untuk periode biasa. */
