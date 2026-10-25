@@ -19,7 +19,8 @@ import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@
 import { susunPenugasan, tetapkanPenugasan } from "@/lib/penugasan/layanan";
 import { susunVersiBaru } from "@/lib/templat/layanan";
 import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
-import { siapkanSkalaNyata } from "./skala";
+import { kosongkanPenugasanContoh1200, siapkanContoh1200, siapkanSkalaNyata } from "./skala";
+import { PROFIL } from "./profil-skala";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -366,10 +367,10 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
     case "UC-02":
       await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
       return { akun: "dppm-pengelola", tujuan: "/tim-kerja/aturan", catatan: "Masa pengusulan ditutup; nyalakan sakelar \"berjalan\" untuk alternatif 8a." };
-    case "UC-03":
-      await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
-      await pastikanProposalBelumDitugaskan(6);
-      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Enam proposal Terkirim siap ditugaskan; batas beban 1 memicu S-1, batas 3 menyusun usulan." };
+    case "UC-03": {
+      const h = await siapkanContoh1200();
+      return { akun: "dppm-pengelola", tujuan: `/tim-kerja/penugasan/${h.periodeId}`, catatan: CATATAN_1200 };
+    }
     case "UC-04":
       await pastikanDataPemantauan();
       return { akun: "dppm-pengelola", tujuan: "/tim-kerja/pemantauan", catatan: "Tersedia proposal Ditahan dan penilaian Final dengan koreksi reviewer." };
@@ -522,6 +523,9 @@ async function siapkanJ06(keadaan: "terkirim" | "ditahan" | "ditolak" | "diperik
 /**
  * Menyiapkan satu skenario keadaan bagi satu jendela (navigator demo, rute /demo/mulai?j=&s=). Idempoten dan tidak mereset basis data.
  */
+const CATATAN_1200 =
+  "1.200 proposal Terkirim (PD dan PT) dari 14 institusi, 30 reviewer bersedia termasuk reviewer-1..6, batas beban 45. Batas 35 memicu S-1 beserta saran batas terkecil yang cukup.";
+
 export async function siapkanSkenario(kodeJendela: string, id: string): Promise<HasilSkenario> {
   const db = getDb();
   const kunci = `${kodeJendela}/${id}`;
@@ -538,7 +542,10 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
   }
   await setPeriodeAktif(null);
   // jendela reviewer tidak boleh memuat penugasan klon sisa J-04 (Ditetapkan/Diusulkan) pada reviewer contoh
-  if (kodeJendela === "J-07" || kodeJendela === "J-08" || kunci === "J-01/reviewer") await daurUlangPenugasanKlon();
+  if (kodeJendela === "J-07" || kodeJendela === "J-08" || kunci === "J-01/reviewer") {
+    await daurUlangPenugasanKlon();
+    await kosongkanPenugasanContoh1200();
+  }
 
   switch (kunci) {
     /* J-01 */
@@ -606,27 +613,29 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
         catatan: "Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini. Tidak ada usulan yang menunggu penetapan.",
       };
     }
-    case "J-04/siap-kecil":
+    case "J-04/siap":
     case "J-04/menunggu":
     case "J-04/kekurangan":
     case "J-04/ditetapkan": {
+      const h = await siapkanContoh1200();
+      const ke = `/tim-kerja/penugasan/${h.periodeId}`;
+      const dibuat = h.dibuatBaru ? ` Data contoh baru dibuat dalam ${(h.waktuBuatMs / 1000).toFixed(1)} dtk.` : "";
+      if (id === "siap") return { akun: "dppm-pengelola", tujuan: ke, catatan: `${CATATAN_1200}${dibuat}` };
+      if (id === "kekurangan") {
+        await tetapkanBatas(h.periodeId, 35);
+        return { akun: "dppm-pengelola", tujuan: `${ke}?susun=1`, catatan: "Batas beban 35 untuk 1.200 proposal: Susun ditekan otomatis dan panel Kekurangan Reviewer (S-1) menyarankan batas terkecil yang cukup." };
+      }
+      await susunPenugasan(h.periodeId, PROFIL.contoh1200.batasBawaan);
+      if (id === "menunggu") return { akun: "dppm-pengelola", tujuan: ke, catatan: "1.200 usulan (batas beban 45) menunggu penetapan; coba cari, saring per reviewer, dan Pindahkan banyak baris." };
+      await tetapkanPenugasan(h.periodeId, "dppm-pengelola");
+      return { akun: "dppm-pengelola", tujuan: `${ke}?tab=ditetapkan`, catatan: "1.200 penugasan ditetapkan dan tercatat di kotak masuk BIMA; reviewer-1..6 menerimanya berlabel Baru di J-07." };
+    }
+    case "J-04/siap-kecil": {
       await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
       await pastikanProposalBelumDitugaskan(6);
       const periode = await ambilPeriodeBerjalan();
-      if (id === "siap-kecil") {
-        await tetapkanBatas(periode.id, 3);
-        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Tepat enam proposal Terkirim siap disusun; batas beban 3 menyusun usulan, batas 1 memicu S-1." };
-      }
-      if (id === "kekurangan") {
-        await tetapkanBatas(periode.id, 1);
-        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan?susun=1", catatan: "Batas beban 1: Susun Usulan Penugasan ditekan otomatis dan menampilkan Kekurangan Reviewer (S-1)." };
-      }
-      await susunPenugasan(periode.id, 3);
-      if (id === "menunggu") {
-        return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Usulan penugasan (batas beban 3) sudah disusun dan menunggu penetapan." };
-      }
-      await tetapkanPenugasan(periode.id, "dppm-pengelola");
-      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Penugasan sudah ditetapkan dan tercatat di kotak masuk BIMA; reviewer menerimanya berlabel Baru di J-07." };
+      await tetapkanBatas(periode.id, 3);
+      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/penugasan", catatan: "Tepat enam proposal Terkirim siap disusun; batas beban 3 menyusun usulan, batas 1 memicu S-1." };
     }
 
     /* J-05 */
@@ -701,11 +710,12 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     case "J-04b/siap":
     case "J-04b/menunggu":
     case "J-04b/kekurangan":
-    case "J-04b/ditetapkan": {
-      const turunan = { siap: "siap-kecil", menunggu: "menunggu", kekurangan: "kekurangan", ditetapkan: "ditetapkan" } as const;
-      const h = await siapkanSkenario("J-04", turunan[id as keyof typeof turunan]);
+    case "J-04b/ditetapkan":
+      return siapkanSkenario("J-04", id);
+    case "J-04b/siap-kecil": {
+      const h = await siapkanSkenario("J-04", "siap-kecil");
       const periode = await ambilPeriodeBerjalan();
-      return { ...h, tujuan: `/tim-kerja/penugasan/${periode.id}${id === "kekurangan" ? "?susun=1" : ""}` };
+      return { ...h, tujuan: `/tim-kerja/penugasan/${periode.id}` };
     }
     case "J-05b/contoh": {
       const h = await siapkanSkenario("J-05", "contoh");

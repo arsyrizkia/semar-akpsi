@@ -20,6 +20,8 @@ const MENU = [
 /** Navigasi BIMA tiruan: gaya sistem lain (abu-abu netral, sudut tegas), sengaja berbeda dari tema Semar. */
 export function NavBima({ nama }: { nama?: string | null }) {
   const jalur = usePathname();
+  // halaman masuk berdiri sendiri seperti halaman masuk BIMA: tanpa menu
+  if (jalur === "/bima/masuk") return null;
   return (
     <header className="border-b border-slate-300 bg-white text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2.5">

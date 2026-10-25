@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { bimaAkun } from "@/db/schema";
 import { COOKIE_BIMA, verifikasiSesiBima } from "../sesi";
 import { alamatMasukCepat, type KelompokCepat } from "./akun-demo";
+import { reviewerMassal } from "@/lib/demo/profil-skala";
 
 export type AkunBima = typeof bimaAkun.$inferSelect;
 
@@ -37,7 +38,7 @@ const PERAN_CEPAT = [
 ] as const;
 
 /**
- * Pilihan "Masuk cepat" per peran. 130 akun reviewer skenario skala nyata (rvw-skala-*) tidak ditampilkan. Pengusul dapat diarahkan
+ * Pilihan "Masuk cepat" per peran. Akun reviewer massal skenario skala (rvw-skala-*, rvw-c12-*) tidak ditampilkan. Pengusul dapat diarahkan
  * ke BIMA (`kembaliPengusul`) karena pengusul tidak masuk lewat J-01.
  */
 export async function kelompokMasukCepat(o: { kembali: string; lanjut?: string; kembaliPengusul?: string; catatanPengusul?: string }): Promise<{
@@ -46,7 +47,7 @@ export async function kelompokMasukCepat(o: { kembali: string; lanjut?: string; 
 }> {
   const semua = await getDb().select().from(bimaAkun);
   const akun = semua
-    .filter((a) => !a.idBima.startsWith("rvw-skala-"))
+    .filter((a) => !reviewerMassal(a.idBima))
     .sort((a, b) => Number(b.hakAkses === "pengelola") - Number(a.hakAkses === "pengelola") || a.idBima.localeCompare(b.idBima, "id", { numeric: true }));
   const kelompok = PERAN_CEPAT.map((k) => {
     const pengusul = k.peran === "pengusul" && o.kembaliPengusul;

@@ -2,18 +2,20 @@
  * UC-03 Menugaskan reviewer: tetapkanBatasBeban, susunPenugasan, pilihReviewer, tetapkan, mencatatPenugasan,
  * kirimPenugasan (API BIMA lewat client), terimaProposal. Nama fungsi mengikuti seq-uc03.puml.
  */
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { akun, penugasanReviewer, periodeSeleksi, proposal, skemaPendanaan, versiProposal } from "@/db/schema";
 import { pastikanAkunMassal } from "@/lib/auth";
 import { bima, BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
-import { ambilPeriodeAktif, masaPengusulanBerjalan, NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
+import { ambilPeriodeAktif, masaPengusulanBerjalan, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
+import { dalamKumpulanPeriode } from "@/lib/demo/profil-skala";
+import type { Db } from "@/lib/aturan/draf";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
-import { periksaSyarat, susunUsulanMurni } from "./aturan";
+import { kelompokkanPenolakan, periksaSyarat, rencanakanPindah, susunUsulan, type KodeSyarat, type TujuanPindah } from "./aturan";
 import { bolehDipindahkan } from "./status";
-import { periodeDitutup, type HitungPeriode } from "./periode";
+import { periodeDitutup, type FilterUsulan, type HitungPeriode } from "./periode";
 
 /** Baris per perintah INSERT massal (dikirim sebagai satu array JSON, jadi tidak dibatasi jumlah parameter). */
 const UKURAN_SISIP = 5000;
@@ -28,22 +30,34 @@ export class MasaBelumDitutupError extends Error {
   }
 }
 
-/** Awalan idBima reviewer massal skenario skala nyata (lihat demo/skala.ts). */
-const AWALAN_REVIEWER_SKALA = "rvw-skala-";
-
 /**
- * Kumpulan reviewer yang boleh dipakai pada satu periode: periode skala nyata hanya memakai reviewer rvw-skala-* (reviewer contoh
- * reviewer-1..5 tidak ikut dibagi), periode lain tidak pernah memakai reviewer rvw-skala-*.
+ * Kumpulan reviewer yang boleh dipakai pada satu periode (demo/profil-skala.ts): periode berprofil (10.000 atau 1.200 proposal)
+ * memakai reviewer massalnya sendiri ditambah reviewer contoh profil itu; periode lain tidak pernah memakai reviewer massal.
  */
-async function periodeSkala(periodeId: string): Promise<boolean> {
-  const [p] = await getDb().select({ nama: periodeSeleksi.nama }).from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
-  return !!p && p.nama.startsWith(NAMA_PERIODE_SKALA);
+async function kumpulanPeriode(periodeId: string, db: Db = getDb()): Promise<(idBima: string) => boolean> {
+  const [p] = await db.select({ nama: periodeSeleksi.nama }).from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
+  const nama = p?.nama ?? "";
+  return (idBima) => dalamKumpulanPeriode(nama, idBima);
 }
-const dalamKumpulan = (idBima: string, skala: boolean) => idBima.startsWith(AWALAN_REVIEWER_SKALA) === skala;
+
+/** Galat yang dikembalikan ke Tim sebagai pesan biasa (bukan kegagalan sistem). */
+export class PenugasanDitolakError extends Error {
+  constructor(pesan: string) {
+    super(pesan);
+    this.name = "PenugasanDitolakError";
+  }
+}
+
+/** Satu transaksi dengan kunci penasihat per periode: Susun, Pindahkan, dan klaim Tetapkan pada periode yang sama berjalan bergiliran. */
+async function denganKunciPeriode<T>(periodeId: string, kerja: (tx: Db) => Promise<T>): Promise<T> {
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"penugasan:" + periodeId}))`);
+    return kerja(tx as unknown as Db);
+  });
+}
 
 /** Beban = jumlah penugasan reviewer pada periode (semua status), kecuali penugasan yang dikecualikan. Dihitung di basis data (GROUP BY). */
-async function bebanPerReviewer(periodeId: string, kecualiPenugasanId?: string): Promise<Record<string, number>> {
-  const db = getDb();
+async function bebanPerReviewer(periodeId: string, kecualiPenugasanId?: string, db: Db = getDb()): Promise<Record<string, number>> {
   const baris = await db
     .select({ reviewerId: penugasanReviewer.reviewerId, jumlah: sql<number>`count(*)::int` })
     .from(penugasanReviewer)
@@ -95,6 +109,79 @@ export async function hitungPerluDitugaskan(periodeId: string): Promise<number> 
   return n;
 }
 
+const FILTER_KOSONG: FilterUsulan = { q: "", rev: null, inst: null, skema: null, melanggar: false, urut: "id" };
+
+/** Escape pola ILIKE (%, _ dan \\) supaya teks cari dibaca apa adanya. */
+const polaCari = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+/**
+ * Bagian FROM + WHERE bersama daftar, hitungan, faset, dan "pilih semua hasil filter". Syarat per baris dihitung ulang di sini
+ * (bukti deterministik): institusi reviewer sama dengan pengusul, reviewer tidak bersedia, atau beban reviewer di atas batas periode.
+ */
+function dasarUsulan(periodeId: string, status: "Diusulkan" | "Ditetapkan", f: FilterUsulan, batas: number, tanpa: (keyof FilterUsulan)[] = []): SQL {
+  const syarat: SQL[] = [sql`pr.periode_id = ${periodeId}::uuid`, sql`pr.status IN (${sql.join([...statusDitetapkan(status)].map((x) => sql`${x}`), sql`, `)})`];
+  if (f.q && !tanpa.includes("q")) {
+    const pola = polaCari(f.q);
+    syarat.push(sql`(p.judul ILIKE ${pola} OR p.id_proposal ILIKE ${pola} OR pg.nama ILIKE ${pola})`);
+  }
+  if (f.rev && !tanpa.includes("rev")) syarat.push(sql`pr.reviewer_id = ${f.rev}::uuid`);
+  if (f.inst && !tanpa.includes("inst")) syarat.push(sql`pg.institusi = ${f.inst}`);
+  if (f.skema && !tanpa.includes("skema")) syarat.push(sql`sk.kode = ${f.skema}`);
+  if (f.melanggar && !tanpa.includes("melanggar")) {
+    syarat.push(sql`(lower(trim(rv.institusi)) = lower(trim(pg.institusi)) OR NOT rv.bersedia OR COALESCE(b.n, 0) > ${batas})`);
+  }
+  return sql`
+    FROM penugasan_reviewer pr
+    JOIN proposal p ON p.id = pr.proposal_id
+    JOIN skema_pendanaan sk ON sk.id = p.skema_id
+    JOIN akun pg ON pg.id = p.pengusul_id
+    JOIN akun rv ON rv.id = pr.reviewer_id
+    LEFT JOIN (SELECT reviewer_id, count(*)::int AS n FROM penugasan_reviewer WHERE periode_id = ${periodeId}::uuid GROUP BY reviewer_id) b ON b.reviewer_id = pr.reviewer_id
+    WHERE ${sql.join(syarat, sql` AND `)}`;
+}
+
+const URUTAN: Record<FilterUsulan["urut"], SQL> = {
+  id: sql`p.id_proposal, pr.id`,
+  judul: sql`p.judul, p.id_proposal`,
+  reviewer: sql`rv.nama, p.id_proposal`,
+  institusi: sql`pg.institusi, p.id_proposal`,
+};
+
+const baris = <T>(h: unknown) => (h as { rows: T[] }).rows;
+
+async function batasPeriode(periodeId: string, db: Db = getDb()): Promise<number> {
+  const [p] = await db.select({ batas: periodeSeleksi.batasBebanReviewer }).from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
+  return p?.batas ?? 0;
+}
+
+/**
+ * Usulan (Diusulkan) atau penugasan Ditetapkan (termasuk Selesai) satu periode dengan filter, urutan, dan halaman di basis data,
+ * beserta jumlah seluruh baris yang cocok. Setiap baris membawa hasil periksa ulang syarat (kolom Syarat di J-04b).
+ */
+export async function ambilUsulanBerfilter(
+  periodeId: string,
+  status: "Diusulkan" | "Ditetapkan",
+  filter: FilterUsulan = FILTER_KOSONG,
+  halaman = 1,
+  ukuran = UKURAN_HALAMAN_USULAN,
+): Promise<{ baris: BarisUsulanPenugasan[]; total: number }> {
+  const db = getDb();
+  const batas = await batasPeriode(periodeId);
+  const dasar = dasarUsulan(periodeId, status, filter, batas);
+  const [daftar, hitung] = await Promise.all([
+    db.execute(sql`
+      SELECT pr.id AS "penugasanId", p.id AS "proposalId", p.id_proposal AS "idProposal", p.judul AS "judulProposal", sk.nama_skema AS skema,
+             pg.nama AS "namaPengusul", pg.institusi AS "institusiPengusul", pr.reviewer_id AS "reviewerId", rv.nama AS "namaReviewer",
+             rv.institusi AS "institusiReviewer", pr.status AS status,
+             lower(trim(rv.institusi)) = lower(trim(pg.institusi)) AS "samaInstitusi", NOT rv.bersedia AS "tidakBersedia", COALESCE(b.n, 0) AS "bebanReviewer"
+      ${dasar}
+      ORDER BY ${URUTAN[filter.urut]}
+      LIMIT ${ukuran} OFFSET ${(Math.max(1, halaman) - 1) * ukuran}`),
+    db.execute(sql`SELECT count(*)::int AS n ${dasar}`),
+  ]);
+  return { baris: baris<BarisUsulanPenugasan>(daftar), total: baris<{ n: number }>(hitung)[0]?.n ?? 0 };
+}
+
 /**
  * Usulan (status Diusulkan) atau penugasan Ditetapkan beserta data tampilan untuk satu periode, berhalaman di basis data
  * (urut id proposal lalu id penugasan). Tanpa `opsi.halaman` seluruh baris dikembalikan (hanya untuk data kecil).
@@ -104,58 +191,82 @@ export async function ambilUsulan(
   status: "Diusulkan" | "Ditetapkan" = "Diusulkan",
   opsi: { halaman?: number; ukuran?: number } = {},
 ): Promise<BarisUsulanPenugasan[]> {
+  if (opsi.halaman) return (await ambilUsulanBerfilter(periodeId, status, FILTER_KOSONG, opsi.halaman, opsi.ukuran ?? UKURAN_HALAMAN_USULAN)).baris;
+  return (await ambilUsulanBerfilter(periodeId, status, FILTER_KOSONG, 1, 1_000_000)).baris;
+}
+
+export interface FasetUsulan {
+  reviewer: { id: string; nama: string; institusi: string; jumlah: number }[];
+  institusi: { nama: string; jumlah: number }[];
+  skema: { kode: string; nama: string; jumlah: number }[];
+  /** baris yang melanggar syarat (seluruh periode dan status ini, tanpa filter lain) */
+  melanggar: number;
+}
+
+/** Pilihan filter J-04b (reviewer, institusi pengusul, skema) beserta jumlah baris, dan jumlah baris yang melanggar syarat. */
+export async function ambilFasetUsulan(periodeId: string, status: "Diusulkan" | "Ditetapkan"): Promise<FasetUsulan> {
   const db = getDb();
-  const pengusul = alias(akun, "pengusul");
-  const rev = alias(akun, "rev");
-  const kueri = db
-    .select({
-      penugasanId: penugasanReviewer.id,
-      proposalId: proposal.id,
-      judulProposal: proposal.judul,
-      skema: skemaPendanaan.namaSkema,
-      institusiPengusul: pengusul.institusi,
-      reviewerId: penugasanReviewer.reviewerId,
-      namaReviewer: rev.nama,
-      institusiReviewer: rev.institusi,
-      status: penugasanReviewer.status,
-    })
-    .from(penugasanReviewer)
-    .innerJoin(proposal, eq(penugasanReviewer.proposalId, proposal.id))
-    .innerJoin(skemaPendanaan, eq(proposal.skemaId, skemaPendanaan.id))
-    .innerJoin(pengusul, eq(pengusul.id, proposal.pengusulId))
-    .innerJoin(rev, eq(rev.id, penugasanReviewer.reviewerId))
-    .where(and(eq(penugasanReviewer.periodeId, periodeId), inArray(penugasanReviewer.status, [...statusDitetapkan(status)])))
-    .orderBy(asc(proposal.idProposal), asc(penugasanReviewer.id));
-  const baris = opsi.halaman
-    ? await kueri.limit(opsi.ukuran ?? UKURAN_HALAMAN_USULAN).offset((Math.max(1, opsi.halaman) - 1) * (opsi.ukuran ?? UKURAN_HALAMAN_USULAN))
-    : await kueri;
-  return baris;
+  const batas = await batasPeriode(periodeId);
+  const dasar = dasarUsulan(periodeId, status, FILTER_KOSONG, batas);
+  const dasarMelanggar = dasarUsulan(periodeId, status, { ...FILTER_KOSONG, melanggar: true }, batas);
+  const [rev, inst, sk, mlg] = await Promise.all([
+    db.execute(sql`SELECT rv.id, rv.nama, rv.institusi, count(*)::int AS jumlah ${dasar} GROUP BY rv.id, rv.nama, rv.institusi ORDER BY rv.nama`),
+    db.execute(sql`SELECT pg.institusi AS nama, count(*)::int AS jumlah ${dasar} GROUP BY pg.institusi ORDER BY pg.institusi`),
+    db.execute(sql`SELECT sk.kode, sk.nama_skema AS nama, count(*)::int AS jumlah ${dasar} GROUP BY sk.kode, sk.nama_skema ORDER BY sk.kode`),
+    db.execute(sql`SELECT count(*)::int AS n ${dasarMelanggar}`),
+  ]);
+  return {
+    reviewer: baris<FasetUsulan["reviewer"][number]>(rev),
+    institusi: baris<FasetUsulan["institusi"][number]>(inst),
+    skema: baris<FasetUsulan["skema"][number]>(sk),
+    melanggar: baris<{ n: number }>(mlg)[0]?.n ?? 0,
+  };
+}
+
+export interface ReviewerPeriode {
+  id: string;
+  idBima: string;
+  nama: string;
+  institusi: string;
+  bersedia: boolean;
+  /** jumlah penugasan pada periode (semua status) */
+  beban: number;
+}
+
+/** Reviewer bersedia dalam kumpulan periode beserta bebannya (satu kali baca untuk Sebaran Beban dan pilihan Reviewer Pengganti). */
+export async function ambilReviewerPeriode(periodeId: string, db: Db = getDb()): Promise<ReviewerPeriode[]> {
+  const boleh = await kumpulanPeriode(periodeId, db);
+  const [reviewer, beban] = await Promise.all([
+    db.select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true))),
+    bebanPerReviewer(periodeId, undefined, db),
+  ]);
+  return reviewer
+    .filter((r) => boleh(r.idBima))
+    .map((r) => ({ id: r.id, idBima: r.idBima, nama: r.nama, institusi: r.institusi, bersedia: r.bersedia, beban: beban[r.id] ?? 0 }));
 }
 
 /** Tabel "Sebaran Beban": jumlah proposal setiap reviewer yang bersedia terhadap batas (semua reviewer, bukan hanya satu halaman). */
 export async function ambilSebaranBeban(periodeId: string, batas: number): Promise<SebaranBeban[]> {
-  const db = getDb();
-  const skala = await periodeSkala(periodeId);
-  const reviewer = (await db.select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)))).filter((r) => dalamKumpulan(r.idBima, skala));
-  const beban = await bebanPerReviewer(periodeId);
-  return reviewer
-    .map((r) => ({ reviewerId: r.id, namaReviewer: r.nama, jumlah: beban[r.id] ?? 0, batas }))
+  return (await ambilReviewerPeriode(periodeId))
+    .map((r) => ({ reviewerId: r.id, namaReviewer: r.nama, institusi: r.institusi, jumlah: r.beban, batas }))
     .sort((a, b) => b.jumlah - a.jumlah || a.namaReviewer.localeCompare(b.namaReviewer));
 }
 
 /** tetapkanBatasBeban(batas) pada objek periode. */
-export async function tetapkanBatasBeban(periodeId: string, batas: number): Promise<void> {
+export async function tetapkanBatasBeban(periodeId: string, batas: number, db: Db = getDb()): Promise<void> {
   if (!Number.isInteger(batas) || batas < 1) throw new Error("Batas Beban per Reviewer harus bilangan bulat minimal 1.");
-  await getDb().update(periodeSeleksi).set({ batasBebanReviewer: batas }).where(eq(periodeSeleksi.id, periodeId));
+  await db.update(periodeSeleksi).set({ batasBebanReviewer: batas }).where(eq(periodeSeleksi.id, periodeId));
 }
 
 /**
- * UC-03 s.2-5 (+ S-1). Menggantikan usulan lama (status Diusulkan) bila ada. Penugasan yang sudah Ditetapkan
- * tidak diubah dan dihitung sebagai beban awal. Bila reviewer kurang (S-1), usulan tidak disusun.
+ * UC-03 s.2-5 (+ S-1). Daftar reviewer diambil dari BIMA di luar transaksi; pembacaan proposal, keputusan, dan penulisan berjalan dalam
+ * satu transaksi berkunci per periode. Keputusan S-1 memakai cekKelayakan (pasti). S-1 TIDAK mengubah apa pun: batas beban lama dan
+ * usulan lama tetap, hanya log audit yang dicatat; hasilnya membawa saran batas terkecil yang cukup. Bila cukup, batas disimpan,
+ * usulan lama (Diusulkan) diganti, dan penugasan yang sudah Ditetapkan tidak diubah (dihitung sebagai beban awal).
  */
 export async function susunPenugasan(periodeId: string, batasBeban: number): Promise<HasilSusunPenugasan> {
-  const db = getDb();
   if (await masaPengusulanBerjalan()) throw new MasaBelumDitutupError();
+  if (!Number.isInteger(batasBeban) || batasBeban < 1) throw new Error("Batas Beban per Reviewer harus bilangan bulat minimal 1.");
 
   const t0 = Date.now();
   const langkah: Record<string, number> = {};
@@ -166,101 +277,91 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
     tCatat = t;
   };
 
-  await tetapkanBatasBeban(periodeId, batasBeban);
-
-  // ambilDaftarReviewer() melalui API BIMA (client mengulang otomatis maksimal 2 kali)
-  const skala = await periodeSkala(periodeId);
-  const daftar = (await ambilDaftarReviewer()).filter((r) => r.bersedia && dalamKumpulan(r.idBima, skala));
+  // ambilDaftarReviewer() melalui API BIMA (client mengulang otomatis maksimal 2 kali), di luar transaksi
+  const boleh = await kumpulanPeriode(periodeId);
+  const daftar = (await ambilDaftarReviewer()).filter((r) => r.bersedia && boleh(r.idBima));
   tandai("daftarReviewerBima");
   const reviewerSemar = (await pastikanAkunMassal(daftar.map((r) => r.idBima))).filter((a) => a.peran === "reviewer");
   tandai("salinAkunReviewer");
 
-  // proposal Terkirim pada periode yang belum ditetapkan penugasannya, beserta institusi pengusul (satu kueri, tanpa N+1)
-  const pengusul = alias(akun, "pengusul");
-  const perluDitugaskan = await db
-    .select({ id: proposal.id, judul: proposal.judul, institusiPengusul: pengusul.institusi })
-    .from(proposal)
-    .innerJoin(pengusul, eq(pengusul.id, proposal.pengusulId))
-    .where(sql`${proposal.periodeId} = ${periodeId} AND ${proposal.status} = 'Terkirim' AND ${proposal.id} NOT IN (${sudahDitetapkan(periodeId)})`);
+  const hasil = await denganKunciPeriode(periodeId, async (tx) => {
+    // proposal Terkirim pada periode yang belum ditetapkan penugasannya, beserta institusi pengusul (satu kueri, tanpa N+1)
+    const pengusul = alias(akun, "pengusul");
+    const perluDitugaskan = await tx
+      .select({ id: proposal.id, institusiPengusul: pengusul.institusi })
+      .from(proposal)
+      .innerJoin(pengusul, eq(pengusul.id, proposal.pengusulId))
+      .where(sql`${proposal.periodeId} = ${periodeId} AND ${proposal.status} = 'Terkirim' AND ${proposal.id} NOT IN (${sudahDitetapkan(periodeId)})`);
+    // beban awal: penugasan yang sudah ditetapkan atau selesai (usulan lama akan diganti)
+    const tetap = await tx
+      .select({ reviewerId: penugasanReviewer.reviewerId, jumlah: sql<number>`count(*)::int` })
+      .from(penugasanReviewer)
+      .where(and(eq(penugasanReviewer.periodeId, periodeId), ne(penugasanReviewer.status, "Diusulkan")))
+      .groupBy(penugasanReviewer.reviewerId);
+    tandai("bacaProposal");
 
-  tandai("bacaProposal");
+    const susun = susunUsulan(
+      perluDitugaskan.map((p) => ({ id: p.id, institusiPengusul: p.institusiPengusul ?? "-" })),
+      reviewerSemar.map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi })),
+      Object.fromEntries(tetap.map((t) => [t.reviewerId, t.jumlah])),
+      batasBeban,
+    );
+    tandai("algoritma");
+    if (susun.kekurangan > 0) return susun; // S-1: tidak ada yang ditulis
 
-  // beban awal: penugasan yang sudah ditetapkan atau selesai (usulan lama akan diganti)
-  const tetap = await db
-    .select({ reviewerId: penugasanReviewer.reviewerId, jumlah: sql<number>`count(*)::int` })
-    .from(penugasanReviewer)
-    .where(and(eq(penugasanReviewer.periodeId, periodeId), ne(penugasanReviewer.status, "Diusulkan")))
-    .groupBy(penugasanReviewer.reviewerId);
-  const bebanAwal: Record<string, number> = Object.fromEntries(tetap.map((t) => [t.reviewerId, t.jumlah]));
-
-  const hasil = susunUsulanMurni(
-    perluDitugaskan.map((p) => ({ id: p.id, institusiPengusul: p.institusiPengusul ?? "-" })),
-    reviewerSemar.map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi })),
-    bebanAwal,
-    batasBeban,
-  );
-  tandai("algoritma");
-
-  // S-1: reviewer tidak cukup, usulan tidak disusun. Usulan lama dibuang supaya tidak ada usulan yang melanggar batas baru dan dapat ditetapkan.
-  if (hasil.belumDitugaskan.length > 0) {
-    await db.delete(penugasanReviewer).where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, "Diusulkan")));
-    await catatLogAudit({
-      aktor: "sistem",
-      aksi: "susun_penugasan_kekurangan_reviewer",
-      objek: `periode:${periodeId}`,
-      rincian: { batasBeban, belumDitugaskan: hasil.belumDitugaskan.length, reviewerBersedia: reviewerSemar.length, langkahMs: langkah },
-    });
-    return {
-      periodeId,
-      usulan: [],
-      jumlahUsulan: 0,
-      sebaran: await ambilSebaranBeban(periodeId, batasBeban),
-      jumlahBelumDitugaskan: hasil.belumDitugaskan.length,
-    };
-  }
-
-  // versi terbaru setiap proposal yang akan ditugaskan (satu kueri DISTINCT ON)
-  const versiTerbaru = new Map<string, string>();
-  if (perluDitugaskan.length) {
-    const versi = await db
-      .selectDistinctOn([versiProposal.proposalId], { id: versiProposal.id, proposalId: versiProposal.proposalId })
-      .from(versiProposal)
-      .innerJoin(proposal, eq(proposal.id, versiProposal.proposalId))
-      .where(and(eq(proposal.periodeId, periodeId), eq(proposal.status, "Terkirim")))
-      .orderBy(versiProposal.proposalId, desc(versiProposal.nomor));
-    for (const v of versi) versiTerbaru.set(v.proposalId, v.id);
-  }
-
-  // simpan usulan baru (status Diusulkan) menggantikan usulan lama. Sisipan massal: satu INSERT ... SELECT dari array JSON per
-  // 5.000 baris (satu round trip, bukan ribuan parameter), di dalam satu transaksi dengan penghapusan usulan lama.
-  await db.transaction(async (tx) => {
+    await tetapkanBatasBeban(periodeId, batasBeban, tx);
+    // versi terbaru setiap proposal yang ditugaskan (satu kueri DISTINCT ON)
+    const versiTerbaru = new Map<string, string>();
+    if (perluDitugaskan.length) {
+      const versi = await tx
+        .selectDistinctOn([versiProposal.proposalId], { id: versiProposal.id, proposalId: versiProposal.proposalId })
+        .from(versiProposal)
+        .innerJoin(proposal, eq(proposal.id, versiProposal.proposalId))
+        .where(and(eq(proposal.periodeId, periodeId), eq(proposal.status, "Terkirim")))
+        .orderBy(versiProposal.proposalId, desc(versiProposal.nomor));
+      for (const v of versi) versiTerbaru.set(v.proposalId, v.id);
+    }
+    // usulan baru (Diusulkan) menggantikan usulan lama; sisipan massal satu INSERT ... SELECT dari array JSON per 5.000 baris
     await tx.delete(penugasanReviewer).where(and(eq(penugasanReviewer.periodeId, periodeId), eq(penugasanReviewer.status, "Diusulkan")));
-    for (let i = 0; i < hasil.penugasan.length; i += UKURAN_SISIP) {
-      const potongan = JSON.stringify(
-        hasil.penugasan.slice(i, i + UKURAN_SISIP).map((p) => ({ p: p.proposalId, v: versiTerbaru.get(p.proposalId) ?? null, r: p.reviewerId })),
-      );
+    for (let i = 0; i < susun.penugasan.length; i += UKURAN_SISIP) {
+      const potongan = JSON.stringify(susun.penugasan.slice(i, i + UKURAN_SISIP).map((p) => ({ p: p.proposalId, v: versiTerbaru.get(p.proposalId) ?? null, r: p.reviewerId })));
       await tx.execute(sql`
         INSERT INTO penugasan_reviewer (proposal_id, versi_id, reviewer_id, periode_id, status, label)
         SELECT (x->>'p')::uuid, (x->>'v')::uuid, (x->>'r')::uuid, ${periodeId}::uuid, 'Diusulkan', 'Baru'
         FROM jsonb_array_elements(${potongan}::jsonb) AS x`);
     }
+    tandai("simpanUsulan");
+    return susun;
   });
 
-  tandai("simpanUsulan");
+  if (hasil.kekurangan > 0) {
+    await catatLogAudit({
+      aktor: "sistem",
+      aksi: "susun_penugasan_kekurangan_reviewer",
+      objek: `periode:${periodeId}`,
+      rincian: { batasBeban, belumDitugaskan: hasil.kekurangan, batasCukup: hasil.batasCukup, reviewerBersedia: reviewerSemar.length, langkahMs: langkah },
+    });
+    return {
+      periodeId,
+      usulan: [],
+      jumlahUsulan: 0,
+      sebaran: [],
+      jumlahBelumDitugaskan: hasil.kekurangan,
+      kekurangan: {
+        jumlahReviewer: reviewerSemar.length,
+        kapasitas: hasil.kelayakan.kapasitas,
+        batasCukup: hasil.batasCukup,
+        hambatan: hasil.kelayakan.hambatan.slice(0, 5),
+      },
+    };
+  }
   await catatLogAudit({
     aktor: "sistem",
     aksi: "susun_penugasan",
     objek: `periode:${periodeId}`,
     rincian: { batasBeban, jumlahUsulan: hasil.penugasan.length, totalMs: Date.now() - t0, langkahMs: langkah },
   });
-
-  return {
-    periodeId,
-    usulan: await ambilUsulan(periodeId, "Diusulkan", { halaman: 1 }),
-    jumlahUsulan: hasil.penugasan.length,
-    sebaran: await ambilSebaranBeban(periodeId, batasBeban),
-    jumlahBelumDitugaskan: 0,
-  };
+  return { periodeId, usulan: [], jumlahUsulan: hasil.penugasan.length, sebaran: [], jumlahBelumDitugaskan: 0 };
 }
 
 /**
@@ -280,7 +381,7 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string,
   if (!baru || baru.peran !== "reviewer") {
     return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Reviewer pengganti tidak ditemukan."] };
   }
-  if (!dalamKumpulan(baru.idBima, await periodeSkala(pn.periodeId))) {
+  if (!(await kumpulanPeriode(pn.periodeId))(baru.idBima)) {
     return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Reviewer pengganti tidak ditemukan."] };
   }
   if (baru.id === pn.reviewerId) return { reviewerId: pn.reviewerId, diterima: true, syaratDilanggar: [] };
@@ -302,7 +403,12 @@ export async function pilihReviewer(penugasanId: string, reviewerBaruId: string,
     });
     return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar };
   }
-  await db.update(penugasanReviewer).set({ reviewerId: baru.id }).where(eq(penugasanReviewer.id, pn.id));
+  const ubah = await db
+    .update(penugasanReviewer)
+    .set({ reviewerId: baru.id })
+    .where(and(eq(penugasanReviewer.id, pn.id), eq(penugasanReviewer.status, "Diusulkan")))
+    .returning({ id: penugasanReviewer.id });
+  if (!ubah.length) return { reviewerId: pn.reviewerId, diterima: false, syaratDilanggar: ["Penugasan sudah ditetapkan dan tidak dapat dipindahkan."] };
   await catatLogAudit({
     aktor,
     aksi: "pindah_penugasan",
@@ -325,6 +431,9 @@ export interface HasilTetapkan {
  */
 export async function tetapkanPenugasan(periodeId: string, aktor: string): Promise<HasilTetapkan> {
   const db = getDb();
+  const ringkas = await ambilRingkasanPeriode(periodeId);
+  if (!ringkas) throw new PenugasanDitolakError("Periode tidak dikenali.");
+  if (!ringkas.ditutup) throw new MasaBelumDitutupError();
   const waktu = new Date();
   const t0 = Date.now();
   // klaim atomik: hanya baris yang masih Diusulkan yang diproses, jadi dua klik serentak tidak mengirim penugasan ganda
@@ -397,16 +506,78 @@ export interface KandidatPengganti {
 
 /** Pilihan "Reviewer Pengganti" (S-2): reviewer yang bersedia beserta bebannya saat ini. */
 export async function ambilKandidatPengganti(periodeId: string): Promise<KandidatPengganti[]> {
-  const skala = await periodeSkala(periodeId);
-  const reviewer = (await getDb().select().from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true)))).filter((r) => dalamKumpulan(r.idBima, skala));
-  const beban = await bebanPerReviewer(periodeId);
-  return reviewer
-    .map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi, beban: beban[r.id] ?? 0 }))
-    .sort((a, b) => a.nama.localeCompare(b.nama));
+  return (await ambilReviewerPeriode(periodeId)).map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi, beban: r.beban })).sort((a, b) => a.nama.localeCompare(b.nama));
+}
+
+/** Baris yang dipindahkan: daftar id penugasan, atau semua baris Diusulkan yang cocok dengan filter ("Pilih semua hasil filter"). */
+export type PilihanPindah = { ids: string[] } | { filter: FilterUsulan };
+
+export interface HasilPindahBanyak {
+  dipilih: number;
+  dipindahkan: number;
+  ditolak: number;
+  /** pengelompokan syarat yang dilanggar: jenis, jumlah baris, satu contoh teks persis S-2.3 */
+  alasan: { kode: KodeSyarat; jumlah: number; contoh: string }[];
+  /** reviewer tujuan beserta jumlah proposal yang diterima (otomatis bisa banyak) */
+  tujuan: { reviewerId: string; nama: string; jumlah: number }[];
+}
+
+/**
+ * UC-03 S-2 untuk satu atau banyak baris (pratinjau bila `simpan` false). Dalam transaksi berkunci per periode: baca baris Diusulkan
+ * yang dipilih beserta institusi pengusulnya, beban saat ini, dan kumpulan reviewer; rencanakanPindah memeriksa ulang syarat
+ * baris demi baris (pilihReviewer); yang memenuhi dipindahkan dengan UPDATE ... WHERE status = 'Diusulkan', yang tidak tetap pada
+ * reviewer semula beserta syarat yang dilanggar.
+ */
+export async function pindahkanBanyak(periodeId: string, pilihan: PilihanPindah, tujuan: TujuanPindah, opsi: { simpan: boolean; aktor: string }): Promise<HasilPindahBanyak> {
+  const hasil = await denganKunciPeriode(periodeId, async (tx) => {
+    const batas = await batasPeriode(periodeId, tx);
+    const saring =
+      "ids" in pilihan
+        ? sql`FROM penugasan_reviewer pr JOIN proposal p ON p.id = pr.proposal_id JOIN akun pg ON pg.id = p.pengusul_id
+              WHERE pr.periode_id = ${periodeId}::uuid AND pr.status = 'Diusulkan' AND pr.id IN (SELECT jsonb_array_elements_text(${JSON.stringify(pilihan.ids)}::jsonb)::uuid)`
+        : dasarUsulan(periodeId, "Diusulkan", pilihan.filter, batas);
+    const terpilih = baris<{ penugasanId: string; institusiPengusul: string; reviewerId: string }>(
+      await tx.execute(sql`SELECT pr.id AS "penugasanId", pg.institusi AS "institusiPengusul", pr.reviewer_id AS "reviewerId" ${saring} ORDER BY p.id_proposal`),
+    );
+    const reviewer = await ambilReviewerPeriode(periodeId, tx);
+    const beban = Object.fromEntries(reviewer.map((r) => [r.id, r.beban]));
+    // reviewer asal yang tidak lagi bersedia/di luar kumpulan tetap dihitung bebannya
+    for (const t of terpilih) beban[t.reviewerId] ??= 0;
+    const rencana = rencanakanPindah(terpilih, tujuan, reviewer, beban, batas);
+
+    if (opsi.simpan && rencana.diterima.length) {
+      const muatan = JSON.stringify(rencana.diterima.map((d) => ({ i: d.penugasanId, r: d.ke })));
+      await tx.execute(sql`
+        UPDATE penugasan_reviewer pr SET reviewer_id = (x->>'r')::uuid
+        FROM jsonb_array_elements(${muatan}::jsonb) AS x
+        WHERE pr.id = (x->>'i')::uuid AND pr.status = 'Diusulkan'`);
+    }
+    const nama = new Map(reviewer.map((r) => [r.id, r.nama]));
+    const perTujuan = new Map<string, number>();
+    for (const d of rencana.diterima) perTujuan.set(d.ke, (perTujuan.get(d.ke) ?? 0) + 1);
+    return {
+      dipilih: terpilih.length,
+      dipindahkan: rencana.diterima.length,
+      ditolak: rencana.ditolak.length,
+      alasan: kelompokkanPenolakan(rencana.ditolak),
+      tujuan: [...perTujuan.entries()].map(([reviewerId, jumlah]) => ({ reviewerId, nama: nama.get(reviewerId) ?? "-", jumlah })).sort((a, b) => b.jumlah - a.jumlah),
+    };
+  });
+  if (opsi.simpan) {
+    await catatLogAudit({
+      aktor: opsi.aktor,
+      aksi: hasil.dipindahkan ? "pindah_penugasan" : "pindah_penugasan_ditolak",
+      objek: `periode:${periodeId}`,
+      rincian: { dipilih: hasil.dipilih, dipindahkan: hasil.dipindahkan, ditolak: hasil.ditolak, tujuan: tujuan.jenis === "otomatis" ? "otomatis" : tujuan.reviewerId, alasan: hasil.alasan.map((a) => `${a.kode}:${a.jumlah}`) },
+    });
+  }
+  return hasil;
 }
 
 export interface RingkasanPeriode extends HitungPeriode {
   id: string;
+  /** reviewer bersedia dalam kumpulan reviewer periode (hanya diisi daftar J-04) */
+  reviewerBersedia?: number;
   nama: string;
   tahun: number;
   tanggalBuka: Date;
@@ -455,7 +626,7 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
     masaPengusulanBerjalan(),
     waktuDemo(),
   ]);
-  const [terkirim, belum, penugasan] = await Promise.all([
+  const [terkirim, belum, penugasan, reviewer] = await Promise.all([
     db.select({ periodeId: proposal.periodeId, n: sql<number>`count(*)::int` }).from(proposal).where(eq(proposal.status, "Terkirim")).groupBy(proposal.periodeId),
     db
       .select({ periodeId: proposal.periodeId, n: sql<number>`count(*)::int` })
@@ -466,6 +637,7 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
       .select({ periodeId: penugasanReviewer.periodeId, status: penugasanReviewer.status, n: sql<number>`count(*)::int` })
       .from(penugasanReviewer)
       .groupBy(penugasanReviewer.periodeId, penugasanReviewer.status),
+    db.select({ idBima: akun.idBima }).from(akun).where(and(eq(akun.peran, "reviewer"), eq(akun.bersedia, true))),
   ]);
   const ambil = (daftar: { periodeId: string; n: number }[], id: string) => daftar.find((d) => d.periodeId === id)?.n ?? 0;
   const tugas = (id: string, status: string) => penugasan.find((x) => x.periodeId === id && x.status === status)?.n ?? 0;
@@ -481,6 +653,7 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
     diusulkan: tugas(p.id, "Diusulkan"),
     ditetapkan: tugas(p.id, "Ditetapkan") + tugas(p.id, "Selesai"),
     ditutup: periodeDitutup({ tanggalTutup: p.tanggalTutup, sekarang, masaBerjalan: berjalan }),
+    reviewerBersedia: reviewer.filter((r) => dalamKumpulanPeriode(p.nama, r.idBima)).length,
   }));
   return { periode: semuaRingkas.filter((p) => p.ditutup), jumlahBerjalan: semuaRingkas.filter((p) => !p.ditutup).length };
 }

@@ -41,7 +41,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
       {periode.length === 0 ? (
         <KeadaanKosong judul="Belum ada periode yang masa pengusulannya ditutup">
           {jumlahBerjalan > 0
-            ? `${jumlahBerjalan} periode masih menerima pengusulan. Di prototipe, tutup masa pengusulan lewat Pusat Demo atau navigator demo.`
+            ? `${jumlahBerjalan} periode masih menerima pengusulan. Penugasan dapat disusun sesudah masa pengusulan ditutup.`
             : "Belum ada periode seleksi."}
         </KeadaanKosong>
       ) : (
@@ -53,6 +53,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 <TH>Tanggal Tutup</TH>
                 <TH angka>Terkirim</TH>
                 <TH angka>Belum Ditugaskan</TH>
+                <TH angka>Reviewer Bersedia</TH>
                 <TH>Status Penetapan</TH>
                 <TH>
                   <span className="sr-only">Aksi</span>
@@ -72,6 +73,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                     <TD>{formatTanggal(p.tanggalTutup)}</TD>
                     <TD angka>{formatAngka(p.terkirim)}</TD>
                     <TD angka>{formatAngka(p.belumDitugaskan)}</TD>
+                    <TD angka>{formatAngka(p.reviewerBersedia ?? 0)}</TD>
                     <TD>
                       <Badge warna={warnaPenetapan[status]}>{status}</Badge>
                       {p.diusulkan > 0 ? <span className="ml-2 text-xs text-teks-redup">{formatAngka(p.diusulkan)} usulan</span> : null}

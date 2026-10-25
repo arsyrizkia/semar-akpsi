@@ -7,6 +7,7 @@ import { and, desc, eq, lte, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
 import { masaBerjalanUntuk } from "@/lib/templat/daftar";
 import { pengaturanDemo, periodeSeleksi } from "@/db/schema";
+import { NAMA_PERIODE_SKALA } from "./demo/profil-skala";
 
 export type PengaturanDemo = typeof pengaturanDemo.$inferSelect;
 
@@ -82,7 +83,7 @@ export async function masaPengusulanBerjalan(): Promise<boolean> {
 export type PeriodeSeleksi = typeof periodeSeleksi.$inferSelect;
 
 /** Awalan nama periode skenario skala nyata; periode ini disembunyikan dari pilihan periode jendela lain. */
-export const NAMA_PERIODE_SKALA = "Skala Nyata";
+export { NAMA_PERIODE_SKALA };
 
 /** Periode yang dibuka J-04: periodeAktifId pada pengaturan demo bila ada, selain itu periode terbaru. */
 export async function ambilPeriodeAktif(): Promise<PeriodeSeleksi | null> {

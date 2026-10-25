@@ -1,27 +1,24 @@
 /** Tipe hasil aksi server J-04 (dipisah dari aksi.ts karena berkas "use server" hanya boleh mengekspor fungsi). */
+import type { RincianKekurangan } from "@/lib/kontrak/tipe";
+import type { HasilPindahBanyak } from "@/lib/penugasan/layanan";
+
 export interface HasilSusunAksi {
   galat?: string;
   /** > 0 bila reviewer kurang (S-1) */
   kekurangan?: number;
   /** batas beban yang benar-benar dipakai saat Susun (isian bisa berubah sesudahnya) */
   batasDipakai?: number;
+  /** rincian S-1: kapasitas, saran batas terkecil yang cukup, institusi penghambat */
+  rincian?: RincianKekurangan;
   jumlahUsulan?: number;
   berhasil?: boolean;
-  /** lama menyusun di server, milidetik */
-  durasiMs?: number;
 }
 
-export interface HasilPindahAksi {
-  diterima: boolean;
-  syaratDilanggar: string[];
-  galat?: string;
-}
+export type HasilPindahAksi = ({ ok: true } & HasilPindahBanyak) | { ok: false; galat: string };
 
 export interface HasilTetapkanAksi {
   berhasil: boolean;
   jumlah?: number;
-  /** lama menetapkan dan mengirim ke BIMA di server, milidetik */
-  durasiMs?: number;
   galat?: string;
   /** true bila kegagalan berasal dari API BIMA (tampilkan "Kirim ulang") */
   gagalBima?: boolean;

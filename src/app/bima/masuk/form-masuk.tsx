@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { PERISTIWA_BUKA_MASUK_CEPAT } from "@/components/layout/masuk-cepat";
 
 const KELAS_ISIAN =
-  "block min-h-11 w-full border border-slate-400 bg-white px-3 py-2 text-base text-slate-900 transition-colors focus:border-slate-800 focus:outline-2 focus:outline-offset-1 focus:outline-slate-800 aria-invalid:border-red-700";
+  "block h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:border-[#2c4fb5] focus:outline-none focus:ring-2 focus:ring-[#2c4fb5]/30 aria-invalid:border-red-700";
 
 /**
- * Formulir masuk BIMA tiruan (nama pengguna + kata sandi), dikirim POST biasa ke /api/bima/sesi/masuk sehingga cookie dan
- * pengalihan SSO berjalan sebagai navigasi penuh, sama seperti sistem masuk sungguhan.
+ * Formulir masuk BIMA tiruan, tata letaknya mengikuti halaman masuk BIMA (Username, Password dengan tombol lihat, Remember me,
+ * Log In, Kesulitan login? Bantuan). Dikirim POST biasa ke /api/bima/sesi/masuk sehingga cookie dan pengalihan SSO berjalan sebagai
+ * navigasi penuh. "Bantuan" membuka popup Masuk cepat (demo) yang berisi akun demo dan kata sandinya.
  */
 export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kembali: string; lanjut: string; pengguna: string; galatSandi: string | null }) {
   const [lihat, setLihat] = useState(false);
@@ -25,18 +27,19 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
 
   const keterangan = galatSandi ? "galat-masuk" : undefined;
   return (
-    <form action="/api/bima/sesi/masuk" method="post" onSubmit={() => setSibuk(true)} className="mt-6 space-y-4">
+    <form action="/api/bima/sesi/masuk" method="post" onSubmit={() => setSibuk(true)} className="space-y-4">
       <input type="hidden" name="kembali" value={kembali} />
       {lanjut ? <input type="hidden" name="lanjut" value={lanjut} /> : null}
       <div>
-        <label htmlFor="namaPengguna" className="mb-1 block text-sm font-semibold text-slate-800">
-          Nama pengguna
+        <label htmlFor="namaPengguna" className="mb-1.5 block text-sm font-medium text-slate-700">
+          Username
         </label>
         <input
           id="namaPengguna"
           name="namaPengguna"
           type="text"
           required
+          placeholder="Masukkan Username"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
@@ -47,50 +50,64 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
         />
       </div>
       <div>
-        <label htmlFor="kataSandi" className="mb-1 block text-sm font-semibold text-slate-800">
-          Kata sandi
+        <label htmlFor="kataSandi" className="mb-1.5 block text-sm font-medium text-slate-700">
+          Password
         </label>
-        <div className="relative">
+        <div className="flex">
           <input
             id="kataSandi"
             name="kataSandi"
             type={lihat ? "text" : "password"}
             required
+            placeholder="Masukkan Password"
             autoComplete="current-password"
             aria-invalid={galatSandi ? true : undefined}
             aria-describedby={keterangan}
-            className={`${KELAS_ISIAN} pr-12`}
+            className={`${KELAS_ISIAN} rounded-r-none`}
           />
           <button
             type="button"
             onClick={() => setLihat((v) => !v)}
             aria-pressed={lihat}
             aria-controls="kataSandi"
-            aria-label="Tampilkan kata sandi"
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-slate-800"
+            aria-label="Tampilkan password"
+            className="flex h-10 w-11 shrink-0 items-center justify-center rounded-r-md border border-l-0 border-slate-300 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#2c4fb5]"
           >
-            {lihat ? <EyeOff aria-hidden className="size-5" /> : <Eye aria-hidden className="size-5" />}
+            {lihat ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
           </button>
         </div>
       </div>
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="ingat" value="1" className="size-4 rounded border-slate-400 accent-[#2c4fb5]" />
+        Remember me
+      </label>
       {galatSandi ? (
-        <p id="galat-masuk" role="alert" className="border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900">
+        <p id="galat-masuk" role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
           {galatSandi}
         </p>
       ) : null}
       <button
         type="submit"
         disabled={sibuk}
-        className="flex min-h-11 w-full items-center justify-center gap-2 bg-slate-800 px-4 py-2 font-semibold text-white transition-colors hover:bg-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800 disabled:cursor-wait disabled:opacity-60"
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2c4fb5] px-4 text-sm font-medium text-white transition-colors hover:bg-[#233f91] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c4fb5] disabled:cursor-wait disabled:opacity-70"
       >
         {sibuk ? (
           <>
             <Loader2 aria-hidden className="size-4 animate-spin" /> Memeriksa…
           </>
         ) : (
-          "Masuk"
+          "Log In"
         )}
       </button>
+      <p className="pt-1 text-center text-sm">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(PERISTIWA_BUKA_MASUK_CEPAT))}
+          className="text-[#2c4fb5] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[#2c4fb5]"
+        >
+          Kesulitan login? Bantuan
+        </button>
+      </p>
     </form>
   );
 }

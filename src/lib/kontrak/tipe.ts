@@ -202,13 +202,30 @@ export interface BarisUsulanPenugasan {
   institusiReviewer: string;
   /** status penugasan sebenarnya (Diusulkan, Ditetapkan, Selesai) */
   status?: string;
+  idProposal?: string;
+  namaPengusul?: string;
+  /** pemeriksaan ulang syarat penugasan saat ditampilkan (bukti deterministik per baris) */
+  samaInstitusi?: boolean;
+  tidakBersedia?: boolean;
+  /** beban reviewer pada periode (semua status) */
+  bebanReviewer?: number;
 }
 
 export interface SebaranBeban {
   reviewerId: string;
   namaReviewer: string;
+  institusi?: string;
   jumlah: number;
   batas: number;
+}
+
+/** Rincian S-1 (kekurangan reviewer): kapasitas, saran batas terkecil yang cukup, dan institusi pengusul penghambat. */
+export interface RincianKekurangan {
+  jumlahReviewer: number;
+  kapasitas: number;
+  /** null bila berapa pun batasnya tidak cukup */
+  batasCukup: number | null;
+  hambatan: { institusi: string; jumlahProposal: number; reviewerLayak: number }[];
 }
 
 export interface HasilSusunPenugasan {
@@ -220,6 +237,8 @@ export interface HasilSusunPenugasan {
   sebaran: SebaranBeban[];
   /** > 0 bila reviewer kurang (S-1): proposal yang belum dapat ditugaskan */
   jumlahBelumDitugaskan: number;
+  /** terisi bila S-1 */
+  kekurangan?: RincianKekurangan;
 }
 
 export interface HasilPilihReviewer {

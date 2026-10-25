@@ -49,6 +49,11 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | MS-03 | cocokkanSitasi | C-18 | `pemeriksa/deterministik/pemeriksa.ts:cocokkanSitasi` | — |
 | MS-04 | susunPenugasan | C-13 | `penugasan/layanan.ts:susunPenugasan`, `penugasan/aturan.ts:susunUsulanMurni` | — |
 | MS-05 | pilihReviewer | C-14 | `penugasan/layanan.ts:pilihReviewer`, `penugasan/aturan.ts:periksaSyarat` | — |
+| MS-04a | cekKelayakan | C-13 | `penugasan/aturan.ts:cekKelayakan` | KP-cekKelayakan-* |
+| MS-04b | batasTerkecilCukup | C-13 | `penugasan/aturan.ts:batasTerkecilCukup` | KP-batasTerkecilCukup-* |
+| MS-04c | susunUsulan | C-13 | `penugasan/aturan.ts:susunUsulan` | KP-susunUsulan-* |
+| MS-05a | rencanakanPindah | C-14a | `penugasan/aturan.ts:rencanakanPindah`, `penugasan/layanan.ts:pindahkanBanyak` | KP-rencanakanPindah-* |
+| MS-20 | ringkasBeban | — | `penugasan/periode.ts:ringkasBeban` | KP-ringkasBeban-* |
 | MS-06 | periksaSemantik: batas waktu, percobaan ulang, status | C-25 | `pemeriksa/semantik/mesin.ts:{mintaJawaban, periksaSatu, bentukHasil}`, `pemeriksa/semantik/jalankan.ts:{klaimJob, jalankan}` | — |
 | MS-07 | cocokkanKutipan | C-24 | `pemeriksa/semantik/teks.ts:cocokkanKutipan` | — |
 | MS-08 | siapkanTeksTanpaIdentitas | C-23 | `pemeriksa/semantik/teks.ts:siapkanTeksTanpaIdentitas` | — |
@@ -799,3 +804,67 @@ Sumber keputusan: `docs/arah-isi-saja-2026-10-24.md`. Lampiran dan halaman depan
   `KonteksPeriksa.lampiranWajib` dihapus. `periksaSatuButir` tidak lagi mengenali kedua tipe itu (jatuh ke cabang "tidak dikenali").
 - **Templat lampiran BIMA tiruan:** `src/lib/bima/lampiran.ts` (`lampiranWajibSkema`, `templatLampiran`) dan `lampiran-dokumen.ts`
   (`buatDokumenLampiran`) milik BIMA, bukan kontrak SEMAR.
+
+## UC-03 untuk skala ribuan proposal (25 Okt 2026)
+
+Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: periode "Skala Nyata 2026 (1.200 proposal)", 30 reviewer bersedia (`demo/profil-skala.ts`).
+
+### C-13 susunPenugasan (perubahan)
+
+| Bagian | Isi |
+|---|---|
+| Post-Conditions | [Q1'] `batasBebanReviewer` disimpan **hanya bila** semua proposal tertampung. [Q2'] Kumpulan reviewer per periode menurut profil: periode 10.000 hanya `rvw-skala-*`; periode 1.200 `rvw-c12-*` ditambah `reviewer-1..6`; periode biasa tidak pernah memakai reviewer massal. [Q5'] S-1 ditentukan oleh `cekKelayakan` (pasti), bukan heuristik: `jumlahBelumDitugaskan` = jumlah proposal dikurangi aliran maksimum; **tidak ada data yang berubah** (usulan lama dan batas lama tetap); `kekurangan` = `{jumlahReviewer, kapasitas, batasCukup, hambatan (≤5 institusi)}`. [Q10] Pembacaan, keputusan, dan penulisan berjalan dalam satu transaksi dengan `pg_advisory_xact_lock(hashtext('penugasan:'+periodeId))`; daftar reviewer BIMA diambil sebelum transaksi. [Q11] Basis data menolak baris kedua untuk pasangan (proposal, periode) yang sama (`penugasan_proposal_periode_uq`). |
+
+### C-14 pindahkanBanyak (tambahan, S-2 untuk satu atau banyak baris)
+
+| Bagian | Isi |
+|---|---|
+| Method Name / Class Name / ID | `pindahkanBanyak` / PenugasanReviewer / C-14a |
+| Arguments Received | `periodeId`; `pilihan: {ids: string[]} \| {filter: FilterUsulan}`; `tujuan: {jenis: "reviewer"; reviewerId} \| {jenis: "otomatis"}`; `opsi: {simpan: boolean; aktor}` |
+| Type of Value Returned | `{dipilih; dipindahkan; ditolak; alasan: {kode; jumlah; contoh}[]; tujuan: {reviewerId; nama; jumlah}[]}` |
+| Pre-Conditions | [P1] Hanya baris berstatus `Diusulkan` pada periode itu yang ikut; id lain diabaikan. |
+| Post-Conditions | [Q1] `simpan = false` (pratinjau): tidak ada perubahan data dan tidak ada log. [Q2] `simpan = true`: setiap baris yang diterima `rencanakanPindah` dipindahkan dengan `UPDATE … WHERE status = 'Diusulkan'` dalam transaksi berkunci periode; yang ditolak tetap pada reviewer semula; satu log `pindah_penugasan` (atau `_ditolak` bila tak satu pun dipindahkan). [Q3] `alasan.contoh` adalah teks persis `periksaSyarat` (S-2.3). |
+
+### C-15 tetapkan (perubahan)
+
+[P3] Periode harus sudah ditutup (`periodeDitutup`); bila belum, `MasaBelumDitutupError`. Periode tidak dikenal: `PenugasanDitolakError("Periode tidak dikenali.")`.
+
+### C-32 bacaFilterUsulan / bacaTabUsulan / ukuranDariUrl (J-04b, murni)
+
+| Bagian | Isi |
+|---|---|
+| Arguments Received | parameter URL (`string \| string[] \| undefined`; nilai array memakai yang pertama) |
+| Post-Conditions | [Q1] `q` dipangkas dan dipotong 100 huruf; `inst`, `skema` kosong menjadi `null`. [Q2] `rev` harus uuid, selain itu `null`. [Q3] `syarat=melanggar` menjadi `melanggar = true`, nilai lain `false`. [Q4] `urut` ∈ {id, judul, reviewer, institusi}, selain itu `id`. [Q5] `bacaTabUsulan`: `sebaran` dan `ditetapkan` dikenali, selain itu `usulan`. [Q6] `ukuranDariUrl`: hanya 25, 50, 100; selain itu 50. |
+
+### MS-04a cekKelayakan
+
+| Bagian | Isi |
+|---|---|
+| Arguments | `proposal: {id; institusiPengusul}[]`, `reviewer: {id; nama; institusi}[]`, `bebanAwal`, `batas` |
+| Algorithm | Kelompokkan proposal per institusi (dinormalisasi) [J1]. Graf: sumber → institusi i (kapasitas jumlah proposal i) → reviewer r bila institusi r ≠ i DAN sisa(r) > 0 [J2] → muara (kapasitas sisa(r) = max(0, batas − bebanAwal[r])) [J3]. `tertampung` = aliran maksimum (Dinic). [J4] IF tertampung = jumlah proposal THEN layak, hambatan kosong. [J5] ELSE simpul institusi yang terjangkau dari sumber di graf sisa = sisi sumber potongan minimum; [J6] IF tidak semua institusi terjangkau THEN `hambatan` = institusi terjangkau (urut jumlah proposal turun) [J7] ELSE hambatan kosong (kapasitas total yang kurang). `alokasi` = aliran per (institusi, reviewer). |
+| Notes | Monoton terhadap batas. Uji batas: kapasitas total = jumlah proposal (layak) dan kurang satu (tidak layak). |
+
+### MS-04b batasTerkecilCukup
+
+| Bagian | Isi |
+|---|---|
+| Algorithm | [J1] IF tidak ada proposal THEN 1. [J2] IF tidak ada reviewer THEN null. SET atas = jumlah proposal + beban awal terbesar. [J3] IF tidak layak pada `atas` THEN null (berapa pun batasnya tidak cukup). SET bawah = max(1, ceil((jumlah proposal + total beban awal) / jumlah reviewer)). [J4] WHILE bawah < atas: tengah = floor((bawah+atas)/2); IF layak(tengah) THEN atas = tengah ELSE bawah = tengah + 1. RETURN bawah. |
+
+### MS-04c susunUsulan
+
+| Bagian | Isi |
+|---|---|
+| Algorithm | SET k = cekKelayakan(batas). [J1] IF tidak layak THEN RETURN {penugasan: [], kekurangan = k.kekurangan, batasCukup = batasTerkecilCukup}. SET g = susunUsulanMurni (MS-04). [J2] IF g tidak menyisakan proposal THEN RETURN penugasan g. [J3] ELSE (heuristik greedy gagal padahal layak) SET c = min(batasTerkecilCukup, batas); penempatan diambil dari `alokasi` cekKelayakan(c): proposal setiap institusi (urut id) dibagi ke reviewer sesuai jumlah aliran. |
+
+### MS-05a rencanakanPindah
+
+| Bagian | Isi |
+|---|---|
+| Arguments | `baris: {penugasanId; institusiPengusul; reviewerId}[]`, `tujuan`, `kandidat: {id; nama; institusi; bersedia}[]`, `bebanSaatIni`, `batas` |
+| Algorithm | SET beban = salinan bebanSaatIni. FOR EACH b: **reviewer**: [J1] IF reviewer tujuan tidak ada THEN tolak `tidak-ada`; [J2] ELSE IF tujuan = reviewer b THEN tolak `sama`; [J3] ELSE IF `periksaSyaratRinci` tidak kosong THEN tolak dengan alasannya; [J4] ELSE terima. **otomatis**: pilih kandidat ≠ reviewer b, bersedia, institusi berbeda, beban < batas, dengan beban terkecil (seri: nama) [J5]; [J6] IF tidak ada THEN tolak `tidak-ada`. Setiap terima: beban[ke] + 1, beban[dari] − 1 (pemindahan sekaligus tidak melampaui batas). |
+
+### MS-20 ringkasBeban (J-04b Sebaran Beban, murni)
+
+| Bagian | Isi |
+|---|---|
+| Algorithm | [J1] IF daftar kosong THEN semua nol, kelompok kosong. SET atas = max(batas, beban tertinggi, 1); lebar = max(1, ceil((atas+1)/8)); kelompok [0..atas] selebar `lebar`. Setiap beban masuk kelompok floor(b/lebar) [J2]. median: nilai tengah (ganjil) atau rata-rata dua nilai tengah (genap) [J3]. `melampaui` = jumlah beban > batas. |

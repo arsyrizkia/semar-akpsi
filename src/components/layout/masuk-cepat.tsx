@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Popover as RPopover } from "radix-ui";
 import { LogIn, X } from "lucide-react";
 import { KATA_SANDI_DEMO, type KelompokCepat } from "@/lib/bima/akun-demo";
+
+/** Peristiwa jendela untuk membuka popup dari luar (mis. "Kesulitan login? Bantuan" di formulir masuk BIMA). */
+export const PERISTIWA_BUKA_MASUK_CEPAT = "semar:buka-masuk-cepat";
 
 /**
  * Pintasan demo di halaman masuk (J-01 dan Masuk BIMA tiruan): popup kanan bawah untuk langsung masuk sebagai akun demo tanpa
@@ -10,8 +14,14 @@ import { KATA_SANDI_DEMO, type KelompokCepat } from "@/lib/bima/akun-demo";
  * Di layar sempit pil dinaikkan agar tidak bertumpuk dengan pil navigator di kiri bawah.
  */
 export function MasukCepat({ kelompok, tersembunyi = 0 }: { kelompok: KelompokCepat[]; tersembunyi?: number }) {
+  const [buka, setBuka] = useState(false);
+  useEffect(() => {
+    const bukaDariLuar = () => setBuka(true);
+    window.addEventListener(PERISTIWA_BUKA_MASUK_CEPAT, bukaDariLuar);
+    return () => window.removeEventListener(PERISTIWA_BUKA_MASUK_CEPAT, bukaDariLuar);
+  }, []);
   return (
-    <RPopover.Root>
+    <RPopover.Root open={buka} onOpenChange={setBuka}>
       <RPopover.Trigger asChild>
         <button
           type="button"
@@ -72,7 +82,7 @@ export function MasukCepat({ kelompok, tersembunyi = 0 }: { kelompok: KelompokCe
             ))}
             {tersembunyi > 0 ? (
               <p data-testid="akun-skala-tersembunyi" className="border-t border-primer-200 pt-2 text-xs text-teks-redup">
-                {tersembunyi} akun reviewer skala nyata disembunyikan.
+                {tersembunyi} akun reviewer data skala (10.000 dan 1.200 proposal) disembunyikan.
               </p>
             ) : null}
           </div>

@@ -329,7 +329,8 @@ export const penugasanReviewer = pgTable(
     label: labelPenugasanEnum("label").notNull().default("Baru"),
     tanggal: waktu("tanggal").defaultNow().notNull(),
   },
-  (t) => [index("penugasan_reviewer_idx").on(t.reviewerId), index("penugasan_proposal_idx").on(t.proposalId)],
+  // satu reviewer per proposal per periode (Bab 10 UC-03): susun ulang mengganti usulan, tidak menambah baris kedua
+  (t) => [index("penugasan_reviewer_idx").on(t.reviewerId), index("penugasan_proposal_idx").on(t.proposalId), uniqueIndex("penugasan_proposal_periode_uq").on(t.proposalId, t.periodeId)],
 );
 
 export const penilaian = pgTable("penilaian", {

@@ -8,14 +8,16 @@ import { COOKIE_BIMA, buatSesiBima, buatTokenSso, jalurAman, opsiCookie } from "
 export const dynamic = "force-dynamic";
 
 /** Memasang cookie sesi BIMA, lalu (bila SSO) kembali ke SEMAR membawa token bertanda tangan. */
-async function masukkan(idBima: string, kembali: string, lanjut: string, dasar: string) {
+async function masukkan(idBima: string, kembali: string, lanjut: string, dasar: string, ingat = true) {
   let tujuan = kembali;
   if (kembali.startsWith("/api/sso/callback")) {
     const token = await buatTokenSso(idBima);
     tujuan = `/api/sso/callback?token=${encodeURIComponent(token)}${lanjut ? `&lanjut=${encodeURIComponent(lanjut)}` : ""}`;
   }
   const res = NextResponse.redirect(new URL(tujuan, dasar), 303);
-  res.cookies.set(COOKIE_BIMA, await buatSesiBima(idBima), opsiCookie);
+  // tanpa "Remember me" cookie BIMA berakhir saat peramban ditutup (token tetap kedaluwarsa sesudah durasi sesi)
+  const { maxAge, ...tanpaUmur } = opsiCookie;
+  res.cookies.set(COOKIE_BIMA, await buatSesiBima(idBima), ingat ? { ...tanpaUmur, maxAge } : tanpaUmur);
   return res;
 }
 
@@ -49,5 +51,5 @@ export async function POST(req: NextRequest) {
     if (lanjut) balik.set("lanjut", lanjut);
     return NextResponse.redirect(new URL(`/bima/masuk?${balik}`, req.url), 303);
   }
-  return masukkan(akun.idBima, kembali, lanjut, req.url);
+  return masukkan(akun.idBima, kembali, lanjut, req.url, fd.get("ingat") === "1");
 }

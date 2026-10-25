@@ -2,20 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Alert, Bagian, KepalaHalaman, Paginasi, StatusBadge, Table, TBody, TD, TH, THead, TR, kelasTombol } from "@/components/ui";
+import { Alert, KeadaanKosong, KepalaHalaman, Paginasi, kelasTombol } from "@/components/ui";
 import { wajibTimKerja } from "@/lib/auth";
-import {
-  UKURAN_HALAMAN_USULAN,
-  ambilKandidatPengganti,
-  ambilRingkasanPeriode,
-  ambilSebaranBeban,
-  ambilUsulan,
-  hitungReviewerUsulan,
-} from "@/lib/penugasan/layanan";
-import { halamanDariUrl, jumlahHalaman, ringkasStatusPenetapan } from "@/lib/penugasan/periode";
-import { formatAngka, formatTanggal } from "@/lib/utils";
-import { PapanUsulan } from "./papan-usulan";
-import { SebaranBebanTabel } from "./sebaran-beban";
+import { ambilFasetUsulan, ambilReviewerPeriode, ambilRingkasanPeriode, ambilUsulanBerfilter, hitungReviewerUsulan } from "@/lib/penugasan/layanan";
+import { adaFilter, bacaFilterUsulan, bacaTabUsulan, halamanDariUrl, jumlahHalaman, ringkasBeban, ringkasStatusPenetapan, ukuranDariUrl, type TabUsulan } from "@/lib/penugasan/periode";
+import { cn, formatAngka, formatTanggal } from "@/lib/utils";
+import { BilahFilter } from "./bilah-filter";
+import { FormSusun } from "./form-susun";
+import { SebaranBeban } from "./sebaran-beban";
+import { TabelUsulan } from "./tabel-usulan";
+import { TombolTetapkan } from "./tombol-tetapkan";
 
 export const metadata: Metadata = { title: "J-04b Usulan Penugasan" };
 export const dynamic = "force-dynamic";
@@ -23,9 +19,16 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 type Param = Promise<{ idPeriode: string }>;
-type Cari = Promise<{ hal?: string; halT?: string; susun?: string }>;
+type Cari = Promise<Record<string, string | string[] | undefined>>;
 
-/** J-04b Usulan Penugasan (UC-03 s.2-8): batas beban, susun, tinjau/pindahkan, tetapkan. Pilihan halaman ada di URL. */
+const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 });
+
+/**
+ * J-04b Usulan Penugasan (UC-03 s.2-8), dirancang untuk ribuan proposal: satu tombol utama "Tetapkan Penugasan" di kepala, isian
+ * batas beban + "Susun Usulan Penugasan" (dengan panel S-1 bersaran batas), ringkasan, lalu tiga tab ber-URL: Usulan Penugasan
+ * (filter di server, centang banyak baris, kolom Syarat, Pindahkan M-06), Sebaran Beban (histogram + tabel), Sudah Ditetapkan.
+ * Tab, filter, urutan, dan halaman tersimpan di URL sehingga Back dan tautan langsung bekerja.
+ */
 export default async function Halaman({ params, searchParams }: { params: Param; searchParams: Cari }) {
   await wajibTimKerja();
   const { idPeriode } = await params;
@@ -33,32 +36,76 @@ export default async function Halaman({ params, searchParams }: { params: Param;
   const periode = await ambilRingkasanPeriode(idPeriode);
   if (!periode) notFound();
 
-  const halamanUsulan = halamanDariUrl(sp.hal, jumlahHalaman(periode.diusulkan, UKURAN_HALAMAN_USULAN));
-  const halamanTetap = halamanDariUrl(sp.halT, jumlahHalaman(periode.ditetapkan, UKURAN_HALAMAN_USULAN));
-  const [usulan, ditetapkan, sebaran, kandidat, jumlahReviewer] = await Promise.all([
-    ambilUsulan(periode.id, "Diusulkan", { halaman: halamanUsulan }),
-    ambilUsulan(periode.id, "Ditetapkan", { halaman: halamanTetap }),
-    ambilSebaranBeban(periode.id, periode.batasBeban),
-    ambilKandidatPengganti(periode.id),
+  const tab = bacaTabUsulan(sp.tab);
+  const filter = bacaFilterUsulan(sp);
+  const ukuran = ukuranDariUrl(sp.per);
+  const statusTab = tab === "ditetapkan" ? "Ditetapkan" : "Diusulkan";
+
+  const [reviewer, fasetUsulan, jumlahReviewerUsulan] = await Promise.all([
+    ambilReviewerPeriode(periode.id),
+    ambilFasetUsulan(periode.id, "Diusulkan"),
     hitungReviewerUsulan(periode.id),
   ]);
-  const status = ringkasStatusPenetapan(periode);
+  const faset = tab === "ditetapkan" ? await ambilFasetUsulan(periode.id, "Ditetapkan") : fasetUsulan;
+  const ringkas = ringkasBeban(
+    reviewer.map((r) => r.beban),
+    periode.batasBeban,
+  );
+
+  let daftar: { baris: Awaited<ReturnType<typeof ambilUsulanBerfilter>>["baris"]; total: number; halaman: number; jumlahHalaman: number } | null = null;
+  if (tab !== "sebaran") {
+    let halaman = halamanDariUrl(sp.hal, Number.MAX_SAFE_INTEGER);
+    let h = await ambilUsulanBerfilter(periode.id, statusTab, filter, halaman, ukuran);
+    const jh = jumlahHalaman(h.total, ukuran);
+    if (halaman > jh) {
+      halaman = jh;
+      h = await ambilUsulanBerfilter(periode.id, statusTab, filter, halaman, ukuran);
+    }
+    daftar = { ...h, halaman, jumlahHalaman: jh };
+  }
+
+  const alamat = (t: TabUsulan, tambahan: Record<string, string> = {}) => {
+    const p = new URLSearchParams({ ...(t === "usulan" ? {} : { tab: t }), ...tambahan });
+    return `/tim-kerja/penugasan/${periode.id}${p.size ? `?${p.toString()}` : ""}`;
+  };
+  const tetap = Number.parseInt(String(sp.tetap ?? ""), 10);
+  const kandidat = reviewer.map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi, beban: r.beban })).sort((a, b) => a.nama.localeCompare(b.nama));
+
+  const TAB: { nilai: TabUsulan; label: string; jumlah: number }[] = [
+    { nilai: "usulan", label: "Usulan Penugasan", jumlah: periode.diusulkan },
+    { nilai: "sebaran", label: "Sebaran Beban", jumlah: reviewer.length },
+    { nilai: "ditetapkan", label: "Sudah Ditetapkan", jumlah: periode.ditetapkan },
+  ];
 
   return (
     <>
       <KepalaHalaman
         kode="J-04b"
         judul="Usulan Penugasan"
-        keterangan={`${periode.nama}, ditutup ${formatTanggal(periode.tanggalTutup)}`}
+        keterangan={`${periode.nama} · ditutup ${formatTanggal(periode.tanggalTutup)}`}
         remah={[{ label: "Penugasan Reviewer", href: "/tim-kerja/penugasan" }, { label: periode.nama }]}
+        aksi={
+          <TombolTetapkan
+            periodeId={periode.id}
+            jumlahUsulan={periode.diusulkan}
+            jumlahReviewer={jumlahReviewerUsulan}
+            bebanMin={ringkas.min}
+            bebanMaks={ringkas.maks}
+            batas={periode.batasBeban}
+            melanggar={fasetUsulan.melanggar}
+            ditutup={periode.ditutup}
+          />
+        }
       />
 
-      <dl className="mb-6 flex flex-wrap gap-x-8 gap-y-2 text-sm" data-testid="ringkasan-periode">
+      <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm" data-testid="ringkasan-periode">
         {[
-          ["Terkirim", formatAngka(periode.terkirim)],
+          ["Proposal Terkirim", formatAngka(periode.terkirim)],
           ["Belum ditugaskan", formatAngka(periode.belumDitugaskan)],
           ["Usulan", formatAngka(periode.diusulkan)],
           ["Ditetapkan", formatAngka(periode.ditetapkan)],
+          ["Reviewer bersedia", formatAngka(reviewer.length)],
+          ["Beban per reviewer", ringkas.jumlahReviewer ? `${ringkas.min}–${ringkas.maks} (median ${desimal.format(ringkas.median)}) dari ${periode.batasBeban}` : "-"],
         ].map(([k, v]) => (
           <div key={k}>
             <dt className="text-xs text-teks-redup">{k}</dt>
@@ -67,86 +114,104 @@ export default async function Halaman({ params, searchParams }: { params: Param;
         ))}
         <div>
           <dt className="text-xs text-teks-redup">Status penetapan</dt>
-          <dd className="mt-1 text-sm font-semibold text-primer-900">{status}</dd>
+          <dd className="mt-1 text-sm font-semibold text-primer-900">{ringkasStatusPenetapan(periode)}</dd>
         </div>
       </dl>
 
       {!periode.ditutup ? (
-        <Alert jenis="info" className="mb-6">
-          Masa pengusulan periode ini belum ditutup, jadi usulan belum dapat disusun. Penyusunan usulan dibuka sesudah masa pengusulan ditutup.
+        <Alert jenis="info" className="mt-6">
+          Masa pengusulan periode ini belum ditutup, jadi usulan belum dapat disusun dan ditetapkan.
         </Alert>
       ) : null}
 
-      <PapanUsulan
+      <FormSusun
         periodeId={periode.id}
         batasAwal={periode.batasBeban}
         ditutup={periode.ditutup}
-        susunOtomatis={sp.susun === "1"}
-        usulan={usulan}
-        totalUsulan={periode.diusulkan}
-        jumlahReviewerUsulan={jumlahReviewer}
+        adaUsulan={periode.diusulkan > 0}
         perluDitugaskan={periode.belumDitugaskan}
-        kandidat={kandidat}
-        paginasi={
-          <Suspense fallback={null}>
-            <Paginasi halaman={halamanUsulan} jumlahHalaman={jumlahHalaman(periode.diusulkan, UKURAN_HALAMAN_USULAN)} parameter="hal" />
-          </Suspense>
-        }
+        susunOtomatis={sp.susun === "1"}
       />
 
-      <Bagian judul="Sebaran Beban">
-        <SebaranBebanTabel sebaran={sebaran} batas={periode.batasBeban} />
-      </Bagian>
-
-      {periode.ditetapkan > 0 ? (
-        <Bagian
-          judul={`Penugasan yang Sudah Ditetapkan (${formatAngka(periode.ditetapkan)})`}
-          aksi={
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/tim-kerja/pemantauan?periode=${periode.id}`} className={kelasTombol("sekunder", "sm")}>
-                Pantau Kesesuaian
-              </Link>
-              <Link href="/bima/kotak-masuk" className={kelasTombol("hantu", "sm")}>
-                Kotak Masuk BIMA (simulasi)
-              </Link>
-            </div>
-          }
-        >
-          <Table>
-            <THead>
-              <TR>
-                <TH>Judul Proposal</TH>
-                <TH>Skema</TH>
-                <TH>Institusi Pengusul</TH>
-                <TH>Reviewer</TH>
-                <TH>Institusi Reviewer</TH>
-                <TH>Status</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {ditetapkan.map((u) => (
-                <TR key={u.penugasanId}>
-                  <TD className="min-w-56 max-w-sm">
-                    <Link href={`/tim-kerja/proposal/${u.proposalId}`} className="text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
-                      {u.judulProposal}
-                    </Link>
-                  </TD>
-                  <TD>{u.skema}</TD>
-                  <TD>{u.institusiPengusul}</TD>
-                  <TD>{u.namaReviewer}</TD>
-                  <TD>{u.institusiReviewer}</TD>
-                  <TD>
-                    <StatusBadge status={u.status ?? "Ditetapkan"} />
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-          <Suspense fallback={null}>
-            <Paginasi halaman={halamanTetap} jumlahHalaman={jumlahHalaman(periode.ditetapkan, UKURAN_HALAMAN_USULAN)} parameter="halT" />
-          </Suspense>
-        </Bagian>
+      {Number.isFinite(tetap) && tetap > 0 ? (
+        <Alert jenis="sukses" className="mt-6">
+          Penugasan telah ditetapkan dan tercatat di BIMA ({formatAngka(tetap)} proposal). Reviewer menerimanya dengan tanda &ldquo;Baru&rdquo; di Daftar Penugasan (J-07).
+        </Alert>
       ) : null}
+
+      <nav aria-label="Bagian usulan penugasan" className="mt-8 flex flex-wrap gap-1 border-b border-primer-200">
+        {TAB.map((t) => (
+          <Link
+            key={t.nilai}
+            href={alamat(t.nilai)}
+            aria-current={tab === t.nilai ? "page" : undefined}
+            scroll={false}
+            className={cn(
+              "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+              tab === t.nilai ? "border-primer-400 text-primer-900" : "border-transparent text-primer-700 hover:text-primer-900",
+            )}
+          >
+            {t.label} <span className="angka font-normal text-teks-redup">({formatAngka(t.jumlah)})</span>
+          </Link>
+        ))}
+      </nav>
+
+      <div className="pt-4">
+        {tab === "sebaran" ? (
+          <SebaranBeban reviewer={reviewer} ringkas={ringkas} batas={periode.batasBeban} alamatUsulan={(id) => alamat("usulan", { rev: id })} />
+        ) : daftar ? (
+          <>
+            {tab === "ditetapkan" && periode.ditetapkan > 0 ? (
+              <p className="mb-3 flex flex-wrap gap-2">
+                <Link href={`/tim-kerja/pemantauan?periode=${periode.id}`} className={kelasTombol("sekunder", "sm")}>
+                  Pantau Kesesuaian
+                </Link>
+                <Link href="/bima/kotak-masuk" className={kelasTombol("hantu", "sm")}>
+                  Kotak Masuk BIMA (simulasi)
+                </Link>
+              </p>
+            ) : null}
+            {(tab === "usulan" ? periode.diusulkan : periode.ditetapkan) > 0 ? <BilahFilter faset={faset} filter={filter} ukuran={ukuran} jenis={tab === "ditetapkan" ? "ditetapkan" : "usulan"} /> : null}
+            {daftar.total > 0 ? (
+              <>
+                <TabelUsulan
+                  key={`${tab}:${JSON.stringify(filter)}`}
+                  mode={tab === "ditetapkan" ? "ditetapkan" : "usulan"}
+                  periodeId={periode.id}
+                  baris={daftar.baris}
+                  total={daftar.total}
+                  filter={filter}
+                  kandidat={kandidat}
+                  batas={periode.batasBeban}
+                  mulai={(daftar.halaman - 1) * ukuran + 1}
+                />
+                <Suspense fallback={null}>
+                  <Paginasi halaman={daftar.halaman} jumlahHalaman={daftar.jumlahHalaman} parameter="hal" />
+                </Suspense>
+              </>
+            ) : adaFilter(filter) ? (
+              <KeadaanKosong
+                judul="Tidak ada yang cocok dengan filter ini"
+                aksi={
+                  <Link href={alamat(tab)} className={kelasTombol("sekunder", "sm")}>
+                    Hapus filter
+                  </Link>
+                }
+              >
+                Coba kata lain, pilih reviewer atau institusi lain, atau hapus filter untuk melihat semuanya.
+              </KeadaanKosong>
+            ) : tab === "usulan" ? (
+              <KeadaanKosong judul={periode.belumDitugaskan > 0 ? "Belum ada usulan penugasan" : "Semua proposal sudah ditugaskan"}>
+                {periode.belumDitugaskan > 0
+                  ? `${formatAngka(periode.belumDitugaskan)} proposal Terkirim belum punya reviewer. Isi batas beban, lalu tekan "Susun Usulan Penugasan".`
+                  : "Tidak ada proposal Terkirim yang masih perlu ditugaskan pada periode ini."}
+              </KeadaanKosong>
+            ) : (
+              <KeadaanKosong judul="Belum ada penugasan yang ditetapkan">Usulan yang ditetapkan akan tampil di sini dan tercatat di BIMA.</KeadaanKosong>
+            )}
+          </>
+        ) : null}
+      </div>
     </>
   );
 }
