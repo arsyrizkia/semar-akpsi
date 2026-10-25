@@ -848,7 +848,7 @@ Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: per
 
 | Bagian | Isi |
 |---|---|
-| Algorithm | [J1] IF tidak ada proposal THEN 1. [J2] IF tidak ada reviewer THEN null. SET atas = jumlah proposal + beban awal terbesar. [J3] IF tidak layak pada `atas` THEN null (berapa pun batasnya tidak cukup). SET bawah = max(1, ceil((jumlah proposal + total beban awal) / jumlah reviewer)). [J4] WHILE bawah < atas: tengah = floor((bawah+atas)/2); IF layak(tengah) THEN atas = tengah ELSE bawah = tengah + 1. RETURN bawah. |
+| Algorithm | [J1] IF tidak ada proposal THEN 1. [J2] IF tidak ada reviewer THEN null. SET atas = jumlah proposal + beban awal terbesar. [J3] IF tidak layak pada `atas` THEN null (berapa pun batasnya tidak cukup). SET bawah = max(1, ceil(jumlah proposal / jumlah reviewer)) (sah karena kapasitas ≤ jumlah reviewer × batas; beban awal tak merata tidak menaikkan batas bawah). [J4] WHILE bawah < atas: tengah = floor((bawah+atas)/2); IF layak(tengah) THEN atas = tengah ELSE bawah = tengah + 1. RETURN bawah. |
 
 ### MS-04c susunUsulan
 

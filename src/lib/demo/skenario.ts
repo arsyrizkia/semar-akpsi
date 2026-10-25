@@ -524,7 +524,7 @@ async function siapkanJ06(keadaan: "terkirim" | "ditahan" | "ditolak" | "diperik
  * Menyiapkan satu skenario keadaan bagi satu jendela (navigator demo, rute /demo/mulai?j=&s=). Idempoten dan tidak mereset basis data.
  */
 const CATATAN_1200 =
-  "1.200 proposal Terkirim (PD dan PT) dari 14 institusi, 30 reviewer bersedia termasuk reviewer-1..6, batas beban 45. Batas 35 memicu S-1 beserta saran batas terkecil yang cukup.";
+  "1.200 proposal Terkirim (PD dan PT) dari 14 institusi, 30 reviewer bersedia termasuk reviewer-1..5, batas beban 45. Batas 35 memicu S-1 beserta saran batas terkecil yang cukup.";
 
 export async function siapkanSkenario(kodeJendela: string, id: string): Promise<HasilSkenario> {
   const db = getDb();
@@ -628,7 +628,7 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
       await susunPenugasan(h.periodeId, PROFIL.contoh1200.batasBawaan);
       if (id === "menunggu") return { akun: "dppm-pengelola", tujuan: ke, catatan: "1.200 usulan (batas beban 45) menunggu penetapan; coba cari, saring per reviewer, dan Pindahkan banyak baris." };
       await tetapkanPenugasan(h.periodeId, "dppm-pengelola");
-      return { akun: "dppm-pengelola", tujuan: `${ke}?tab=ditetapkan`, catatan: "1.200 penugasan ditetapkan dan tercatat di kotak masuk BIMA; reviewer-1..6 menerimanya berlabel Baru di J-07." };
+      return { akun: "dppm-pengelola", tujuan: `${ke}?tab=ditetapkan`, catatan: "1.200 penugasan ditetapkan dan tercatat di kotak masuk BIMA; reviewer-1..5 menerimanya berlabel Baru di J-07." };
     }
     case "J-04/siap-kecil": {
       await ubahPengaturanDemo({ masaPengusulan: "ditutup" });

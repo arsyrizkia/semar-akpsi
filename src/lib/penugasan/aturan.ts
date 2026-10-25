@@ -328,7 +328,7 @@ export function cekKelayakan(proposal: ProposalPenugasan[], reviewer: KandidatRe
 
 /**
  * batasTerkecilCukup (MS-04b): batas beban terkecil yang membuat semua proposal dapat ditugaskan, lewat pencarian biner atas
- * cekKelayakan mulai dari ceil((proposal + beban awal) / reviewer). null bila berapa pun batasnya tetap tidak cukup (mis. semua
+ * cekKelayakan mulai dari ceil(proposal / reviewer). null bila berapa pun batasnya tetap tidak cukup (mis. semua
  * reviewer dari institusi yang sama dengan sebagian pengusul) atau tidak ada reviewer.
  */
 export function batasTerkecilCukup(proposal: ProposalPenugasan[], reviewer: KandidatReviewer[], bebanAwal: Record<string, number>): number | null {
@@ -337,8 +337,8 @@ export function batasTerkecilCukup(proposal: ProposalPenugasan[], reviewer: Kand
   const bebanMaks = Math.max(0, ...reviewer.map((r) => bebanAwal[r.id] ?? 0));
   let atas = proposal.length + bebanMaks;
   if (!cekKelayakan(proposal, reviewer, bebanAwal, atas).layak) return null;
-  const totalAwal = reviewer.reduce((a, r) => a + (bebanAwal[r.id] ?? 0), 0);
-  let bawah = Math.max(1, Math.ceil((proposal.length + totalAwal) / reviewer.length));
+  // batas bawah sah: kapasitas sum(max(0, b - beban awal)) <= R x b, jadi b >= ceil(N / R) (beban awal tak merata tidak boleh menaikkannya)
+  let bawah = Math.max(1, Math.ceil(proposal.length / reviewer.length));
   while (bawah < atas) {
     const tengah = Math.floor((bawah + atas) / 2);
     if (cekKelayakan(proposal, reviewer, bebanAwal, tengah).layak) atas = tengah;

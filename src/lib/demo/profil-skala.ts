@@ -3,8 +3,8 @@
  * dan daftar Masuk cepat). Setiap profil punya periode sendiri yang namanya berawalan NAMA_PERIODE_SKALA ("Skala Nyata"), jadi
  * semua pembaca periode lain (J-02, J-05, pengajuan) mengecualikannya, dan kumpulan reviewernya sendiri:
  *  - skala10k   : 10.000 proposal, 130 reviewer rvw-skala-* dari 40 institusi (uji beban);
- *  - contoh1200 : 1.200 proposal (PD dan PT) dari 14 institusi yang timpang, 27 reviewer rvw-c12-* (3 tidak bersedia) ditambah
- *                 reviewer-1..6 yang dapat masuk, supaya hasil penetapan terlihat di J-07 reviewer contoh.
+ *  - contoh1200 : 1.200 proposal (PD dan PT) dari 14 institusi yang timpang, 28 reviewer rvw-c12-* (3 tidak bersedia) ditambah
+ *                 reviewer-1..5 yang dapat masuk (30 bersedia), supaya hasil penetapan terlihat di J-07 reviewer contoh.
  */
 /** Awalan nama periode berskala besar; pembaca periode lain mengecualikannya (dipakai ulang oleh waktu.ts). */
 export const NAMA_PERIODE_SKALA = "Skala Nyata";
@@ -57,11 +57,12 @@ export const PROFIL: Record<KunciProfil, ProfilSkala> = {
     awalanReviewer: "rvw-c12-",
     awalanPengusul: "pgs-c12-",
     jumlahProposal: 1200,
-    jumlahReviewer: 27,
+    jumlahReviewer: 28,
     jumlahPengusul: 600,
     jumlahInstitusi: 14,
-    tidakBersedia: (n) => n > 24,
-    reviewerContoh: ["reviewer-1", "reviewer-2", "reviewer-3", "reviewer-4", "reviewer-5", "reviewer-6"],
+    tidakBersedia: (n) => n > 25,
+    // reviewer-6 tidak bersedia di data seed; kesediaan akun contoh tidak diubah oleh profil (berlaku global, lintas periode)
+    reviewerContoh: ["reviewer-1", "reviewer-2", "reviewer-3", "reviewer-4", "reviewer-5"],
     batasBawaan: 45,
     // jumlah = 1.200: satu universitas besar, beberapa sedang, sisanya kecil
     bobotInstitusi: [220, 160, 130, 110, 100, 90, 80, 70, 60, 50, 40, 35, 25, 30],

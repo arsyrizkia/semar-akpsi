@@ -65,16 +65,16 @@ export interface HasilSiapkanSkala {
   waktuAturMs: number;
 }
 
-/** Kesediaan reviewer massal sesuai profil (reviewer contoh profil selalu bersedia). */
+/**
+ * Kesediaan reviewer massal sesuai profil. Akun reviewer contoh (reviewer-1..5) tidak disentuh: kesediaannya berlaku global, lintas
+ * periode dan skenario, jadi tetap seperti data seed.
+ */
 async function pasangKesediaan(profil: ProfilSkala): Promise<void> {
   const db = getDb();
   const nomorRvw = sql`substring(id_bima from '[0-9]+$')::int`;
-  const bersedia = profil.kunci === "skala10k" ? sql`(${nomorRvw} % 11 <> 0)` : sql`(${nomorRvw} <= 24)`;
+  const bersedia = profil.kunci === "skala10k" ? sql`(${nomorRvw} % 11 <> 0)` : sql`(${nomorRvw} <= 25)`;
   for (const tabel of ["akun", "bima_akun", "bima_reviewer"]) {
     await db.execute(sql`UPDATE ${sql.raw(tabel)} SET bersedia = ${bersedia} WHERE id_bima LIKE ${profil.awalanReviewer + "%"}`);
-    if (profil.reviewerContoh.length) {
-      await db.execute(sql`UPDATE ${sql.raw(tabel)} SET bersedia = true WHERE id_bima IN (${sql.join(profil.reviewerContoh.map((x) => sql`${x}`), sql`, `)})`);
-    }
   }
 }
 
@@ -296,5 +296,8 @@ export async function kosongkanPenugasanContoh1200(): Promise<void> {
   const [p] = await db.select({ id: s.periodeSeleksi.id }).from(s.periodeSeleksi).where(eq(s.periodeSeleksi.nama, PROFIL.contoh1200.namaPeriode));
   if (!p) return;
   await db.execute(sql`DELETE FROM penugasan_reviewer pr WHERE pr.periode_id = ${p.id} AND NOT EXISTS (SELECT 1 FROM penilaian pl WHERE pl.penugasan_id = pr.id)`);
-  await db.execute(sql`DELETE FROM bima_kotak_masuk WHERE jenis = 'penugasan' AND id_proposal LIKE ${PROFIL.contoh1200.awalanIdProposal + "%"}`);
+  // pesan BIMA hanya dibuang untuk proposal yang penugasannya ikut terhapus (penugasan berpenilaian tetap tercatat di kedua sisi)
+  await db.execute(sql`
+    DELETE FROM bima_kotak_masuk km WHERE km.jenis = 'penugasan' AND km.id_proposal LIKE ${PROFIL.contoh1200.awalanIdProposal + "%"}
+      AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr JOIN proposal p ON p.id = pr.proposal_id WHERE p.id_proposal = km.id_proposal)`);
 }

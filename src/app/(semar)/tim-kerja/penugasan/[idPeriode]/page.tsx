@@ -89,7 +89,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
             periodeId={periode.id}
             jumlahUsulan={periode.diusulkan}
             jumlahReviewer={jumlahReviewerUsulan}
-            bebanMin={ringkas.min}
+            bebanMin={Math.min(...reviewer.filter((r) => r.beban > 0).map((r) => r.beban), ringkas.maks)}
             bebanMaks={ringkas.maks}
             batas={periode.batasBeban}
             melanggar={fasetUsulan.melanggar}
@@ -101,7 +101,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
       <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm" data-testid="ringkasan-periode">
         {[
           ["Proposal Terkirim", formatAngka(periode.terkirim)],
-          ["Belum ditugaskan", formatAngka(periode.belumDitugaskan)],
+          ["Belum ditetapkan", formatAngka(periode.belumDitugaskan)],
           ["Usulan", formatAngka(periode.diusulkan)],
           ["Ditetapkan", formatAngka(periode.ditetapkan)],
           ["Reviewer bersedia", formatAngka(reviewer.length)],
@@ -128,7 +128,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
         periodeId={periode.id}
         batasAwal={periode.batasBeban}
         ditutup={periode.ditutup}
-        adaUsulan={periode.diusulkan > 0}
+        jumlahUsulan={periode.diusulkan}
         perluDitugaskan={periode.belumDitugaskan}
         susunOtomatis={sp.susun === "1"}
       />
@@ -175,7 +175,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
             {daftar.total > 0 ? (
               <>
                 <TabelUsulan
-                  key={`${tab}:${JSON.stringify(filter)}`}
+                  key={`${tab}:${JSON.stringify(filter)}:${faset.stempel}`}
                   mode={tab === "ditetapkan" ? "ditetapkan" : "usulan"}
                   periodeId={periode.id}
                   baris={daftar.baris}

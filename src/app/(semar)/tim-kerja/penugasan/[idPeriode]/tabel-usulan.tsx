@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Check, X } from "lucide-react";
@@ -43,8 +43,9 @@ function SelSyarat({ u, batas }: { u: BarisUsulanPenugasan; batas: number }) {
 
 /**
  * Tabel Usulan Penugasan (mode "usulan": centang, kolom Syarat, Pindahkan) atau Sudah Ditetapkan (mode "ditetapkan": hanya baca,
- * kolom Status). Pilihan baris bertahan saat berpindah halaman dan diatur ulang bila filter berubah (komponen diberi key filter).
- * "Pilih semua N hasil filter" mengirim filter ke server alih-alih ribuan id.
+ * kolom Status). Bilah pilihan berada DI ATAS tabel (lengket, selalu ada sehingga pembaca layar mengumumkan perubahan, dan dapat
+ * dijangkau di ponsel tempat kepala tabel disembunyikan): centang halaman ini, jumlah dipilih, "Pilih semua n hasil filter" /
+ * "Hanya halaman ini", Pindahkan, Batal pilih. Pilihan bertahan antarhalaman dan diatur ulang bila filter atau susunan berubah (key).
  */
 export function TabelUsulan({
   mode,
@@ -71,6 +72,9 @@ export function TabelUsulan({
   const [dipilih, setDipilih] = useState<Set<string>>(new Set());
   const [semuaFilter, setSemuaFilter] = useState(false);
   const [target, setTarget] = useState<TargetPindah | null>(null);
+  const [nomorModal, setNomorModal] = useState(0);
+  const centangHalaman = useRef<HTMLButtonElement>(null);
+  const ringkasan = useRef<HTMLParagraphElement>(null);
   const bisaPilih = mode === "usulan";
 
   const idHalaman = baris.map((u) => u.penugasanId);
@@ -78,6 +82,10 @@ export function TabelUsulan({
   const jumlahDipilih = semuaFilter ? total : dipilih.size;
   const kepala: boolean | "indeterminate" = terpilihDiHalaman === 0 ? false : terpilihDiHalaman === idHalaman.length ? true : "indeterminate";
 
+  function bukaModal(t: TargetPindah) {
+    setNomorModal((n) => n + 1);
+    setTarget(t);
+  }
   function ubahSatu(id: string, ya: boolean) {
     if (semuaFilter) {
       // keluar dari mode "semua hasil filter": pilihan menjadi baris halaman ini tanpa baris yang dilepas
@@ -106,11 +114,15 @@ export function TabelUsulan({
   function batalPilih() {
     setSemuaFilter(false);
     setDipilih(new Set());
+    centangHalaman.current?.focus();
   }
   function selesai(h: HasilPindahBanyak) {
     setTarget(null);
-    batalPilih();
+    setSemuaFilter(false);
+    setDipilih(new Set());
     beriTahu.sukses(h.ditolak ? `${angka.format(h.dipindahkan)} proposal dipindahkan; ${angka.format(h.ditolak)} tetap pada reviewer semula.` : `${angka.format(h.dipindahkan)} proposal dipindahkan.`);
+    // pemicu (tombol baris atau bilah) bisa hilang sesudah data segar: fokus ke ringkasan tabel
+    requestAnimationFrame(() => ringkasan.current?.focus());
   }
   const alamatReviewer = (id: string) => {
     const p = new URLSearchParams(cari.toString());
@@ -122,16 +134,44 @@ export function TabelUsulan({
 
   return (
     <>
-      <p className="mb-2 text-sm text-teks-redup" data-testid="ringkasan-usulan">
+      <p ref={ringkasan} tabIndex={-1} className="mb-2 text-sm text-teks-redup outline-none" data-testid="ringkasan-usulan">
         Menampilkan <span className="angka">{angka.format(mulai)}</span>–<span className="angka">{angka.format(mulai + baris.length - 1)}</span> dari{" "}
         <strong className="angka text-primer-900">{angka.format(total)}</strong> {mode === "usulan" ? "usulan menunggu penetapan" : "penugasan ditetapkan"}.
       </p>
+
+      {bisaPilih ? (
+        <div role="region" aria-label="Pilihan baris" className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-primer-200 bg-latar px-3 py-2">
+          <span className="inline-flex items-center gap-2">
+            <Checkbox id="centang-halaman" ref={centangHalaman} checked={kepala} onCheckedChange={(c) => ubahHalaman(c === true)} />
+            <label htmlFor="centang-halaman" className="cursor-pointer text-sm text-primer-900">
+              Pilih semua di halaman ini
+            </label>
+          </span>
+          <p role="status" className="text-sm font-semibold text-primer-900">
+            {jumlahDipilih ? `${angka.format(jumlahDipilih)} dipilih${semuaFilter ? " (semua hasil filter)" : ""}` : "Belum ada yang dipilih"}
+          </p>
+          {total > idHalaman.length && (semuaFilter || terpilihDiHalaman === idHalaman.length) ? (
+            <button type="button" onClick={() => setSemuaFilter((v) => !v)} className="cursor-pointer text-sm font-semibold text-primer-800 underline underline-offset-2">
+              {semuaFilter ? "Hanya pilih halaman ini" : `Pilih semua ${angka.format(total)} hasil filter`}
+            </button>
+          ) : null}
+          <span className="ml-auto flex gap-2">
+            <Button ukuran="sm" varian="hantu" onClick={batalPilih} disabled={!jumlahDipilih}>
+              Batal pilih
+            </Button>
+            <Button ukuran="sm" varian="sekunder" disabled={!jumlahDipilih} onClick={() => bukaModal({ pilihan: semuaFilter ? { filter } : { ids: [...dipilih] }, jumlah: jumlahDipilih })}>
+              Pindahkan {jumlahDipilih ? `${angka.format(jumlahDipilih)} ` : ""}proposal
+            </Button>
+          </span>
+        </div>
+      ) : null}
+
       <Table aria-label={mode === "usulan" ? "Usulan Penugasan" : "Penugasan yang sudah ditetapkan"}>
         <THead>
           <TR>
             {bisaPilih ? (
               <TH className="w-10">
-                <Checkbox aria-label="Pilih semua baris di halaman ini" checked={kepala} onCheckedChange={(c) => ubahHalaman(c === true)} />
+                <span className="sr-only">Pilih</span>
               </TH>
             ) : null}
             <TH>Judul Proposal</TH>
@@ -151,7 +191,7 @@ export function TabelUsulan({
           {baris.map((u) => {
             const pilih = semuaFilter || dipilih.has(u.penugasanId);
             return (
-              <TR key={u.penugasanId} tersorot={bisaPilih && pilih}>
+              <TR key={u.penugasanId} className={bisaPilih && pilih ? "bg-primer-50 shadow-[inset_3px_0_0_var(--color-primer-400)]" : undefined}>
                 {bisaPilih ? (
                   <TD>
                     <Checkbox aria-label={`Pilih ${u.judulProposal}`} checked={pilih} onCheckedChange={(c) => ubahSatu(u.penugasanId, c === true)} />
@@ -183,7 +223,7 @@ export function TabelUsulan({
                       varian="sekunder"
                       aria-label={`Pindahkan ${u.judulProposal}`}
                       onClick={() =>
-                        setTarget({
+                        bukaModal({
                           pilihan: { ids: [u.penugasanId] },
                           jumlah: 1,
                           tunggal: { judul: u.judulProposal, institusiPengusul: u.institusiPengusul, reviewerId: u.reviewerId, namaReviewer: u.namaReviewer },
@@ -200,32 +240,7 @@ export function TabelUsulan({
         </TBody>
       </Table>
 
-      {bisaPilih && jumlahDipilih > 0 ? (
-        <div role="region" aria-label="Aksi baris terpilih" className="sticky bottom-3 z-30 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-primer-300 bg-white px-4 py-2.5 shadow-[var(--shadow-overlay)]">
-          <p className="text-sm font-semibold text-primer-900" aria-live="polite">
-            {angka.format(jumlahDipilih)} dipilih{semuaFilter ? " (semua hasil filter)" : ""}
-          </p>
-          {!semuaFilter && total > dipilih.size && terpilihDiHalaman === idHalaman.length ? (
-            <button type="button" onClick={() => setSemuaFilter(true)} className="cursor-pointer text-sm font-semibold text-primer-800 underline underline-offset-2">
-              Pilih semua {angka.format(total)} hasil filter
-            </button>
-          ) : null}
-          <span className="ml-auto flex gap-2">
-            <Button ukuran="sm" varian="hantu" onClick={batalPilih}>
-              Batal pilih
-            </Button>
-            <Button
-              ukuran="sm"
-              varian="sekunder"
-              onClick={() => setTarget({ pilihan: semuaFilter ? { filter } : { ids: [...dipilih] }, jumlah: jumlahDipilih })}
-            >
-              Pindahkan {angka.format(jumlahDipilih)} proposal
-            </Button>
-          </span>
-        </div>
-      ) : null}
-
-      <ModalPindah target={target} saatTutup={() => setTarget(null)} saatSelesai={selesai} periodeId={periodeId} kandidat={kandidat} batas={batas} />
+      <ModalPindah key={nomorModal} target={target} saatTutup={() => setTarget(null)} saatSelesai={selesai} periodeId={periodeId} kandidat={kandidat} batas={batas} />
     </>
   );
 }

@@ -34,10 +34,11 @@ const LABEL_ALASAN: Record<KodeSyarat, string> = {
 const sama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /**
- * M-06 Pindahkan Proposal (UC-03 S-2) untuk satu atau banyak baris. Reviewer Pengganti dipilih sendiri (combobox yang dapat dicari)
- * atau "Pilihkan otomatis" (reviewer memenuhi syarat dengan beban terendah). Setiap perubahan pilihan menjalankan pratinjau di server
- * (pemeriksaan syarat yang sama dengan penyimpanan, tanpa menulis): berapa yang dapat dipindahkan dan syarat yang dilanggar sisanya.
- * "Simpan Pemindahan" memindahkan yang memenuhi; yang tidak tetap pada reviewer semula (S-2.3).
+ * M-06 Pindahkan Proposal (UC-03 S-2) untuk satu atau banyak baris. Reviewer Pengganti dipilih sendiri (combobox yang dapat dicari;
+ * yang memenuhi syarat di atas) atau "Pilihkan otomatis" (reviewer memenuhi syarat dengan beban terendah). Setiap perubahan pilihan
+ * menjalankan pratinjau di server (pemeriksaan syarat yang sama dengan penyimpanan, tanpa menulis). Hasil pratinjau disimpan bersama
+ * kunci tujuannya, jadi jawaban untuk pilihan lama tidak pernah tampil di bawah pilihan baru. "Simpan Pemindahan" memindahkan yang
+ * memenuhi; yang tidak tetap pada reviewer semula (S-2.3). Komponen dipasang ulang (key) untuk setiap sasaran baru.
  */
 export function ModalPindah({
   target,
@@ -56,53 +57,43 @@ export function ModalPindah({
 }) {
   const [mode, setMode] = useState<"pilih" | "otomatis">("pilih");
   const [reviewerId, setReviewerId] = useState("");
-  const [pratinjau, setPratinjau] = useState<HasilPindahBanyak | null>(null);
-  const [memeriksa, setMemeriksa] = useState(false);
+  const [hasil, setHasil] = useState<{ kunci: string; h: HasilPindahBanyak } | null>(null);
+  const [galatPratinjau, setGalatPratinjau] = useState<{ kunci: string; pesan: string } | null>(null);
   const [menyimpan, setMenyimpan] = useState(false);
-  const [galat, setGalat] = useState<string | null>(null);
+  const [galatSimpan, setGalatSimpan] = useState<string | null>(null);
   const permintaan = useRef(0);
-
-  // keadaan awal setiap kali modal dibuka untuk sasaran baru
-  useEffect(() => {
-    setMode("pilih");
-    setReviewerId("");
-    setPratinjau(null);
-    setGalat(null);
-  }, [target]);
 
   const tujuan: TujuanPindah | null = mode === "otomatis" ? { jenis: "otomatis" } : reviewerId ? { jenis: "reviewer", reviewerId } : null;
   const kunciTujuan = tujuan ? JSON.stringify(tujuan) : "";
+  const pratinjau = hasil && hasil.kunci === kunciTujuan ? hasil.h : null;
+  const galat = galatSimpan ?? (galatPratinjau && galatPratinjau.kunci === kunciTujuan ? galatPratinjau.pesan : null);
+  const memeriksa = Boolean(target && tujuan) && !pratinjau && !(galatPratinjau && galatPratinjau.kunci === kunciTujuan);
 
   useEffect(() => {
-    if (!target || !tujuan) {
-      setPratinjau(null);
-      return;
-    }
     const nomor = ++permintaan.current;
-    setMemeriksa(true);
-    setGalat(null);
+    if (!target || !tujuan) return;
+    const kunci = kunciTujuan;
     aksiPindah(periodeId, target.pilihan, tujuan, false)
       .then((h) => {
         if (nomor !== permintaan.current) return;
-        if (h.ok) setPratinjau(h);
-        else setGalat(h.galat);
+        if (h.ok) setHasil({ kunci, h });
+        else setGalatPratinjau({ kunci, pesan: h.galat });
       })
-      .catch(() => nomor === permintaan.current && setGalat("Pemeriksaan syarat gagal; coba lagi."))
-      .finally(() => nomor === permintaan.current && setMemeriksa(false));
+      .catch(() => nomor === permintaan.current && setGalatPratinjau({ kunci, pesan: "Pemeriksaan syarat gagal; coba lagi." }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, kunciTujuan, periodeId]);
 
   async function simpan() {
     if (!target || !tujuan) return;
     setMenyimpan(true);
-    setGalat(null);
+    setGalatSimpan(null);
     try {
       const h = await aksiPindah(periodeId, target.pilihan, tujuan, true);
-      if (!h.ok) setGalat(h.galat);
-      else if (h.dipindahkan === 0) setPratinjau(h);
+      if (!h.ok) setGalatSimpan(h.galat);
+      else if (h.dipindahkan === 0) setHasil({ kunci: kunciTujuan, h });
       else saatSelesai(h);
     } catch {
-      setGalat("Pemindahan gagal disimpan; coba lagi.");
+      setGalatSimpan("Pemindahan gagal disimpan; coba lagi.");
     } finally {
       setMenyimpan(false);
     }
@@ -111,12 +102,12 @@ export function ModalPindah({
   const t = target?.tunggal;
   const opsi = kandidat
     .filter((k) => !t || k.id !== t.reviewerId)
-    .map((k) => ({
-      nilai: k.id,
-      label: k.nama,
-      keterangan: `${k.institusi} · beban ${k.beban}/${batas}`,
-      peringatan: t && sama(k.institusi, t.institusiPengusul) ? "Institusi sama dengan pengusul" : k.beban >= batas ? "Sudah mencapai batas" : undefined,
-    }));
+    .map((k) => {
+      const peringatan = t && sama(k.institusi, t.institusiPengusul) ? "Institusi sama dengan pengusul" : k.beban >= batas ? "Sudah mencapai batas" : undefined;
+      return { nilai: k.id, label: k.nama, keterangan: `${k.institusi} · beban ${k.beban}/${batas}`, peringatan };
+    })
+    // yang memenuhi syarat lebih dulu, lalu beban terendah
+    .sort((a, b) => Number(Boolean(a.peringatan)) - Number(Boolean(b.peringatan)));
 
   const banyak = (target?.jumlah ?? 0) > 1;
   const ditolakSemua = pratinjau !== null && pratinjau.dipindahkan === 0;
@@ -140,12 +131,30 @@ export function ModalPindah({
     >
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-primer-800">Reviewer Pengganti</legend>
-        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "pilih" | "otomatis")} className="mb-3 flex-col gap-2">
+        <RadioGroup
+          value={mode}
+          onValueChange={(v) => {
+            setMode(v as "pilih" | "otomatis");
+            setGalatSimpan(null);
+          }}
+          className="mb-3 flex-col gap-2"
+        >
           <RadioItem id="pindah-pilih" value="pilih" label="Pilih reviewer" />
           <RadioItem id="pindah-otomatis" value="otomatis" label="Pilihkan otomatis: reviewer yang memenuhi syarat dengan beban terendah" />
         </RadioGroup>
         {mode === "pilih" ? (
-          <Combobox label="Reviewer Pengganti" wajib nilai={reviewerId} saatUbah={setReviewerId} opsi={opsi} placeholder="Ketik nama atau institusi reviewer" />
+          <Combobox
+            label="Reviewer Pengganti"
+            wajib
+            nilai={reviewerId}
+            saatUbah={(v) => {
+              setReviewerId(v);
+              setGalatSimpan(null);
+            }}
+            opsi={opsi}
+            placeholder="Ketik nama atau institusi reviewer…"
+            galat={ditolakSemua && !banyak ? "Reviewer ini tidak memenuhi syarat. Pilih reviewer lain atau gunakan Pilihkan otomatis." : null}
+          />
         ) : null}
       </fieldset>
 
@@ -164,9 +173,9 @@ export function ModalPindah({
               <p className="mt-1 text-xs text-teks-redup">
                 {pratinjau.tujuan
                   .slice(0, 6)
-                  .map((x) => `${x.nama} ${x.jumlah}`)
+                  .map((x) => `${x.nama} (${x.jumlah} proposal)`)
                   .join(", ")}
-                {pratinjau.tujuan.length > 6 ? `, dan ${pratinjau.tujuan.length - 6} lainnya` : ""}
+                {pratinjau.tujuan.length > 6 ? `, dan ${pratinjau.tujuan.length - 6} reviewer lainnya` : ""}
               </p>
             ) : null}
             {pratinjau.ditolak ? (
@@ -192,6 +201,7 @@ export function ModalPindah({
               <li key={a.kode}>{banyak ? `${LABEL_ALASAN[a.kode]} (${angka.format(a.jumlah)})` : a.contoh}</li>
             ))}
           </ul>
+          <p className="mt-1">{mode === "otomatis" ? "Naikkan batas beban lalu susun ulang, atau pilih proposal lain." : "Pilih reviewer lain atau gunakan Pilihkan otomatis."}</p>
         </div>
       ) : null}
       {galat ? (

@@ -85,7 +85,15 @@ export function SebaranBeban({ reviewer, ringkas, batas, alamatUsulan }: { revie
                 <TD angka>{formatAngka(r.beban)}</TD>
                 <TD angka>{batas}</TD>
                 <TD className="w-1/4 min-w-36">
-                  <div role="meter" aria-valuemin={0} aria-valuemax={batas} aria-valuenow={r.beban} aria-label={`Beban ${r.nama}`} className="h-2 w-full overflow-hidden rounded-sm bg-primer-100">
+                  <div
+                    role="meter"
+                    aria-valuemin={0}
+                    aria-valuemax={Math.max(batas, r.beban)}
+                    aria-valuenow={r.beban}
+                    aria-valuetext={`${r.beban} dari batas ${batas}${r.beban > batas ? ", di atas batas" : r.beban === batas ? ", penuh" : ""}`}
+                    aria-label={`Beban ${r.nama}`}
+                    className="h-2 w-full overflow-hidden rounded-sm bg-primer-100"
+                  >
                     <div className={r.beban > batas ? "h-full bg-bata-600" : r.beban === batas ? "h-full bg-peringatan-500" : "h-full bg-primer-700"} style={{ width: `${persen}%` }} />
                   </div>
                   {keterangan ? <span className={r.beban > batas ? "text-xs font-semibold text-bata-700" : "text-xs text-teks-redup"}>{keterangan}</span> : null}

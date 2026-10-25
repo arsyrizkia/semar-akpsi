@@ -10,6 +10,14 @@ import type { TujuanPindah } from "@/lib/penugasan/aturan";
 import type { HasilPindahAksi, HasilSusunAksi, HasilTetapkanAksi } from "./tipe";
 
 const JALUR = "/tim-kerja/penugasan";
+
+/** Galat tak terduga (mis. galat basis data berisi SQL dan parameter) dicatat di server; pengguna menerima pesan umum. */
+function pesanUmum(e: unknown, umum: string): string {
+  if (e instanceof PenugasanDitolakError || e instanceof MasaBelumDitutupError) return e.message;
+  if (e instanceof Error && e.message.startsWith("Batas Beban per Reviewer")) return e.message;
+  console.error(umum, e);
+  return `${umum} Coba lagi; bila berulang, muat ulang halaman.`;
+}
 const segarkan = () => revalidatePath(JALUR, "layout");
 const skemaUuid = z.string().uuid();
 
@@ -27,9 +35,8 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
     if (hasil.jumlahBelumDitugaskan > 0) return { kekurangan: hasil.jumlahBelumDitugaskan, batasDipakai: batas, rincian: hasil.kekurangan };
     return { berhasil: true, jumlahUsulan: hasil.jumlahUsulan };
   } catch (e) {
-    if (e instanceof MasaBelumDitutupError) return { galat: e.message };
     if (e instanceof BimaGagalError) return { galat: `Daftar reviewer dari BIMA tidak dapat diambil: ${e.message}. Tekan "Susun Usulan Penugasan" untuk mencoba lagi.` };
-    return { galat: e instanceof Error ? e.message : "Usulan penugasan gagal disusun." };
+    return { galat: pesanUmum(e, "Usulan penugasan gagal disusun.") };
   }
 }
 
@@ -60,7 +67,7 @@ export async function aksiPindah(periodeId: string, pilihan: PilihanPindah, tuju
     if (simpan) segarkan();
     return { ok: true, ...hasil };
   } catch (e) {
-    return { ok: false, galat: e instanceof Error ? e.message : "Pemindahan gagal diproses." };
+    return { ok: false, galat: pesanUmum(e, "Pemindahan gagal diproses.") };
   }
 }
 
@@ -77,7 +84,6 @@ export async function aksiTetapkan(periodeId: string): Promise<HasilTetapkanAksi
   } catch (e) {
     segarkan();
     if (e instanceof BimaGagalError) return { berhasil: false, gagalBima: true, galat: `Penugasan gagal dikirim ke BIMA: ${e.message}` };
-    if (e instanceof MasaBelumDitutupError || e instanceof PenugasanDitolakError) return { berhasil: false, galat: e.message };
-    return { berhasil: false, galat: e instanceof Error ? e.message : "Penugasan gagal ditetapkan." };
+    return { berhasil: false, galat: pesanUmum(e, "Penugasan gagal ditetapkan.") };
   }
 }

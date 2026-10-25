@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search } from "lucide-react";
 import { Combobox, KotakCentang, Pilihan } from "@/components/ui";
@@ -20,7 +20,16 @@ export function BilahFilter({ faset, filter, ukuran, jenis }: { faset: FasetUsul
   const cari = useSearchParams();
   const [memuat, mulai] = useTransition();
   const [q, setQ] = useState(filter.q);
-  const qTerakhir = useRef(filter.q);
+  // nilai q terakhir yang dikirim kotak cari ini; q di URL yang berbeda darinya datang dari luar (Back, Hapus filter, tautan)
+  const [dikirim, setDikirim] = useState(filter.q);
+  const [qUrl, setQUrl] = useState(filter.q);
+  if (filter.q !== qUrl) {
+    setQUrl(filter.q);
+    if (filter.q !== dikirim) {
+      setQ(filter.q);
+      setDikirim(filter.q);
+    }
+  }
 
   function ke(ubah: Record<string, string | null>, ganti = false) {
     const p = new URLSearchParams(cari.toString());
@@ -35,20 +44,17 @@ export function BilahFilter({ faset, filter, ukuran, jenis }: { faset: FasetUsul
     mulai(() => (ganti ? router.replace(alamat, { scroll: false }) : router.push(alamat, { scroll: false })));
   }
 
-  // pencarian ditunda; nilai dari URL (Back/hapus filter) menimpa isian lokal
+  // pencarian ditunda 300 ms; jawaban server untuk ketikan lama tidak menimpa ketikan yang lebih baru
   useEffect(() => {
-    if (q === qTerakhir.current) return;
+    const v = q.trim();
+    if (v === dikirim) return;
     const t = setTimeout(() => {
-      qTerakhir.current = q;
-      ke({ q: q.trim() || null }, true);
+      setDikirim(v);
+      ke({ q: v || null }, true);
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
-  useEffect(() => {
-    qTerakhir.current = filter.q;
-    setQ(filter.q);
-  }, [filter.q]);
+  }, [q, dikirim]);
 
   const adaFilter = Boolean(filter.q || filter.rev || filter.inst || filter.skema || filter.melanggar);
   return (
@@ -65,7 +71,7 @@ export function BilahFilter({ faset, filter, ukuran, jenis }: { faset: FasetUsul
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Judul, ID proposal, atau nama pengusul"
+              placeholder="Judul, ID proposal, atau nama pengusul…"
               autoComplete="off"
               className="h-10 w-full rounded-md border border-primer-400 bg-white pl-9 pr-3 text-primer-900 placeholder:text-primer-600 focus-visible:outline-primer-400"
             />
@@ -111,7 +117,7 @@ export function BilahFilter({ faset, filter, ukuran, jenis }: { faset: FasetUsul
               type="button"
               onClick={() => {
                 setQ("");
-                qTerakhir.current = "";
+                setDikirim("");
                 ke({ q: null, rev: null, inst: null, skema: null, syarat: null });
               }}
               className="cursor-pointer text-sm font-semibold text-primer-800 underline underline-offset-2 hover:text-primer-900"

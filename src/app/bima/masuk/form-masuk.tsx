@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { PERISTIWA_BUKA_MASUK_CEPAT } from "@/components/layout/masuk-cepat";
 
@@ -15,6 +15,12 @@ const KELAS_ISIAN =
 export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kembali: string; lanjut: string; pengguna: string; galatSandi: string | null }) {
   const [lihat, setLihat] = useState(false);
   const [sibuk, setSibuk] = useState(false);
+  const isianSandi = useRef<HTMLInputElement>(null);
+
+  // kembali dari login gagal: pesan galat sudah ada saat halaman dimuat, jadi fokus dipindah ke Password supaya galatnya dibacakan
+  useEffect(() => {
+    if (galatSandi) isianSandi.current?.focus();
+  }, [galatSandi]);
 
   // halaman dipulihkan dari bfcache (tombol Back): tombol tidak boleh tetap "Memeriksa…"
   useEffect(() => {
@@ -55,6 +61,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
         </label>
         <div className="flex">
           <input
+            ref={isianSandi}
             id="kataSandi"
             name="kataSandi"
             type={lihat ? "text" : "password"}
@@ -102,6 +109,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
       <p className="pt-1 text-center text-sm">
         <button
           type="button"
+          aria-haspopup="dialog"
           onClick={() => window.dispatchEvent(new Event(PERISTIWA_BUKA_MASUK_CEPAT))}
           className="text-[#2c4fb5] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[#2c4fb5]"
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Popover as RPopover } from "radix-ui";
 import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ export function Combobox({
   opsi,
   nilai,
   saatUbah,
-  placeholder = "Ketik untuk mencari",
+  placeholder = "Ketik untuk mencari…",
   petunjuk,
   galat,
   wajib,
@@ -70,15 +70,26 @@ export function Combobox({
     setCari("");
   }
 
+  const idOpsi = (i: number) => `${kunci}-opsi-${i}`;
+  // opsi aktif selalu terlihat saat berpindah dengan papan ketik
+  useEffect(() => {
+    if (buka) document.getElementById(idOpsi(aktif))?.scrollIntoView({ block: "nearest" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktif, buka]);
+
   function tekan(e: React.KeyboardEvent<HTMLInputElement>) {
+    const n = hasil.length;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      if (!buka) setBuka(true);
-      setAktif((a) => {
-        const n = hasil.length;
-        if (!n) return 0;
-        return e.key === "ArrowDown" ? (a + 1) % n : (a - 1 + n) % n;
-      });
+      // daftar tertutup: buka dulu dengan sorotan tetap pada opsi saat ini (tidak melompati opsi pertama)
+      if (!buka) {
+        setBuka(true);
+        return;
+      }
+      setAktif((a) => (!n ? 0 : e.key === "ArrowDown" ? (a + 1) % n : (a - 1 + n) % n));
+    } else if ((e.key === "Home" || e.key === "End") && buka && n) {
+      e.preventDefault();
+      setAktif(e.key === "Home" ? 0 : n - 1);
     } else if (e.key === "Enter") {
       if (buka && hasil[aktif]) {
         e.preventDefault();
@@ -95,7 +106,6 @@ export function Combobox({
   }
 
   const deskripsi = galat ? `${kunci}-galat` : petunjuk ? `${kunci}-petunjuk` : undefined;
-  const idOpsi = (i: number) => `${kunci}-opsi-${i}`;
 
   return (
     <div className={className}>
@@ -133,7 +143,11 @@ export function Combobox({
               onFocus={() => setAktif(Math.max(0, hasil.findIndex((o) => o.nilai === nilai)))}
               onClick={() => setBuka(true)}
               onKeyDown={tekan}
-              className="h-10 w-full rounded-md border border-primer-400 bg-white pl-3 pr-16 text-primer-900 placeholder:text-primer-600 focus-visible:outline-primer-400 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600"
+              className={cn(
+                "h-10 w-full rounded-md border border-primer-400 bg-white pl-3 pr-16 text-primer-900 focus-visible:outline-primer-400 aria-[invalid=true]:border-2 aria-[invalid=true]:border-bata-600",
+                // "Semua ..." pada filter adalah nilai, bukan petunjuk: warnanya sama dengan pilihan lain
+                bolehKosong && !nilai ? "placeholder:text-primer-900" : "placeholder:text-primer-600",
+              )}
             />
             <span className="absolute inset-y-0 right-1 flex items-center">
               {bolehKosong && nilai ? (

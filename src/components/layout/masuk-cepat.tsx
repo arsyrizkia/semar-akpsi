@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Popover as RPopover } from "radix-ui";
 import { LogIn, X } from "lucide-react";
 import { KATA_SANDI_DEMO, type KelompokCepat } from "@/lib/bima/akun-demo";
@@ -15,8 +15,13 @@ export const PERISTIWA_BUKA_MASUK_CEPAT = "semar:buka-masuk-cepat";
  */
 export function MasukCepat({ kelompok, tersembunyi = 0 }: { kelompok: KelompokCepat[]; tersembunyi?: number }) {
   const [buka, setBuka] = useState(false);
+  // dibuka dari luar (mis. "Bantuan"): fokus kembali ke pembukanya saat popup ditutup, bukan ke pil
+  const pembuka = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const bukaDariLuar = () => setBuka(true);
+    const bukaDariLuar = () => {
+      pembuka.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setBuka(true);
+    };
     window.addEventListener(PERISTIWA_BUKA_MASUK_CEPAT, bukaDariLuar);
     return () => window.removeEventListener(PERISTIWA_BUKA_MASUK_CEPAT, bukaDariLuar);
   }, []);
@@ -40,6 +45,13 @@ export function MasukCepat({ kelompok, tersembunyi = 0 }: { kelompok: KelompokCe
           collisionPadding={16}
           aria-label="Masuk cepat (demo)"
           data-testid="masuk-cepat-panel"
+          onCloseAutoFocus={(e) => {
+            if (pembuka.current?.isConnected) {
+              e.preventDefault();
+              pembuka.current.focus();
+            }
+            pembuka.current = null;
+          }}
           className="z-50 flex max-h-[min(34rem,calc(100dvh-6rem))] w-[23rem] max-w-[calc(100vw-2rem)] flex-col overscroll-contain rounded-lg border border-primer-300 bg-latar font-sans shadow-[var(--shadow-overlay)] outline-none"
         >
           <header className="flex items-center justify-between gap-2 rounded-t-lg bg-primer-800 px-3 py-2 text-latar">

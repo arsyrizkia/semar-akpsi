@@ -70,6 +70,11 @@ describe("batasTerkecilCukup (MS-04b)", () => {
     expect(batasTerkecilCukup([...banyak(6, "A"), prop("x", "B")], [rev("r1", "A"), rev("r2", "A"), rev("r3", "B")], {})).toBe(6);
   });
 
+  it("KP-batasTerkecilCukup-07 [J4]: beban awal tak merata tidak menaikkan batas bawah", () => {
+    // r1 sudah memegang 10, r2 kosong: 2 proposal cukup dengan batas 2 (keduanya ke r2)
+    expect(batasTerkecilCukup(banyak(2, "Z"), [rev("r1", "A"), rev("r2", "B")], { r1: 10, r2: 0 })).toBe(2);
+  });
+
   it("KP-batasTerkecilCukup-06: hasilnya memang batas terkecil (b layak, b - 1 tidak)", () => {
     const p = [...banyak(220, "A"), ...banyak(160, "B"), ...banyak(130, "C")];
     const r = Array.from({ length: 12 }, (_, i) => rev(`r${i}`, ["A", "B", "C", "D"][i % 4]));

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,7 +24,12 @@ export function Paginasi({ halaman, jumlahHalaman, parameter = "halaman", classN
       <p className="angka">
         Halaman {halaman} dari {jumlahHalaman}
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {halaman > 2 ? (
+          <Link href={alamat(1)} className={kelas} aria-label="Halaman pertama">
+            <ChevronFirst aria-hidden className="size-4" /> Pertama
+          </Link>
+        ) : null}
         {halaman > 1 ? (
           <Link href={alamat(halaman - 1)} className={kelas} rel="prev">
             <ChevronLeft aria-hidden className="size-4" /> Sebelumnya
@@ -33,6 +38,11 @@ export function Paginasi({ halaman, jumlahHalaman, parameter = "halaman", classN
         {halaman < jumlahHalaman ? (
           <Link href={alamat(halaman + 1)} className={kelas} rel="next">
             Berikutnya <ChevronRight aria-hidden className="size-4" />
+          </Link>
+        ) : null}
+        {halaman < jumlahHalaman - 1 ? (
+          <Link href={alamat(jumlahHalaman)} className={kelas} aria-label={`Halaman terakhir (${jumlahHalaman})`}>
+            Terakhir <ChevronLast aria-hidden className="size-4" />
           </Link>
         ) : null}
       </div>

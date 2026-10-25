@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Alert, Button, Isian } from "@/components/ui";
+import { Alert, Button, Isian, ModalKonfirmasi } from "@/components/ui";
 import { aksiSusun } from "../aksi";
 import type { HasilSusunAksi } from "../tipe";
 
@@ -12,23 +12,28 @@ const angka = new Intl.NumberFormat("id-ID");
 /**
  * J-04b langkah 1-4 dan S-1: isian "Batas Beban per Reviewer", tombol "Susun Usulan Penugasan", dan panel "Kekurangan Reviewer".
  * Panel S-1 memuat kapasitas, institusi pengusul penghambat (bila hambatannya institusi), dan saran batas terkecil yang cukup
- * dengan tombol "Susun dengan batas n". Saat S-1 tidak ada data yang berubah (usulan dan batas lama tetap).
+ * dengan tombol "Susun dengan batas n". Saat S-1 tidak ada data yang berubah (usulan dan batas lama tetap). Menyusun ulang saat usulan
+ * sudah ada meminta konfirmasi dulu karena usulan lama, termasuk pemindahan manual, akan diganti.
  */
 export function FormSusun({
   periodeId,
   batasAwal,
   ditutup,
-  adaUsulan,
+  jumlahUsulan,
   perluDitugaskan,
   susunOtomatis,
 }: {
   periodeId: string;
   batasAwal: number;
   ditutup: boolean;
-  adaUsulan: boolean;
+  jumlahUsulan: number;
   perluDitugaskan: number;
   susunOtomatis: boolean;
 }) {
+  const adaUsulan = jumlahUsulan > 0;
+  const [tanyaUlang, setTanyaUlang] = useState(false);
+  const sudahYakin = useRef(false);
+
   const [hasil, kirim, menyusun] = useActionState<HasilSusunAksi, FormData>(aksiSusun, {});
   const form = useRef<HTMLFormElement>(null);
   const [batas, setBatas] = useState(String(batasAwal));
@@ -58,15 +63,30 @@ export function FormSusun({
 
   function susunDengan(n: number) {
     setBatas(String(n));
-    // isian terkendali: tunggu nilai baru terpasang sebelum formulir dikirim
-    requestAnimationFrame(() => form.current?.requestSubmit());
+    // isian terkendali: tunggu nilai baru terpasang sebelum formulir dikirim; fokus ke isian batas (panel S-1 akan hilang)
+    requestAnimationFrame(() => {
+      form.current?.querySelector<HTMLInputElement>("input[name=batas]")?.focus();
+      form.current?.requestSubmit();
+    });
   }
 
   const galatBatas = hasil.galat?.includes("Batas Beban") ? hasil.galat : undefined;
   const r = hasil.rincian;
   return (
     <section aria-label="Susun usulan penugasan" className="mt-6">
-      <form ref={form} action={kirim} className="flex flex-wrap items-start gap-3">
+      <form
+        ref={form}
+        action={kirim}
+        onSubmit={(e) => {
+          if (adaUsulan && !sudahYakin.current) {
+            e.preventDefault();
+            setTanyaUlang(true);
+            return;
+          }
+          sudahYakin.current = false;
+        }}
+        className="flex flex-wrap items-start gap-3"
+      >
         <input type="hidden" name="periodeId" value={periodeId} />
         <Isian
           label="Batas Beban per Reviewer"
@@ -151,6 +171,19 @@ export function FormSusun({
           </Alert>
         </div>
       ) : null}
+      <ModalKonfirmasi
+        buka={tanyaUlang}
+        saatUbah={setTanyaUlang}
+        judul={`Susun ulang ${angka.format(jumlahUsulan)} usulan?`}
+        labelKonfirmasi="Susun Ulang"
+        saatKonfirmasi={() => {
+          setTanyaUlang(false);
+          sudahYakin.current = true;
+          form.current?.requestSubmit();
+        }}
+      >
+        <p>Usulan yang ada, termasuk pemindahan manual, akan diganti susunan baru dengan batas beban {batas || "-"}. Penugasan yang sudah ditetapkan tidak berubah.</p>
+      </ModalKonfirmasi>
     </section>
   );
 }
