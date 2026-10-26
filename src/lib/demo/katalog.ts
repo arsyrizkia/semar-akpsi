@@ -3,6 +3,7 @@
  * Berkas ini murni data (tanpa impor server) sehingga dipakai bersama oleh NavigatorDemo (klien), rute /demo/mulai, dan e2e.
  * Penyiapan data dan sesi untuk tiap skenario ada di skenario.ts (siapkanSkenario).
  */
+import { ID_SKENARIO_PEMANTAUAN, SKENARIO_PEMANTAUAN } from "./pemantauan-skenario";
 
 export interface SkenarioDemo {
   /** id tunggal dalam satu jendela; skenario pertama adalah bawaan saat berpindah jendela */
@@ -159,10 +160,11 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     peranSesi: "tim_kerja",
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/pemantauan",
-    bawaan: "contoh",
+    bawaan: "bermasalah",
     skenario: [
-      { id: "belum-final", nama: "Belum ada penilaian final", ringkas: "Penilaian final dihapus; hanya butir deterministik gagal yang tampil." },
-      { id: "contoh", nama: "Data pemantauan contoh", ringkas: "Proposal Ditahan dan penilaian Final dengan koreksi reviewer." },
+      ...ID_SKENARIO_PEMANTAUAN.map((id) => ({ id, nama: SKENARIO_PEMANTAUAN[id].nama, ringkas: SKENARIO_PEMANTAUAN[id].ringkas })),
+      { id: "contoh", nama: "Data kecil periode utama", ringkas: "Periode 2026 contoh: dua proposal Ditahan dan satu penilaian Final dengan tiga koreksi." },
+      { id: "belum-final", nama: "Belum ada penilaian final", ringkas: "Periode 2026 contoh tanpa penilaian final; hanya gagal saat pengajuan yang terisi." },
     ],
   },
   {

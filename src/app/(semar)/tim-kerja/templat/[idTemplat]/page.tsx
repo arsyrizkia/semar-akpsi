@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { wajibPengelola } from "@/lib/auth";
 import { daftarButirBerlaku, pilihanBagian } from "@/lib/aturan/layanan";
+import { daftarContohUji } from "@/lib/aturan/uji-jalan";
 import { bacaTab } from "@/lib/templat/daftar";
-import { ambilDrafTemplat, ambilTemplatPerId, daftarPeriode, daftarSkema } from "@/lib/templat/layanan";
+import { ambilDrafTemplat, ambilPeriodeSimulasiContoh, ambilTemplatPerId, daftarPeriode, daftarSkema } from "@/lib/templat/layanan";
 import { ambilPeriodeBerjalanId, masaPengusulanBerjalan } from "@/lib/waktu";
 import { RincianTemplat } from "./rincian-templat";
 
 export const metadata: Metadata = { title: "J-02a Rincian Templat" };
 export const dynamic = "force-dynamic";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Param = { tab?: string; periode?: string; sorot?: string; hasil?: string; jumlah?: string; det?: string; sem?: string; baru?: string };
 
@@ -24,9 +27,19 @@ export default async function Halaman({ params, searchParams }: { params: Promis
   if (!ada) notFound();
   const { templat, skemaId } = ada;
 
-  const [skema, periode, sakelarBerjalan, periodeBerjalanId, draf] = await Promise.all([daftarSkema(), daftarPeriode(), masaPengusulanBerjalan(), ambilPeriodeBerjalanId(), ambilDrafTemplat(skemaId)]);
+  const [skema, periode, sakelarBerjalan, periodeBerjalanId, draf, contohUji] = await Promise.all([
+    daftarSkema(),
+    daftarPeriode(),
+    masaPengusulanBerjalan(),
+    ambilPeriodeBerjalanId(),
+    ambilDrafTemplat(skemaId),
+    daftarContohUji(skemaId),
+  ]);
   // Aturan Pemeriksaan: periode dari URL (tautan J-05), selain itu periode berlaku templat, selain itu periode berjalan
-  const periodeAturan = periode.find((p) => p.id === q.periode) ?? periode.find((p) => p.id === templat.periodeBerlakuId) ?? periode.find((p) => p.id === periodeBerjalanId) ?? periode[0] ?? null;
+  // periode Simulasi Contoh hanya lewat tautan J-05 (tidak ada di pilihan Periode Berlaku)
+  const periodeSimulasi = q.periode && UUID.test(q.periode) && !periode.some((p) => p.id === q.periode) ? await ambilPeriodeSimulasiContoh(q.periode) : null;
+  const periodeAturan =
+    periode.find((p) => p.id === q.periode) ?? periodeSimulasi ?? periode.find((p) => p.id === templat.periodeBerlakuId) ?? periode.find((p) => p.id === periodeBerjalanId) ?? periode[0] ?? null;
   const [tampilan, pilihan] = periodeAturan ? await Promise.all([daftarButirBerlaku(skemaId, periodeAturan.id), pilihanBagian(skemaId, periodeAturan.id)]) : [null, null];
 
   const angka = (v?: string) => {
@@ -45,7 +58,7 @@ export default async function Halaman({ params, searchParams }: { params: Promis
       sakelarBerjalan={sakelarBerjalan}
       adaDraf={Boolean(draf)}
       tabAwal={bacaTab(q.tab)}
-      aturan={tampilan && pilihan && periodeAturan ? { periode: periodeAturan, tampilan, bagianPilihan: pilihan.bagian } : null}
+      aturan={tampilan && pilihan && periodeAturan ? { periode: periodeAturan, tampilan, bagianPilihan: pilihan.bagian, contohUji } : null}
       sorotAwal={q.sorot ?? null}
       hasil={q.hasil === "terbit" || q.hasil === "draf" ? { jenis: q.hasil, jumlah: angka(q.jumlah), det: angka(q.det), sem: angka(q.sem), baru: q.baru ?? null } : null}
     />

@@ -19,7 +19,10 @@ import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@
 import { susunPenugasan, tetapkanPenugasan } from "@/lib/penugasan/layanan";
 import { susunVersiBaru } from "@/lib/templat/layanan";
 import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
+import { jalankanUjiLangsung } from "@/lib/aturan/uji-jalan";
 import { kosongkanPenugasanContoh1200, siapkanContoh1200, siapkanSkalaNyata } from "./skala";
+import { pasangSkenarioPemantauan } from "./pemantauan";
+import { SKENARIO_PEMANTAUAN, type IdSkenarioPemantauan } from "./pemantauan-skenario";
 import { PROFIL } from "./profil-skala";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -189,6 +192,12 @@ async function kosongkanProposalBelumDitugaskan() {
 }
 
 /* ------------------------------ UC-04 ------------------------------ */
+
+/** J-05 berskala: data pemantauan skenario `id` pada periode Simulasi Contoh 2026 (1.200 proposal), lalu J-05 dibuka pada periode itu. */
+async function siapkanPemantauan1200(id: IdSkenarioPemantauan): Promise<HasilSkenario & { akun: string }> {
+  const h = await pasangSkenarioPemantauan(id);
+  return { akun: "dppm-pengelola", tujuan: `/tim-kerja/pemantauan?periode=${h.periodeId}&skema=${h.skemaPdId}`, catatan: SKENARIO_PEMANTAUAN[id].ringkas };
+}
 
 /** Menyediakan data J-05: proposal Ditahan (butir deterministik Gagal) dan penilaian Final dengan koreksi reviewer. */
 async function pastikanDataPemantauan() {
@@ -372,8 +381,7 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
       return { akun: "dppm-pengelola", tujuan: `/tim-kerja/penugasan/${h.periodeId}`, catatan: CATATAN_1200 };
     }
     case "UC-04":
-      await pastikanDataPemantauan();
-      return { akun: "dppm-pengelola", tujuan: "/tim-kerja/pemantauan", catatan: "Tersedia proposal Ditahan dan penilaian Final dengan koreksi reviewer." };
+      return siapkanPemantauan1200("bermasalah");
     case "UC-05":
     case "UC-05a":
     case "UC-06":
@@ -639,6 +647,12 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     }
 
     /* J-05 */
+    case "J-05/awal":
+    case "J-05/sehat":
+    case "J-05/bermasalah":
+    case "J-05/terlalu-ketat":
+    case "J-05/sesudah-perbaikan":
+      return siapkanPemantauan1200(id as IdSkenarioPemantauan);
     case "J-05/contoh": {
       await pastikanDataPemantauan();
       return { akun: "dppm-pengelola", tujuan: await tujuanPemantauan(), catatan: "Tersedia proposal Ditahan dan penilaian Final dengan koreksi reviewer." };
@@ -705,7 +719,15 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     }
     case "J-03b/hasil": {
       const h = await siapkanSkenario("J-03", "normal");
-      return { ...h, tujuan: (await tujuanAturan()).replace("/tim-kerja/aturan?", "/tim-kerja/aturan/uji?"), catatan: "Laporan Uji pada Contoh atas contoh A, B, dan C; Kembali ke Aturan Pemeriksaan membuka tab Aturan (J-03)." };
+      const periode = await ambilPeriodeBerjalan();
+      const [skemaPd] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, "PD"));
+      // uji dijalankan langsung di server (semantik tiruan) supaya hasilnya ada tanpa menunggu M-15
+      const ujiId = await jalankanUjiLangsung({ skemaId: skemaPd.id, periodeId: periode.id, templatId: null, kodeContoh: ["contoh-a", "contoh-b", "contoh-c"], pelaku: "dppm-pengelola" });
+      return {
+        ...h,
+        tujuan: `${(await tujuanAturan()).replace("/tim-kerja/aturan?", "/tim-kerja/aturan/uji?")}&uji=${ujiId}`,
+        catatan: "Hasil Uji pada Contoh atas contoh A, B, dan C (penilaian semantik tiruan). Uji Ulang membuka M-15: pilih contoh atau unggah naskah, lalu kemajuan ditampilkan per langkah.",
+      };
     }
     case "J-04b/siap":
     case "J-04b/menunggu":

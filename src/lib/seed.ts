@@ -23,7 +23,7 @@ export interface OpsiSeed {
 
 const TABEL_RESET = [
   "pengaturan_demo", "koreksi_rekomendasi", "keputusan_komponen", "penilaian", "penugasan_reviewer", "job_semantik",
-  "hasil_pemeriksaan", "versi_proposal", "proposal", "berkas_versi", "dokumen_contoh", "butir_cek", "basis_aturan",
+  "hasil_pemeriksaan", "versi_proposal", "proposal", "berkas_versi", "uji_contoh_hasil", "uji_contoh", "dokumen_contoh", "butir_cek", "basis_aturan",
   "bagian_templat", "templat_proposal", "periode_seleksi", "skema_pendanaan", "akun", "bima_kotak_masuk", "bima_berkas",
   "bima_proposal", "bima_reviewer", "bima_akun",
 ];

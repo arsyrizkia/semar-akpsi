@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposal } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { masaPengusulanBerjalan, masaPengusulanBerjalanPada, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
+import { PROFIL } from "@/lib/demo/profil-skala";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
@@ -54,15 +55,26 @@ export async function daftarSkema(): Promise<SkemaPilihan[]> {
   return baris.map((s) => ({ id: s.id, kode: s.kode, namaSkema: s.namaSkema }));
 }
 
+const kePilihan = (p: typeof periodeSeleksi.$inferSelect): PeriodePilihan => ({
+  id: p.id,
+  nama: p.nama,
+  tahun: p.tahun,
+  tanggalBuka: p.tanggalBuka.toISOString(),
+  tanggalTutup: p.tanggalTutup.toISOString(),
+});
+
 export async function daftarPeriode(): Promise<PeriodePilihan[]> {
   const baris = await getDb().select().from(periodeSeleksi).where(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`)).orderBy(desc(periodeSeleksi.tahun));
-  return baris.map((p) => ({
-    id: p.id,
-    nama: p.nama,
-    tahun: p.tahun,
-    tanggalBuka: p.tanggalBuka.toISOString(),
-    tanggalTutup: p.tanggalTutup.toISOString(),
-  }));
+  return baris.map(kePilihan);
+}
+
+/**
+ * Periode Simulasi Contoh (1.200 proposal) menurut id, untuk tab Aturan Pemeriksaan yang dibuka dari J-05 periode itu. Periode ini
+ * sengaja tidak masuk daftarPeriode (pilihan Periode Berlaku templat), tetapi basis aturannya sendiri dapat ditinjau dan disunting.
+ */
+export async function ambilPeriodeSimulasiContoh(id: string): Promise<PeriodePilihan | null> {
+  const [p] = await getDb().select().from(periodeSeleksi).where(and(eq(periodeSeleksi.id, id), eq(periodeSeleksi.nama, PROFIL.contoh1200.namaPeriode)));
+  return p ? kePilihan(p) : null;
 }
 
 async function muatTemplat(db: Db, t: typeof templatProposal.$inferSelect): Promise<TemplatTampil> {

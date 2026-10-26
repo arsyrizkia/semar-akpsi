@@ -1,8 +1,8 @@
-/** Layar J-03b menjalankan pemeriksaan di server (butir semantik dapat memakan beberapa detik): beri tahu pengguna. */
+/** J-03b hanya membaca hasil uji tersimpan; uji sendiri berjalan di M-15 dengan kemajuannya. */
 export default function Memuat() {
   return (
     <div role="status" aria-live="polite" className="py-16 text-center text-sm text-teks-redup">
-      Menjalankan uji pada contoh…
+      Memuat hasil uji…
     </div>
   );
 }

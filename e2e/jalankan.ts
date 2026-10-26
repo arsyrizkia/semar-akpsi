@@ -11,6 +11,7 @@ import net from "node:net";
 import path from "node:path";
 import mammoth from "mammoth";
 import puppeteer, { type Browser, type ElementHandle, type Page } from "puppeteer-core";
+import { buatDocx, susunContoh } from "../src/lib/contoh/proposal";
 
 try {
   process.loadEnvFile(".env.local");
@@ -838,15 +839,27 @@ async function utama() {
       await adaTeks(page, "SEM-E2E");
       yakin(await page.evaluate(() => !!document.querySelector("section[data-kelompok='Ringkasan'] [id='butir-SEM-E2E']")), "butir SEM-E2E tidak muncul di kelompok Ringkasan");
       c("butir manual semantik ditambahkan lewat M-02 terstruktur dan muncul di kelompok bagiannya");
-      // J-03b
+      // M-15 Uji pada Contoh: pilih contoh + unggah naskah, kemajuan bertahap, lalu J-03b
       await klik(page, "Uji pada Contoh");
-      await tungguJalur(page, "/tim-kerja/aturan/uji", 30_000);
-      await adaTeks(page, "Hasil per Butir", 90_000);
+      await tungguModal(page, "Uji pada Contoh");
+      yakin(await page.evaluate(() => document.querySelector("#contoh-contoh-a")?.getAttribute("data-state") === "checked"), "M-15: Contoh A tidak terpilih bawaan");
+      const naskahUji = path.join(HASIL, "naskah-uji-contoh-b.docx");
+      writeFileSync(naskahUji, await buatDocx(susunContoh("b")));
+      await (await page.$("#berkas-uji") as ElementHandle<HTMLInputElement>).uploadFile(naskahUji);
+      await adaTeks(page, "naskah-uji-contoh-b.docx");
+      await fotoUi(page, "m15-uji-contoh-pilih");
+      await klik(page, "Jalankan Uji", 0, { awalan: true });
+      await page.waitForSelector("[role=dialog] [role=progressbar]", { timeout: 15_000 });
+      await adaTeks(page, "bagian templat dikenali", 60_000);
+      await fotoUi(page, "m15-uji-contoh-kemajuan");
+      c("M-15: contoh terpilih + naskah .docx diunggah; kemajuan tampil (bilah persen, langkah, bagian templat dikenali)");
+      await tungguJalur(page, "/tim-kerja/aturan/uji", 240_000);
+      await adaTeks(page, "Hasil per Butir", 60_000);
       await judulTab("J-03b");
       const t3b = await teksHalaman(page);
-      yakin(t3b.includes("Ringkasan per Contoh") && t3b.includes("Lolos") && (await jumlahTombol(page, "Uji Ulang")) >= 1 && (await jumlahTombol(page, "Kembali ke Aturan Pemeriksaan")) >= 1, "J-03b tidak lengkap (ringkasan, Lolos, Uji Ulang, Kembali)");
+      yakin(t3b.includes("Ringkasan per Contoh") && t3b.includes("naskah-uji-contoh-b.docx") && t3b.includes("Lolos") && (await jumlahTombol(page, "Uji Ulang")) >= 1 && (await jumlahTombol(page, "Kembali ke Aturan Pemeriksaan")) >= 1, "J-03b tidak lengkap (ringkasan, unggahan, Lolos, Uji Ulang, Kembali)");
       await foto(page, "j03b-hasil-uji");
-      c("J-03b: layar sendiri dengan ringkasan per contoh, tabel butir x contoh, Uji Ulang dan Kembali ke Aturan Pemeriksaan");
+      c("J-03b: hasil tersimpan per contoh (termasuk unggahan), tabel butir x contoh, Uji Ulang (membuka M-15) dan Kembali ke Aturan Pemeriksaan");
       await Promise.all([page.waitForFunction(() => location.pathname.startsWith("/tim-kerja/templat/"), { timeout: 30_000 }), page.$eval("tbody a[href*='sorot=']", (a) => (a as HTMLElement).click())]);
       await adaTeks(page, "Tambah Butir");
       const sorotan = await page.evaluate(() => {
@@ -1008,51 +1021,62 @@ async function utama() {
       c("J-07 reviewer-3 berhalaman 25 baris dengan saringan tanda");
     });
 
-    /* ---- UC-04: J-05, M-08, M-09, J-05b ---- */
-    await skenario("UC-04: memantau kesesuaian (J-05, M-08, M-09, tautan ke J-03 dan J-05b)", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-04"), "Butir Deterministik Paling Sering Gagal", 90_000);
+    /* ---- UC-04: J-05 (triase), M-08, M-09, J-05b ---- */
+    await skenario("UC-04: memantau kesesuaian (J-05 triase 1.200 proposal, M-08, M-09, tren, tautan ke J-03 dan J-05b)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-04"), "Perlu perhatian", 240_000);
       yakin(jalur(page) === "/tim-kerja/pemantauan", `UC-04 seharusnya membuka J-05, bukan ${jalur(page)}`);
       await judulTab("J-05");
       const t = await teksHalaman(page);
-      for (const s of ["kesesuaian per butir", "% disetujui", "butir dengan koreksi tertinggi"]) yakin(t.toLowerCase().includes(s), `bagian "${s}" tidak tampil`);
+      for (const s of ["Rekomendasi disetujui", "Butir perlu perhatian", "Pernah gagal saat pengajuan", "Penilaian final", "UNS-10", "terlalu longgar", "Kutipan salah tempat"]) {
+        yakin(t.includes(s), `"${s}" tidak tampil di J-05`);
+      }
       await foto(page, "j05-pemantauan");
-      c("tiga bagian laporan tampil");
-      // kode butir -> baris J-03
-      const hrefKode = await page.$eval("a[href*='/tim-kerja/aturan?'][href*='butir=']", (a) => a.getAttribute("href"));
-      yakin(hrefKode && /skema=/.test(hrefKode) && /periode=/.test(hrefKode), `kode butir tidak menaut ke J-03: ${hrefKode}`);
-      // M-08
-      await page.$eval("a[aria-label^='Rincian butir']", (a) => (a as HTMLElement).click());
-      await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir")), { timeout: 15_000 });
-      yakin(page.url().includes("butir="), "butir yang dibuka tidak tersimpan di URL");
+      c("angka ringkas tampil; Perlu perhatian memuat UNS-10 (terlalu longgar, terbanyak kutipan salah tempat)");
+      // M-08 dari "Rincian" UNS-10
+      await page.$eval("a[aria-label='Rincian butir UNS-10']", (a) => (a as HTMLElement).click());
+      await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir UNS-10")), { timeout: 15_000 });
+      yakin(page.url().includes("butir=UNS-10"), "butir yang dibuka tidak tersimpan di URL");
+      const isi = await page.$eval("[role=dialog]", (d) => (d as HTMLElement).innerText);
+      for (const s of ["Arah koreksi", "Jenis kekeliruan", "Tren mingguan", "Contoh proposal"]) yakin(isi.includes(s), `M-08 tanpa bagian "${s}"`);
       await foto(page, "j05-m08-rincian-butir");
+      await page.$eval("[role=dialog] input[type=radio][value='dikoreksi']", (r) => (r as HTMLInputElement).click());
+      await page.waitForFunction(() => (document.querySelector("[role=dialog]") as HTMLElement | null)?.innerText.includes("Alasan koreksi"), { timeout: 10_000 });
       const hrefProposal = await page.$eval("[role=dialog] a[href^='/tim-kerja/proposal/']", (a) => a.getAttribute("href")).catch(() => null);
-      c(`M-08 (sheet) terbuka, butir di URL; judul proposal di sheet ${hrefProposal ? `menaut ke ${hrefProposal}` : "tanpa tautan"}`);
+      yakin(hrefProposal, "contoh proposal di M-08 tidak menaut ke J-05b");
+      c(`M-08 (sheet) terbuka dengan arah, jenis, tren, contoh; saringan Dikoreksi; judul proposal menaut ke ${hrefProposal}`);
       await klik(page, "Tutup");
       await tungguModalTutup(page);
       yakin(!page.url().includes("butir="), "butir masih ada di URL sesudah Tutup");
       // M-09
-      await klik(page, "Tandai Butir");
+      await klik(page, "Tandai Butir", 0, { awalan: true });
       await adaTeks(page, "Pilih minimal satu butir");
-      const kotak = await page.$("button[role=checkbox][id^='perbaiki-']");
-      yakin(kotak, "tidak ada kotak centang Perlu Diperbaiki");
+      const kotak = await page.$("button[role=checkbox][id='perbaiki-UNS-10']");
+      yakin(kotak, "tidak ada kotak centang Perlu Diperbaiki untuk UNS-10");
       await kotak.evaluate((e) => e.scrollIntoView({ block: "center" }));
       await kotak.click();
-      await klik(page, "Tandai Butir");
+      await klik(page, "Tandai Butir", 0, { awalan: true });
       await tungguModal(page, "Konfirmasi Tandai Butir");
       await foto(page, "j05-m09-tandai");
       await klik(page, "Tandai Butir");
       await tungguModalTutup(page);
       await adaTeks(page, "sekarang berlabel");
-      // langkah UC-04 s.7: baris butir tampil berlabel Perlu ditinjau bersama pesan (bukan hanya toast)
+      // langkah UC-04 s.7: baris butir tampil berlabel Perlu ditinjau (bukan hanya toast)
       await page.waitForFunction(() => document.body.innerText.includes("Sudah ditandai") && document.body.innerText.includes("Perlu ditinjau"), { timeout: 30_000 }).catch(() => {
         throw new Error("baris butir yang ditandai tidak berlabel Perlu ditinjau di J-05");
       });
       await foto(page, "j05-ditandai");
-      await klik(page, "Buka Aturan Pemeriksaan");
+      // tab Tren dan Kalibrasi
+      await klik(page, "Tren dan Kalibrasi");
+      await page.waitForFunction(() => location.search.includes("tab=tren") && document.body.innerText.includes("Dikoreksi menurut tingkat keyakinan sistem"), { timeout: 30_000 });
+      await foto(page, "j05-tren-kalibrasi");
+      c("M-09: UNS-10 berlabel Perlu ditinjau; tab Tren dan Kalibrasi memuat grafik mingguan dan kalibrasi keyakinan");
+      await klik(page, "Butir Semantik", 0, { awalan: true });
+      await page.waitForFunction(() => !location.search.includes("tab="), { timeout: 30_000 });
+      await klik(page, "Buka di Aturan Pemeriksaan");
       await tungguJalur(page, "/tim-kerja/templat/"); // /tim-kerja/aturan mengalihkan ke tab Aturan Pemeriksaan
       await page.waitForFunction(() => [...document.querySelectorAll("tbody")].some((t) => (t as HTMLElement).innerText.includes("Perlu ditinjau")), { timeout: 30_000 });
       await foto(page, "j03-perlu-ditinjau");
-      c("M-09: butir yang ditandai berlabel Perlu ditinjau dan tampil di J-03 lewat tautan Buka Aturan Pemeriksaan (tab Aturan di rincian templat)");
+      c("Buka di Aturan Pemeriksaan membuka tab Aturan periode simulasi dengan butir Perlu ditinjau");
     });
 
     await skenario("J-05b: rincian proposal, tautan antarentitas, unduh berkas", page, async (c) => {
@@ -1520,9 +1544,9 @@ async function utama() {
       c("J-03: butir Perlu ditinjau muncul pada skenario khusus dan hilang pada normal; J-03b membuka laporan uji");
       await buka(page, url("/demo/mulai?j=J-05&s=belum-final"), "Belum ada penilaian final untuk periode dan skema ini.", 90_000);
       await foto(page, "j05-belum-final");
-      await lewatNavigator("[data-skenario='contoh']", "Butir Deterministik Paling Sering Gagal", 120_000);
+      await lewatNavigator("[data-skenario='contoh']", "Rekomendasi disetujui", 120_000);
       yakin(!(await teksHalaman(page)).includes("Belum ada penilaian final untuk periode dan skema ini."), "J-05 contoh seharusnya memuat penilaian final");
-      c("J-05: belum ada penilaian final lalu data pemantauan contoh");
+      c("J-05: belum ada penilaian final lalu data kecil periode utama");
       await buka(page, url("/demo/mulai?j=J-06&s=terkirim"), "Bukti pengiriman");
       yakin((await tungguStatusPengajuan(page)) === "Terkirim", "J-06 terkirim");
       await lewatNavigator("[data-skenario='ditahan']", "belum terpenuhi");
@@ -1773,7 +1797,7 @@ async function utama() {
 
     await skenario("M-08: sesudah Tutup, satu kali Back keluar dari J-05", page, async (c) => {
       await buka(page, url("/demo"), "Pusat Demo");
-      await buka(page, url("/demo/mulai?k=UC-04"), "Butir Deterministik Paling Sering Gagal", 90_000);
+      await buka(page, url("/demo/mulai?k=UC-04"), "Perlu perhatian", 240_000);
       await page.$eval("a[aria-label^='Rincian butir']", (a) => (a as HTMLElement).click());
       await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir")), { timeout: 15_000 });
       await klik(page, "Tutup");

@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { Bagian, Button, KeadaanKosong, KepalaHalaman, Pilihan, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
+import { Sparkline } from "@/components/grafik/batang";
+import { KeadaanKosong, KepalaHalaman } from "@/components/ui";
 import { wajibTimKerja } from "@/lib/auth";
+import type { TabPemantauan } from "@/lib/pemantauan/alamat";
 import { daftarPeriode, daftarSkema, susunLaporan } from "@/lib/pemantauan/layanan";
-import { formatAngka, formatWaktu } from "@/lib/utils";
-import { LaporanSemantik } from "./laporan-semantik";
+import { formatPersen } from "@/lib/pemantauan/rekap";
+import { cn, formatAngka } from "@/lib/utils";
+import { BilahPilihan } from "./bilah-pilihan";
+import { PerluPerhatian } from "./perlu-perhatian";
+import { RincianButir } from "./rincian-butir";
+import { PanelTab } from "./navigasi";
+import { TabDeterministik, TabTren } from "./tab-isi";
+import { TabSemantik } from "./tab-semantik";
+import { PenyediaTandai } from "./tandai";
 
 export const metadata: Metadata = { title: "J-05 Pemantauan Kesesuaian" };
 export const dynamic = "force-dynamic";
@@ -13,111 +21,142 @@ export const dynamic = "force-dynamic";
 type Params = Promise<Record<string, string | string[] | undefined>>;
 const satu = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-/** J-05 Pemantauan Kesesuaian (UC-04). Pilihan periode dan skema ada di URL; nama butir membuka M-08, kode butir menaut ke J-03. */
+/**
+ * J-05 Pemantauan Kesesuaian (UC-04), tata letak "triase dulu": angka ringkas, daftar Perlu perhatian (butir di bawah ambang, bisa
+ * langsung ditandai lewat M-09), lalu tiga tab ber-URL (Butir Semantik, Gagal Deterministik, Tren dan Kalibrasi). Nama butir dan
+ * "Rincian" membuka M-08 (`?butir=`). Laporan dihitung sekali per periode dan skema; tab, urutan, dan M-08 hanya mengganti URL di klien
+ * (navigasi.tsx), jadi tidak memuat ulang laporan.
+ */
 export default async function Halaman({ searchParams }: { searchParams: Params }) {
   const sesi = await wajibTimKerja();
   const sp = await searchParams;
   const [periodeAda, skemaAda] = await Promise.all([daftarPeriode(), daftarSkema()]);
   const periode = periodeAda.find((p) => p.id === satu(sp.periode)) ?? periodeAda[0];
   const skema = skemaAda.find((s) => s.id === satu(sp.skema)) ?? skemaAda[0];
-  const laporan = periode && skema ? await susunLaporan(periode.id, skema.id) : null;
-  const tautanButir = (kode: string) => `/tim-kerja/aturan?skema=${skema?.id}&periode=${periode?.id}&butir=${encodeURIComponent(kode)}`;
+
+  const kepala = <KepalaHalaman kode="J-05" judul="Pemantauan Kesesuaian" keterangan="Butir mana yang rekomendasinya sering dikoreksi reviewer atau sering gagal saat pengajuan." remah={[{ label: "Pemantauan Kesesuaian" }]} />;
+  if (!periode || !skema) {
+    return (
+      <>
+        {kepala}
+        <KeadaanKosong judul="Belum ada periode atau skema">Pemantauan muncul sesudah ada periode seleksi dan skema pendanaan.</KeadaanKosong>
+      </>
+    );
+  }
+
+  const laporan = await susunLaporan(periode.id, skema.id);
+  const { ringkas, ambang } = laporan;
+  const persenGagal = ringkas.pengajuan ? (ringkas.proposalPernahGagal / ringkas.pengajuan) * 100 : 0;
+  const persenFinal = ringkas.pengajuan ? Math.min(100, (ringkas.penilaianFinal / ringkas.pengajuan) * 100) : 0;
+  const butirTotal = ringkas.butirSemantik + ringkas.butirDeterministik;
+  const LABEL_TAB: Record<TabPemantauan, string> = { semantik: "Butir Semantik", deterministik: "Gagal Deterministik", tren: "Tren dan Kalibrasi" };
 
   return (
     <>
-      <KepalaHalaman
-        kode="J-05"
-        judul="Pemantauan Kesesuaian"
-        keterangan="Seberapa sering rekomendasi sistem dikoreksi reviewer dan butir mana yang paling sering gagal."
-        remah={[{ label: "Pemantauan Kesesuaian" }]}
+      {kepala}
+      <BilahPilihan
+        periode={periodeAda.map((p) => ({ id: p.id, nama: p.nama }))}
+        skema={skemaAda.map((s) => ({ id: s.id, nama: s.namaSkema }))}
+        periodeId={periode.id}
+        skemaId={skema.id}
       />
 
-      <form method="get" className="mb-8 flex flex-wrap items-end gap-3">
-        <Pilihan label="Periode Seleksi" name="periode" defaultValue={periode?.id} className="w-full max-w-sm">
-          {periodeAda.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nama}
-            </option>
-          ))}
-        </Pilihan>
-        <Pilihan label="Skema Pendanaan" name="skema" defaultValue={skema?.id} className="w-64">
-          {skemaAda.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.namaSkema}
-            </option>
-          ))}
-        </Pilihan>
-        <Button type="submit" varian="sekunder">
-          Tampilkan
-        </Button>
-      </form>
+      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-y border-primer-100 py-4 lg:grid-cols-4" data-testid="angka-ringkas">
+        <div>
+          <dt className="text-xs text-teks-redup">Rekomendasi disetujui</dt>
+          <dd className="mt-1 flex items-end gap-3">
+            <span className="angka text-xl font-semibold text-primer-900 sm:text-2xl">{ringkas.persen === null ? "-" : formatPersen(ringkas.persen)}</span>
+            <Sparkline nilai={laporan.tren.map((t) => t.persen)} className="mb-1 max-sm:hidden" />
+          </dd>
+          <dd className="angka text-xs text-teks-redup">
+            {formatAngka(ringkas.hasilDinilai - ringkas.dikoreksi)} dari {formatAngka(ringkas.hasilDinilai)} hasil tidak dikoreksi reviewer
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-teks-redup">Butir perlu perhatian</dt>
+          <dd className={cn("angka mt-1 text-xl font-semibold sm:text-2xl", ringkas.perluPerhatian ? "text-peringatan-700" : "text-primer-900")}>{formatAngka(ringkas.perluPerhatian)}</dd>
+          <dd className="angka text-xs text-teks-redup">dari {formatAngka(butirTotal)} butir</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-teks-redup">Pernah gagal saat pengajuan</dt>
+          <dd className="angka mt-1 text-xl font-semibold text-primer-900 sm:text-2xl">{formatAngka(ringkas.proposalPernahGagal)}</dd>
+          <dd className="angka text-xs text-teks-redup">
+            {formatPersen(persenGagal)} dari {formatAngka(ringkas.pengajuan)} proposal
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-teks-redup">Penilaian final</dt>
+          <dd className="angka mt-1 text-xl font-semibold text-primer-900 sm:text-2xl">{formatAngka(ringkas.penilaianFinal)}</dd>
+          <dd className="flex items-center gap-2 text-xs text-teks-redup">
+            <span aria-hidden className="inline-block h-1.5 w-16 overflow-hidden rounded-full bg-abu-100">
+              <span className="block h-full bg-primer-700" style={{ width: `${persenFinal}%` }} />
+            </span>
+            <span className="angka">dari {formatAngka(ringkas.pengajuan)} proposal</span>
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+        <p className="text-teks-redup">
+          {laporan.basis ? `Basis aturan v${laporan.basis.versi}` : "Belum ada basis aturan"} · <span className="angka">{formatAngka(ringkas.hasilDinilai)}</span> hasil semantik dari{" "}
+          <span className="angka">{formatAngka(ringkas.penilaianFinal)}</span> penilaian final
+        </p>
+        <details className="max-w-3xl">
+          <summary className="cursor-pointer font-semibold text-primer-800">Cara menghitung</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-teks-redup">
+            <li>Disetujui: rekomendasi semantik pada penilaian final yang tidak dikoreksi reviewer.</li>
+            <li>
+              Butir semantik perlu perhatian bila disetujui di bawah {ambang.disetujui}% dan sudah punya sekurangnya {ambang.minHasil} hasil; di bawah itu ditulis &ldquo;belum cukup data&rdquo;.
+            </li>
+            <li>
+              Butir deterministik perlu perhatian bila gagal pada sekurangnya {ambang.gagal}% pengajuan, atau {ambang.gagalInstitusi}% di satu institusi yang punya sekurangnya{" "}
+              {ambang.minPengajuanInstitusi} pengajuan. Yang dihitung adalah proposal yang pernah Ditahan karena butir itu.
+            </li>
+            <li>Terlalu longgar: sistem menyatakan Memenuhi, reviewer menyatakan Tidak memenuhi. Terlalu ketat: sebaliknya.</li>
+            <li>Hasil sebuah butir dihitung sejak deskripsinya terakhir diubah; angka sebelum perubahan ada di tab Tren dan Kalibrasi.</li>
+          </ul>
+        </details>
+      </div>
 
-      {!laporan || !periode || !skema ? (
-        <KeadaanKosong judul="Belum ada periode atau skema">Pemantauan muncul sesudah ada periode seleksi dan skema pendanaan.</KeadaanKosong>
-      ) : (
-        <>
-          <p className="mb-6 text-sm text-teks-redup">
-            {periode.nama}, {skema.namaSkema}
-            {laporan.basis ? ` (basis aturan versi ${laporan.basis.versi})` : " (belum ada basis aturan)"}. Dihitung dari{" "}
-            <span className="angka">{formatAngka(laporan.jumlahPenilaianFinal)}</span> hasil pemeriksaan semantik pada penilaian final, per <span className="angka">{formatWaktu(new Date())}</span>.
-          </p>
+      <Suspense fallback={null}>
+        <PenyediaTandai
+          key={`${periode.id}:${skema.id}`}
+          periodeId={periode.id}
+          skemaId={skema.id}
+          butir={[...laporan.semantik, ...laporan.deterministik].map((b) => ({ kode: b.kode, deskripsi: b.deskripsi, status: b.status }))}
+        >
+          <PerluPerhatian
+            item={laporan.perluPerhatian}
+            ambang={ambang}
+            keadaan={{ hasilDinilai: ringkas.hasilDinilai, hasilTerbanyakPerButir: Math.max(0, ...laporan.semantik.map((b) => b.jumlah)) }}
+            pengelola={sesi.pengelola}
+            tautanAturan={`/tim-kerja/aturan?skema=${skema.id}&periode=${periode.id}`}
+          />
 
-          <Bagian judul="Butir Deterministik Paling Sering Gagal">
-            {laporan.gagalPerButir.length === 0 ? (
-              <p className="text-sm text-teks-redup">Tidak ada butir deterministik yang gagal pada pengajuan di periode dan skema ini.</p>
-            ) : (
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>Butir</TH>
-                    {laporan.institusi.map((i) => (
-                      <TH key={i} angka>
-                        {i}
-                      </TH>
-                    ))}
-                    <TH angka>Jumlah</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {laporan.gagalPerButir.map((b) => (
-                    <TR key={b.kode}>
-                      <TD className="max-w-xs">
-                        {sesi.pengelola ? (
-                          <Link href={tautanButir(b.kode)} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
-                            {b.kode}
-                          </Link>
-                        ) : (
-                          <span className="font-semibold">{b.kode}</span>
-                        )}
-                        <p className="text-xs text-teks-redup">{b.deskripsi}</p>
-                      </TD>
-                      {laporan.institusi.map((i) => (
-                        <TD key={i} angka>
-                          {b.perInstitusi[i] ?? 0}
-                        </TD>
-                      ))}
-                      <TD angka className="font-semibold">
-                        {b.total}
-                      </TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-            )}
-          </Bagian>
+          <PanelTab
+            label={LABEL_TAB}
+            jumlah={{ semantik: ringkas.butirSemantik, deterministik: laporan.deterministik.filter((b) => b.proposalGagal > 0).length }}
+            panel={{
+              semantik: <TabSemantik baris={laporan.semantik} ambang={ambang} adaBanding={laporan.bandingVersi.length > 0} />,
+              deterministik: <TabDeterministik baris={laporan.deterministik} ambang={ambang} pengajuan={ringkas.pengajuan} />,
+              tren: <TabTren tren={laporan.tren} kalibrasi={laporan.kalibrasi} tafsir={laporan.tafsirKalibrasi} banding={laporan.bandingVersi} penanda={laporan.penandaVersi} ambang={ambang} />,
+            }}
+          />
 
-          <Suspense fallback={null}>
-            <LaporanSemantik
-              periodeId={periode.id}
-              skemaId={skema.id}
-              kesesuaian={laporan.kesesuaian}
-              koreksi={laporan.koreksiTertinggi}
-              rincian={laporan.rincian}
-              pengelola={sesi.pengelola}
-            />
-          </Suspense>
-        </>
-      )}
+          <RincianButir
+            ambang={ambang}
+            data={{
+              semantik: laporan.semantik,
+              deterministik: laporan.deterministik,
+              rincian: laporan.rincian,
+              rincianGagal: laporan.rincianGagal,
+              trenButir: laporan.trenButir,
+              kalibrasiButir: laporan.kalibrasiButir,
+              bandingVersi: laporan.bandingVersi,
+              penandaVersi: laporan.penandaVersi,
+            }}
+          />
+        </PenyediaTandai>
+      </Suspense>
     </>
   );
 }

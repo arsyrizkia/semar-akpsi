@@ -32,6 +32,7 @@ import type { PeriodePilihan } from "@/lib/templat/layanan";
 import { formatTanggal } from "@/lib/utils";
 import { aksiNonaktifkan, aksiSimpanButirTerstruktur, aksiSimpanVersi, aksiUbahPertanyaan } from "./aksi";
 import { FormAturanModal } from "./form-aturan";
+import { TombolUjiContoh, type ContohUji } from "./uji-contoh";
 
 interface Props {
   skemaId: string;
@@ -56,6 +57,10 @@ interface Props {
   saatSusunVersiBaru: () => void;
   /** bagian yang difokuskan dari tautan "Atur aturan bagian ini" di M-12 */
   fokusBagian: string | null;
+  /** dokumen contoh yang dapat dipilih di M-15 Uji pada Contoh */
+  contohUji: ContohUji[];
+  /** hanya Draf: isian sudah diubah tetapi belum disimpan (uji memakai isian tersimpan) */
+  isianBelumTersimpan: boolean;
 }
 
 /** Satu baris di daftar aturan: butir tersimpan (basis aturan) atau butir turunan yang dihitung dari isian templat Draf. */
@@ -115,6 +120,8 @@ export function PapanAturan({
   saatBukaBagian,
   saatSusunVersiBaru,
   fokusBagian,
+  contohUji,
+  isianBelumTersimpan,
 }: Props) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();
@@ -345,7 +352,6 @@ export function PapanAturan({
     });
   }
 
-  const urlUji = `/tim-kerja/aturan/uji?skema=${skemaId}&periode=${periode.id}&templat=${templatId}`;
   const kelasBaris = (b: BarisTampil) => (b.status === "Perlu ditinjau" ? "bg-peringatan-50" : b.status === "Nonaktif" ? "text-abu-600" : undefined);
   const bolehSusunBaru = dapatSusunVersiBaru(statusTemplat, adaDraf);
   const bisaHapus = (b: BarisTampil) => b.pratinjau && dapatDiubahDiBagian(b.asalAturan);
@@ -362,9 +368,13 @@ export function PapanAturan({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {dasar ? (
-            <Link href={urlUji} className={kelasTombol("sekunder")}>
-              Uji pada Contoh
-            </Link>
+            <TombolUjiContoh
+              skemaId={skemaId}
+              periodeId={periode.id}
+              templatId={templatId}
+              contoh={contohUji}
+              catatan={isianBelumTersimpan ? "Isian templat yang belum disimpan tidak ikut diuji. Simpan draf lebih dulu bila perubahan itu ingin diuji." : null}
+            />
           ) : (
             <Button varian="sekunder" disabled>
               Uji pada Contoh

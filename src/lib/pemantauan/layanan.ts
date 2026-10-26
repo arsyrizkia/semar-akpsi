@@ -2,126 +2,179 @@
  * UC-04 Memantau kesesuaian penilaian: ambilAturanBerlaku, rekapKesesuaian, ambilStatus, ambilAlasan, tandaiButir,
  * tandaiPerluDitinjau, ambilRincian, ambilContoh (nama mengikuti seq-uc04.puml).
  */
-import { and, desc, eq, inArray, isNull, lt, notLike, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, notLike, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import {
-  akun,
-  basisAturan,
-  butirCek,
-  hasilPemeriksaan,
-  koreksiRekomendasi,
-  penilaian,
-  penugasanReviewer,
-  periodeSeleksi,
-  proposal,
-  skemaPendanaan,
-  versiProposal,
-} from "@/db/schema";
+import { basisAturan, butirCek, periodeSeleksi, skemaPendanaan } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
-import { NAMA_PERIODE_SKALA, periodeSudahDibuka } from "@/lib/waktu";
+import { PROFIL } from "@/lib/demo/profil-skala";
+import { AMBANG_KEYAKINAN } from "@/lib/kontrak/tipe";
+import { NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
+import { AMBANG_PEMANTAUAN, type AmbangPemantauan } from "./ambang";
 import { pilahButirDitandai } from "./status-butir";
-import { rekapKesesuaian, type BarisGagal, type BarisNilai, type HasilRekap, type InfoButir } from "./rekap";
+import { rekapKesesuaian, type ContohGagal, type ContohRincian, type HasilRekap, type SelGagal, type SelSemantik } from "./rekap";
 
+/** Periode J-05: periode biasa yang sudah dibuka, ditambah periode Simulasi Contoh (1.200 proposal; uji beban 10.000 tetap dikecualikan). */
 export async function daftarPeriode() {
-  return getDb().select().from(periodeSeleksi).where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka())).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
+  return getDb()
+    .select()
+    .from(periodeSeleksi)
+    .where(and(or(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), eq(periodeSeleksi.nama, PROFIL.contoh1200.namaPeriode)), periodeSudahDibuka()))
+    .orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
 }
 
 export async function daftarSkema() {
   return getDb().select().from(skemaPendanaan).orderBy(skemaPendanaan.namaSkema);
 }
 
-/** ambilAturanBerlaku(periode) pada objek skema: versi basis aturan tertinggi untuk skema dan periode itu. */
+/**
+ * ambilAturanBerlaku(periode) pada objek skema: basis aturan periode itu (atau tanpa periode) yang sudah berlaku menurut jam demo,
+ * versi tertinggi lebih dulu; bila belum ada yang berlaku, versi tertinggi. Draf J-03 (31 Des 9999) tidak ikut. Sama dengan pemeriksa
+ * pengajuan (pengajuan/layanan.ts:ambilAturanBerlaku), jadi versi yang disimpan dengan tanggal berlaku mendatang belum dianggap berlaku.
+ */
 export async function ambilAturanBerlaku(skemaId: string, periodeId: string) {
-  const db = getDb();
-  const [basis] = await db
-    .select()
-    .from(basisAturan)
-    .where(and(eq(basisAturan.skemaId, skemaId), or(eq(basisAturan.periodeId, periodeId), isNull(basisAturan.periodeId)), lt(basisAturan.tanggalBerlaku, new Date("9999-01-01T00:00:00Z")))) // draf J-03 (31 Des 9999) tidak ikut
-    .orderBy(desc(basisAturan.versi))
-    .limit(1);
-  return basis ?? null;
+  const [sekarang, daftar] = await Promise.all([
+    waktuDemo(),
+    getDb()
+      .select()
+      .from(basisAturan)
+      .where(and(eq(basisAturan.skemaId, skemaId), or(eq(basisAturan.periodeId, periodeId), isNull(basisAturan.periodeId)), lt(basisAturan.tanggalBerlaku, new Date("9999-01-01T00:00:00Z"))))
+      .orderBy(desc(basisAturan.versi)),
+  ]);
+  return daftar.find((b) => b.tanggalBerlaku <= sekarang) ?? daftar[0] ?? null;
 }
 
 export interface LaporanKesesuaian extends HasilRekap {
   basis: { id: string; nama: string; versi: number } | null;
-  jumlahPenilaianFinal: number;
+  /** versi basis yang mulai berlaku di tengah masa penilaian (penanda pada grafik tren) */
+  penandaVersi: { versi: number; minggu: number }[];
+  ambang: AmbangPemantauan;
 }
 
-export async function susunLaporan(periodeId: string, skemaId: string): Promise<LaporanKesesuaian> {
+const baris = <T>(r: unknown) => (r as { rows: T[] }).rows;
+
+/** Hasil semantik pada penilaian final periode dan skema itu (dipakai sel agregat dan contoh). */
+const dasarFinal = (periodeId: string, skemaId: string) => sql`
+  FROM hasil_pemeriksaan h
+  JOIN butir_cek c ON c.id = h.butir_id
+  JOIN basis_aturan b ON b.id = c.basis_aturan_id
+  JOIN versi_proposal v ON v.id = h.versi_id
+  JOIN proposal p ON p.id = v.proposal_id
+  JOIN penugasan_reviewer pr ON pr.versi_id = h.versi_id
+  JOIN penilaian pl ON pl.penugasan_id = pr.id AND pl.status = 'Final'
+  LEFT JOIN koreksi_rekomendasi k ON k.hasil_id = h.id AND k.penilaian_id = pl.id
+  WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId} AND h.jenis = 'semantik'`;
+
+/** Minggu ke-n masa penilaian dihitung dari penetapan penugasan pertama periode itu (tanggal tutup bila belum ada penetapan). */
+const asalMinggu = (periodeId: string) => sql`
+  SELECT COALESCE(min(pr.tanggal) FILTER (WHERE pr.status <> 'Diusulkan'), min(ps.tanggal_tutup)) AS t
+  FROM periode_seleksi ps LEFT JOIN penugasan_reviewer pr ON pr.periode_id = ps.id
+  WHERE ps.id = ${periodeId}`;
+
+/**
+ * susunLaporan: membaca agregat dari basis data (tanpa menarik baris hasil satu per satu), lalu rekapKesesuaian (murni).
+ * Kueri berjalan bersamaan; semuanya dibatasi periode dan skema.
+ */
+export async function susunLaporan(periodeId: string, skemaId: string, ambang: AmbangPemantauan = AMBANG_PEMANTAUAN): Promise<LaporanKesesuaian> {
   const db = getDb();
   const basis = await ambilAturanBerlaku(skemaId, periodeId);
-  const butir: InfoButir[] = basis
-    ? (await db.select().from(butirCek).where(eq(butirCek.basisAturanId, basis.id))).map((b) => ({
-        id: b.id,
-        kode: b.kode,
-        deskripsi: b.deskripsi,
-        status: b.status,
-      }))
-    : [];
 
-  /* ambilStatus(): hasil deterministik Gagal saat pengajuan */
-  const gagalMentah = await db
-    .select({ butirKode: hasilPemeriksaan.butirKode, institusi: akun.institusi })
-    .from(hasilPemeriksaan)
-    .innerJoin(versiProposal, eq(hasilPemeriksaan.versiId, versiProposal.id))
-    .innerJoin(proposal, eq(versiProposal.proposalId, proposal.id))
-    .innerJoin(akun, eq(proposal.pengusulId, akun.id))
-    .where(
-      and(
-        eq(proposal.periodeId, periodeId),
-        eq(proposal.skemaId, skemaId),
-        eq(hasilPemeriksaan.jenis, "deterministik"),
-        eq(hasilPemeriksaan.status, "Gagal"),
-      ),
-    );
-  const gagal: BarisGagal[] = gagalMentah.map((g) => ({ butirKode: g.butirKode, institusiPengusul: g.institusi }));
+  const [butirRaw, selQ, contohQ, gagalQ, pengajuanQ, ringkasQ, contohGagalQ, penandaQ] = await Promise.all([
+    basis ? db.select().from(butirCek).where(eq(butirCek.basisAturanId, basis.id)) : Promise.resolve([]),
+    /* (a) sel semantik */
+    db.execute(sql`
+      WITH asal AS (${asalMinggu(periodeId)})
+      SELECT h.butir_kode AS "butirKode", b.versi, c.deskripsi,
+             CASE WHEN h.tingkat_keyakinan IS NULL THEN NULL
+                  WHEN h.tingkat_keyakinan >= ${AMBANG_KEYAKINAN.tinggi} THEN 'tinggi'
+                  WHEN h.tingkat_keyakinan >= ${AMBANG_KEYAKINAN.sedang} THEN 'sedang' ELSE 'rendah' END AS tingkat,
+             GREATEST(1, floor(extract(epoch FROM (COALESCE(pl.dikirim_ke_bima_pada, pl.diperbarui_pada) - (SELECT t FROM asal))) / 604800)::int + 1) AS minggu,
+             CASE WHEN k.id IS NULL THEN NULL WHEN k.keputusan_reviewer = 'Tidak memenuhi' THEN 'longgar' ELSE 'ketat' END AS arah,
+             CASE WHEN k.id IS NULL THEN NULL ELSE k.jenis_kekeliruan END AS jenis,
+             count(*)::int AS jumlah
+      ${dasarFinal(periodeId, skemaId)}
+      GROUP BY 1, 2, 3, 4, 5, 6, 7`),
+    /* (b) contoh: <= 3 terbaru per (butir, jenis kekeliruan), ditambah 4 yang disetujui */
+    db.execute(sql`
+      SELECT * FROM (
+        SELECT h.butir_kode AS "butirKode", p.id AS "proposalId", p.id_proposal AS "idProposal", p.judul AS "judulProposal",
+               h.rekomendasi, h.status AS "statusSistem", h.kutipan, h.tingkat_keyakinan AS keyakinan, b.versi, h.tiruan,
+               k.id IS NOT NULL AS dikoreksi, k.keputusan_reviewer AS "keputusanKoreksi", k.jenis_kekeliruan AS jenis, k.alasan AS "alasanKoreksi",
+               row_number() OVER (PARTITION BY h.butir_kode, k.id IS NOT NULL, k.jenis_kekeliruan
+                                  ORDER BY COALESCE(pl.dikirim_ke_bima_pada, pl.diperbarui_pada) DESC, h.id) AS urut
+        ${dasarFinal(periodeId, skemaId)}
+      ) x
+      WHERE (dikoreksi AND urut <= 3) OR (NOT dikoreksi AND urut <= 4)`),
+    /* (c) gagal saat pengajuan: proposal (bukan baris) per butir dan institusi pengusul, versi mana pun */
+    db.execute(sql`
+      SELECT h.butir_kode AS "butirKode", COALESCE(a.institusi, '-') AS institusi, count(DISTINCT p.id)::int AS proposal
+      FROM hasil_pemeriksaan h JOIN versi_proposal v ON v.id = h.versi_id JOIN proposal p ON p.id = v.proposal_id JOIN akun a ON a.id = p.pengusul_id
+      WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId} AND h.jenis = 'deterministik' AND h.status = 'Gagal'
+      GROUP BY 1, 2`),
+    /* pengajuan per institusi */
+    db.execute(sql`
+      SELECT COALESCE(a.institusi, '-') AS institusi, count(*)::int AS proposal
+      FROM proposal p JOIN akun a ON a.id = p.pengusul_id
+      WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId}
+      GROUP BY 1`),
+    /* (d) angka ringkas */
+    db.execute(sql`
+      SELECT
+        (SELECT count(DISTINCT p.id)::int FROM hasil_pemeriksaan h JOIN versi_proposal v ON v.id = h.versi_id JOIN proposal p ON p.id = v.proposal_id
+          WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId} AND h.jenis = 'deterministik' AND h.status = 'Gagal') AS "proposalPernahGagal",
+        (SELECT count(*)::int FROM penilaian pl JOIN penugasan_reviewer pr ON pr.id = pl.penugasan_id JOIN proposal p ON p.id = pr.proposal_id
+          WHERE pl.status = 'Final' AND p.periode_id = ${periodeId} AND p.skema_id = ${skemaId}) AS "penilaianFinal"`),
+    /* contoh proposal yang gagal per butir deterministik (<= 6, versi gagal terbaru) */
+    db.execute(sql`
+      SELECT * FROM (
+        SELECT g.*, row_number() OVER (PARTITION BY g."butirKode" ORDER BY g.waktu DESC, g."idProposal") AS urut
+        FROM (
+          SELECT DISTINCT ON (h.butir_kode, p.id) h.butir_kode AS "butirKode", p.id AS "proposalId", p.id_proposal AS "idProposal", p.judul AS "judulProposal",
+                 COALESCE(a.institusi, '-') AS institusi, h.angka_pembukti AS angka, h.batas_dilanggar AS batas, v.waktu
+          FROM hasil_pemeriksaan h JOIN versi_proposal v ON v.id = h.versi_id JOIN proposal p ON p.id = v.proposal_id JOIN akun a ON a.id = p.pengusul_id
+          WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId} AND h.jenis = 'deterministik' AND h.status = 'Gagal'
+          ORDER BY h.butir_kode, p.id, v.waktu DESC
+        ) g
+      ) x WHERE urut <= 6`),
+    /* versi basis yang mulai berlaku sesudah penilaian dimulai */
+    db.execute(sql`
+      WITH asal AS (${asalMinggu(periodeId)})
+      SELECT b.versi, floor(extract(epoch FROM (b.tanggal_berlaku - (SELECT t FROM asal))) / 604800)::int + 1 AS minggu
+      FROM basis_aturan b
+      WHERE b.skema_id = ${skemaId} AND (b.periode_id = ${periodeId} OR b.periode_id IS NULL)
+        AND b.tanggal_berlaku < '9999-01-01' AND b.tanggal_berlaku > (SELECT t FROM asal)
+      ORDER BY b.versi`),
+  ]);
+  const selRaw = baris<SelSemantik>(selQ);
+  const contohRaw = baris<Omit<ContohRincian, "keputusanReviewer"> & { keputusanKoreksi: string | null }>(contohQ);
+  const gagalRaw = baris<SelGagal>(gagalQ);
+  const pengajuanRaw = baris<{ institusi: string; proposal: number }>(pengajuanQ);
+  const ringkasRaw = baris<{ proposalPernahGagal: number; penilaianFinal: number }>(ringkasQ);
+  const contohGagalRaw = baris<ContohGagal>(contohGagalQ);
+  const penandaRaw = baris<{ versi: number; minggu: number }>(penandaQ);
 
-  /* hasil semantik pada penilaian final (+ ambilAlasan() bila dikoreksi) */
-  const nilaiMentah = await db
-    .select({
-      hasilId: hasilPemeriksaan.id,
-      proposalId: proposal.id,
-      butirKode: hasilPemeriksaan.butirKode,
-      judulProposal: proposal.judul,
-      rekomendasi: hasilPemeriksaan.rekomendasi,
-      status: hasilPemeriksaan.status,
-      kutipan: hasilPemeriksaan.kutipan,
-      alasanSistem: hasilPemeriksaan.alasanSistem,
-      tiruan: hasilPemeriksaan.tiruan,
-      keputusanReviewer: koreksiRekomendasi.keputusanReviewer,
-      alasan: koreksiRekomendasi.alasan,
-      jenisKekeliruan: koreksiRekomendasi.jenisKekeliruan,
-    })
-    .from(hasilPemeriksaan)
-    .innerJoin(versiProposal, eq(hasilPemeriksaan.versiId, versiProposal.id))
-    .innerJoin(proposal, eq(versiProposal.proposalId, proposal.id))
-    .innerJoin(penugasanReviewer, eq(penugasanReviewer.versiId, hasilPemeriksaan.versiId))
-    .innerJoin(penilaian, and(eq(penilaian.penugasanId, penugasanReviewer.id), eq(penilaian.status, "Final")))
-    .leftJoin(
-      koreksiRekomendasi,
-      and(eq(koreksiRekomendasi.hasilId, hasilPemeriksaan.id), eq(koreksiRekomendasi.penilaianId, penilaian.id)),
-    )
-    .where(and(eq(proposal.periodeId, periodeId), eq(proposal.skemaId, skemaId), eq(hasilPemeriksaan.jenis, "semantik")));
-  const nilai: BarisNilai[] = nilaiMentah.map((n) => ({
-    hasilId: n.hasilId,
-    proposalId: n.proposalId,
-    butirKode: n.butirKode,
-    judulProposal: n.judulProposal,
-    rekomendasi: n.rekomendasi,
-    status: n.status,
-    kutipan: n.kutipan,
-    alasanSistem: n.alasanSistem,
-    tiruan: n.tiruan,
-    koreksi: n.keputusanReviewer
-      ? { keputusanReviewer: n.keputusanReviewer, alasan: n.alasan ?? "", jenisKekeliruan: n.jenisKekeliruan ?? "" }
-      : null,
-  }));
-
-  const jumlahFinal = new Set(nilaiMentah.map((n) => n.hasilId)).size;
+  const hasil = rekapKesesuaian({
+    sel: selRaw,
+    gagal: gagalRaw,
+    pengajuan: pengajuanRaw,
+    // kode ganda (butir dinonaktifkan lalu ditambah lagi): baris Aktif ditaruh terakhir supaya menang di peta kode
+    butir: [...butirRaw]
+      .sort((a, b) => Number(a.status === "Aktif") - Number(b.status === "Aktif"))
+      .map((b) => ({ id: b.id, kode: b.kode, deskripsi: b.deskripsi, status: b.status, jenis: b.jenis })),
+    contoh: contohRaw.map(({ keputusanKoreksi, ...c }) => ({
+      ...c,
+      keyakinan: c.keyakinan === null ? null : Number(c.keyakinan),
+      keputusanReviewer: c.dikoreksi ? (keputusanKoreksi ?? "-") : (c.rekomendasi ?? "Disetujui (tanpa koreksi)"),
+    })),
+    contohGagal: contohGagalRaw,
+    proposalPernahGagal: ringkasRaw[0]?.proposalPernahGagal ?? 0,
+    penilaianFinal: ringkasRaw[0]?.penilaianFinal ?? 0,
+    ambang,
+  });
   return {
-    ...rekapKesesuaian(gagal, nilai, butir),
+    ...hasil,
     basis: basis ? { id: basis.id, nama: basis.nama, versi: basis.versi } : null,
-    jumlahPenilaianFinal: jumlahFinal,
+    penandaVersi: penandaRaw.filter((x) => x.minggu >= 1),
+    ambang,
   };
 }
 

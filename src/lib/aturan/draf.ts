@@ -19,12 +19,20 @@ export const TANGGAL_DRAF = new Date("9999-12-31T00:00:00.000Z");
 
 export const adalahDraf = (b: Pick<BarisBasis, "tanggalBerlaku">) => b.tanggalBerlaku.getUTCFullYear() >= 9999;
 
+/**
+ * Basis aturan periode simulasi (data contoh J-05 pada periode Simulasi Contoh; kode berakhiran "-SIM", lihat demo/pemantauan.ts).
+ * Nomor versinya ikut urutan global per skema (indeks unik skema+versi), jadi pencarian "versi tertinggi" yang tidak menyebut periode
+ * wajib melewatinya; basis ini hanya dipakai bila periodenya sendiri diminta.
+ */
+export const AKHIRAN_SIMULASI = "-SIM";
+export const adalahSimulasi = (b: Pick<BarisBasis, "kode">) => b.kode.endsWith(AKHIRAN_SIMULASI);
+
 export async function semuaBasisSkema(db: Db, skemaId: string): Promise<BarisBasis[]> {
   return db.select().from(basisAturan).where(eq(basisAturan.skemaId, skemaId));
 }
 
 export function pilihBasisNyata(semua: BarisBasis[], periodeId?: string | null): BarisBasis | null {
-  const nyata = semua.filter((b) => !adalahDraf(b)).sort((a, b) => b.versi - a.versi);
+  const nyata = semua.filter((b) => !adalahDraf(b) && (!adalahSimulasi(b) || (!!periodeId && b.periodeId === periodeId))).sort((a, b) => b.versi - a.versi);
   return nyata.find((b) => periodeId && b.periodeId === periodeId) ?? nyata[0] ?? null;
 }
 

@@ -9,11 +9,12 @@ import { basisAturan, butirCek, dokumenContoh, periodeSeleksi, skemaPendanaan } 
 import { catatLogAudit } from "@/lib/audit";
 import { masaPengusulanBerjalanPada } from "@/lib/waktu";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
-import type { ButirCek, DokumenPeriksa, HasilUjiContoh, JenisButir, ParameterButir, StatusButir } from "@/lib/kontrak";
+import type { ButirCek, DokumenPeriksa, HasilUjiContoh, JenisButir, KonteksPeriksa, ParameterButir, StatusButir } from "@/lib/kontrak";
 import { ambilKonteksTemplat, ambilDrafTemplat, ambilTemplatBerlaku, ambilTemplatPerId, type Pelaku } from "@/lib/templat/layanan";
 import { turunkanButirDariTemplat, type ButirSeed } from "@/lib/seed-butir";
 import {
   adalahDraf,
+  adalahSimulasi,
   ambilDrafBasis,
   butirBasis,
   cariButirDenganKode,
@@ -302,25 +303,44 @@ function turunanKeDto(t: ButirSeed): ButirCek {
  * tersimpan ditambah butir manual basis aturan. Selain itu butir versi yang sedang disusun (atau yang berlaku) diterapkan pada
  * dokumen_contoh skema tersebut.
  */
-export async function ujiPadaContoh(skemaId: string, periodeId: string | null, templatId?: string | null): Promise<HasilUji> {
+export interface ButirUntukUji {
+  butir: ButirCek[];
+  sumber: SumberUji;
+  bagianTemplat: KonteksPeriksa["bagianTemplat"];
+}
+
+/**
+ * Butir yang diuji "Uji pada Contoh": templat Draf (templatId) = turunan isian tersimpan + butir manual basis aturan (sama dengan tab
+ * Aturan templat itu); selain itu butir versi yang sedang disusun atau yang berlaku. null bila skema belum punya basis aturan.
+ */
+export async function siapkanButirUji(skemaId: string, periodeId: string | null, templatId?: string | null): Promise<ButirUntukUji | null> {
   const db = getDb();
   const semua = await semuaBasisSkema(db, skemaId);
   const dasar = semua.find(adalahDraf) ?? pilihBasisNyata(semua, periodeId);
-  const peringatan: string[] = [];
   const asal = templatId ? await ambilTemplatPerId(templatId) : null;
   const templat = asal?.skemaId === skemaId ? asal.templat : null;
-
-  let butir: ButirCek[];
-  let sumber: SumberUji;
   if (templat?.status === "Draf") {
     const manual = dasar ? (await butirBasis(db, dasar.id)).filter((b) => b.asal === "manual" && b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan) : [];
-    butir = [...turunkanButirDariTemplat(templat.bagian).map(turunanKeDto), ...manual.map(keDto)];
-    sumber = { jenis: "templat-draf", versi: templat.versi };
-  } else {
-    if (!dasar) return { contoh: [], semuaContoh: false, peringatan: ["Skema ini belum memiliki basis aturan untuk diuji."], jumlahButir: 0, butir: [], sumber: null };
-    butir = (await butirBasis(db, dasar.id)).filter((b) => b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan).map(keDto);
-    sumber = { jenis: "basis", versi: dasar.versi, tanggalBerlaku: info(dasar).tanggalBerlaku };
+    return {
+      butir: [...turunkanButirDariTemplat(templat.bagian).map(turunanKeDto), ...manual.map(keDto)],
+      sumber: { jenis: "templat-draf", versi: templat.versi },
+      bagianTemplat: templat.bagian,
+    };
   }
+  if (!dasar) return null;
+  return {
+    butir: (await butirBasis(db, dasar.id)).filter((b) => b.status !== "Nonaktif").sort((a, b) => a.urutan - b.urutan).map(keDto),
+    sumber: { jenis: "basis", versi: dasar.versi, tanggalBerlaku: info(dasar).tanggalBerlaku },
+    bagianTemplat: templat ? templat.bagian : (await ambilKonteksTemplat(skemaId)).bagianTemplat,
+  };
+}
+
+export async function ujiPadaContoh(skemaId: string, periodeId: string | null, templatId?: string | null): Promise<HasilUji> {
+  const db = getDb();
+  const peringatan: string[] = [];
+  const siap = await siapkanButirUji(skemaId, periodeId, templatId);
+  if (!siap) return { contoh: [], semuaContoh: false, peringatan: ["Skema ini belum memiliki basis aturan untuk diuji."], jumlahButir: 0, butir: [], sumber: null };
+  const { butir, sumber } = siap;
   const det = butir.filter((b) => b.jenis === "deterministik");
   const sem = butir.filter((b) => b.jenis === "semantik");
 
@@ -333,7 +353,7 @@ export async function ujiPadaContoh(skemaId: string, periodeId: string | null, t
   dokumen.sort((a, b) => a.kode.localeCompare(b.kode));
   if (dokumen.length === 0) peringatan.push("Belum ada contoh proposal yang tersimpan di sistem.");
 
-  const konteks = templat ? { bagianTemplat: templat.bagian } : await ambilKonteksTemplat(skemaId);
+  const konteks = { bagianTemplat: siap.bagianTemplat };
   const hasil = await Promise.all(
     dokumen.map(async (d): Promise<HasilUjiContoh> => {
       const dok: DokumenPeriksa = {
@@ -400,7 +420,7 @@ export async function simpanVersiBaru(m: MasukanSimpanVersi): Promise<HasilSimpa
   if (!periode) return { ok: false, alasan: "periode", pesan: "Periode Seleksi tidak ditemukan." };
 
   const semua = await semuaBasisSkema(db, m.skemaId);
-  const sebelumnya = semua.filter((b) => !adalahDraf(b)).sort((a, b) => b.versi - a.versi)[0];
+  const sebelumnya = semua.filter((b) => !adalahDraf(b) && !adalahSimulasi(b)).sort((a, b) => b.versi - a.versi)[0];
   const berjalan = m.masaBerjalan ?? (await masaPengusulanBerjalanPada(m.periodeId)); // masaPengusulanBerjalan() pada periode
   const v = validasiTanggalBerlaku(m.tanggalBerlaku, periode, berjalan, sebelumnya?.tanggalBerlaku);
   if (!v.ok) return { ok: false, alasan: "tanggal", pesan: v.pesan }; // 8a: basis aturan tidak berubah

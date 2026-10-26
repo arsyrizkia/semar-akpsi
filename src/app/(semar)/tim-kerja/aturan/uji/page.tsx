@@ -3,23 +3,25 @@ import Link from "next/link";
 import { Alert, Badge, Bagian, BarKeyakinan, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
 import { urlTabAturan } from "@/lib/templat/daftar";
-import { ujiPadaContoh } from "@/lib/aturan/layanan";
+import { ambilHasilUji, daftarContohUji, ujiTerakhir } from "@/lib/aturan/uji-jalan";
 import { adalahDeterministik, ringkasPerContoh, susunBarisUji, type SelUji } from "@/lib/aturan/uji";
 import { daftarPeriode, daftarSkema } from "@/lib/templat/layanan";
-import { formatTanggal } from "@/lib/utils";
+import { formatAngka, formatTanggal, formatWaktu } from "@/lib/utils";
+import { TombolUjiContoh } from "../uji-contoh";
 
 export const metadata: Metadata = { title: "J-03b Hasil Uji pada Contoh" };
 export const dynamic = "force-dynamic";
-// pengujian ikut memanggil layanan LLM untuk butir semantik (15 detik per bagian)
+// "Uji Ulang" menjalankan aksi uji dari halaman ini: satu aksi = satu penilaian semantik (satu panggilan LLM)
 export const maxDuration = 60;
 
 /**
- * J-03b Hasil Uji pada Contoh (UC-02 langkah 6). Layar tersendiri dengan URL sendiri; data tidak berubah, hanya dibaca dan diuji.
- * Dibuka dari tab Aturan templat Draf (?templat=), butir yang diuji sama dengan tab itu: turunan isian draf tersimpan + butir manual.
+ * J-03b Hasil Uji pada Contoh (UC-02 langkah 6). Layar tersendiri dengan URL sendiri (?uji=). Uji dijalankan dari M-15 (pilih contoh
+ * dan/atau unggah naskah, kemajuan bertahap); halaman ini hanya membaca hasil tersimpan, jadi membukanya lagi tidak memanggil LLM.
+ * Tanpa ?uji= ditampilkan uji terakhir templat (atau skema) itu. Butir yang diuji dibekukan saat uji dimulai.
  */
-export default async function Halaman({ searchParams }: { searchParams: Promise<{ skema?: string; periode?: string; templat?: string }> }) {
+export default async function Halaman({ searchParams }: { searchParams: Promise<{ skema?: string; periode?: string; templat?: string; uji?: string }> }) {
   await wajibPengelola();
-  const { skema: skemaParam, periode: periodeParam, templat } = await searchParams;
+  const { skema: skemaParam, periode: periodeParam, templat, uji: ujiParam } = await searchParams;
   const [skema, periode] = await Promise.all([daftarSkema(), daftarPeriode()]);
   const skemaTerpilih = skema.find((s) => s.id === skemaParam) ?? skema[0];
   const periodeTerpilih = periode.find((p) => p.id === periodeParam) ?? periode[0];
@@ -33,10 +35,36 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
     );
   }
 
-  const kueri = `skema=${skemaTerpilih.id}${periodeTerpilih ? `&periode=${periodeTerpilih.id}` : ""}${templat ? `&templat=${templat}` : ""}`;
   // kembali ke tab Aturan Pemeriksaan pada templat asal; tanpa templat, /tim-kerja/aturan memilih templat Aktif skema dan periode ini
   const urlKembali = templat ? urlTabAturan(templat, { periodeId: periodeTerpilih?.id }) : `/tim-kerja/aturan?skema=${skemaTerpilih.id}${periodeTerpilih ? `&periode=${periodeTerpilih.id}` : ""}`;
-  const uji = await ujiPadaContoh(skemaTerpilih.id, periodeTerpilih?.id ?? null, templat ?? null);
+  const [ujiId, contohUji] = await Promise.all([ujiParam ? Promise.resolve(ujiParam) : ujiTerakhir(skemaTerpilih.id, templat ?? null), daftarContohUji(skemaTerpilih.id)]);
+  const uji = ujiId ? await ambilHasilUji(ujiId) : null;
+  const tombolUji = (label: string, varian: "utama" | "sekunder") => (
+    <TombolUjiContoh skemaId={skemaTerpilih.id} periodeId={periodeTerpilih?.id ?? null} templatId={templat ?? null} contoh={contohUji} label={label} varian={varian} />
+  );
+  const remah = [{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Aturan Pemeriksaan", href: urlKembali }, { label: "Hasil Uji" }];
+
+  if (!uji) {
+    return (
+      <>
+        <KepalaHalaman kode="J-03b" judul="Hasil Uji pada Contoh" keterangan={skemaTerpilih.namaSkema} remah={remah} />
+        <KeadaanKosong
+          judul={ujiParam ? "Hasil uji ini tidak ditemukan" : "Belum ada uji untuk templat ini"}
+          aksi={
+            <div className="flex flex-wrap justify-center gap-2">
+              {tombolUji("Jalankan Uji pada Contoh", "utama")}
+              <Link href={urlKembali} className={kelasTombol("sekunder")}>
+                Kembali ke Aturan Pemeriksaan
+              </Link>
+            </div>
+          }
+        >
+          Pilih contoh yang tersedia atau unggah naskah (.docx/.pdf); hasilnya tersimpan di sini.
+        </KeadaanKosong>
+      </>
+    );
+  }
+
   const baris = susunBarisUji(uji.butir, uji.contoh);
   const ringkasan = ringkasPerContoh(uji.contoh);
   const sumber = uji.sumber;
@@ -52,12 +80,10 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         kode="J-03b"
         judul="Hasil Uji pada Contoh"
         keterangan={keteranganSumber}
-        remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Aturan Pemeriksaan", href: urlKembali }, { label: "Hasil Uji" }]}
+        remah={remah}
         aksi={
           <>
-            <Link href={`/tim-kerja/aturan/uji?${kueri}`} className={kelasTombol("sekunder")}>
-              Uji Ulang
-            </Link>
+            {tombolUji("Uji Ulang", "sekunder")}
             <Link href={urlKembali} className={kelasTombol("utama")}>
               Kembali ke Aturan Pemeriksaan
             </Link>
@@ -65,16 +91,18 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
         }
       />
 
-      {uji.semuaContoh ? (
-        <Alert jenis="info" className="mb-4">
-          Skema ini belum memiliki contoh sendiri, sehingga semua contoh proposal dipakai.
+      <p className="mb-4 text-sm text-teks-redup">
+        Diuji {formatWaktu(uji.dibuatPada)} oleh {uji.dibuatOleh} · {formatAngka(uji.contoh.length)} dokumen · {formatAngka(uji.butir.filter((b) => b.status !== "Nonaktif").length)} butir
+      </p>
+      {uji.status === "Berjalan" ? (
+        <Alert jenis="peringatan" className="mb-4">
+          Uji ini belum selesai (jendela ditutup saat berjalan). {formatAngka(uji.belumDinilai)} penilaian semantik belum ada; jalankan Uji Ulang untuk hasil lengkap.
+        </Alert>
+      ) : uji.status === "Dihentikan" ? (
+        <Alert jenis="peringatan" className="mb-4">
+          Uji dihentikan sebelum selesai. {formatAngka(uji.belumDinilai)} penilaian semantik belum dinilai dan tampil sebagai tanda hubung.
         </Alert>
       ) : null}
-      {uji.peringatan.map((p) => (
-        <Alert key={p} jenis="peringatan" className="mb-4">
-          {p}
-        </Alert>
-      ))}
 
       {ringkasan.length > 0 ? (
         <Bagian judul="Ringkasan per Contoh">
@@ -117,7 +145,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
               </Link>
             }
           >
-            Skema ini belum memiliki butir aktif atau contoh proposal untuk diuji.
+            Uji ini tidak memiliki butir aktif.
           </KeadaanKosong>
         ) : (
           <Table>
@@ -149,7 +177,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
           </Table>
         )}
         <p className="mt-3 text-xs text-teks-redup">
-          Contoh proposal adalah data contoh sementara
+          Contoh proposal adalah data contoh sementara; butir yang diuji adalah butir saat uji dijalankan
           {sumber?.jenis === "basis" && sumber.tanggalBerlaku ? `; basis aturan berlaku sejak ${formatTanggal(sumber.tanggalBerlaku)}` : ""}
           {sumber?.jenis === "templat-draf" ? "; perubahan yang belum disimpan di templat tidak ikut diuji" : ""}.
         </p>

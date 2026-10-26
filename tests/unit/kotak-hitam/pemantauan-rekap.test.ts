@@ -1,84 +1,111 @@
 // Uji kotak hitam (Dennis dkk., 2015, hlm. 471-475). Sumber: Contract C-29 BasisAturan.rekapKesesuaian / ButirCek.hitungTingkatKoreksi, CRC BasisAturan.
 import { describe, expect, it } from "vitest";
-import { formatPersen, rekapKesesuaian, type BarisNilai, type InfoButir } from "@/lib/pemantauan/rekap";
+import { AMBANG_PEMANTAUAN } from "@/lib/pemantauan/ambang";
+import { formatPersen, rekapKesesuaian, type InfoButir, type MasukanRekap, type SelSemantik } from "@/lib/pemantauan/rekap";
 
 const butir: InfoButir[] = [
-  { id: "b1", kode: "ISI-01", deskripsi: "Ringkasan memuat urgensi", status: "Aktif" },
-  { id: "b2", kode: "ISI-02", deskripsi: "Pendahuluan lengkap", status: "Aktif" },
-  { id: "b3", kode: "KTA-01", deskripsi: "Kata kunci tepat lima", status: "Aktif" },
+  { id: "b1", kode: "UNS-10", deskripsi: "Diagram alir sesuai isi Metode", status: "Aktif", jenis: "semantik" },
+  { id: "b2", kode: "UNS-01", deskripsi: "Ringkasan memuat urgensi", status: "Aktif", jenis: "semantik" },
+  { id: "b3", kode: "KTA-04", deskripsi: "Metode tidak melebihi 1.000 kata", status: "Aktif", jenis: "deterministik" },
+  { id: "b4", kode: "KAT-01", deskripsi: "Kata kunci tepat lima", status: "Aktif", jenis: "deterministik" },
 ];
-
-const nilai = (hasilId: string, kode: string, koreksi: BarisNilai["koreksi"] = null): BarisNilai => ({
-  hasilId,
+const sel = (kode: string, jumlah: number, o: Partial<SelSemantik> = {}): SelSemantik => ({
   butirKode: kode,
-  judulProposal: `Judul ${hasilId}`,
-  rekomendasi: "Memenuhi",
-  status: "Memenuhi",
-  kutipan: "kutipan",
-  alasanSistem: null,
-  tiruan: true,
-  koreksi,
+  versi: 3,
+  deskripsi: butir.find((b) => b.kode === kode)?.deskripsi ?? kode,
+  tingkat: "tinggi",
+  minggu: 1,
+  arah: null,
+  jenis: null,
+  jumlah,
+  ...o,
 });
-const kor = (alasan: string, jenis = "Salah tafsir isi") => ({ keputusanReviewer: "Tidak memenuhi" as const, alasan, jenisKekeliruan: jenis });
+const rekap = (o: Partial<MasukanRekap>) =>
+  rekapKesesuaian({ sel: [], gagal: [], pengajuan: [], butir, contoh: [], contohGagal: [], proposalPernahGagal: 0, penilaianFinal: 0, ...o });
 
-describe("rekapKesesuaian (UC-04)", () => {
-  it("KH-rekapKesesuaian-01: menghitung tabel silang gagal per butir dan institusi, urut terbanyak", () => {
-    const h = rekapKesesuaian(
-      [
-        { butirKode: "KTA-01", institusiPengusul: "U1" },
-        { butirKode: "KTA-01", institusiPengusul: "U2" },
-        { butirKode: "KTA-01", institusiPengusul: "U1" },
-        { butirKode: "ISI-01", institusiPengusul: "U2" },
+describe("rekapKesesuaian (UC-04, J-05 triase)", () => {
+  it("KH-rekapKesesuaian-01: % disetujui = hasil tanpa koreksi / semua hasil pada penilaian final; arah koreksi dipisah", () => {
+    const h = rekap({ sel: [sel("UNS-10", 58), sel("UNS-10", 33, { arah: "longgar", jenis: "Kutipan salah tempat" }), sel("UNS-10", 9, { arah: "ketat", jenis: "Salah tafsir isi" })] });
+    expect(h.semantik[0]).toMatchObject({ kode: "UNS-10", jumlah: 100, dikoreksi: 42, persen: 58, longgar: 33, ketat: 9, perhatian: true });
+    expect(h.ringkas.persen).toBe(58);
+  });
+
+  it("KH-rekapKesesuaian-02: butir di bawah ambang masuk Perlu perhatian; butir 'belum cukup data' tidak, walau persennya rendah", () => {
+    const h = rekap({ sel: [sel("UNS-10", 60), sel("UNS-10", 40, { arah: "longgar" }), sel("UNS-01", 10), sel("UNS-01", 10, { arah: "longgar" })] });
+    expect(h.perluPerhatian.map((i) => i.baris.kode)).toEqual(["UNS-10"]);
+    expect(h.semantik.find((b) => b.kode === "UNS-01")).toMatchObject({ persen: 50, cukup: false, perhatian: false });
+  });
+
+  it("KH-rekapKesesuaian-03: gagal saat pengajuan dihitung per proposal terhadap pengajuan, dengan institusi tertinggi", () => {
+    const h = rekap({
+      gagal: [
+        { butirKode: "KTA-04", institusi: "Universitas Nusantara Contoh", proposal: 57 },
+        { butirKode: "KTA-04", institusi: "Institut Bahari Contoh", proposal: 20 },
+        { butirKode: "KAT-01", institusi: "Institut Bahari Contoh", proposal: 5 },
       ],
-      [],
-      butir,
-    );
-    expect(h.institusi).toEqual(["U1", "U2"]);
-    expect(h.gagalPerButir.map((b) => [b.kode, b.total])).toEqual([["KTA-01", 3], ["ISI-01", 1]]);
-    expect(h.gagalPerButir[0].perInstitusi).toEqual({ U1: 2, U2: 1 });
-  });
-
-  it("KH-rekapKesesuaian-02: % disetujui = hasil tanpa koreksi dibagi semua hasil pada penilaian final", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-01"), nilai("3", "ISI-01", kor("x")), nilai("4", "ISI-01")], butir);
-    const b = h.kesesuaian.find((x) => x.kode === "ISI-01")!;
-    expect(b.jumlah).toBe(4);
-    expect(b.disetujui).toBe(3);
-    expect(b.persenDisetujui).toBe(75);
-  });
-
-  it("KH-rekapKesesuaian-03: mengurutkan butir koreksi tertinggi dan menyertakan alasan serta jenis kekeliruan", () => {
-    const h = rekapKesesuaian(
-      [],
-      [
-        nilai("1", "ISI-01", kor("alasan a")),
-        nilai("2", "ISI-01"),
-        nilai("3", "ISI-02", kor("alasan b", "Kutipan salah tempat")),
-        nilai("4", "ISI-02", kor("alasan c")),
+      pengajuan: [
+        { institusi: "Universitas Nusantara Contoh", proposal: 127 },
+        { institusi: "Institut Bahari Contoh", proposal: 173 },
       ],
-      butir,
-    );
-    expect(h.koreksiTertinggi.map((b) => b.kode)).toEqual(["ISI-02", "ISI-01"]);
-    expect(h.koreksiTertinggi[0].tingkatKoreksi).toBe(1);
-    expect(h.koreksiTertinggi[0].alasan.map((a) => a.jenisKekeliruan)).toContain("Kutipan salah tempat");
-    expect(h.koreksiTertinggi[0].butirId).toBe("b2");
+      proposalPernahGagal: 80,
+    });
+    const kta = h.deterministik.find((b) => b.kode === "KTA-04")!;
+    expect(kta.proposalGagal).toBe(77);
+    expect(kta.persen).toBeCloseTo((77 / 300) * 100);
+    expect(kta.tertinggi).toMatchObject({ institusi: "Universitas Nusantara Contoh", gagal: 57, pengajuan: 127 });
+    expect(kta.perhatian).toBe(true);
+    expect(h.deterministik.find((b) => b.kode === "KAT-01")!.perhatian).toBe(false);
+    expect(h.ringkas).toMatchObject({ proposalPernahGagal: 80, pengajuan: 300 });
   });
 
-  it("KH-rekapKesesuaian-04: butir tanpa koreksi tidak masuk daftar koreksi tertinggi", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-01")], butir);
-    expect(h.koreksiTertinggi).toEqual([]);
-    expect(h.kesesuaian[0].persenDisetujui).toBe(100);
+  it("KH-rekapKesesuaian-04: tren mingguan dan kalibrasi keyakinan dari sel yang sama", () => {
+    const h = rekap({
+      sel: [
+        sel("UNS-01", 90, { minggu: 1 }),
+        sel("UNS-01", 10, { minggu: 1, arah: "ketat", tingkat: "rendah" }),
+        sel("UNS-01", 80, { minggu: 2, tingkat: "rendah" }),
+        sel("UNS-01", 20, { minggu: 2, arah: "ketat", tingkat: "rendah" }),
+      ],
+    });
+    expect(h.tren.map((t) => [t.minggu, t.persen])).toEqual([
+      [1, 90],
+      [2, 80],
+    ]);
+    expect(h.kalibrasi.map((k) => [k.tingkat, k.jumlah, k.persenDikoreksi])).toEqual([
+      ["tinggi", 90, 0],
+      ["rendah", 110, (30 * 100) / 110],
+    ]);
+    expect(h.tafsirKalibrasi.bermakna).toBe(true);
   });
 
-  it("KH-rekapKesesuaian-05: rincian butir (S-1) memuat contoh, mendahulukan yang dikoreksi", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-01", kor("tidak sesuai"))], butir);
-    expect(h.rincian["ISI-01"][0].dikoreksi).toBe(true);
-    expect(h.rincian["ISI-01"][0].alasanKoreksi).toBe("tidak sesuai");
-    expect(h.rincian["ISI-01"][1].keputusanReviewer).toBe("Memenuhi");
+  it("KH-rekapKesesuaian-05: sebelum-sesudah: deskripsi butir yang berubah dibandingkan, % berlaku hanya dari deskripsi baru", () => {
+    const baru = { ...butir[0], deskripsi: "Tahapan diagram alir sama dengan uraian Metode" };
+    const h = rekap({
+      butir: [baru, ...butir.slice(1)],
+      sel: [
+        sel("UNS-10", 58, { versi: 3 }),
+        sel("UNS-10", 42, { versi: 3, arah: "longgar" }),
+        sel("UNS-10", 91, { versi: 4, deskripsi: baru.deskripsi }),
+        sel("UNS-10", 9, { versi: 4, deskripsi: baru.deskripsi, arah: "ketat" }),
+      ],
+    });
+    expect(h.semantik[0].persen).toBe(91);
+    expect(h.bandingVersi[0]).toMatchObject({ kode: "UNS-10", lama: { versi: 3, persen: 58, jumlah: 100 }, baru: { versi: 4, persen: 91, jumlah: 100 } });
   });
 
   it("KH-rekapKesesuaian-06: laporan kosong tidak error", () => {
-    const h = rekapKesesuaian([], [], []);
-    expect(h).toEqual({ institusi: [], gagalPerButir: [], kesesuaian: [], koreksiTertinggi: [], rincian: {} });
+    const h = rekap({ butir: [] });
+    expect(h.semantik).toEqual([]);
+    expect(h.deterministik).toEqual([]);
+    expect(h.perluPerhatian).toEqual([]);
+    expect(h.ringkas.persen).toBeNull();
+    expect(h.tafsirKalibrasi.bermakna).toBeNull();
+  });
+
+  it("KH-rekapKesesuaian-07: tanpa koreksi = 100% disetujui; semua dikoreksi = 0% (batas atas dan bawah)", () => {
+    const h = rekap({ sel: [sel("UNS-01", AMBANG_PEMANTAUAN.minHasil), sel("UNS-10", AMBANG_PEMANTAUAN.minHasil, { arah: "longgar" })] });
+    expect(h.semantik.find((b) => b.kode === "UNS-01")!.persen).toBe(100);
+    expect(h.semantik.find((b) => b.kode === "UNS-10")!.persen).toBe(0);
   });
 });
 
@@ -87,38 +114,5 @@ describe("formatPersen", () => {
     expect(formatPersen(87.5)).toBe("87,5%");
     expect(formatPersen(100)).toBe("100%");
     expect(formatPersen(66.666)).toBe("66,7%");
-  });
-});
-
-describe("rekapKesesuaian: batas dan urutan (Contract C-29)", () => {
-  it("KH-rekapKesesuaian-07: tanpa koreksi = 100% disetujui; semua dikoreksi = 0% (batas atas dan bawah)", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-02", kor("a")), nilai("3", "ISI-02", kor("b"))], butir);
-    expect(h.kesesuaian.find((b) => b.kode === "ISI-01")!.persenDisetujui).toBe(100);
-    expect(h.kesesuaian.find((b) => b.kode === "ISI-02")!.persenDisetujui).toBe(0);
-  });
-
-  it("KH-rekapKesesuaian-08: kesesuaian diurutkan dari persen disetujui terendah", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01"), nilai("2", "ISI-02", kor("a")), nilai("3", "ISI-02"), nilai("4", "KTA-01", kor("b"))], butir);
-    expect(h.kesesuaian.map((b) => b.kode)).toEqual(["KTA-01", "ISI-02", "ISI-01"]);
-  });
-
-  it("KH-hitungTingkatKoreksi-01: tingkat koreksi = koreksi / hasil pada penilaian final per butir", () => {
-    const h = rekapKesesuaian([], [nilai("1", "ISI-01", kor("a")), nilai("2", "ISI-01"), nilai("3", "ISI-01"), nilai("4", "ISI-01")], butir);
-    expect(h.koreksiTertinggi[0]).toMatchObject({ kode: "ISI-01", jumlah: 4, jumlahKoreksi: 1, tingkatKoreksi: 0.25 });
-  });
-
-  it("KH-hitungTingkatKoreksi-02: tingkat koreksi sama diurutkan menurut jumlah koreksi lalu kode", () => {
-    const h = rekapKesesuaian(
-      [],
-      [nilai("1", "ISI-02", kor("a")), nilai("2", "ISI-01", kor("b")), nilai("3", "ISI-01", kor("c")), nilai("4", "ISI-01"), nilai("5", "ISI-02")],
-      butir,
-    );
-    // ISI-01 2/3 > ISI-02 1/2
-    expect(h.koreksiTertinggi.map((b) => b.kode)).toEqual(["ISI-01", "ISI-02"]);
-  });
-
-  it("KH-rekapKesesuaian-09: rincian menyertakan id proposal untuk tautan ke J-05b", () => {
-    const n = { ...nilai("1", "ISI-01"), proposalId: "uuid-1" };
-    expect(rekapKesesuaian([], [n], butir).rincian["ISI-01"][0].proposalId).toBe("uuid-1");
   });
 });

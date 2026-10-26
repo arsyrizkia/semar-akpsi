@@ -4,9 +4,10 @@
  * dijadwalkan ulang oleh J-08 bila job masih Menunggu (pastikanSemantikBerjalan).
  */
 import { after } from "next/server";
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, notLike, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { akun, basisAturan, butirCek, hasilPemeriksaan, jobSemantik, proposal, versiProposal } from "@/db/schema";
+import { AKHIRAN_SIMULASI } from "@/lib/aturan/draf";
 import { catatLogAudit } from "@/lib/audit";
 import type { ButirCek, RingkasanPemeriksaanSemantik } from "@/lib/kontrak/tipe";
 import { modeLlm } from "@/lib/llm/konfigurasi";
@@ -143,7 +144,7 @@ export async function jalankan(versiId: string, opsi: OpsiNilai = {}): Promise<R
       const [b] = await db
         .select({ id: basisAturan.id })
         .from(basisAturan)
-        .where(and(eq(basisAturan.skemaId, prop.skemaId), lt(basisAturan.tanggalBerlaku, new Date("9999-01-01T00:00:00Z"))))
+        .where(and(eq(basisAturan.skemaId, prop.skemaId), lt(basisAturan.tanggalBerlaku, new Date("9999-01-01T00:00:00Z")), notLike(basisAturan.kode, `%${AKHIRAN_SIMULASI}`)))
         .orderBy(desc(basisAturan.versi))
         .limit(1);
       basisId = b?.id ?? null;

@@ -12,6 +12,7 @@ import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
 import type { TampilanAturan } from "@/lib/aturan/layanan";
 import { formatAngka, formatTanggal } from "@/lib/utils";
 import { PapanAturan } from "../../aturan/papan-aturan";
+import type { ContohUji } from "../../aturan/uji-contoh";
 import { aksiSimpanDraf, aksiSusunVersiBaru, aksiTerbitkan } from "../aksi";
 import { BAGIAN_BARU, dariTemplat, sidikIsian, type IsianForm } from "./isian";
 import { ModalKetentuan } from "./modal-ketentuan";
@@ -26,7 +27,7 @@ interface Props {
   sakelarBerjalan: boolean;
   adaDraf: boolean;
   tabAwal: TabTemplat;
-  aturan: { periode: PeriodePilihan; tampilan: TampilanAturan; bagianPilihan: string[] } | null;
+  aturan: { periode: PeriodePilihan; tampilan: TampilanAturan; bagianPilihan: string[]; contohUji: ContohUji[] } | null;
   sorotAwal: string | null;
   hasil: { jenis: "terbit" | "draf"; jumlah: number | null; det: number | null; sem: number | null; baru: string | null } | null;
 }
@@ -325,6 +326,8 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
               }}
               saatSusunVersiBaru={susunVersiBaru}
               fokusBagian={fokusBagian}
+              contohUji={aturan.contohUji}
+              isianBelumTersimpan={kotor}
             />
           ) : (
             <p className="text-sm text-teks-redup">Belum ada periode seleksi.</p>

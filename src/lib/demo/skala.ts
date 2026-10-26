@@ -233,6 +233,8 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
       // data rusak atau sebagian: bangun ulang dari nol
       await db.delete(s.penugasanReviewer).where(eq(s.penugasanReviewer.periodeId, periode.id));
       await db.delete(s.proposal).where(eq(s.proposal.periodeId, periode.id));
+      // basis aturan simulasi J-05 (demo/pemantauan.ts) merujuk periode ini; hasil yang merujuk butirnya sudah ikut terhapus bersama proposal
+      await db.delete(s.basisAturan).where(eq(s.basisAturan.periodeId, periode.id));
       await db.delete(s.akun).where(sql`${s.akun.idBima} like ${profil.awalanReviewer + "%"} or ${s.akun.idBima} like ${profil.awalanPengusul + "%"}`);
       await db.delete(s.bimaReviewer).where(like(s.bimaReviewer.idBima, `${profil.awalanReviewer}%`));
       await db.delete(s.bimaAkun).where(like(s.bimaAkun.idBima, `${profil.awalanReviewer}%`));

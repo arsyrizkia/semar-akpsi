@@ -389,6 +389,44 @@ export const dokumenContoh = pgTable("dokumen_contoh", {
   label: text("label").notNull().default("contoh sementara"),
 });
 
+/**
+ * Satu kali "Uji pada Contoh" (UC-02 langkah 6): butir dan konteks templat dibekukan saat uji dimulai, hasil per dokumen per butir
+ * di uji_contoh_hasil. J-03b menampilkan hasil tersimpan (tidak menguji ulang setiap kali dibuka). Aditif, 25 Okt 2026.
+ */
+export const ujiContoh = pgTable("uji_contoh", {
+  id: pk(),
+  skemaId: uuid("skema_id").notNull().references(() => skemaPendanaan.id),
+  periodeId: uuid("periode_id").references(() => periodeSeleksi.id),
+  templatId: uuid("templat_id").references(() => templatProposal.id),
+  /** { jenis: "templat-draf" | "basis", versi, tanggalBerlaku? } */
+  sumber: jsonb("sumber").$type<Record<string, unknown>>().notNull(),
+  /** kode dokumen_contoh yang diuji, berurutan */
+  dokumen: jsonb("dokumen").$type<string[]>().notNull(),
+  /** ButirCek[] yang diuji (bukan Nonaktif) */
+  butir: jsonb("butir").$type<unknown[]>().notNull(),
+  /** bagian templat untuk pemeriksa deterministik */
+  bagianTemplat: jsonb("bagian_templat").$type<unknown[]>().notNull(),
+  status: text("status").notNull().default("Berjalan"),
+  dibuatOleh: text("dibuat_oleh").notNull(),
+  dibuatPada: waktu("dibuat_pada").defaultNow().notNull(),
+  selesaiPada: waktu("selesai_pada"),
+});
+
+export const ujiContohHasil = pgTable(
+  "uji_contoh_hasil",
+  {
+    id: pk(),
+    ujiId: uuid("uji_id").notNull().references(() => ujiContoh.id, { onDelete: "cascade" }),
+    dokumenKode: text("dokumen_kode").notNull(),
+    butirKode: text("butir_kode").notNull(),
+    jenis: text("jenis").notNull(),
+    /** HasilButirDeterministik atau HasilButirSemantik */
+    hasil: jsonb("hasil").$type<Record<string, unknown>>().notNull(),
+    dibuatPada: waktu("dibuat_pada").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("uji_contoh_hasil_uq").on(t.ujiId, t.dokumenKode, t.butirKode)],
+);
+
 /** Append-only. Pemicu basis data menolak UPDATE dan DELETE (scripts/pasang-trigger.ts). */
 export const logAudit = pgTable("log_audit", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
