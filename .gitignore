@@ -14,3 +14,6 @@ next-env.d.ts
 
 # PDF contoh proposal asli (hanya lokal, jangan di-commit)
 /data/uji-nyata/
+
+# dibuat ulang otomatis oleh `next dev` (aturan agen Next.js 16); tidak dilacak
+/AGENTS.md
