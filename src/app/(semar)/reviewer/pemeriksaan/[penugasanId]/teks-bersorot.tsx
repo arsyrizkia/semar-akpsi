@@ -53,6 +53,16 @@ export function TeksBersorot({
   saatPilih: (idPenggalan: string) => void;
 }) {
   const potongan = useMemo(() => susunSorotan(teks, rentang), [teks, rentang]);
+  // posisi awal setiap potongan di teks (label tidak memakan teks)
+  const awalPotongan = useMemo(() => {
+    const hasil: number[] = [];
+    let x = 0;
+    for (const p of potongan) {
+      hasil.push(x);
+      if (p.jenis !== "label") x += p.teks.length;
+    }
+    return hasil;
+  }, [potongan]);
   const terpasang = new Set<string>(); // penggalan yang jangkarnya sudah dipasang (hanya di potongan pertamanya)
 
   return potongan.map((p, i) => {
@@ -90,9 +100,8 @@ export function TeksBersorot({
 
     if (p.jenis === "gambar") {
       const g = gambar.find((x) => x.nomor === p.nomor);
-      // keterangan gambar = baris pertama teks sesudahnya bila berbentuk "Gambar n. ..."
-      const sesudah = potongan.slice(i + 1).find((x) => x.jenis === "teks");
-      const baris = sesudah && sesudah.jenis === "teks" ? sesudah.teks.split("\n")[0].trim() : "";
+      // keterangan gambar = baris sesudah penanda bila berbentuk "Gambar n. ..."
+      const baris = teks.slice(awalPotongan[i] + p.teks.length).split("\n")[0].trim();
       const alt = KETERANGAN_GAMBAR.test(baris) ? baris : `Gambar ${p.nomor} pada bagian ${namaBagian}, tanpa keterangan`;
       return (
         <figure
