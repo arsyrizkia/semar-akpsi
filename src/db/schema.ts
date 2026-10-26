@@ -115,6 +115,13 @@ export const periodeSeleksi = pgTable("periode_seleksi", {
   tanggalTutup: waktu("tanggal_tutup").notNull(),
   batasBebanReviewer: integer("batas_beban_reviewer").notNull().default(30),
   contoh: boolean("contoh").notNull().default(true),
+  /** masa penilaian administrasi (lib/penilaian/masa.ts): lama, jam reviewer per hari, menit per proposal */
+  lamaPenilaianHari: integer("lama_penilaian_hari").notNull().default(7),
+  jamReviewerPerHari: real("jam_reviewer_per_hari").notNull().default(2),
+  menitPerProposal: real("menit_per_proposal").notNull().default(5.17),
+  /** diisi saat penugasan pertama periode ditetapkan; tenggat = akhir hari ke-lama (WIB) */
+  mulaiPenilaian: waktu("mulai_penilaian"),
+  batasPenilaian: waktu("batas_penilaian"),
 });
 
 /* ------------------------------ templat ------------------------------ */

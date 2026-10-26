@@ -22,8 +22,8 @@ export interface SelSemantik {
   /** deskripsi butir pada versi basis itu */
   deskripsi: string;
   tingkat: TingkatKeyakinan | null;
-  /** minggu ke-n sesudah masa pengusulan ditutup (>= 1) */
-  minggu: number;
+  /** hari ke-n masa penilaian (hari penugasan ditetapkan = 1) */
+  hari: number;
   arah: ArahKoreksi | null;
   jenis: string | null;
   jumlah: number;
@@ -86,7 +86,7 @@ export interface MasukanRekap {
 }
 
 export interface TitikTren {
-  minggu: number;
+  hari: number;
   jumlah: number;
   dikoreksi: number;
   /** % disetujui */
@@ -190,18 +190,18 @@ const persenDari = (bagian: number, total: number) => (total ? (bagian * 100) / 
 const jumlahkan = (sel: SelSemantik[]) => sel.reduce((n, s) => n + s.jumlah, 0);
 const jumlahDikoreksi = (sel: SelSemantik[]) => sel.reduce((n, s) => n + (s.arah ? s.jumlah : 0), 0);
 
-/** hitungTingkatKoreksi per minggu: % disetujui setiap minggu yang punya hasil, urut minggu. */
-export function trenMingguan(sel: SelSemantik[]): TitikTren[] {
+/** hitungTingkatKoreksi per hari: % disetujui setiap hari yang punya hasil, urut hari. */
+export function trenHarian(sel: SelSemantik[]): TitikTren[] {
   const per = new Map<number, { jumlah: number; dikoreksi: number }>();
   for (const s of sel) {
-    const t = per.get(s.minggu) ?? { jumlah: 0, dikoreksi: 0 };
+    const t = per.get(s.hari) ?? { jumlah: 0, dikoreksi: 0 };
     t.jumlah += s.jumlah;
     if (s.arah) t.dikoreksi += s.jumlah;
-    per.set(s.minggu, t);
+    per.set(s.hari, t);
   }
   return [...per.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([minggu, t]) => ({ minggu, ...t, persen: persenDari(t.jumlah - t.dikoreksi, t.jumlah) }));
+    .map(([hari, t]) => ({ hari, ...t, persen: persenDari(t.jumlah - t.dikoreksi, t.jumlah) }));
 }
 
 /** % dikoreksi per tingkat keyakinan (tinggi >= 0,8; sedang 0,5 sampai < 0,8; rendah < 0,5); tingkat tanpa hasil tidak ikut. */
@@ -342,7 +342,7 @@ export function rekapKesesuaian(m: MasukanRekap): HasilRekap {
     const berlaku = sel.filter((s) => s.deskripsi === deskripsi);
     const baris = barisSemantik(kode, berlaku, info.get(kode), deskripsi, ambang);
     semantik.push(baris);
-    trenButir[kode] = trenMingguan(sel);
+    trenButir[kode] = trenHarian(sel);
     kalibrasiButir[kode] = kelompokKeyakinan(berlaku);
     const banding = bandingkanVersi(
       kode,
@@ -386,7 +386,7 @@ export function rekapKesesuaian(m: MasukanRekap): HasilRekap {
     perluPerhatian,
     semantik,
     deterministik,
-    tren: trenMingguan(m.sel),
+    tren: trenHarian(m.sel),
     trenButir,
     kalibrasi,
     kalibrasiButir,

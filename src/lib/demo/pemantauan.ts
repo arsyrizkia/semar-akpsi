@@ -12,10 +12,13 @@
  *  4. Gagal saat pengajuan: versi yang dinilai digeser menjadi V2 dan V1 disisipkan dengan hasil deterministik Gagal (meniru UC-05:
  *     Ditahan, diperbaiki, lalu Terkirim; semua proposal tetap Terkirim sehingga UC-03 tidak terganggu).
  *  5. Hasil semantik versi yang dinilai: rekomendasi, status, tingkat keyakinan.
- *  6. Sesudah-perbaikan: basis versi berikutnya (butir diperbaiki berdeskripsi baru), naskah yang dinilai mulai minggu berlaku diperiksa
+ *  6. Sesudah-perbaikan: basis versi berikutnya (butir diperbaiki berdeskripsi baru), naskah yang dinilai mulai hari berlaku diperiksa
  *     ulang dengan basis itu; butir di versi lama berlabel Perlu ditinjau.
  *  7. Penugasan disusun dengan susunUsulan (algoritma UC-03), ditetapkan, dan dicatat di kotak masuk BIMA tiruan (ditulis langsung
- *     seperti seed; kode SEMAR tidak mengimpor servis BIMA); penilaian Final per minggu beserta keputusan komponen dan koreksi reviewer.
+ *     seperti seed; kode SEMAR tidak mengimpor servis BIMA); penilaian Final per hari beserta keputusan komponen dan koreksi reviewer.
+ *     Masa penilaian 7 hari: penugasan ditetapkan pukul 09.00 WIB hari ke-1 dan hari ini adalah hari ke-`hariBerjalan`, jadi tenggat,
+ *     tren harian, dan kemajuan J-05 tampil seperti masa penilaian yang sedang berjalan. Reviewer yang "belum mulai" (skenario
+ *     terlambat) tidak punya penilaian final.
  */
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -26,8 +29,9 @@ import { KOMPONEN_BORANG } from "@/lib/kontrak/tipe";
 import { susunUsulan } from "@/lib/penugasan/aturan";
 import { PROFIL, dalamKumpulanPeriode, reviewerMassal } from "./profil-skala";
 import { namaInstitusiSkala, siapkanContoh1200 } from "./skala";
+import { awalHariWib, hitungTenggat, HARI_MS, MASA_BAWAAN } from "@/lib/penilaian/masa";
 import {
-  JUMLAH_MINGGU,
+  JUMLAH_HARI,
   SKENARIO_PEMANTAUAN,
   acakBerbiji,
   bangkitkanPemantauan,
@@ -39,7 +43,6 @@ import {
 } from "./pemantauan-skenario";
 
 const P = PROFIL.contoh1200;
-const HARI = 86_400_000;
 const UKURAN_KELOMPOK = 4000;
 /** batas beban penugasan data pemantauan (25 reviewer massal bersedia x 50 >= 1.200) */
 const BATAS_BEBAN = 50;
@@ -177,10 +180,24 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
   const mulai = Date.now();
   const sk = SKENARIO_PEMANTAUAN[id];
   const { periodeId } = await siapkanContoh1200();
-  // masa pengusulan ditutup, sehari kemudian penugasan ditetapkan, lalu minggu-minggu penilaian berjalan sampai beberapa jam lalu
-  const tutup = new Date(Date.now() - (sk.mingguBerjalan * 7 + 1) * HARI - 2 * 3_600_000);
-  const ditetapkan = new Date(tutup.getTime() + HARI);
-  const [periode] = await db.update(s.periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(s.periodeSeleksi.id, periodeId)).returning();
+  // hari ini = hari ke-hariBerjalan masa penilaian: penugasan ditetapkan 09.00 WIB hari ke-1 (paling lambat sejam lalu), masa pengusulan
+  // ditutup malam sebelumnya; tenggat akhir hari ke-7 (WIB)
+  const sekarang = Date.now();
+  const awalHari1 = awalHariWib(new Date(sekarang)) - (sk.hariBerjalan - 1) * HARI_MS;
+  const ditetapkan = new Date(Math.min(awalHari1 + 9 * 3_600_000, sekarang - 3_600_000));
+  const tutup = new Date(Math.min(awalHari1 - 3_600_000, ditetapkan.getTime() - 3_600_000));
+  const [periode] = await db
+    .update(s.periodeSeleksi)
+    .set({
+      tanggalTutup: tutup,
+      mulaiPenilaian: ditetapkan,
+      batasPenilaian: hitungTenggat(ditetapkan, JUMLAH_HARI),
+      lamaPenilaianHari: JUMLAH_HARI,
+      jamReviewerPerHari: MASA_BAWAAN.jamPerHari,
+      menitPerProposal: MASA_BAWAAN.menitPerProposal,
+    })
+    .where(eq(s.periodeSeleksi.id, periodeId))
+    .returning();
   const basis = await pastikanBasisSimulasi(periodeId, periode.tanggalBuka);
   await bersihkanLapisan(periodeId, basis);
 
@@ -248,7 +265,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
   const pb = sk.perbaikan;
   if (pb) {
     const lama = basis[pb.skema];
-    const berlaku = new Date(ditetapkan.getTime() + (pb.mingguBerlaku - 1) * 7 * HARI);
+    const berlaku = new Date(awalHari1 + (pb.hariBerlaku - 1) * HARI_MS);
     const [baru] = baris<{ id: string }>(
       await db.execute(sql`
         INSERT INTO basis_aturan (kode, nama, skema_id, periode_id, versi, tanggal_berlaku)
@@ -269,7 +286,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
     const [pengelola] = await db.select({ id: s.akun.id }).from(s.akun).where(eq(s.akun.idBima, "dppm-pengelola"));
     await db.execute(sql`
       UPDATE butir_cek SET status = 'Perlu ditinjau', ditandai_oleh = ${pengelola?.id ?? null},
-             ditandai_pada = ${new Date(ditetapkan.getTime() + ((pb.mingguDitandai - 1) * 7 + 3) * HARI).toISOString()}
+             ditandai_pada = ${new Date(awalHari1 + (pb.hariDitandai - 1) * HARI_MS + 14 * 3_600_000).toISOString()}
       WHERE basis_aturan_id = ${lama.id} AND kode = ${pb.kode}`);
   }
 
@@ -277,7 +294,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
    * 7. penugasan: algoritma susun UC-03 (susunUsulan: institusi berbeda, bersedia, beban terendah) atas reviewer massal rvw-c12-*
    * periode ini. Reviewer contoh yang dapat masuk (reviewer-1..5) tidak ikut supaya Daftar Penugasan mereka (J-07) tetap milik skenario
    * kecil; 25 reviewer bersedia x batas 50 cukup untuk 1.200 proposal. Kesediaan dibaca dari salinan akun SEMAR, bukan lewat API BIMA, supaya skenario tetap dapat dipasang dari
-   * skrip tanpa server. Ditetapkan sehari sesudah masa pengusulan ditutup (minggu penilaian J-05 dihitung dari tanggal ini), lalu
+   * skrip tanpa server. Ditetapkan pada hari ke-1 masa penilaian (hari J-05 dihitung dari tanggal ini), lalu
    * dicatat di kotak masuk BIMA tiruan.
    */
   const reviewer = baris<{ id: string; idBima: string; nama: string; institusi: string | null }>(
@@ -314,9 +331,22 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
       ON CONFLICT (jenis, (payload->>'kunci')) WHERE (payload->>'kunci') IS NOT NULL DO NOTHING`);
   }
 
-  /* penilaian Final: [id, waktu kirim, umpan balik] */
-  const final = k.final.map((f) => {
-    const waktu = new Date(ditetapkan.getTime() + ((f.minggu - 1) * 7 * 24 + f.jam) * 3_600_000);
+  /* reviewer yang belum mulai (beban terbanyak lebih dulu): proposal mereka tidak punya penilaian final */
+  const bebanReviewer = new Map<string, number>();
+  for (const u of penugasan) bebanReviewer.set(u.reviewerIdBima, (bebanReviewer.get(u.reviewerIdBima) ?? 0) + 1);
+  const belumMulai = new Set(
+    [...bebanReviewer.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, sk.reviewerBelumMulai ?? 0)
+      .map(([id]) => id),
+  );
+  const tanpaFinal = new Set(penugasan.filter((u) => belumMulai.has(u.reviewerIdBima)).map((u) => u.idProposal));
+  const finalDipakai = k.final.filter((f) => !tanpaFinal.has(f.idProposal));
+
+  /* penilaian Final: [id, waktu kirim, umpan balik]; jam kerja 08.00-22.00 WIB hari itu, tidak sebelum penetapan dan tidak sesudah sekarang */
+  const final = finalDipakai.map((f) => {
+    const rencana = awalHari1 + (f.hari - 1) * HARI_MS + 8 * 3_600_000 + f.menit * 60_000;
+    const waktu = new Date(Math.max(ditetapkan.getTime() + 10 * 60_000, Math.min(rencana, sekarang - 5 * 60_000)));
     return [f.idProposal, waktu.toISOString(), UMPAN_BALIK[Math.floor(acakBerbiji(`ub:${f.idProposal}`)() * UMPAN_BALIK.length)]];
   });
   const komponen = `${KOMPONEN_BORANG.length} dari ${KOMPONEN_BORANG.length} komponen Memenuhi`;
@@ -353,10 +383,10 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
   for (const t of ["versi_proposal", "hasil_pemeriksaan", "penugasan_reviewer", "penilaian", "keputusan_komponen", "koreksi_rekomendasi", "bima_kotak_masuk", "butir_cek"]) {
     await db.execute(sql.raw(`VACUUM ANALYZE ${t}`));
   }
-  const ringkas = { final: k.final.length, koreksi: k.koreksi.length, gagal: k.gagal.length };
+  const ringkas = { final: finalDipakai.length, koreksi: k.koreksi.filter((x) => !tanpaFinal.has(x.idProposal)).length, gagal: k.gagal.length };
   const ms = Date.now() - mulai;
   await catatLogAudit({ aktor: "demo", aksi: "demo.pemantauan", objek: `periode:${periodeId}`, rincian: { skenario: id, ms, ...ringkas } });
   return { periodeId, skemaPdId: basis.PD.skemaId, ms, ringkas };
 }
 
-export { JUMLAH_MINGGU };
+export { JUMLAH_HARI };

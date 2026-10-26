@@ -3,13 +3,13 @@
 import { describe, expect, it } from "vitest";
 import { PROFIL } from "@/lib/demo/profil-skala";
 import {
-  BOBOT_MINGGU,
+  BOBOT_HARI,
   INSTITUSI_TERBESAR,
   SKENARIO_PEMANTAUAN,
   acakBerbiji,
   alasanKoreksi,
   bangkitkanPemantauan,
-  mingguKe,
+  hariKe,
   type ButirSim,
   type HasilBangkit,
   type IdSkenarioPemantauan,
@@ -78,11 +78,12 @@ describe("PRNG dan bantu", () => {
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
     expect(acakBerbiji("y")()).not.toBe(acakBerbiji("x")());
   });
-  it("mingguKe: menyebar sesuai BOBOT_MINGGU dan dipotong di minggu berjalan", () => {
+  it("hariKe: menyebar sesuai BOBOT_HARI dan dipotong di hari berjalan", () => {
     const n = 1000;
-    const per = Array.from({ length: 6 }, (_, m) => Array.from({ length: n }, (_, i) => mingguKe(i, n, 6)).filter((x) => x === m + 1).length);
-    per.forEach((jumlah, m) => expect(Math.abs(jumlah - BOBOT_MINGGU[m] * n)).toBeLessThanOrEqual(1));
-    expect(new Set(Array.from({ length: 24 }, (_, i) => mingguKe(i, 24, 1)))).toEqual(new Set([1]));
+    const per = Array.from({ length: 7 }, (_, m) => Array.from({ length: n }, (_, i) => hariKe(i, n, 7)).filter((x) => x === m + 1).length);
+    per.forEach((jumlah, m) => expect(Math.abs(jumlah - BOBOT_HARI[m] * n)).toBeLessThanOrEqual(1));
+    expect(new Set(Array.from({ length: 24 }, (_, i) => hariKe(i, 24, 1)))).toEqual(new Set([1]));
+    expect(Math.max(...Array.from({ length: 100 }, (_, i) => hariKe(i, 100, 5)))).toBe(5);
   });
   it("alasanKoreksi: alasan khas butir cerita, selain itu alasan umum sesuai arah", () => {
     expect(alasanKoreksi("UNS-09", "Bagian tidak ditemukan padahal ada", "ketat", 0)).toMatch(/Peta jalan/);
@@ -91,23 +92,26 @@ describe("PRNG dan bantu", () => {
 });
 
 describe("skenario J-05", () => {
-  it("awal: 24 final PD di minggu 1, setiap butir < 30 hasil", () => {
+  it("awal: 24 final PD di hari 1, setiap butir < 30 hasil", () => {
     const h = bangkit("awal");
     const pd = h.final.filter((f) => skemaDari.get(f.idProposal) === "PD");
     expect(pd).toHaveLength(24);
-    expect(new Set(pd.map((f) => f.minggu))).toEqual(new Set([1]));
+    expect(new Set(pd.map((f) => f.hari))).toEqual(new Set([1]));
     expect(disetujui(h, "UNS-10").n).toBe(24);
   });
 
-  it("sehat: semua butir semantik PD >= 90% disetujui", () => {
+  it("sehat: semua penugasan final sampai hari ke-7, semua butir semantik PD >= 90% disetujui", () => {
     const h = bangkit("sehat");
+    expect(h.final).toHaveLength(1200);
+    expect(Math.max(...h.final.map((f) => f.hari))).toBe(7);
     for (const kode of BUTIR.PD.semantik) expect(disetujui(h, kode).persen, kode).toBeGreaterThanOrEqual(90);
   });
 
   it("bermasalah: UNS-10 ±58% (longgar ±81%, kutipan salah tempat dominan), UNS-08 ±76%, lainnya >= 88%", () => {
     const h = bangkit("bermasalah");
     const u10 = disetujui(h, "UNS-10");
-    expect(u10.n).toBe(600);
+    expect(u10.n).toBe(560);
+    expect(Math.max(...h.final.map((f) => f.hari))).toBe(5);
     expect(u10.persen).toBeGreaterThan(55);
     expect(u10.persen).toBeLessThan(61);
     const longgar = u10.koreksi.filter((k) => k.keputusan === "Tidak memenuhi").length / u10.koreksi.length;
@@ -122,16 +126,16 @@ describe("skenario J-05", () => {
     for (const kode of BUTIR.PD.semantik.filter((k) => k !== "UNS-10" && k !== "UNS-08")) expect(disetujui(h, kode).persen, kode).toBeGreaterThanOrEqual(88);
   });
 
-  it("bermasalah: UNS-10 memburuk dari minggu awal ke akhir, dan keyakinan tinggi tetap sering dikoreksi", () => {
+  it("bermasalah: UNS-10 memburuk dari hari awal ke akhir, dan keyakinan tinggi tetap sering dikoreksi", () => {
     const h = bangkit("bermasalah");
-    const minggu = new Map(h.final.map((f) => [f.idProposal, f.minggu]));
-    const pd = h.semantik.filter((s) => s.kode === "UNS-10" && minggu.has(s.idProposal) && skemaDari.get(s.idProposal) === "PD");
+    const hari = new Map(h.final.map((f) => [f.idProposal, f.hari]));
+    const pd = h.semantik.filter((s) => s.kode === "UNS-10" && hari.has(s.idProposal) && skemaDari.get(s.idProposal) === "PD");
     const koreksi = new Set(h.koreksi.filter((k) => k.kode === "UNS-10").map((k) => k.idProposal));
     const laju = (f: (s: (typeof pd)[number]) => boolean) => {
       const b = pd.filter(f);
       return b.filter((s) => koreksi.has(s.idProposal)).length / b.length;
     };
-    expect(laju((s) => minggu.get(s.idProposal)! <= 2)).toBeLessThan(laju((s) => minggu.get(s.idProposal)! >= 5));
+    expect(laju((s) => hari.get(s.idProposal)! <= 2)).toBeLessThan(laju((s) => hari.get(s.idProposal)! >= 4));
     expect(laju((s) => s.keyakinan >= 0.8)).toBeGreaterThan(0.33);
   });
 
@@ -168,12 +172,30 @@ describe("skenario J-05", () => {
     expect(lama.persen).toBeGreaterThan(53);
     expect(lama.persen).toBeLessThan(63);
     expect(baru.persen).toBeGreaterThanOrEqual(88);
-    expect(lama.n + baru.n).toBe(600);
-    const minggu = new Map(h.final.map((f) => [f.idProposal, f.minggu]));
+    expect(lama.n + baru.n).toBe(700);
+    expect(lama.n).toBeGreaterThanOrEqual(30);
+    expect(baru.n).toBeGreaterThanOrEqual(30);
+    const hari = new Map(h.final.map((f) => [f.idProposal, f.hari]));
     for (const s of h.semantik.filter((x) => x.baru)) {
       expect(skemaDari.get(s.idProposal)).toBe("PD");
-      const m = minggu.get(s.idProposal);
+      const m = hari.get(s.idProposal);
       if (m !== undefined) expect(m).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it("terlambat: hari ke-6, baru 60% penugasan final (penulis membuang lagi final reviewer yang belum mulai)", () => {
+    const sk = SKENARIO_PEMANTAUAN.terlambat;
+    const h = bangkit("terlambat");
+    expect(sk.hariBerjalan).toBe(6);
+    expect(sk.reviewerBelumMulai).toBe(5);
+    expect(h.final).toHaveLength(720);
+    expect(Math.max(...h.final.map((f) => f.hari))).toBe(6);
+  });
+
+  it("final: hari 1..hariBerjalan dan menit kerja 08.00-21.59 untuk setiap skenario", () => {
+    for (const id of Object.keys(SKENARIO_PEMANTAUAN) as IdSkenarioPemantauan[]) {
+      const h = bangkit(id);
+      expect(h.final.every((f) => f.hari >= 1 && f.hari <= SKENARIO_PEMANTAUAN[id].hariBerjalan && f.menit >= 0 && f.menit < 14 * 60), id).toBe(true);
     }
   });
 

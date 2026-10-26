@@ -4,6 +4,8 @@ import type { HasilPindahBanyak } from "@/lib/penugasan/layanan";
 
 export interface HasilSusunAksi {
   galat?: string;
+  /** isian yang salah: "masa" = masa penilaian */
+  kolom?: "masa";
   /** > 0 bila reviewer kurang (S-1) */
   kekurangan?: number;
   /** batas beban yang benar-benar dipakai saat Susun (isian bisa berubah sesudahnya) */

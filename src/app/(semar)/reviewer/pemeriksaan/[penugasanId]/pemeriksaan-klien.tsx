@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, ChevronRight, FileText, Loader2, Lock, XCircle } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, ChevronRight, FileText, Loader2, Lock, XCircle } from "lucide-react";
 import {
   Alert,
   BarKeyakinan,
@@ -202,6 +202,12 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
         <span>{data.proposal.skema}</span>
         <span>Versi {data.proposal.kodeVersi}</span>
         <StatusBadge status={final ? "Selesai" : data.label} />
+        {data.tenggat ? (
+          <span className={data.tenggat.lewat && !final ? "inline-flex items-center gap-1.5 font-semibold text-bata-700" : "inline-flex items-center gap-1.5"} title={data.tenggat.teks}>
+            <CalendarClock aria-hidden className="size-4" />
+            Tenggat {data.tenggat.teks} ({data.tenggat.sisa})
+          </span>
+        ) : null}
         <span className="inline-flex items-center gap-1.5">
           {data.deterministik.total > 0 && data.deterministik.gagal === 0 ? <CheckCircle2 aria-hidden className="size-4 text-daun-600" /> : <XCircle aria-hidden className="size-4 text-bata-600" />}
           {data.deterministik.total === 0

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 import { Sparkline } from "@/components/grafik/batang";
 import { KeadaanKosong, KepalaHalaman } from "@/components/ui";
 import { wajibTimKerja } from "@/lib/auth";
 import type { TabPemantauan } from "@/lib/pemantauan/alamat";
-import { daftarPeriode, daftarSkema, susunLaporan } from "@/lib/pemantauan/layanan";
+import { daftarPeriode, daftarSkema, susunKemajuan, susunLaporan } from "@/lib/pemantauan/layanan";
+import { waktuDemo } from "@/lib/waktu";
 import { formatPersen } from "@/lib/pemantauan/rekap";
 import { cn, formatAngka } from "@/lib/utils";
 import { BilahPilihan } from "./bilah-pilihan";
@@ -13,6 +16,7 @@ import { RincianButir } from "./rincian-butir";
 import { PanelTab } from "./navigasi";
 import { TabDeterministik, TabTren } from "./tab-isi";
 import { TabSemantik } from "./tab-semantik";
+import { TabKemajuan, kalimatMasa } from "./tab-kemajuan";
 import { PenyediaTandai } from "./tandai";
 
 export const metadata: Metadata = { title: "J-05 Pemantauan Kesesuaian" };
@@ -44,12 +48,15 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
     );
   }
 
-  const laporan = await susunLaporan(periode.id, skema.id);
+  const [laporan, kemajuan, sekarang] = await Promise.all([susunLaporan(periode.id, skema.id), susunKemajuan(periode.id), waktuDemo()]);
+  const masa = { lamaHari: periode.lamaPenilaianHari, jamPerHari: periode.jamReviewerPerHari, menitPerProposal: periode.menitPerProposal };
+  const kalimat = kalimatMasa(kemajuan, sekarang);
+  const alamatKemajuan = `/tim-kerja/pemantauan?periode=${periode.id}&skema=${skema.id}&tab=kemajuan`;
   const { ringkas, ambang } = laporan;
   const persenGagal = ringkas.pengajuan ? (ringkas.proposalPernahGagal / ringkas.pengajuan) * 100 : 0;
   const persenFinal = ringkas.pengajuan ? Math.min(100, (ringkas.penilaianFinal / ringkas.pengajuan) * 100) : 0;
   const butirTotal = ringkas.butirSemantik + ringkas.butirDeterministik;
-  const LABEL_TAB: Record<TabPemantauan, string> = { semantik: "Butir Semantik", deterministik: "Gagal Deterministik", tren: "Tren dan Kalibrasi" };
+  const LABEL_TAB: Record<TabPemantauan, string> = { semantik: "Butir Semantik", deterministik: "Gagal Deterministik", tren: "Tren dan Kalibrasi", kemajuan: "Kemajuan Penilaian" };
 
   return (
     <>
@@ -93,10 +100,16 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
             </span>
             <span className="angka">dari {formatAngka(ringkas.pengajuan)} proposal</span>
           </dd>
+          {kemajuan.posisi && !kemajuan.posisi.lewat ? (
+            <dd className="angka text-xs text-teks-redup">
+              hari ke-{kemajuan.posisi.hariKe} dari {kemajuan.posisi.lama}
+            </dd>
+          ) : null}
         </div>
       </dl>
       <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
         <p className="text-teks-redup">
+          {kalimat ? <>{kalimat} · </> : null}
           {laporan.basis ? `Basis aturan v${laporan.basis.versi}` : "Belum ada basis aturan"} · <span className="angka">{formatAngka(ringkas.hasilDinilai)}</span> hasil semantik dari{" "}
           <span className="angka">{formatAngka(ringkas.penilaianFinal)}</span> penilaian final
         </p>
@@ -113,6 +126,11 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
             </li>
             <li>Terlalu longgar: sistem menyatakan Memenuhi, reviewer menyatakan Tidak memenuhi. Terlalu ketat: sebaliknya.</li>
             <li>Hasil sebuah butir dihitung sejak deskripsinya terakhir diubah; angka sebelum perubahan ada di tab Tren dan Kalibrasi.</li>
+            <li>
+              Hari ke-n masa penilaian dihitung menurut kalender WIB sejak penugasan pertama ditetapkan; masa periode ini {masa.lamaHari} hari. Proyeksi meneruskan laju penilaian
+              final sejauh ini sampai tenggat. Reviewer tertinggal bila sisa penugasannya melebihi kapasitas hari tersisa ({masa.jamPerHari.toLocaleString("id-ID")} jam per hari,{" "}
+              {masa.menitPerProposal.toLocaleString("id-ID")} menit per proposal).
+            </li>
           </ul>
         </details>
       </div>
@@ -124,6 +142,27 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
           skemaId={skema.id}
           butir={[...laporan.semantik, ...laporan.deterministik].map((b) => ({ kode: b.kode, deskripsi: b.deskripsi, status: b.status }))}
         >
+          {kemajuan.perluPerhatian && kemajuan.proyeksi ? (
+            <p className="mt-8 flex flex-wrap items-start gap-x-2 gap-y-1 border-y border-peringatan-300 bg-peringatan-50 px-3 py-3 text-sm text-primer-900">
+              <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0 text-peringatan-700" />
+              <span className="min-w-0 flex-1">
+                <strong className="font-semibold">Kemajuan penilaian berisiko melewati tenggat.</strong>{" "}
+                {kemajuan.proyeksi.tepatWaktu ? null : (
+                  <>
+                    Diperkirakan <span className="angka">{formatAngka(kemajuan.proyeksi.kurang)}</span> penugasan belum final pada tenggat.{" "}
+                  </>
+                )}
+                {kemajuan.jumlahStatus.Tertinggal ? (
+                  <>
+                    <span className="angka">{formatAngka(kemajuan.jumlahStatus.Tertinggal)}</span> reviewer tertinggal.{" "}
+                  </>
+                ) : null}
+                <Link href={alamatKemajuan} className="font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900">
+                  Lihat Kemajuan Penilaian
+                </Link>
+              </span>
+            </p>
+          ) : null}
           <PerluPerhatian
             item={laporan.perluPerhatian}
             ambang={ambang}
@@ -134,11 +173,22 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
 
           <PanelTab
             label={LABEL_TAB}
-            jumlah={{ semantik: ringkas.butirSemantik, deterministik: laporan.deterministik.filter((b) => b.proposalGagal > 0).length }}
+            jumlah={{ semantik: ringkas.butirSemantik, deterministik: laporan.deterministik.filter((b) => b.proposalGagal > 0).length, kemajuan: kemajuan.jumlahStatus.Tertinggal || undefined }}
             panel={{
               semantik: <TabSemantik baris={laporan.semantik} ambang={ambang} adaBanding={laporan.bandingVersi.length > 0} />,
               deterministik: <TabDeterministik baris={laporan.deterministik} ambang={ambang} pengajuan={ringkas.pengajuan} />,
-              tren: <TabTren tren={laporan.tren} kalibrasi={laporan.kalibrasi} tafsir={laporan.tafsirKalibrasi} banding={laporan.bandingVersi} penanda={laporan.penandaVersi} ambang={ambang} />,
+              tren: (
+                <TabTren
+                  tren={laporan.tren}
+                  kalibrasi={laporan.kalibrasi}
+                  tafsir={laporan.tafsirKalibrasi}
+                  banding={laporan.bandingVersi}
+                  penanda={laporan.penandaVersi}
+                  ambang={ambang}
+                  jumlahHari={kemajuan.posisi?.lama ?? masa.lamaHari}
+                />
+              ),
+              kemajuan: <TabKemajuan k={kemajuan} masa={masa} sekarang={sekarang} />,
             }}
           />
 
@@ -153,6 +203,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
               kalibrasiButir: laporan.kalibrasiButir,
               bandingVersi: laporan.bandingVersi,
               penandaVersi: laporan.penandaVersi,
+              jumlahHari: kemajuan.posisi?.lama ?? masa.lamaHari,
             }}
           />
         </PenyediaTandai>

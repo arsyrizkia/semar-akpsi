@@ -1,7 +1,8 @@
 /**
  * Data tiruan UC-04 (J-05) berskenario untuk periode Simulasi Contoh 2026 (1.200 proposal). Murni, tanpa basis data: dari daftar
  * proposal dan kode butir dihasilkan keputusan per baris (versi gagal saat pengajuan, rekomendasi dan keyakinan tiap hasil semantik,
- * penilaian final per minggu, koreksi reviewer), lalu demo/pemantauan.ts menulisnya secara set-based.
+ * penilaian final per hari masa penilaian, koreksi reviewer), lalu demo/pemantauan.ts menulisnya secara set-based. Masa penilaian
+ * administrasi singkat: 7 hari sejak penugasan ditetapkan (naskah: seleksi administrasi 2026 berlangsung delapan hari).
  *
  * PRNG berbiji (mulberry32 dari id skenario + id proposal + kode butir), jadi setiap skenario selalu menghasilkan angka yang sama; uji
  * tests/unit/kotak-putih/demo-pemantauan.test.ts memastikan angka cerita tiap skenario (mis. UNS-10 58% disetujui pada "bermasalah").
@@ -9,13 +10,14 @@
  */
 import type { JENIS_KEKELIRUAN } from "@/lib/kontrak/tipe";
 
-export type IdSkenarioPemantauan = "awal" | "sehat" | "bermasalah" | "terlalu-ketat" | "sesudah-perbaikan";
+export type IdSkenarioPemantauan = "awal" | "sehat" | "bermasalah" | "terlalu-ketat" | "sesudah-perbaikan" | "terlambat";
 export type JenisKekeliruan = (typeof JENIS_KEKELIRUAN)[number];
 export type KodeSkema = "PD" | "PT";
 
-export const JUMLAH_MINGGU = 6;
-/** porsi penilaian final per minggu masa penilaian: naik, memuncak di minggu ke-4, lalu turun */
-export const BOBOT_MINGGU = [0.06, 0.14, 0.2, 0.22, 0.21, 0.17];
+/** lama masa penilaian (hari); sama dengan bawaan lib/penilaian/masa.ts */
+export const JUMLAH_HARI = 7;
+/** porsi penilaian final per hari masa penilaian: naik di hari-hari awal, rata di tengah, sedikit turun di akhir */
+export const BOBOT_HARI = [0.1, 0.14, 0.16, 0.16, 0.16, 0.15, 0.13];
 /** indeks institusi pada profil contoh1200 (namaInstitusiSkala(0) = "Universitas Nusantara Contoh", 220 proposal) */
 export const INSTITUSI_TERBESAR = 0;
 
@@ -32,7 +34,7 @@ export interface ParamSemantik {
   keyakinan: [number, number, number];
   /** laju koreksi relatif per tingkat keyakinan (tinggi, sedang, rendah); [1, 1, 1] = keyakinan tidak bermakna */
   pengali: [number, number, number];
-  /** laju koreksi relatif per minggu 1..6 */
+  /** laju koreksi relatif per hari 1..7 */
   tren: number[];
   /** peluang rekomendasi Memenuhi bila tidak dikoreksi */
   memenuhi: number;
@@ -44,19 +46,21 @@ export interface SkenarioPemantauan {
   ringkas: string;
   /** jumlah penilaian final per skema */
   final: Record<KodeSkema, number>;
-  /** minggu terakhir yang sudah berjalan (awal = 1) */
-  mingguBerjalan: number;
+  /** hari masa penilaian yang sedang berjalan (awal = 1; 7 = hari terakhir) */
+  hariBerjalan: number;
+  /** reviewer (beban terbanyak lebih dulu) yang belum menilai sama sekali; penilaian final proposal mereka dibuang penulis */
+  reviewerBelumMulai?: number;
   /** parameter per kode butir semantik (ditimpakan ke BAWAAN); kode tanpa entri memakai BAWAAN dengan laju bervariasi per kode */
   semantik: Record<string, Partial<ParamSemantik>>;
   /** peluang gagal saat pengajuan per kode butir deterministik; per institusi menimpa nilai umum */
   gagal: Record<string, number>;
   gagalInstitusi?: Record<string, Record<number, number>>;
-  /** butir yang diperbaiki di tengah masa penilaian (basis aturan versi berikutnya berlaku mulai mingguBerlaku) */
-  perbaikan?: { skema: KodeSkema; kode: string; mingguBerlaku: number; mingguDitandai: number; sesudah: Partial<ParamSemantik>; deskripsiBaru: string; pertanyaanBaru: string };
+  /** butir yang diperbaiki di tengah masa penilaian (basis aturan versi berikutnya berlaku mulai hariBerlaku) */
+  perbaikan?: { skema: KodeSkema; kode: string; hariBerlaku: number; hariDitandai: number; sesudah: Partial<ParamSemantik>; deskripsiBaru: string; pertanyaanBaru: string };
 }
 
 /** urutan tampil di navigator (yang pertama = bawaan J-05 dan UC-04) */
-export const ID_SKENARIO_PEMANTAUAN: IdSkenarioPemantauan[] = ["bermasalah", "terlalu-ketat", "sesudah-perbaikan", "sehat", "awal"];
+export const ID_SKENARIO_PEMANTAUAN: IdSkenarioPemantauan[] = ["bermasalah", "terlalu-ketat", "sesudah-perbaikan", "terlambat", "sehat", "awal"];
 
 export const BAWAAN: ParamSemantik = {
   laju: 0.05,
@@ -65,7 +69,7 @@ export const BAWAAN: ParamSemantik = {
   jenisKetat: { "Bagian tidak ditemukan padahal ada": 0.45, "Salah tafsir isi": 0.35, "Rekomendasi tidak relevan dengan butir": 0.1, Lainnya: 0.1 },
   keyakinan: [0.6, 0.3, 0.1],
   pengali: [0.5, 1.4, 3],
-  tren: [1, 1, 1, 1, 1, 1],
+  tren: [1, 1, 1, 1, 1, 1, 1],
   memenuhi: 0.82,
 };
 
@@ -98,7 +102,8 @@ const UNS08_SEDANG: Partial<ParamSemantik> = {
   jenisLonggar: { "Salah tafsir isi": 0.7, "Kutipan salah tempat": 0.3 },
   jenisKetat: { "Salah tafsir isi": 0.6, "Bagian tidak ditemukan padahal ada": 0.3, Lainnya: 0.1 },
 };
-const FINAL_PENUH: Record<KodeSkema, number> = { PD: 600, PT: 420 };
+/** semua penugasan final (profil contoh1200: 700 PD, 500 PT) */
+const FINAL_PENUH: Record<KodeSkema, number> = { PD: 700, PT: 500 };
 
 export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantauan> = {
   awal: {
@@ -106,34 +111,34 @@ export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantaua
     nama: "Awal masa penilaian (1.200)",
     ringkas: "Baru 24 penilaian final Penelitian Dasar: setiap butir belum cukup data, daftar Perlu perhatian masih kosong.",
     final: { PD: 24, PT: 16 },
-    mingguBerjalan: 1,
+    hariBerjalan: 1,
     semantik: { "UNS-10": UNS10_BURUK, "UNS-08": UNS08_SEDANG },
     gagal: GAGAL_LAZIM,
   },
   sehat: {
     id: "sehat",
     nama: "Semua butir sehat (1.200)",
-    ringkas: "600 penilaian final Penelitian Dasar; semua butir semantik di atas 90% disetujui, gagal saat pengajuan rendah.",
+    ringkas: "Hari terakhir: semua 1.200 penugasan final tepat waktu; semua butir semantik di atas 90% disetujui, gagal saat pengajuan rendah.",
     final: FINAL_PENUH,
-    mingguBerjalan: JUMLAH_MINGGU,
+    hariBerjalan: JUMLAH_HARI,
     semantik: {},
     gagal: GAGAL_LAZIM,
   },
   bermasalah: {
     id: "bermasalah",
     nama: "Satu butir bermasalah (1.200)",
-    ringkas: "UNS-10 (diagram alir Metode) hanya ±58% disetujui: sistem terlalu longgar, kutipan salah tempat, dan memburuk tiap minggu.",
-    final: FINAL_PENUH,
-    mingguBerjalan: JUMLAH_MINGGU,
-    semantik: { "UNS-10": { ...UNS10_BURUK, tren: [0.7, 0.8, 0.95, 1.05, 1.15, 1.2] }, "UNS-08": UNS08_SEDANG },
+    ringkas: "Hari ke-5: UNS-10 (diagram alir Metode) hanya ±58% disetujui: sistem terlalu longgar, kutipan salah tempat, dan memburuk tiap hari. Kemajuan penilaian sesuai jadwal.",
+    final: { PD: 560, PT: 400 },
+    hariBerjalan: 5,
+    semantik: { "UNS-10": { ...UNS10_BURUK, tren: [0.7, 0.8, 0.95, 1.05, 1.2, 1.2, 1.2] }, "UNS-08": UNS08_SEDANG },
     gagal: GAGAL_LAZIM,
   },
   "terlalu-ketat": {
     id: "terlalu-ketat",
     nama: "Aturan terlalu ketat (1.200)",
-    ringkas: "KTA-04 (Metode ≤ 1.000 kata) gagal pada ±28% pengajuan, ±45% di Universitas Nusantara Contoh; UNS-09 sering dibalik reviewer menjadi Memenuhi.",
-    final: FINAL_PENUH,
-    mingguBerjalan: JUMLAH_MINGGU,
+    ringkas: "Hari ke-6: KTA-04 (Metode ≤ 1.000 kata) gagal pada ±28% pengajuan, ±45% di Universitas Nusantara Contoh; UNS-09 sering dibalik reviewer menjadi Memenuhi.",
+    final: { PD: 630, PT: 450 },
+    hariBerjalan: 6,
     semantik: {
       "UNS-09": {
         laju: 0.3,
@@ -148,23 +153,34 @@ export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantaua
   "sesudah-perbaikan": {
     id: "sesudah-perbaikan",
     nama: "Sesudah butir diperbaiki (1.200)",
-    ringkas: "UNS-10 ditandai di minggu ke-3, basis aturan versi baru berlaku mulai minggu ke-4: ±58% naik menjadi ±91% disetujui.",
+    ringkas: "UNS-10 ditandai di hari ke-3, basis aturan versi baru berlaku mulai hari ke-4 (naskah yang belum dinilai diperiksa ulang): ±58% naik menjadi ±91% disetujui.",
     final: FINAL_PENUH,
-    mingguBerjalan: JUMLAH_MINGGU,
+    hariBerjalan: JUMLAH_HARI,
     semantik: { "UNS-10": UNS10_BURUK, "UNS-08": UNS08_SEDANG },
     gagal: GAGAL_LAZIM,
     perbaikan: {
       skema: "PD",
       kode: "UNS-10",
-      mingguBerlaku: 4,
-      mingguDitandai: 3,
+      hariBerlaku: 4,
+      hariDitandai: 3,
       sesudah: { laju: 0.09, longgar: 0.5, keyakinan: [0.6, 0.3, 0.1], pengali: [0.5, 1.4, 3] },
       deskripsiBaru: "Tahapan pada diagram alir di bagian “Metode” sama urutan dan namanya dengan tahapan yang diuraikan di bagian itu",
       pertanyaanBaru:
         "Bandingkan setiap tahap yang tertulis pada diagram alir penelitian dengan tahapan yang diuraikan pada bagian Metode. Apakah urutan dan nama tahapnya sama? Abaikan keterangan gambar.",
     },
   },
+  terlambat: {
+    id: "terlambat",
+    nama: "Penilaian terlambat (1.200)",
+    ringkas: "Hari ke-6 dari 7: baru sekitar separuh penugasan final, lima reviewer belum menilai sama sekali; proyeksi ratusan penugasan belum final pada tenggat.",
+    final: { PD: 420, PT: 300 },
+    hariBerjalan: 6,
+    reviewerBelumMulai: 5,
+    semantik: {},
+    gagal: GAGAL_LAZIM,
+  },
 };
+
 
 /* ------------------------------ alasan koreksi ------------------------------ */
 
@@ -275,8 +291,8 @@ export interface ProposalSim {
 export type ButirSim = Record<KodeSkema, { semantik: string[]; deterministik: string[] }>;
 
 export interface HasilBangkit {
-  /** penilaian final: minggu 1..6 sesudah masa pengusulan ditutup, jam = jam ke-n di minggu itu */
-  final: { idProposal: string; minggu: number; jam: number }[];
+  /** penilaian final: hari 1..7 masa penilaian, menit = menit sejak 08.00 WIB hari itu (sampai 21.59) */
+  final: { idProposal: string; hari: number; menit: number }[];
   /** proposal yang pernah Ditahan saat pengajuan, beserta butir deterministik yang gagal pada versi pertamanya */
   gagal: { idProposal: string; butir: string[] }[];
   /** setiap hasil semantik pada versi yang dinilai; baru = diperiksa ulang dengan basis aturan versi perbaikan */
@@ -299,9 +315,9 @@ const NILAI_KEYAKINAN: [number, number][] = [
   [0.3, 0.49],
 ];
 
-/** Minggu penilaian final untuk urutan ke-i dari n (sebaran BOBOT_MINGGU, dipotong di minggu yang sudah berjalan). */
-export function mingguKe(i: number, n: number, mingguBerjalan: number): number {
-  const bobot = BOBOT_MINGGU.slice(0, mingguBerjalan);
+/** Hari penilaian final untuk urutan ke-i dari n (sebaran BOBOT_HARI, dipotong di hari yang sedang berjalan). */
+export function hariKe(i: number, n: number, hariBerjalan: number): number {
+  const bobot = BOBOT_HARI.slice(0, hariBerjalan);
   const total = bobot.reduce((a, b) => a + b, 0);
   const posisi = ((i + 0.5) / n) * total;
   let jalan = 0;
@@ -316,7 +332,7 @@ export function bangkitkanPemantauan(sk: SkenarioPemantauan, proposal: ProposalS
   const hasil: HasilBangkit = { final: [], gagal: [], semantik: [], koreksi: [] };
 
   /* penilaian final: urutan acak berbiji (sama untuk semua skenario), N pertama per skema */
-  const mingguFinal = new Map<string, number>();
+  const hariFinal = new Map<string, number>();
   for (const skema of ["PD", "PT"] as const) {
     const urut = proposal
       .filter((p) => p.skema === skema)
@@ -324,17 +340,17 @@ export function bangkitkanPemantauan(sk: SkenarioPemantauan, proposal: ProposalS
       .sort((a, b) => a.k - b.k);
     const n = Math.min(sk.final[skema], urut.length);
     for (let i = 0; i < n; i++) {
-      const minggu = mingguKe(i, n, sk.mingguBerjalan);
-      const jam = Math.floor(acakBerbiji(`jam:${urut[i].p.idProposal}`)() * 7 * 24);
-      mingguFinal.set(urut[i].p.idProposal, minggu);
-      hasil.final.push({ idProposal: urut[i].p.idProposal, minggu, jam });
+      const hari = hariKe(i, n, sk.hariBerjalan);
+      const menit = Math.floor(acakBerbiji(`jam:${urut[i].p.idProposal}`)() * 14 * 60);
+      hariFinal.set(urut[i].p.idProposal, hari);
+      hasil.final.push({ idProposal: urut[i].p.idProposal, hari, menit });
     }
   }
 
-  /* pengali tren dinormalkan terhadap sebaran minggu supaya laju keseluruhan tetap = laju */
-  const bobotMinggu = BOBOT_MINGGU.slice(0, sk.mingguBerjalan);
+  /* pengali tren dinormalkan terhadap sebaran hari supaya laju keseluruhan tetap = laju */
+  const bobotHari = BOBOT_HARI.slice(0, sk.hariBerjalan);
   const normalTren = (tren: number[]) => {
-    const rata = bobotMinggu.reduce((n, b, m) => n + b * (tren[m] ?? 1), 0) / bobotMinggu.reduce((a, b) => a + b, 0);
+    const rata = bobotHari.reduce((n, b, m) => n + b * (tren[m] ?? 1), 0) / bobotHari.reduce((a, b) => a + b, 0);
     return rata || 1;
   };
 
@@ -347,10 +363,10 @@ export function bangkitkanPemantauan(sk: SkenarioPemantauan, proposal: ProposalS
     if (gagal.length) hasil.gagal.push({ idProposal: p.idProposal, butir: gagal });
 
     /* hasil semantik dan koreksi */
-    const minggu = mingguFinal.get(p.idProposal);
+    const hari = hariFinal.get(p.idProposal);
     const perbaikan = sk.perbaikan && sk.perbaikan.skema === p.skema ? sk.perbaikan : null;
-    // diperiksa ulang dengan basis baru: dinilai mulai minggu berlaku, atau belum dinilai sama sekali
-    const baru = !!perbaikan && (minggu === undefined || minggu >= perbaikan.mingguBerlaku);
+    // diperiksa ulang dengan basis baru: dinilai mulai hari berlaku, atau belum dinilai sama sekali
+    const baru = !!perbaikan && (hari === undefined || hari >= perbaikan.hariBerlaku);
     for (const kode of butir[p.skema].semantik) {
       const acak = acakBerbiji(`${sk.id}:${p.idProposal}:${kode}`);
       const prm = paramButir(sk, kode, baru);
@@ -359,8 +375,8 @@ export function bangkitkanPemantauan(sk: SkenarioPemantauan, proposal: ProposalS
       const [bawah, atas] = NILAI_KEYAKINAN[iTingkat];
       const keyakinan = Math.round((bawah + acak() * (atas - bawah)) * 100) / 100;
       const pengaliTingkat = prm.pengali[iTingkat] / (prm.keyakinan[0] * prm.pengali[0] + prm.keyakinan[1] * prm.pengali[1] + prm.keyakinan[2] * prm.pengali[2]);
-      const pengaliMinggu = minggu ? (prm.tren[minggu - 1] ?? 1) / normalTren(prm.tren) : 1;
-      const dikoreksi = minggu !== undefined && acak() < prm.laju * pengaliTingkat * pengaliMinggu;
+      const pengaliHari = hari ? (prm.tren[hari - 1] ?? 1) / normalTren(prm.tren) : 1;
+      const dikoreksi = hari !== undefined && acak() < prm.laju * pengaliTingkat * pengaliHari;
       const uArah = acak();
       const uJenis = acak();
       const uAlasan = acak();

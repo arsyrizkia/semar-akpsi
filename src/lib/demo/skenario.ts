@@ -13,6 +13,7 @@ import { buatDocx, buatLampiranPdf, susunContoh, type VarianContoh } from "@/lib
 import { simpanUsulanBima } from "@/lib/bima/servis-pengajuan";
 import { jalankanPemeriksaanDeterministik } from "@/lib/kontrak";
 import { KOMPONEN_BORANG } from "@/lib/kontrak/tipe";
+import { hitungTenggat } from "@/lib/penilaian/masa";
 import { jalankan as jalankanSemantik } from "@/lib/pemeriksa/semantik/jalankan";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@/lib/pengajuan/layanan";
@@ -312,6 +313,11 @@ export async function siapkanPemeriksaanReviewer(skenario: SkenarioLlm) {
     .update(s.penugasanReviewer)
     .set({ status: "Ditetapkan", label: "Baru", reviewerId: await idAkun("reviewer-2"), tanggal: new Date() })
     .where(eq(s.penugasanReviewer.id, pn.id));
+  // masa penilaian dimulai ulang hari ini supaya tenggat di J-07/J-08 tidak basi (seed bisa dijalankan berhari-hari sebelumnya)
+  const [periode] = await db.select().from(s.periodeSeleksi).where(eq(s.periodeSeleksi.id, pn.periodeId));
+  if (periode) {
+    await db.update(s.periodeSeleksi).set({ mulaiPenilaian: new Date(), batasPenilaian: hitungTenggat(new Date(), periode.lamaPenilaianHari) }).where(eq(s.periodeSeleksi.id, periode.id));
+  }
 
   // mode tiruan dipaksa lewat opsi (bukan process.env) supaya permintaan lain yang berjalan bersamaan tidak ikut terpengaruh
   await jalankanSemantik(pn.versiId, { tiruan: true, penyedia: kirimPermintaanTiruan, skenario: skenario === "normal" ? undefined : skenario });
@@ -652,6 +658,7 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
     case "J-05/bermasalah":
     case "J-05/terlalu-ketat":
     case "J-05/sesudah-perbaikan":
+    case "J-05/terlambat":
       return siapkanPemantauan1200(id as IdSkenarioPemantauan);
     case "J-05/contoh": {
       await pastikanDataPemantauan();

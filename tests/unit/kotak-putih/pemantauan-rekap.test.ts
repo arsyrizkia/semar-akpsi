@@ -9,7 +9,7 @@ import {
   rekapKesesuaian,
   ringkasGagalInstitusi,
   tafsirKalibrasi,
-  trenMingguan,
+  trenHarian,
   type BarisKalibrasi,
   type MasukanRekap,
   type SelSemantik,
@@ -21,7 +21,7 @@ const sel = (kode: string, jumlah: number, o: Partial<SelSemantik> = {}): SelSem
   versi: 1,
   deskripsi: `Deskripsi ${kode}`,
   tingkat: "tinggi",
-  minggu: 1,
+  hari: 1,
   arah: null,
   jenis: null,
   jumlah,
@@ -40,10 +40,10 @@ const masukan = (o: Partial<MasukanRekap> = {}): MasukanRekap => ({
 });
 const A = AMBANG_PEMANTAUAN;
 
-describe("trenMingguan dan kelompokKeyakinan (MS-09 J8, J9)", () => {
-  it("KP-trenMingguan-01: dijumlah per minggu, urut minggu, % disetujui per minggu", () => {
-    const t = trenMingguan([sel("A", 8, { minggu: 2 }), sel("A", 2, { minggu: 2, arah: "longgar" }), sel("B", 5, { minggu: 1 })]);
-    expect(t.map((x) => [x.minggu, x.jumlah, x.dikoreksi, x.persen])).toEqual([
+describe("trenHarian dan kelompokKeyakinan (MS-09 J8, J9)", () => {
+  it("KP-trenHarian-01: dijumlah per hari, urut hari, % disetujui per hari", () => {
+    const t = trenHarian([sel("A", 8, { hari: 2 }), sel("A", 2, { hari: 2, arah: "longgar" }), sel("B", 5, { hari: 1 })]);
+    expect(t.map((x) => [x.hari, x.jumlah, x.dikoreksi, x.persen])).toEqual([
       [1, 5, 0, 100],
       [2, 10, 2, 80],
     ]);

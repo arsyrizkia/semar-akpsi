@@ -274,7 +274,8 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
   await db.execute(sql`VACUUM ANALYZE bima_kotak_masuk`);
   await db
     .update(s.periodeSeleksi)
-    .set({ batasBebanReviewer: profil.batasBawaan, tanggalTutup: new Date(Date.now() - 60_000) })
+    // penugasan dikosongkan: masa penilaian belum dimulai lagi dan kembali ke bawaan (7 hari, 2 jam per hari, 5,17 menit per proposal)
+    .set({ batasBebanReviewer: profil.batasBawaan, tanggalTutup: new Date(Date.now() - 60_000), mulaiPenilaian: null, batasPenilaian: null, lamaPenilaianHari: 7, jamReviewerPerHari: 2, menitPerProposal: 5.17 })
     .where(eq(s.periodeSeleksi.id, periode.id));
   await pasangKesediaan(profil);
   await ubahPengaturanDemo({ masaPengusulan: "ditutup" });
@@ -306,4 +307,8 @@ export async function kosongkanPenugasanContoh1200(): Promise<void> {
   await db.execute(sql`
     DELETE FROM bima_kotak_masuk km WHERE km.jenis = 'penugasan' AND km.id_proposal LIKE ${PROFIL.contoh1200.awalanIdProposal + "%"}
       AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer pr JOIN proposal p ON p.id = pr.proposal_id WHERE p.id_proposal = km.id_proposal)`);
+  // tanpa penugasan tetap, masa penilaian dianggap belum dimulai (dimulai lagi saat Tetapkan)
+  await db.execute(sql`
+    UPDATE periode_seleksi SET mulai_penilaian = NULL, batas_penilaian = NULL
+    WHERE id = ${p.id} AND NOT EXISTS (SELECT 1 FROM penugasan_reviewer WHERE periode_id = ${p.id} AND status <> 'Diusulkan')`);
 }

@@ -4,10 +4,12 @@ import { startTransition, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Modal } from "@/components/ui";
+import { formatTenggat, jamDibutuhkan, type ParamMasa } from "@/lib/penilaian/masa";
 import { aksiTetapkan } from "../aksi";
 import type { HasilTetapkanAksi } from "../tipe";
 
 const angka = new Intl.NumberFormat("id-ID");
+const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 });
 
 /**
  * Satu-satunya tombol utama J-04b: "Tetapkan Penugasan" (UC-03 s.7) dan konfirmasinya (M-07). Penetapan ditolak bila ada usulan yang
@@ -23,6 +25,9 @@ export function TombolTetapkan({
   batas,
   melanggar,
   ditutup,
+  masa,
+  tenggat,
+  masaDimulai,
 }: {
   periodeId: string;
   jumlahUsulan: number;
@@ -32,6 +37,10 @@ export function TombolTetapkan({
   batas: number;
   melanggar: number;
   ditutup: boolean;
+  masa: ParamMasa;
+  /** ISO: tenggat yang berlaku, atau perkiraannya bila masa dimulai saat penetapan ini */
+  tenggat: string;
+  masaDimulai: boolean;
 }) {
   const [buka, setBuka] = useState(false);
   const [hasil, setHasil] = useState<HasilTetapkanAksi | null>(null);
@@ -90,9 +99,14 @@ export function TombolTetapkan({
           <dd className="angka font-semibold text-primer-900">
             {bebanMin === bebanMaks ? bebanMin : `${bebanMin}–${bebanMaks}`} dari batas {batas}
           </dd>
+          <dt className="text-teks-redup">Waktu per reviewer</dt>
+          <dd className="angka font-semibold text-primer-900">paling lama ±{desimal.format(jamDibutuhkan(bebanMaks, masa))} jam</dd>
+          <dt className="text-teks-redup">Tenggat penilaian</dt>
+          <dd className="font-semibold text-primer-900">{formatTenggat(new Date(tenggat))}</dd>
         </dl>
         <p className="mt-3 text-teks-redup">
-          Penugasan dikirim ke BIMA dan muncul di Daftar Penugasan reviewer (J-07) dengan tanda &ldquo;Baru&rdquo;. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.
+          Penugasan dikirim ke BIMA dan muncul di Daftar Penugasan reviewer (J-07) dengan tanda &ldquo;Baru&rdquo;. Sesudah ditetapkan, usulan tidak dapat dipindahkan lagi.{" "}
+          {masaDimulai ? "Masa penilaian sudah berjalan; penugasan ini mengikuti tenggat yang sama." : `Masa penilaian ${masa.lamaHari} hari dimulai hari ini.`}
         </p>
         {sibuk ? (
           <p role="status" className="mt-3 font-semibold text-primer-800">

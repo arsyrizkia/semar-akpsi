@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArahKoreksi, BatangMendatar } from "@/components/grafik/batang";
-import { GarisMingguan } from "@/components/grafik/garis-mingguan";
+import { GarisHarian } from "@/components/grafik/garis-harian";
 import { Badge, Button, Sheet, StatusBadge } from "@/components/ui";
 import type { AmbangPemantauan } from "@/lib/pemantauan/ambang";
 import {
@@ -33,7 +33,9 @@ export interface DataRincian {
   trenButir: Record<string, TitikTren[]>;
   kalibrasiButir: Record<string, BarisKalibrasi[]>;
   bandingVersi: BandingVersi[];
-  penandaVersi: { versi: number; minggu: number }[];
+  penandaVersi: { versi: number; hari: number }[];
+  /** lama masa penilaian (lebar sumbu tren harian) */
+  jumlahHari: number;
 }
 
 function Subjudul({ children }: { children: React.ReactNode }) {
@@ -149,13 +151,14 @@ function IsiSemantik({ baris, data, ambang }: { baris: BarisSemantik; data: Data
 
       {tren.length > 1 ? (
         <>
-          <Subjudul>Tren mingguan</Subjudul>
-          <GarisMingguan
-            judul={`${baris.kode}: % disetujui per minggu`}
+          <Subjudul>Tren harian</Subjudul>
+          <GarisHarian
+            judul={`${baris.kode}: % disetujui per hari`}
             titik={tren}
             ambang={ambang.disetujui}
-            penanda={data.penandaVersi.map((p) => ({ minggu: p.minggu, label: `v${p.versi} berlaku` }))}
-            ringkasan={`Minggu ${tren[0].minggu}: ${formatPersen(tren[0].persen)}; minggu ${tren.at(-1)!.minggu}: ${formatPersen(tren.at(-1)!.persen)}.`}
+            penanda={data.penandaVersi.map((p) => ({ hari: p.hari, label: `v${p.versi} berlaku` }))}
+            jumlahHari={data.jumlahHari}
+            ringkasan={`Hari ${tren[0].hari}: ${formatPersen(tren[0].persen)}; hari ${tren.at(-1)!.hari}: ${formatPersen(tren.at(-1)!.persen)}.`}
           />
         </>
       ) : null}

@@ -11,6 +11,7 @@ import { AMBANG_KEYAKINAN } from "@/lib/kontrak/tipe";
 import { NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
 import { AMBANG_PEMANTAUAN, type AmbangPemantauan } from "./ambang";
 import { pilahButirDitandai } from "./status-butir";
+import { rekapKemajuan, type HasilKemajuan } from "./kemajuan";
 import { rekapKesesuaian, type ContohGagal, type ContohRincian, type HasilRekap, type SelGagal, type SelSemantik } from "./rekap";
 
 /** Periode J-05: periode biasa yang sudah dibuka, ditambah periode Simulasi Contoh (1.200 proposal; uji beban 10.000 tetap dikecualikan). */
@@ -46,7 +47,7 @@ export async function ambilAturanBerlaku(skemaId: string, periodeId: string) {
 export interface LaporanKesesuaian extends HasilRekap {
   basis: { id: string; nama: string; versi: number } | null;
   /** versi basis yang mulai berlaku di tengah masa penilaian (penanda pada grafik tren) */
-  penandaVersi: { versi: number; minggu: number }[];
+  penandaVersi: { versi: number; hari: number }[];
   ambang: AmbangPemantauan;
 }
 
@@ -64,11 +65,16 @@ const dasarFinal = (periodeId: string, skemaId: string) => sql`
   LEFT JOIN koreksi_rekomendasi k ON k.hasil_id = h.id AND k.penilaian_id = pl.id
   WHERE p.periode_id = ${periodeId} AND p.skema_id = ${skemaId} AND h.jenis = 'semantik'`;
 
-/** Minggu ke-n masa penilaian dihitung dari penetapan penugasan pertama periode itu (tanggal tutup bila belum ada penetapan). */
-const asalMinggu = (periodeId: string) => sql`
-  SELECT COALESCE(min(pr.tanggal) FILTER (WHERE pr.status <> 'Diusulkan'), min(ps.tanggal_tutup)) AS t
+/**
+ * Hari ke-n masa penilaian (kalender WIB, hari mulai = 1) dihitung dari mulai penilaian periode; periode lama tanpa catatan mulai memakai
+ * penetapan penugasan pertama, lalu tanggal tutup.
+ */
+const asalHari = (periodeId: string) => sql`
+  SELECT COALESCE(min(ps.mulai_penilaian), min(pr.tanggal) FILTER (WHERE pr.status <> 'Diusulkan'), min(ps.tanggal_tutup)) AS t
   FROM periode_seleksi ps LEFT JOIN penugasan_reviewer pr ON pr.periode_id = ps.id
   WHERE ps.id = ${periodeId}`;
+/** nomor hari kalender WIB sebuah waktu */
+const hariWib = (t: ReturnType<typeof sql>) => sql`floor(extract(epoch FROM (${t} + interval '7 hours')) / 86400)`;
 
 /**
  * susunLaporan: membaca agregat dari basis data (tanpa menarik baris hasil satu per satu), lalu rekapKesesuaian (murni).
@@ -82,12 +88,12 @@ export async function susunLaporan(periodeId: string, skemaId: string, ambang: A
     basis ? db.select().from(butirCek).where(eq(butirCek.basisAturanId, basis.id)) : Promise.resolve([]),
     /* (a) sel semantik */
     db.execute(sql`
-      WITH asal AS (${asalMinggu(periodeId)})
+      WITH asal AS (${asalHari(periodeId)})
       SELECT h.butir_kode AS "butirKode", b.versi, c.deskripsi,
              CASE WHEN h.tingkat_keyakinan IS NULL THEN NULL
                   WHEN h.tingkat_keyakinan >= ${AMBANG_KEYAKINAN.tinggi} THEN 'tinggi'
                   WHEN h.tingkat_keyakinan >= ${AMBANG_KEYAKINAN.sedang} THEN 'sedang' ELSE 'rendah' END AS tingkat,
-             GREATEST(1, floor(extract(epoch FROM (COALESCE(pl.dikirim_ke_bima_pada, pl.diperbarui_pada) - (SELECT t FROM asal))) / 604800)::int + 1) AS minggu,
+             GREATEST(1, (${hariWib(sql`COALESCE(pl.dikirim_ke_bima_pada, pl.diperbarui_pada)`)} - ${hariWib(sql`(SELECT t FROM asal)`)})::int + 1) AS hari,
              CASE WHEN k.id IS NULL THEN NULL WHEN k.keputusan_reviewer = 'Tidak memenuhi' THEN 'longgar' ELSE 'ketat' END AS arah,
              CASE WHEN k.id IS NULL THEN NULL ELSE k.jenis_kekeliruan END AS jenis,
              count(*)::int AS jumlah
@@ -137,8 +143,8 @@ export async function susunLaporan(periodeId: string, skemaId: string, ambang: A
       ) x WHERE urut <= 6`),
     /* versi basis yang mulai berlaku sesudah penilaian dimulai */
     db.execute(sql`
-      WITH asal AS (${asalMinggu(periodeId)})
-      SELECT b.versi, floor(extract(epoch FROM (b.tanggal_berlaku - (SELECT t FROM asal))) / 604800)::int + 1 AS minggu
+      WITH asal AS (${asalHari(periodeId)})
+      SELECT b.versi, (${hariWib(sql`b.tanggal_berlaku`)} - ${hariWib(sql`(SELECT t FROM asal)`)})::int + 1 AS hari
       FROM basis_aturan b
       WHERE b.skema_id = ${skemaId} AND (b.periode_id = ${periodeId} OR b.periode_id IS NULL)
         AND b.tanggal_berlaku < '9999-01-01' AND b.tanggal_berlaku > (SELECT t FROM asal)
@@ -150,7 +156,7 @@ export async function susunLaporan(periodeId: string, skemaId: string, ambang: A
   const pengajuanRaw = baris<{ institusi: string; proposal: number }>(pengajuanQ);
   const ringkasRaw = baris<{ proposalPernahGagal: number; penilaianFinal: number }>(ringkasQ);
   const contohGagalRaw = baris<ContohGagal>(contohGagalQ);
-  const penandaRaw = baris<{ versi: number; minggu: number }>(penandaQ);
+  const penandaRaw = baris<{ versi: number; hari: number }>(penandaQ);
 
   const hasil = rekapKesesuaian({
     sel: selRaw,
@@ -173,9 +179,43 @@ export async function susunLaporan(periodeId: string, skemaId: string, ambang: A
   return {
     ...hasil,
     basis: basis ? { id: basis.id, nama: basis.nama, versi: basis.versi } : null,
-    penandaVersi: penandaRaw.filter((x) => x.minggu >= 1),
+    penandaVersi: penandaRaw.filter((x) => x.hari >= 1),
     ambang,
   };
+}
+
+/**
+ * Kemajuan penilaian satu periode (semua skema) terhadap tenggat: penugasan tetap, penilaian final per hari masa penilaian, dan beban
+ * serta penilaian final setiap reviewer; lalu rekapKemajuan (murni).
+ */
+export async function susunKemajuan(periodeId: string): Promise<HasilKemajuan> {
+  const db = getDb();
+  const [[p], sekarang, totalQ, harianQ, reviewerQ] = await Promise.all([
+    db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId)),
+    waktuDemo(),
+    db.execute(sql`SELECT count(*)::int AS n FROM penugasan_reviewer WHERE periode_id = ${periodeId} AND status IN ('Ditetapkan', 'Selesai')`),
+    db.execute(sql`
+      WITH asal AS (${asalHari(periodeId)})
+      SELECT (${hariWib(sql`COALESCE(pl.dikirim_ke_bima_pada, pl.diperbarui_pada)`)} - ${hariWib(sql`(SELECT t FROM asal)`)})::int + 1 AS hari,
+             count(DISTINCT pr.id)::int AS jumlah
+      FROM penilaian pl JOIN penugasan_reviewer pr ON pr.id = pl.penugasan_id
+      WHERE pr.periode_id = ${periodeId} AND pl.status = 'Final'
+      GROUP BY 1`),
+    db.execute(sql`
+      SELECT a.id AS "reviewerId", a.nama, a.institusi, count(DISTINCT pr.id)::int AS beban,
+             count(DISTINCT pr.id) FILTER (WHERE pl.status = 'Final')::int AS selesai
+      FROM penugasan_reviewer pr JOIN akun a ON a.id = pr.reviewer_id LEFT JOIN penilaian pl ON pl.penugasan_id = pr.id
+      WHERE pr.periode_id = ${periodeId} AND pr.status IN ('Ditetapkan', 'Selesai')
+      GROUP BY a.id, a.nama, a.institusi`),
+  ]);
+  return rekapKemajuan({
+    masa: { lamaHari: p?.lamaPenilaianHari ?? 7, jamPerHari: p?.jamReviewerPerHari ?? 2, menitPerProposal: p?.menitPerProposal ?? 5.17 },
+    mulai: p?.mulaiPenilaian ?? null,
+    sekarang,
+    total: baris<{ n: number }>(totalQ)[0]?.n ?? 0,
+    finalPerHari: baris<{ hari: number; jumlah: number }>(harianQ),
+    reviewer: baris<{ reviewerId: string; nama: string; institusi: string | null; beban: number; selesai: number }>(reviewerQ),
+  });
 }
 
 /**

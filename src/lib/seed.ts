@@ -13,6 +13,7 @@ import { turunkanButirDariTemplat } from "./seed-butir";
 import { bagianBawaan, kepalaBawaan, keKolomBagian, lengkapiBagian } from "./templat/isian-substansi";
 import { ekstrakNaskah } from "./pengajuan/ekstraksi";
 import { sisipkanPenandaGambar } from "./pengajuan/gambar";
+import { hitungTenggat } from "./penilaian/masa";
 import { pastikanTabelGambarNaskah, pemilikContoh, pemilikVersi, simpanGambarNaskah } from "./pengajuan/gambar-simpan";
 import { potongPerBagian } from "./pengajuan/potong";
 import akunJson from "../../data/contoh/akun.json";
@@ -315,6 +316,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .insert(s.penugasanReviewer)
       .values({ proposalId: p.id, versiId: v.id, reviewerId: akunId("reviewer-2"), periodeId: periode.id, status: "Ditetapkan", label: "Baru" })
       .returning();
+    // penugasan contoh ditetapkan hari ini: masa penilaian periode utama dimulai, tenggat akhir hari ke-7 (WIB)
+    await db.update(s.periodeSeleksi).set({ mulaiPenilaian: new Date(), batasPenilaian: hitungTenggat(new Date(), 7) }).where(sql`${s.periodeSeleksi.id} = ${periode.id}`);
     skenario = { idProposal: idBima, proposalId: p.id, versiId: v.id, penugasanId: pn.id, reviewer: "reviewer-2" };
   }
 

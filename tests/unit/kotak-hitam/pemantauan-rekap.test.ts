@@ -14,7 +14,7 @@ const sel = (kode: string, jumlah: number, o: Partial<SelSemantik> = {}): SelSem
   versi: 3,
   deskripsi: butir.find((b) => b.kode === kode)?.deskripsi ?? kode,
   tingkat: "tinggi",
-  minggu: 1,
+  hari: 1,
   arah: null,
   jenis: null,
   jumlah,
@@ -58,16 +58,16 @@ describe("rekapKesesuaian (UC-04, J-05 triase)", () => {
     expect(h.ringkas).toMatchObject({ proposalPernahGagal: 80, pengajuan: 300 });
   });
 
-  it("KH-rekapKesesuaian-04: tren mingguan dan kalibrasi keyakinan dari sel yang sama", () => {
+  it("KH-rekapKesesuaian-04: tren harian dan kalibrasi keyakinan dari sel yang sama", () => {
     const h = rekap({
       sel: [
-        sel("UNS-01", 90, { minggu: 1 }),
-        sel("UNS-01", 10, { minggu: 1, arah: "ketat", tingkat: "rendah" }),
-        sel("UNS-01", 80, { minggu: 2, tingkat: "rendah" }),
-        sel("UNS-01", 20, { minggu: 2, arah: "ketat", tingkat: "rendah" }),
+        sel("UNS-01", 90, { hari: 1 }),
+        sel("UNS-01", 10, { hari: 1, arah: "ketat", tingkat: "rendah" }),
+        sel("UNS-01", 80, { hari: 2, tingkat: "rendah" }),
+        sel("UNS-01", 20, { hari: 2, arah: "ketat", tingkat: "rendah" }),
       ],
     });
-    expect(h.tren.map((t) => [t.minggu, t.persen])).toEqual([
+    expect(h.tren.map((t) => [t.hari, t.persen])).toEqual([
       [1, 90],
       [2, 80],
     ]);

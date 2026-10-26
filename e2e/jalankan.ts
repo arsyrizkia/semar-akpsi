@@ -1040,7 +1040,7 @@ async function utama() {
       await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir UNS-10")), { timeout: 15_000 });
       yakin(page.url().includes("butir=UNS-10"), "butir yang dibuka tidak tersimpan di URL");
       const isi = await page.$eval("[role=dialog]", (d) => (d as HTMLElement).innerText);
-      for (const s of ["Arah koreksi", "Jenis kekeliruan", "Tren mingguan", "Contoh proposal"]) yakin(isi.includes(s), `M-08 tanpa bagian "${s}"`);
+      for (const s of ["Arah koreksi", "Jenis kekeliruan", "Tren harian", "Contoh proposal"]) yakin(isi.includes(s), `M-08 tanpa bagian "${s}"`);
       await foto(page, "j05-m08-rincian-butir");
       await page.$eval("[role=dialog] input[type=radio][value='dikoreksi']", (r) => (r as HTMLInputElement).click());
       await page.waitForFunction(() => (document.querySelector("[role=dialog]") as HTMLElement | null)?.innerText.includes("Alasan koreksi"), { timeout: 10_000 });
@@ -1072,7 +1072,7 @@ async function utama() {
       await klik(page, "Tren dan Kalibrasi");
       await page.waitForFunction(() => location.search.includes("tab=tren") && document.body.innerText.includes("Dikoreksi menurut tingkat keyakinan sistem"), { timeout: 30_000 });
       await foto(page, "j05-tren-kalibrasi");
-      c("M-09: UNS-10 berlabel Perlu ditinjau; tab Tren dan Kalibrasi memuat grafik mingguan dan kalibrasi keyakinan");
+      c("M-09: UNS-10 berlabel Perlu ditinjau; tab Tren dan Kalibrasi memuat grafik harian dan kalibrasi keyakinan");
       await klik(page, "Butir Semantik", 0, { awalan: true });
       await page.waitForFunction(() => !location.search.includes("tab="), { timeout: 30_000 });
       await klik(page, "Buka di Aturan Pemeriksaan");

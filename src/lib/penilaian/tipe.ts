@@ -3,6 +3,7 @@ import type { Keputusan, StatusHasilSemantik } from "@/lib/kontrak/tipe";
 
 export interface BarisDaftarPenugasan {
   penugasanId: string;
+  periodeId: string;
   judul: string;
   skema: string;
   tanggal: string;
@@ -65,8 +66,21 @@ export interface BerkasTampil {
   ukuran: number;
 }
 
+/** Tenggat masa penilaian untuk tampilan reviewer (null bila masa belum dimulai). */
+export interface TenggatTampil {
+  /** ISO */
+  batas: string;
+  teks: string;
+  /** "sisa 3 hari", "hari terakhir", "lewat 2 hari" */
+  sisa: string;
+  lewat: boolean;
+  hariKe: number;
+  lama: number;
+}
+
 export interface DataPemeriksaan {
   penugasanId: string;
+  tenggat: TenggatTampil | null;
   label: "Baru" | "Draf" | "Selesai";
   proposal: { idProposal: string; judul: string; skema: string; kodeVersi: string };
   tab: TabTeks[];

@@ -15,6 +15,7 @@ import {
   koreksiRekomendasi,
   penilaian,
   penugasanReviewer,
+  periodeSeleksi,
   proposal,
   skemaPendanaan,
   versiProposal,
@@ -26,8 +27,10 @@ import { KOMPONEN_BORANG, type Keputusan, type ParameterButir, type StatusHasilS
 import { cariKutipan, ambilBerdasarkanNama } from "@/lib/pemeriksa/semantik/teks";
 import { pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
 import { pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
+import { waktuDemo } from "@/lib/waktu";
+import { formatTenggat, hitungTenggat, posisiMasa, teksSisa } from "./masa";
 import { bolehUbahPenilaian } from "./status";
-import type { BarisDaftarPenugasan, BerkasTampil, ButirTampil, DataKeputusan, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks } from "./tipe";
+import type { BarisDaftarPenugasan, BerkasTampil, ButirTampil, DataKeputusan, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks, TenggatTampil } from "./tipe";
 import {
   PESAN_KOMPONEN_BELUM_LENGKAP,
   bersihkanKomponen,
@@ -45,6 +48,7 @@ export async function daftarPenugasanReviewer(akunId: string): Promise<BarisDaft
   const baris = await getDb()
     .select({
       id: penugasanReviewer.id,
+      periodeId: penugasanReviewer.periodeId,
       judul: proposal.judul,
       skema: skemaPendanaan.namaSkema,
       tanggal: penugasanReviewer.tanggal,
@@ -55,7 +59,24 @@ export async function daftarPenugasanReviewer(akunId: string): Promise<BarisDaft
     .innerJoin(skemaPendanaan, eq(skemaPendanaan.id, proposal.skemaId))
     .where(and(eq(penugasanReviewer.reviewerId, akunId), inArray(penugasanReviewer.status, ["Ditetapkan", "Selesai"])))
     .orderBy(desc(penugasanReviewer.tanggal));
-  return baris.map((b) => ({ penugasanId: b.id, judul: b.judul, skema: b.skema, tanggal: format.format(b.tanggal), label: b.label }));
+  return baris.map((b) => ({ penugasanId: b.id, periodeId: b.periodeId, judul: b.judul, skema: b.skema, tanggal: format.format(b.tanggal), label: b.label }));
+}
+
+/** Tenggat masa penilaian beberapa periode menurut jam demo (hanya periode yang masanya sudah dimulai). */
+export async function ambilTenggat(periodeIds: string[]): Promise<Map<string, TenggatTampil & { nama: string }>> {
+  const hasil = new Map<string, TenggatTampil & { nama: string }>();
+  if (!periodeIds.length) return hasil;
+  const [baris, sekarang] = await Promise.all([
+    getDb().select().from(periodeSeleksi).where(inArray(periodeSeleksi.id, [...new Set(periodeIds)])),
+    waktuDemo(),
+  ]);
+  for (const p of baris) {
+    if (!p.mulaiPenilaian) continue;
+    const batas = p.batasPenilaian ?? hitungTenggat(p.mulaiPenilaian, p.lamaPenilaianHari);
+    const pos = posisiMasa(sekarang, p.mulaiPenilaian, p.lamaPenilaianHari);
+    hasil.set(p.id, { nama: p.nama, batas: batas.toISOString(), teks: formatTenggat(batas), sisa: teksSisa(pos, sekarang, batas), lewat: pos.lewat, hariKe: pos.hariKe, lama: pos.lama });
+  }
+  return hasil;
 }
 
 /* ------------------------------- akses ------------------------------- */
@@ -155,7 +176,7 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
   // pembacaan yang saling bebas dijalankan serempak (NFR 2.3: J-08 terbuka paling lama 3 detik)
   const [[prop], [versi]] = await ulangSekali(() => Promise.all([ambilProposal(), db.select().from(versiProposal).where(eq(versiProposal.id, idVersi))]));
 
-  const [daftarBagian, pen, semuaHasil, semantik, berkas, gambar] = await ulangSekali(() => Promise.all([
+  const [daftarBagian, pen, semuaHasil, semantik, berkas, gambar, tenggat] = await ulangSekali(() => Promise.all([
     versi.templatId ? db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan)) : Promise.resolve([]),
     pastikanPenilaian(penugasan.id),
     ambilHasilPemeriksaan(idVersi),
@@ -163,6 +184,7 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     pastikanSemantikBerjalan(idVersi),
     daftarBerkasProposal(prop.p.idProposal, versi.berkasId),
     daftarGambarVersi(idVersi),
+    ambilTenggat([penugasan.periodeId]),
   ]));
 
   // tab: bagian menurut urutan templat, lalu lampiran
@@ -215,8 +237,10 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     terkirimKeBima: pen.dikirimKeBimaPada !== null,
   };
 
+  const t = tenggat.get(penugasan.periodeId);
   return {
     penugasanId: penugasan.id,
+    tenggat: t ? { batas: t.batas, teks: t.teks, sisa: t.sisa, lewat: t.lewat, hariKe: t.hariKe, lama: t.lama } : null,
     label: penugasan.label,
     proposal: { idProposal: prop.p.idProposal, judul: prop.p.judul, skema: prop.skema, kodeVersi: versi.kode },
     tab,

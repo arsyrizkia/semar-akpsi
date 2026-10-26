@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Inbox } from "lucide-react";
+import { AlertTriangle, CalendarClock, Inbox } from "lucide-react";
 import { Suspense } from "react";
 import { Button, KeadaanKosong, KepalaHalaman, Paginasi, StatusBadge, TBody, TD, TH, THead, TR, Table } from "@/components/ui";
 import { wajibReviewer } from "@/lib/auth";
-import { daftarPenugasanReviewer } from "@/lib/penilaian/layanan";
+import { ambilTenggat, daftarPenugasanReviewer } from "@/lib/penilaian/layanan";
 import { ringkasLabelPenugasan } from "@/lib/penilaian/status";
 import { halamanDariUrl, jumlahHalaman } from "@/lib/penugasan/periode";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,12 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   const { akun } = await wajibReviewer();
   const sp = await searchParams;
   const semua = await daftarPenugasanReviewer(akun.id);
+  const tenggat = await ambilTenggat(semua.map((b) => b.periodeId));
+  // ringkasan masa penilaian per periode (biasanya satu): tenggat, sisa hari, dan berapa yang sudah selesai
+  const masa = [...tenggat.entries()].map(([periodeId, t]) => {
+    const milik = semua.filter((b) => b.periodeId === periodeId);
+    return { periodeId, ...t, total: milik.length, selesai: milik.filter((b) => b.label === "Selesai").length };
+  });
   const tanda = TANDA.find((t) => t === sp.tanda) ?? null;
   const tersaring = tanda ? semua.filter((b) => b.label === tanda) : semua;
   const jh = jumlahHalaman(tersaring.length, UKURAN);
@@ -35,6 +41,29 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   return (
     <>
       <KepalaHalaman kode="J-07" judul="Daftar Penugasan" keterangan={ringkasLabelPenugasan(semua.map((b) => b.label))} remah={[{ label: "Reviewer" }, { label: "Daftar Penugasan" }]} />
+      {masa.map((m) => {
+        const belum = m.total - m.selesai;
+        const terlambat = m.lewat && belum > 0;
+        return (
+          <p key={m.periodeId} className={cn("mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm", terlambat ? "font-medium text-bata-700" : "text-primer-900")}>
+            {terlambat ? <AlertTriangle aria-hidden className="size-4 shrink-0" /> : <CalendarClock aria-hidden className="size-4 shrink-0 text-teks-redup" />}
+            <span>
+              Tenggat penilaian {masa.length > 1 ? `${m.nama} ` : ""}
+              <strong className="font-semibold">{m.teks}</strong> ({m.sisa}).
+            </span>
+            <span className={terlambat ? undefined : "text-teks-redup"}>
+              {belum === 0 ? (
+                <>Semua <span className="angka">{m.total}</span> proposal sudah selesai.</>
+              ) : (
+                <>
+                  <span className="angka">{m.selesai}</span> dari <span className="angka">{m.total}</span> proposal selesai
+                  {terlambat ? <>; <span className="angka">{belum}</span> belum selesai melewati tenggat</> : null}.
+                </>
+              )}
+            </span>
+          </p>
+        );
+      })}
       {semua.length > UKURAN || tanda ? (
         <nav aria-label="Saring menurut tanda" className="mb-3 flex flex-wrap gap-2">
           {pilihan.map((p) => (
@@ -81,6 +110,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 <TD className="whitespace-nowrap">{b.tanggal}</TD>
                 <TD>
                   <StatusBadge status={b.label} />
+                  {b.label !== "Selesai" && tenggat.get(b.periodeId)?.lewat ? <span className="ml-2 whitespace-nowrap text-xs font-semibold text-bata-700">Lewat tenggat</span> : null}
                 </TD>
                 <TD className="text-right">
                   <Button asChild ukuran="sm" varian="sekunder">

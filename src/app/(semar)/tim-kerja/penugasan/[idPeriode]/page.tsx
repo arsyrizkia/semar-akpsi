@@ -6,6 +6,7 @@ import { Alert, KeadaanKosong, KepalaHalaman, Paginasi, kelasTombol } from "@/co
 import { wajibTimKerja } from "@/lib/auth";
 import { ambilFasetUsulan, ambilReviewerPeriode, ambilRingkasanPeriode, ambilUsulanBerfilter, hitungReviewerUsulan } from "@/lib/penugasan/layanan";
 import { adaFilter, bacaFilterUsulan, bacaTabUsulan, halamanDariUrl, jumlahHalaman, ringkasBeban, ringkasStatusPenetapan, ukuranDariUrl, type TabUsulan } from "@/lib/penugasan/periode";
+import { hitungTenggat, kapasitasReviewer } from "@/lib/penilaian/masa";
 import { cn, formatAngka, formatTanggal } from "@/lib/utils";
 import { BilahFilter } from "./bilah-filter";
 import { FormSusun } from "./form-susun";
@@ -94,6 +95,9 @@ export default async function Halaman({ params, searchParams }: { params: Param;
             batas={periode.batasBeban}
             melanggar={fasetUsulan.melanggar}
             ditutup={periode.ditutup}
+            masa={periode.masa}
+            tenggat={(periode.batasPenilaian ?? hitungTenggat(periode.sekarang, periode.masa.lamaHari)).toISOString()}
+            masaDimulai={periode.mulaiPenilaian !== null}
           />
         }
       />
@@ -106,6 +110,7 @@ export default async function Halaman({ params, searchParams }: { params: Param;
           ["Ditetapkan", formatAngka(periode.ditetapkan)],
           ["Reviewer bersedia", formatAngka(reviewer.length)],
           ["Beban per reviewer", ringkas.jumlahReviewer ? `${ringkas.min}–${ringkas.maks} (median ${desimal.format(ringkas.median)}) dari ${periode.batasBeban}` : "-"],
+          ["Kapasitas per reviewer", `${formatAngka(kapasitasReviewer(periode.masa))} dalam ${periode.masa.lamaHari} hari`],
         ].map(([k, v]) => (
           <div key={k}>
             <dt className="text-xs text-teks-redup">{k}</dt>
@@ -131,6 +136,9 @@ export default async function Halaman({ params, searchParams }: { params: Param;
         jumlahUsulan={periode.diusulkan}
         perluDitugaskan={periode.belumDitugaskan}
         susunOtomatis={sp.susun === "1"}
+        masaAwal={periode.masa}
+        mulaiPenilaian={periode.mulaiPenilaian?.toISOString() ?? null}
+        batasPenilaian={periode.batasPenilaian?.toISOString() ?? null}
       />
 
       {Number.isFinite(tetap) && tetap > 0 ? (

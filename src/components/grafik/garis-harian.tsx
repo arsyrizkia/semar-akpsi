@@ -5,8 +5,8 @@ import { formatAngka } from "@/lib/utils";
 
 const persen = (n: number) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
 
-export interface TitikMingguan {
-  minggu: number;
+export interface TitikHarian {
+  hari: number;
   persen: number;
   jumlah: number;
 }
@@ -15,13 +15,28 @@ const T = 220;
 const M = { kiri: 44, kanan: 16, atas: 22, bawah: 30 };
 
 /**
- * Grafik garis satu seri: % disetujui per minggu masa penilaian (dataviz: satu warna, garis 2 px, penanda >= 8 px berbingkai putih,
+ * Grafik garis satu seri: % disetujui per hari masa penilaian (sumbu H1..Hn) (dataviz: satu warna, garis 2 px, penanda >= 8 px berbingkai putih,
  * kisi samar, garis ambang putus-putus berlabel). Penanda versi ("v4 berlaku") berupa garis tegak berlabel.
  * Lebar viewBox mengikuti lebar wadah (1 satuan = 1 px) sehingga teks sumbu tetap 12 px di ponsel maupun di sheet.
- * Papan ketik: satu perhentian Tab, panah kiri/kanan (Home/End) berpindah minggu, nilai dibacakan dan tampil di tooltip; tabel yang
+ * Papan ketik: satu perhentian Tab, panah kiri/kanan (Home/End) berpindah hari, nilai dibacakan dan tampil di tooltip; tabel yang
  * sama tersedia di "Lihat sebagai tabel".
  */
-export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }: { judul: string; titik: TitikMingguan[]; ambang?: number; penanda?: { minggu: number; label: string }[]; ringkasan: string }) {
+export function GarisHarian({
+  judul,
+  titik,
+  ambang,
+  penanda = [],
+  ringkasan,
+  jumlahHari = 0,
+}: {
+  judul: string;
+  titik: TitikHarian[];
+  ambang?: number;
+  penanda?: { hari: number; label: string }[];
+  ringkasan: string;
+  /** lebar sumbu dalam hari (mis. lama masa penilaian), supaya hari yang belum berjalan tetap tampil */
+  jumlahHari?: number;
+}) {
   const id = useId();
   const wadah = useRef<HTMLDivElement>(null);
   const titikRef = useRef<(SVGGElement | null)[]>([]);
@@ -46,13 +61,13 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
   if (!titik.length) return <p className="text-sm text-teks-redup">Belum ada penilaian final untuk digambar.</p>;
 
   const L = Math.max(280, lebar);
-  const mingguMaks = Math.max(...titik.map((t) => t.minggu), ...penanda.map((p) => p.minggu));
+  const hariMaks = Math.max(jumlahHari, ...titik.map((t) => t.hari), ...penanda.map((p) => p.hari));
   const terendah = Math.min(...titik.map((t) => t.persen), ambang ?? 100);
   const bawah = Math.max(0, Math.floor((terendah - 10) / 10) * 10);
   const lebarPlot = L - M.kiri - M.kanan;
   const tinggi = T - M.atas - M.bawah;
-  const langkah = lebarPlot / Math.max(1, mingguMaks);
-  const x = (minggu: number) => M.kiri + (minggu - 0.5) * langkah;
+  const langkah = lebarPlot / Math.max(1, hariMaks);
+  const x = (hari: number) => M.kiri + (hari - 0.5) * langkah;
   const y = (p: number) => M.atas + ((100 - p) / (100 - bawah)) * tinggi;
   const kisi = Array.from({ length: (100 - bawah) / 10 + 1 }, (_, i) => bawah + i * 10);
   const jarangLabel = langkah < 36;
@@ -86,10 +101,10 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
               ) : null}
             </g>
           ))}
-          {Array.from({ length: mingguMaks }, (_, i) => i + 1).map((m) =>
-            !jarangLabel || m % 2 === 1 || m === mingguMaks ? (
+          {Array.from({ length: hariMaks }, (_, i) => i + 1).map((m) =>
+            !jarangLabel || m % 2 === 1 || m === hariMaks ? (
               <text key={m} x={x(m)} y={T - 10} textAnchor="middle" className="fill-teks-redup text-xs">
-                Mg {m}
+                H{m}
               </text>
             ) : null,
           )}
@@ -103,22 +118,22 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
           ) : null}
           {penanda.map((p) => (
             <g key={p.label}>
-              <line x1={x(p.minggu) - langkah / 2} x2={x(p.minggu) - langkah / 2} y1={M.atas - 6} y2={T - M.bawah} className="stroke-abu-600" strokeWidth={1} strokeDasharray="2 3" />
-              <text x={x(p.minggu) - langkah / 2 + 4} y={M.atas - 8} className="fill-abu-700 text-xs font-semibold">
+              <line x1={x(p.hari) - langkah / 2} x2={x(p.hari) - langkah / 2} y1={M.atas - 6} y2={T - M.bawah} className="stroke-abu-600" strokeWidth={1} strokeDasharray="2 3" />
+              <text x={x(p.hari) - langkah / 2 + 4} y={M.atas - 8} className="fill-abu-700 text-xs font-semibold">
                 {p.label}
               </text>
             </g>
           ))}
-          <polyline points={titik.map((t) => `${x(t.minggu)},${y(t.persen)}`).join(" ")} fill="none" className="stroke-primer-700" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={titik.map((t) => `${x(t.hari)},${y(t.persen)}`).join(" ")} fill="none" className="stroke-primer-700" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
           {titik.map((t, i) => (
             <g
-              key={t.minggu}
+              key={t.hari}
               ref={(el) => {
                 titikRef.current[i] = el;
               }}
               tabIndex={i === indeksTab ? 0 : -1}
               role="img"
-              aria-label={`Minggu ${t.minggu}: ${persen(t.persen)} disetujui dari ${formatAngka(t.jumlah)} hasil`}
+              aria-label={`Hari ${t.hari}: ${persen(t.persen)} disetujui dari ${formatAngka(t.jumlah)} hasil`}
               onMouseEnter={() => setArah(i)}
               onMouseLeave={() => setArah(null)}
               onFocus={() => {
@@ -128,15 +143,15 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
               onBlur={() => setFokus(null)}
               className="cursor-default outline-none"
             >
-              <rect x={x(t.minggu) - langkah / 2} y={M.atas} width={langkah} height={tinggi} fill="transparent" />
-              {aktif === i ? <line x1={x(t.minggu)} x2={x(t.minggu)} y1={M.atas} y2={T - M.bawah} className="stroke-primer-200" strokeWidth={1} /> : null}
+              <rect x={x(t.hari) - langkah / 2} y={M.atas} width={langkah} height={tinggi} fill="transparent" />
+              {aktif === i ? <line x1={x(t.hari)} x2={x(t.hari)} y1={M.atas} y2={T - M.bawah} className="stroke-primer-200" strokeWidth={1} /> : null}
               {fokus === i ? (
                 <>
-                  <circle cx={x(t.minggu)} cy={y(t.persen)} r={11} className="fill-none stroke-white" strokeWidth={4} />
-                  <circle cx={x(t.minggu)} cy={y(t.persen)} r={10} className="fill-none stroke-primer-400" strokeWidth={3} />
+                  <circle cx={x(t.hari)} cy={y(t.persen)} r={11} className="fill-none stroke-white" strokeWidth={4} />
+                  <circle cx={x(t.hari)} cy={y(t.persen)} r={10} className="fill-none stroke-primer-400" strokeWidth={3} />
                 </>
               ) : null}
-              <circle cx={x(t.minggu)} cy={y(t.persen)} r={aktif === i ? 6 : 4.5} className="fill-primer-700 stroke-white" strokeWidth={2} />
+              <circle cx={x(t.hari)} cy={y(t.persen)} r={aktif === i ? 6 : 4.5} className="fill-primer-700 stroke-white" strokeWidth={2} />
             </g>
           ))}
         </svg>
@@ -145,9 +160,9 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
             role="presentation"
             aria-hidden
             className="pointer-events-none absolute z-10 w-max -translate-x-1/2 -translate-y-full rounded-md border border-primer-200 bg-white px-2.5 py-1.5 text-xs shadow-sm"
-            style={{ left: Math.min(L - 64, Math.max(64, x(titikAktif.minggu))), top: y(titikAktif.persen) - 12 }}
+            style={{ left: Math.min(L - 64, Math.max(64, x(titikAktif.hari))), top: y(titikAktif.persen) - 12 }}
           >
-            <p className="font-semibold text-primer-900">Minggu {titikAktif.minggu}</p>
+            <p className="font-semibold text-primer-900">Hari {titikAktif.hari}</p>
             <p className="angka text-primer-900">{persen(titikAktif.persen)} disetujui</p>
             <p className="angka text-teks-redup">{formatAngka(titikAktif.jumlah)} hasil</p>
           </div>
@@ -162,7 +177,7 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
           <thead>
             <tr className="text-xs text-teks-redup">
               <th scope="col" className="py-1 font-semibold">
-                Minggu
+                Hari
               </th>
               <th scope="col" className="py-1 text-right font-semibold">
                 Disetujui
@@ -174,8 +189,8 @@ export function GarisMingguan({ judul, titik, ambang, penanda = [], ringkasan }:
           </thead>
           <tbody>
             {titik.map((t) => (
-              <tr key={t.minggu} className="border-t border-primer-100">
-                <td className="py-1">{t.minggu}</td>
+              <tr key={t.hari} className="border-t border-primer-100">
+                <td className="py-1">{t.hari}</td>
                 <td className="angka py-1 text-right">{persen(t.persen)}</td>
                 <td className="angka py-1 text-right">{formatAngka(t.jumlah)}</td>
               </tr>

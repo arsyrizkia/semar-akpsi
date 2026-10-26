@@ -1,7 +1,7 @@
 /** Alamat J-05 (murni; dipakai komponen server dan klien). Periode, skema, tab, urutan, dan butir M-08 tersimpan di URL. */
 
-export type TabPemantauan = "semantik" | "deterministik" | "tren";
-export const TAB_PEMANTAUAN: TabPemantauan[] = ["semantik", "deterministik", "tren"];
+export type TabPemantauan = "semantik" | "deterministik" | "tren" | "kemajuan";
+export const TAB_PEMANTAUAN: TabPemantauan[] = ["semantik", "deterministik", "tren", "kemajuan"];
 
 export function bacaTabPemantauan(v: string | string[] | undefined): TabPemantauan {
   const s = Array.isArray(v) ? v[0] : v;

@@ -2,7 +2,7 @@
  * UC-03 Menugaskan reviewer: tetapkanBatasBeban, susunPenugasan, pilihReviewer, tetapkan, mencatatPenugasan,
  * kirimPenugasan (API BIMA lewat client), terimaProposal. Nama fungsi mengikuti seq-uc03.puml.
  */
-import { and, desc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { akun, penugasanReviewer, periodeSeleksi, proposal, versiProposal } from "@/db/schema";
@@ -14,6 +14,7 @@ import { dalamKumpulanPeriode } from "@/lib/demo/profil-skala";
 import type { Db } from "@/lib/aturan/draf";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
 import { kelompokkanPenolakan, periksaSyarat, rencanakanPindah, susunUsulan, type KodeSyarat, type TujuanPindah } from "./aturan";
+import { hitungTenggat, kapasitasReviewer, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
 import { bolehDipindahkan } from "./status";
 import { periodeDitutup, type FilterUsulan, type HitungPeriode } from "./periode";
 
@@ -256,10 +257,34 @@ export async function ambilSebaranBeban(periodeId: string, batas: number): Promi
     .sort((a, b) => b.jumlah - a.jumlah || a.namaReviewer.localeCompare(b.namaReviewer));
 }
 
-/** tetapkanBatasBeban(batas) pada objek periode. */
-export async function tetapkanBatasBeban(periodeId: string, batas: number, db: Db = getDb()): Promise<void> {
+/** Parameter masa penilaian sebuah baris periode. */
+export const masaPeriode = (p: { lamaPenilaianHari: number; jamReviewerPerHari: number; menitPerProposal: number }): ParamMasa => ({
+  lamaHari: p.lamaPenilaianHari,
+  jamPerHari: p.jamReviewerPerHari,
+  menitPerProposal: p.menitPerProposal,
+});
+
+/** Galat batas beban yang melebihi kapasitas satu reviewer dalam masa penilaian (null bila cukup). */
+export function galatKapasitas(batas: number, masa: ParamMasa): string | null {
+  const kap = kapasitasReviewer(masa);
+  if (batas <= kap) return null;
+  const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 });
+  return `Batas Beban per Reviewer ${batas} melebihi kapasitas satu reviewer: ${kap} proposal dalam ${masa.lamaHari} hari (${desimal.format(masa.jamPerHari)} jam per hari, ${desimal.format(masa.menitPerProposal)} menit per proposal). Turunkan batas, atau ubah masa penilaian.`;
+}
+
+/**
+ * tetapkanBatasBeban(batas) pada objek periode, beserta masa penilaian bila diberikan. Masa yang sudah dimulai (penugasan pertama sudah
+ * ditetapkan) tidak diubah lagi.
+ */
+export async function tetapkanBatasBeban(periodeId: string, batas: number, db: Db = getDb(), masa?: ParamMasa): Promise<void> {
   if (!Number.isInteger(batas) || batas < 1) throw new Error("Batas Beban per Reviewer harus bilangan bulat minimal 1.");
   await db.update(periodeSeleksi).set({ batasBebanReviewer: batas }).where(eq(periodeSeleksi.id, periodeId));
+  if (masa) {
+    await db
+      .update(periodeSeleksi)
+      .set({ lamaPenilaianHari: masa.lamaHari, jamReviewerPerHari: masa.jamPerHari, menitPerProposal: masa.menitPerProposal })
+      .where(and(eq(periodeSeleksi.id, periodeId), isNull(periodeSeleksi.mulaiPenilaian)));
+  }
 }
 
 /**
@@ -269,12 +294,16 @@ export async function tetapkanBatasBeban(periodeId: string, batas: number, db: D
  * membawa saran batas terkecil yang cukup. Bila cukup, batas disimpan,
  * usulan lama (Diusulkan) diganti, dan penugasan yang sudah Ditetapkan tidak diubah (dihitung sebagai beban awal).
  */
-export async function susunPenugasan(periodeId: string, batasBeban: number): Promise<HasilSusunPenugasan> {
+export async function susunPenugasan(periodeId: string, batasBeban: number, masaBaru?: ParamMasa): Promise<HasilSusunPenugasan> {
   if (!Number.isInteger(batasBeban) || batasBeban < 1) throw new Error("Batas Beban per Reviewer harus bilangan bulat minimal 1.");
   // sakelar demo DAN tanggal tutup periode ini (sama dengan guard Tetapkan)
   const ringkas = await ambilRingkasanPeriode(periodeId);
   if (!ringkas) throw new PenugasanDitolakError("Periode tidak dikenali.");
   if (!ringkas.ditutup) throw new MasaBelumDitutupError();
+  // masa yang sudah dimulai tetap; masa baru diperiksa dulu, lalu batas beban tidak boleh melebihi kapasitas satu reviewer
+  const masa = ringkas.mulaiPenilaian || !masaBaru ? ringkas.masa : masaBaru;
+  const galatMasa = periksaParamMasa(masa) ?? galatKapasitas(batasBeban, masa);
+  if (galatMasa) throw new PenugasanDitolakError(galatMasa);
 
   const t0 = Date.now();
   const langkah: Record<string, number> = {};
@@ -317,7 +346,7 @@ export async function susunPenugasan(periodeId: string, batasBeban: number): Pro
     tandai("algoritma");
     if (susun.kekurangan > 0) return susun; // S-1: tidak ada yang ditulis
 
-    await tetapkanBatasBeban(periodeId, batasBeban, tx);
+    await tetapkanBatasBeban(periodeId, batasBeban, tx, masa);
     // versi terbaru setiap proposal yang ditugaskan (satu kueri DISTINCT ON)
     const versiTerbaru = new Map<string, string>();
     if (perluDitugaskan.length) {
@@ -450,6 +479,14 @@ export async function tetapkanPenugasan(periodeId: string, aktor: string): Promi
     const batas = await batasPeriode(periodeId, tx);
     const melanggar = baris<{ n: number }>(await tx.execute(sql`SELECT count(*)::int AS n ${dasarUsulan(periodeId, "Diusulkan", { ...FILTER_KOSONG, melanggar: true }, batas)}`))[0]?.n ?? 0;
     if (melanggar > 0) throw new PenugasanDitolakError(`${melanggar} usulan melanggar syarat penugasan. Pindahkan usulan itu dulu, lalu tetapkan lagi.`);
+    // masa penilaian dimulai pada penetapan pertama periode: tenggat = akhir hari ke-lama (WIB)
+    const [pr] = await tx.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
+    if (pr && !pr.mulaiPenilaian) {
+      await tx
+        .update(periodeSeleksi)
+        .set({ mulaiPenilaian: waktu, batasPenilaian: hitungTenggat(waktu, pr.lamaPenilaianHari) })
+        .where(and(eq(periodeSeleksi.id, periodeId), isNull(periodeSeleksi.mulaiPenilaian)));
+    }
     return baris<{ id: string; idProposal: string; reviewerIdBima: string }>(
       await tx.execute(sql`
         WITH klaim AS (
@@ -608,6 +645,13 @@ export interface RingkasanPeriode extends HitungPeriode {
   tanggalTutup: Date;
   batasBeban: number;
   ditutup: boolean;
+  /** masa penilaian: lama, jam per hari, menit per proposal */
+  masa: ParamMasa;
+  /** null sebelum penugasan pertama ditetapkan */
+  mulaiPenilaian: Date | null;
+  batasPenilaian: Date | null;
+  /** jam demo saat dibaca (perkiraan tenggat M-07) */
+  sekarang: Date;
 }
 
 /** Satu periode beserta ringkasan penetapannya (J-04b), atau null bila id tidak dikenal. */
@@ -631,6 +675,10 @@ export async function ambilRingkasanPeriode(periodeId: string): Promise<Ringkasa
     tanggalBuka: p.tanggalBuka,
     tanggalTutup: p.tanggalTutup,
     batasBeban: p.batasBebanReviewer,
+    masa: masaPeriode(p),
+    mulaiPenilaian: p.mulaiPenilaian,
+    batasPenilaian: p.batasPenilaian,
+    sekarang,
     terkirim: terkirim[0].n,
     belumDitugaskan,
     diusulkan,
@@ -672,6 +720,10 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
     tanggalBuka: p.tanggalBuka,
     tanggalTutup: p.tanggalTutup,
     batasBeban: p.batasBebanReviewer,
+    masa: masaPeriode(p),
+    mulaiPenilaian: p.mulaiPenilaian,
+    batasPenilaian: p.batasPenilaian,
+    sekarang,
     terkirim: ambil(terkirim, p.id),
     belumDitugaskan: ambil(belum, p.id),
     diusulkan: tugas(p.id, "Diusulkan"),

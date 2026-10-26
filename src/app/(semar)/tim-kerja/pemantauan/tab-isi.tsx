@@ -1,6 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { BatangMendatar, BatangPersen, Dumbbell } from "@/components/grafik/batang";
-import { GarisMingguan } from "@/components/grafik/garis-mingguan";
+import { GarisHarian } from "@/components/grafik/garis-harian";
 import { StatusBadge, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import type { AmbangPemantauan } from "@/lib/pemantauan/ambang";
 import { formatPersen, type BandingVersi, type BarisDeterministik, type BarisKalibrasi, type TafsirKalibrasi, type TitikTren } from "@/lib/pemantauan/rekap";
@@ -105,12 +105,14 @@ export function TabTren({
   banding,
   penanda,
   ambang,
+  jumlahHari,
 }: {
+  jumlahHari: number;
   tren: TitikTren[];
   kalibrasi: BarisKalibrasi[];
   tafsir: TafsirKalibrasi;
   banding: BandingVersi[];
-  penanda: { versi: number; minggu: number }[];
+  penanda: { versi: number; hari: number }[];
   ambang: AmbangPemantauan;
 }) {
   if (!tren.length) return <p className="text-sm text-teks-redup">Belum ada penilaian final untuk periode dan skema ini.</p>;
@@ -120,17 +122,18 @@ export function TabTren({
     <div className="space-y-10">
       <section aria-labelledby="judul-tren">
         <h3 id="judul-tren" className="mb-3 text-sm font-semibold text-primer-900">
-          Rekomendasi disetujui per minggu masa penilaian
+          Rekomendasi disetujui per hari masa penilaian
         </h3>
-        <GarisMingguan
+        <GarisHarian
           judul="% rekomendasi semantik yang disetujui reviewer, semua butir"
           titik={tren}
           ambang={ambang.disetujui}
-          penanda={penanda.map((p) => ({ minggu: p.minggu, label: `v${p.versi} berlaku` }))}
+          penanda={penanda.map((p) => ({ hari: p.hari, label: `v${p.versi} berlaku` }))}
+          jumlahHari={jumlahHari}
           ringkasan={
             tren.length > 1
-              ? `Minggu ${awal.minggu}: ${formatPersen(awal.persen)} dari ${formatAngka(awal.jumlah)} hasil; minggu ${akhir.minggu}: ${formatPersen(akhir.persen)} dari ${formatAngka(akhir.jumlah)} hasil.`
-              : `Baru satu minggu penilaian: ${formatPersen(awal.persen)} dari ${formatAngka(awal.jumlah)} hasil.`
+              ? `Hari ${awal.hari}: ${formatPersen(awal.persen)} dari ${formatAngka(awal.jumlah)} hasil; hari ${akhir.hari}: ${formatPersen(akhir.persen)} dari ${formatAngka(akhir.jumlah)} hasil.`
+              : `Baru satu hari penilaian: ${formatPersen(awal.persen)} dari ${formatAngka(awal.jumlah)} hasil.`
           }
         />
       </section>

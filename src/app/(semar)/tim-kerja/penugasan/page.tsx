@@ -6,6 +6,7 @@ import { wajibTimKerja } from "@/lib/auth";
 import { daftarPeriodeDitutup } from "@/lib/penugasan/layanan";
 import { ringkasStatusPenetapan, type StatusPenetapan } from "@/lib/penugasan/periode";
 import { ambilPeriodeAktif } from "@/lib/waktu";
+import { posisiMasa, teksSisa } from "@/lib/penilaian/masa";
 import { formatAngka, formatTanggal } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "J-04 Penugasan Reviewer" };
@@ -55,6 +56,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 <TH angka>Belum Ditugaskan</TH>
                 <TH angka>Reviewer Bersedia</TH>
                 <TH>Status Penetapan</TH>
+                <TH>Tenggat Penilaian</TH>
                 <TH>
                   <span className="sr-only">Aksi</span>
                 </TH>
@@ -77,6 +79,16 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                     <TD>
                       <Badge warna={warnaPenetapan[status]}>{status}</Badge>
                       {p.diusulkan > 0 ? <span className="ml-2 text-xs text-teks-redup">{formatAngka(p.diusulkan)} usulan</span> : null}
+                    </TD>
+                    <TD className="whitespace-nowrap">
+                      {p.mulaiPenilaian && p.batasPenilaian ? (
+                        <>
+                          {formatTanggal(p.batasPenilaian)}
+                          <span className="ml-2 text-xs text-teks-redup">{teksSisa(posisiMasa(p.sekarang, p.mulaiPenilaian, p.masa.lamaHari), p.sekarang, p.batasPenilaian)}</span>
+                        </>
+                      ) : (
+                        <span className="text-teks-redup">Mulai saat ditetapkan ({p.masa.lamaHari} hari)</span>
+                      )}
                     </TD>
                     <TD className="text-right">
                       <Link href={`/tim-kerja/penugasan/${p.id}`} className={kelasTombol("sekunder", "sm")}>
