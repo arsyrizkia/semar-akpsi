@@ -13,9 +13,12 @@
  *  f = gagal kata kunci karena dipisah koma (bukan titik koma), seperti contoh BIMA no. 5; dipakai demo UC-06
  *  e = naskah perbaikan varian b: topik dan judul sama, bagian Metode dalam batas (dipakai UC-05b "terkirim setelah diperbaiki")
  */
-import { Document, Footer, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import type { Paragraph, Table } from "docx";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { PENGANTAR_ISIAN_SUBSTANSI, bagianBawaan, judulBerhuruf, petunjukResmi } from "../templat/isian-substansi";
+import type { BagianTemplatDto } from "@/lib/kontrak/tipe";
+import { buatDokumenTemplat, gambarIsian, isiIsian, pemisahTabel, tabelJadwalTerisi, type BarisJadwal } from "../templat/dokumen";
+import { bagianBawaan, kepalaBawaan, lengkapiBagian } from "../templat/isian-substansi";
+import { DIAGRAM_ALIR_PNG_BASE64 } from "./aset/diagram-alir";
 
 export type VarianContoh = "a" | "b" | "c" | "d" | "e" | "f";
 const SEMUA_VARIAN: readonly string[] = ["a", "b", "c", "d", "e", "f"];
@@ -286,75 +289,67 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
   };
 }
 
-/** Isi bagian dibungkus "[ ... ]" seperti berkas BIMA: sebaris bila isi pertama bukan sitasi "[1]", selain itu di baris sendiri. */
-function bungkusIsian(baris: string[]): string[] {
-  if (baris.length === 0) return ["[ ]"];
-  if (baris[0].startsWith("[")) return ["[", ...baris, "]"];
-  const hasil = [...baris];
-  hasil[0] = `[${hasil[0]}`;
-  hasil[hasil.length - 1] = `${hasil[hasil.length - 1]}]`;
-  return hasil;
-}
+/** rasio tinggi/lebar gambar diagram alir contoh (aset/diagram-alir.ts, 1530 x 495 px) */
+const RASIO_DIAGRAM = 495 / 1530;
+const rentang = (dari: number, sampai: number) => Array.from({ length: Math.max(0, sampai - dari + 1) }, (_, i) => dari + i);
 
-function tabelJadwal(kegiatan: string[]): Table {
-  const sel = (t: string) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: t, size: 18 })] })] });
-  const bulan = Array.from({ length: 12 }, (_, i) => String(i + 1));
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      new TableRow({ children: [sel("No"), sel("Nama Kegiatan"), new TableCell({ columnSpan: 12, children: [new Paragraph({ children: [new TextRun({ text: "Bulan", size: 18 })] })] })] }),
-      new TableRow({ children: [sel(""), sel(""), ...bulan.map(sel)] }),
-      ...kegiatan.map((k, i) => new TableRow({ children: [sel(String(i + 1)), sel(k), ...bulan.map(() => sel(""))] })),
-    ],
-  });
-}
-
-export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
-  const batas = new Map(bagianBawaan("dasar").map((b) => [b.nama, b.batasKata]));
-  const anak: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: "Isian Substansi Proposal", bold: true, size: 36 })] }),
-    new Paragraph({ children: [new TextRun({ text: "SKEMA PENELITIAN DASAR (PENELITIAN DASAR FUNDAMENTAL DAN PENELITIAN KERJA SAMA ANTAR PERGURUAN TINGGI)", bold: true })] }),
-    new Paragraph({ children: [new TextRun(PENGANTAR_ISIAN_SUBSTANSI)] }),
-  ];
-  BAGIAN_CONTOH.forEach((nama, i) => {
-    anak.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(judulBerhuruf(i, nama))] }));
-    anak.push(new Paragraph({ children: [new TextRun({ text: petunjukResmi(nama, batas.get(nama) ?? null) ?? "", italics: true })] }));
-    const baris = def.bagian[nama].split("\n").filter((b) => b.trim());
-    if (nama === "Jadwal Penelitian") {
-      // jadwal sebagai tabel Word seperti contoh BIMA: "Tahun ke-N" lalu tabel No, Nama Kegiatan, Bulan
-      anak.push(new Paragraph({ children: [new TextRun("[")] }));
-      let rows: string[] = [];
-      const tutup = () => {
-        if (rows.length) anak.push(tabelJadwal(rows));
-        rows = [];
-      };
-      for (const b of baris) {
-        if (/^Tahun ke-\d+$/.test(b)) {
-          tutup();
-          anak.push(new Paragraph({ children: [new TextRun(b)] }));
-        } else if (/^\d+\.\s/.test(b)) rows.push(b.replace(/^\d+\.\s*/, ""));
+/**
+ * Isi baris isian satu bagian naskah contoh, dalam bentuk naskah BIMA yang diisi pengusul (4 PDF contoh): teks ditulis langsung di
+ * baris isian tanpa kurung tempat isian; Jadwal Penelitian berupa tabel per tahun dengan kotak bulan berarsir; bagian yang wajib
+ * bergambar memuat gambar diagram alir tepat di atas keterangan "Gambar n. ...". Null bila naskah tidak punya bagian itu.
+ */
+function isiBagianContoh(def: DefinisiContoh, b: BagianTemplatDto): (Paragraph | Table)[] | null {
+  const teks = def.bagian[b.nama];
+  if (teks === undefined) return null;
+  const baris = teks.split("\n").map((x) => x.trim()).filter(Boolean);
+  const o: (Paragraph | Table)[] = [];
+  if (b.jenisIsian === "tabel") {
+    let judul: string | null = null;
+    let kegiatan: BarisJadwal[] = [];
+    const tutup = () => {
+      if (judul && kegiatan.length) {
+        if (o.length) o.push(pemisahTabel());
+        o.push(tabelJadwalTerisi(b, judul, kegiatan));
       }
-      tutup();
-      anak.push(new Paragraph({ children: [new TextRun("]")] }));
-      return;
+      kegiatan = [];
+    };
+    for (const x of baris) {
+      if (/^Tahun ke-\d+$/i.test(x)) {
+        tutup();
+        judul = x;
+        continue;
+      }
+      const m = x.match(/^\d+\.\s*(.+?)\s*\(bulan (\d+) sampai (\d+)\)\s*$/i);
+      if (m) kegiatan.push({ nama: m[1], bulan: rentang(Number(m[2]), Number(m[3])) });
     }
-    for (const b of bungkusIsian(baris)) anak.push(new Paragraph({ children: [new TextRun(b)] }));
+    tutup();
+    o.push(isiIsian("", { sesudah: 0 }));
+    return o;
+  }
+  for (const x of baris) {
+    if (b.wajibGambar && /^Gambar\s+\d+\./i.test(x)) {
+      o.push(gambarIsian(Buffer.from(DIAGRAM_ALIR_PNG_BASE64, "base64"), 430, RASIO_DIAGRAM, "Diagram alir penelitian"));
+      o.push(isiIsian(x, { tengah: true }));
+      continue;
+    }
+    o.push(isiIsian(x));
+  }
+  return o;
+}
+
+/**
+ * Naskah contoh (.docx) = templat Isian Substansi resmi skema Penelitian Dasar (buatDokumenTemplat: kop berlogo, satu tabel per bagian
+ * dengan kepala biru muda dan petunjuk miring, sama dengan "Unduh Templat") yang baris isiannya sudah diisi, seperti berkas yang
+ * diunggah pengusul di BIMA. Dipakai naskah BIMA hasil seed dan skenario, "Unduh .docx" M-15, e2e, dan uji.
+ */
+export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
+  const bagian = lengkapiBagian(bagianBawaan("dasar").map((b, i) => ({ ...b, urutan: i + 1 })));
+  return buatDokumenTemplat({ versi: 1, status: "Terbit" }, bagian, { kode: "PD", namaSkema: "Penelitian Dasar" }, null, {
+    kepala: kepalaBawaan("dasar"),
+    isiBagian: (b) => isiBagianContoh(def, b),
+    teksKaki: "Dokumen contoh sementara - data rekaan untuk prototipe SEMAR",
+    judul: def.judul,
   });
-  const doc = new Document({
-    creator: "SEMAR (contoh sementara)",
-    title: def.judul,
-    sections: [
-      {
-        footers: {
-          default: new Footer({
-            children: [new Paragraph({ children: [new TextRun({ text: "Dokumen contoh sementara - data rekaan untuk prototipe SEMAR", size: 16 })] })],
-          }),
-        },
-        children: anak,
-      },
-    ],
-  });
-  return Packer.toBuffer(doc);
 }
 
 export async function buatLampiranPdf(judul: string, teks: string): Promise<Uint8Array> {

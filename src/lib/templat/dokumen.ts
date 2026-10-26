@@ -32,6 +32,15 @@ export interface PeriodeDokumen {
 /** Kepala dokumen di luar data bagian templat; opsional (kosong = bawaan). */
 export interface PaketDokumen {
   kepala?: KepalaTemplatDto | null;
+  /**
+   * Isi baris isian per bagian untuk naskah yang sudah diisi (naskah contoh: demo/contoh/proposal.ts). Mengembalikan null bila bagian itu
+   * dibiarkan berupa tempat isian templat. Tanpa fungsi ini dokumen adalah templat kosong.
+   */
+  isiBagian?: (b: BagianTemplatDto, indeks: number) => (Paragraph | Table)[] | null;
+  /** teks kaki halaman pengganti (bawaan: skema, periode, versi templat) */
+  teksKaki?: string;
+  /** judul pada properti dokumen */
+  judul?: string;
 }
 
 export const BAGIAN_WAJIB_DOKUMEN = ["Kata Kunci", "Daftar Pustaka"] as const;
@@ -158,7 +167,7 @@ export const tabelTetap = (lebar: number[], baris: TableRow[], tanpaGaris = fals
   });
 
 /** Paragraf pemisah sangat tipis di antara dua tabel agar Word tidak menyatukannya. */
-const pemisahTabel = () => new Paragraph({ spacing: { after: 0, before: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: "", size: 2 })] });
+export const pemisahTabel = () => new Paragraph({ spacing: { after: 0, before: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: "", size: 2 })] });
 
 export const LOGO = () => Buffer.from(LOGO_KEMENTERIAN_BASE64, "base64");
 export const logo = (px: number) => new ImageRun({ type: "png", data: LOGO(), transformation: { width: px, height: px }, altText: { name: "Lambang", description: "Lambang kementerian", title: "Lambang" } });
@@ -194,7 +203,15 @@ function kepalaIsian(kepala: KepalaTemplatDto): (Paragraph | Table)[] {
   ];
 }
 
-const isiIsian = (teks: string, o: OpsiParagraf = {}) => para(teks, { font: FONT_ISIAN, ukuran: 22, rataPenuh: true, ...o });
+export const isiIsian = (teks: string, o: OpsiParagraf = {}) => para(teks, { font: FONT_ISIAN, ukuran: 22, rataPenuh: true, ...o });
+
+/** Gambar di baris isian (mis. diagram alir pada naskah contoh), selebar `lebarPt` dengan rasio asli `rasio` (tinggi/lebar), rata tengah. */
+export const gambarIsian = (png: Buffer, lebarPt: number, rasio: number, judul: string) =>
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 120, after: 60 },
+    children: [new ImageRun({ type: "png", data: png, transformation: { width: Math.round(lebarPt * 1.333), height: Math.round(lebarPt * rasio * 1.333) }, altText: { name: judul, description: judul, title: judul } })],
+  });
 
 /**
  * Tabel isian menurut kolom wajib bagian (Contract C-31, MS-10 [J11]). Kolom berbentuk rentang ("Bulan 1–12", "Bulan 1-24") menjadi kepala
@@ -214,7 +231,7 @@ function tabelIsian(kolomWajib: string[], judul: string | null): Table[] {
 const LEBAR_KOTAK = 505;
 
 /** Satu tabel: `kotak` kotak angka bagi kolom rentang pertama (diberi nomor 1..kotak), kolom lain tetap. */
-function satuTabelIsian(kolom: string[], rentang: KolomRentang | null, kotak: number, judul: string | null): Table {
+function satuTabelIsian(kolom: string[], rentang: KolomRentang | null, kotak: number, judul: string | null, isi?: BarisJadwal[]): Table {
   const nomorKolom = (k: string) => /^no\.?$/i.test(k);
   const idx = rentang ? kolom.findIndex((k) => uraiKolomRentang(k) !== null) : -1;
   const lain = kolom.filter((_, i) => i !== idx);
@@ -273,8 +290,52 @@ function satuTabelIsian(kolom: string[], rentang: KolomRentang | null, kotak: nu
   } else {
     baris.push(new TableRow({ tableHeader: true, children: lain.map((k, i) => sl(k, i, true)) }));
   }
-  for (const n of [1, 2, 3, 4]) baris.push(new TableRow({ children: lebar.map((_, i) => sl(urutan[i] === "lain" && i === 0 && nomorKolom(kolom[0] ?? "") ? String(n) : "", i, false)) }));
+  if (!isi) {
+    for (const n of [1, 2, 3, 4]) baris.push(new TableRow({ children: lebar.map((_, i) => sl(urutan[i] === "lain" && i === 0 && nomorKolom(kolom[0] ?? "") ? String(n) : "", i, false)) }));
+    return tabelTetap(lebar, baris);
+  }
+  // baris terisi (naskah contoh): kolom nomor, nama kegiatan di kolom teks pertama, kotak bulan berarsir bila kegiatan berjalan
+  const arsir = (i: number) =>
+    new TableCell({
+      width: { size: lebar[i], type: WidthType.DXA },
+      borders: BINGKAI,
+      shading: { type: ShadingType.CLEAR, color: "auto", fill: "A6A6A6" },
+      children: [para("", { font: FONT_ISIAN, ukuran: 18 })],
+    });
+  isi.forEach((r, n) => {
+    let kotakKe = 0;
+    let teksDipakai = false;
+    let li2 = 0;
+    const sel2 = lebar.map((_, i) => {
+      if (urutan[i] === "kotak") return r.bulan.includes(++kotakKe) ? arsir(i) : sl("", i, false);
+      const nama = lain[li2++] ?? "";
+      if (nomorKolom(nama)) return sl(String(n + 1), i, false);
+      if (!teksDipakai) {
+        teksDipakai = true;
+        return new TableCell({ width: { size: lebar[i], type: WidthType.DXA }, borders: BINGKAI, margins: { top: m.atas, bottom: m.bawah, left: m.kiri, right: m.kanan }, children: [para(r.nama, { font: FONT_ISIAN, ukuran: 18 })] });
+      }
+      return sl("", i, false);
+    });
+    baris.push(new TableRow({ children: sel2 }));
+  });
   return tabelTetap(lebar, baris);
+}
+
+/** Satu baris kegiatan jadwal terisi: nama kegiatan dan nomor bulan (1..12) yang diarsir. */
+export interface BarisJadwal {
+  nama: string;
+  bulan: number[];
+}
+
+/**
+ * Tabel jadwal terisi untuk naskah contoh: kolom dan kepala sama dengan tabel isian templat bagian itu (kolomTerisi; rentang bulan
+ * dibatasi 12 kotak per tabel seperti tabelIsian), dengan judul blok (mis. "Tahun ke-1") dan baris kegiatan berarsir.
+ */
+export function tabelJadwalTerisi(b: BagianTemplatDto, judul: string, kegiatan: BarisJadwal[]): Table {
+  const kolom = kolomTerisi(b).length ? kolomTerisi(b) : ["No", "Nama Kegiatan", "Bulan 1–12"];
+  const idx = kolom.findIndex((k) => uraiKolomRentang(k) !== null);
+  const rentang = idx >= 0 ? uraiKolomRentang(kolom[idx]) : null;
+  return satuTabelIsian(kolom, rentang, rentang ? Math.min(12, rentang.jumlah) : 0, judul, kegiatan);
 }
 
 /** Tempat isian sebuah bagian menurut tipe dan ketentuannya (meniru contoh BIMA). */
@@ -304,13 +365,13 @@ function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
 }
 
 /** Satu bagian = tabel satu kolom: baris kepala berlatar biru muda (judul berhuruf tebal + petunjuk miring) dan baris isian berbingkai. */
-function tabelBagian(b: BagianTemplatDto, indeks: number): Table {
+function tabelBagian(b: BagianTemplatDto, indeks: number, isiBagian?: PaketDokumen["isiBagian"]): Table {
   const kepala: Paragraph[] = [para(judulBerhuruf(indeks, b.nama), { font: FONT_ISIAN_JUDUL, ukuran: 22, tebal: true })];
   const petunjuk = panduanBagian(b);
   if (petunjuk) kepala.push(para(petunjuk, { font: FONT_ISIAN_JUDUL, ukuran: 21, miring: true, rataPenuh: true }));
   return tabelTetap([LEBAR_ISIAN], [
     new TableRow({ cantSplit: true, children: [sel({ lebar: LEBAR_ISIAN, latar: BIRU_MUDA, margin: M_SEL_ISIAN, isi: kepala })] }),
-    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi: tempatIsian(b) })] }),
+    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi: isiBagian?.(b, indeks) ?? tempatIsian(b) })] }),
   ]);
 }
 
@@ -330,7 +391,8 @@ export async function buatDokumenTemplat(
     new Footer({
       children: [para(judulKaki, { font: FONT_ISIAN, ukuran: 14, warna: "7F7F7F", tengah: true })],
     });
-  const teksKaki = `Skema: ${skema.namaSkema} (${skema.kode}) | Periode berlaku: ${periode ? `${periode.nama}${periode.tahun ? ` (${periode.tahun})` : ""}` : "belum ditetapkan"} | Versi templat: ${templat.versi} (${templat.status})`;
+  const teksKaki =
+    paket.teksKaki ?? `Skema: ${skema.namaSkema} (${skema.kode}) | Periode berlaku: ${periode ? `${periode.nama}${periode.tahun ? ` (${periode.tahun})` : ""}` : "belum ditetapkan"} | Versi templat: ${templat.versi} (${templat.status})`;
   const halaman = (margin: { atas: number; bawah: number; kiri: number; kanan: number }) => ({
     page: { size: { width: 11906, height: 16838 }, margin: { top: margin.atas, bottom: margin.bawah, left: margin.kiri, right: margin.kanan } },
   });
@@ -338,7 +400,7 @@ export async function buatDokumenTemplat(
   const isian: (Paragraph | Table)[] = [...kepalaIsian(kepala)];
   lengkapiBagian(bagianDokumen(bagian)).forEach((b, i) => {
     if (i > 0) isian.push(pemisahTabel());
-    isian.push(tabelBagian(b, i));
+    isian.push(tabelBagian(b, i, paket.isiBagian));
   });
   isian.push(pemisahTabel());
 
@@ -346,7 +408,7 @@ export async function buatDokumenTemplat(
 
   const dokumen = new Document({
     creator: "SEMAR",
-    title: `Isian Substansi Proposal ${skema.namaSkema} v${templat.versi}`,
+    title: paket.judul ?? `Isian Substansi Proposal ${skema.namaSkema} v${templat.versi}`,
     description: teksKaki,
     styles: {
       default: { document: { run: { font: FONT_ISIAN, size: 22 } } },
