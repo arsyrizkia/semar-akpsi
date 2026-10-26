@@ -42,7 +42,7 @@ export function TabKemajuan({ k, masa, sekarang }: { k: HasilKemajuan; masa: Par
         <p className={cn("flex items-start gap-2 text-sm", proyeksi.tepatWaktu ? "text-primer-900" : "font-medium text-bata-700")}>
           {proyeksi.tepatWaktu ? <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-daun-600" /> : <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />}
           <span>
-            <span className="angka">{formatAngka(k.final)}</span> dari <span className="angka">{formatAngka(k.total)}</span> penugasan sudah final ({formatPersen(k.persen)}).{" "}
+            Semua skema: <span className="angka">{formatAngka(k.final)}</span> dari <span className="angka">{formatAngka(k.total)}</span> penugasan sudah final ({formatPersen(k.persen)}).{" "}
             {k.final >= k.total
               ? "Semua penugasan selesai."
               : posisi.lewat
