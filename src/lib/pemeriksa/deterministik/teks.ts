@@ -29,7 +29,7 @@ export function normalisasiJudulProposal(s: string): string {
 }
 
 const POLA_KETERANGAN = /^\s*(?:gambar|tabel|diagram|grafik|bagan|skema|foto)\s*\d+(?:[.\-]\d+)*\s*[.:)\-–]/i;
-const POLA_PENANDA = /^\s*\[(?:tabel|gambar|diagram)\]\s*$/i;
+const POLA_PENANDA = /^\s*\[(?:tabel|gambar|diagram)(?:\s+\d+)?\]\s*$/i;
 
 /** Baris yang bukan isi naratif: keterangan gambar/tabel dan penanda tabel/gambar (NFR: tidak dihitung). */
 export function barisBukanNaratif(baris: string): boolean {

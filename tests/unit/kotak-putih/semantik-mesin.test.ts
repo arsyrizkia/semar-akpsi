@@ -1,7 +1,7 @@
 // Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification MS-06 periksaSemantik, MS-07 cocokkanKutipan, MS-08 siapkanTeksTanpaIdentitas; Layanan LLM diganti stub.
 import { describe, expect, it } from "vitest";
-import type { ButirCek, DokumenPeriksa } from "@/lib/kontrak/tipe";
-import { kirimPermintaanTiruan, type JawabanLlm, type PenyediaLlm } from "@/lib/pemeriksa/semantik/llm";
+import type { ButirCek, DokumenPeriksa, GambarNaskah } from "@/lib/kontrak/tipe";
+import { kirimPermintaanTiruan, susunKonten, type JawabanLlm, type PenyediaLlm, type PermintaanLlm } from "@/lib/pemeriksa/semantik/llm";
 import { bentukHasil, mintaJawaban, nilaiSemantikDenganOpsi, tentukanSasaran } from "@/lib/pemeriksa/semantik/mesin";
 import { PENANDA_IDENTITAS, cocokkanKutipan, siapkanTeksTanpaIdentitas } from "@/lib/pemeriksa/semantik/teks";
 
@@ -147,5 +147,66 @@ describe("nilaiSemantikDenganOpsi", () => {
     expect(["Memenuhi", "Tidak memenuhi"]).toContain(h.status);
     if (h.kutipan) expect(cocokkanKutipan(dokumen.teksPerBagian.Ringkasan, h.kutipan)).toBe(true);
     expect(h.tingkatKeyakinan).not.toBeNull();
+  });
+});
+
+describe("gambar per bagian ke Layanan LLM", () => {
+  const diagram: GambarNaskah = { tipe: "image/png", data: Buffer.from("png-diagram"), lebar: 800, tinggi: 400 };
+  const bergambar: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran" | "gambarPerBagian"> = {
+    teksPerBagian: { Metode: "Tahapan penelitian disajikan berikut.\n[gambar 1]\nGambar 1. Diagram alir penelitian" },
+    teksLampiran: { "Surat Pernyataan Mitra": "Mitra bersedia." },
+    gambarPerBagian: { metode: [diagram] },
+  };
+  const permintaan = (gambar?: GambarNaskah[]): PermintaanLlm => ({
+    teksUtama: bergambar.teksPerBagian.Metode,
+    pertanyaan: "Apakah diagram alir sesuai?",
+    deskripsi: "Diagram alir sesuai isi Metode",
+    namaSasaran: "Metode",
+    gambar,
+  });
+
+  it("KP-tentukanSasaran-02: gambar bagian sasaran ikut (nama bagian tanpa membedakan huruf); butir atas lampiran tanpa gambar", () => {
+    expect(tentukanSasaran(bergambar, butir("UNS-10", "Metode")).gambar).toEqual([diagram]);
+    expect(tentukanSasaran(bergambar, butir("UNS-11", "Metode", "Surat Pernyataan Mitra")).gambar).toEqual([]);
+    expect(tentukanSasaran(bergambar, butir("UNS-12", "Ringkasan")).gambar).toEqual([]);
+  });
+  it("KP-susunKonten-01: tanpa gambar berupa teks; dengan gambar: pengantar, lalu penanda dan gambar base64 berpasangan, teks paling akhir", () => {
+    expect(typeof susunKonten(permintaan())).toBe("string");
+    const k = susunKonten(permintaan([diagram, diagram]));
+    if (typeof k === "string") throw new Error("harus berupa blok");
+    expect(k.map((b) => b.type)).toEqual(["text", "text", "image", "text", "image", "text"]);
+    expect(k[1]).toEqual({ type: "text", text: "[gambar 1]" });
+    expect(k[2]).toEqual({ type: "image", source: { type: "base64", media_type: "image/png", data: diagram.data.toString("base64") } });
+    expect(k[3]).toEqual({ type: "text", text: "[gambar 2]" });
+    expect((k.at(-1) as { text: string }).text).toContain("<teks_utama sasaran=\"Metode\">");
+  });
+  it("KP-susunKonten-02: SEMAR_LLM_GAMBAR=0 mematikan pengiriman gambar", () => {
+    const lama = process.env.SEMAR_LLM_GAMBAR;
+    process.env.SEMAR_LLM_GAMBAR = "0";
+    try {
+      expect(typeof susunKonten(permintaan([diagram]))).toBe("string");
+    } finally {
+      if (lama === undefined) delete process.env.SEMAR_LLM_GAMBAR;
+      else process.env.SEMAR_LLM_GAMBAR = lama;
+    }
+  });
+  it("KP-nilaiSemantikDenganOpsi-03: penyedia menerima gambar bagian sasaran; kutipan penanda gambar diterima sebagai bukti", async () => {
+    let diterima: GambarNaskah[] | undefined;
+    const penyedia: PenyediaLlm = async (p) => {
+      diterima = p.gambar;
+      return { rekomendasi: "Memenuhi", kutipan: "[gambar 1]", alasan: "Diagram memuat tahapan yang sama dengan uraian.", keyakinan: 0.85 };
+    };
+    const [{ hasil }] = await nilaiSemantikDenganOpsi(bergambar, [butir("UNS-10", "Metode")], { penyedia, tiruan: false, jedaMs: 0 });
+    expect(diterima).toEqual([diagram]);
+    expect(hasil.status).toBe("Memenuhi");
+    expect(hasil.kutipan).toBe("[gambar 1]");
+  });
+  it("KP-nilaiSemantikDenganOpsi-04: penanda gambar yang dilampirkan sah sebagai kutipan walau teks bagian tidak memuatnya; nomor di luar lampiran ditolak", async () => {
+    const tanpaPenanda = { ...bergambar, teksPerBagian: { Metode: "Tahapan penelitian.\nGambar 1. Diagram alir penelitian" } };
+    const jawab = (kutipan: string): PenyediaLlm => async () => ({ rekomendasi: "Memenuhi", kutipan, alasan: "Ada.", keyakinan: 0.8 });
+    const [{ hasil: sah }] = await nilaiSemantikDenganOpsi(tanpaPenanda, [butir("UNS-10", "Metode")], { penyedia: jawab("[gambar 1]"), tiruan: false, jedaMs: 0 });
+    expect(sah.status).toBe("Memenuhi");
+    const [{ hasil: salah }] = await nilaiSemantikDenganOpsi(tanpaPenanda, [butir("UNS-10", "Metode")], { penyedia: jawab("[gambar 2]"), tiruan: false, jedaMs: 0 });
+    expect(salah.status).toBe("Perlu diperiksa manual");
   });
 });

@@ -7,12 +7,15 @@
  *  - mode polos (naskah lama): judul bernama sama dengan bagian templat, tanpa huruf.
  * Di kedua mode kalimat petunjuk resmi bagian dibuang dari isian, dan tanda kurung siku isian pengusul "[ ... ]" dilepas.
  */
-import type { BagianTemplatDto } from "../kontrak/tipe";
+import type { BagianTemplatDto, GambarNaskah } from "../kontrak/tipe";
+import { GAMBAR_MAKS_PER_BAGIAN } from "./gambar";
 import { normalisasiJudul } from "../pemeriksa/deterministik/teks";
 import { petunjukBagian } from "../templat/isian-substansi";
 import type { BlokTeks } from "./ekstraksi";
 
 export interface HasilPotong {
+  /** gambar per bagian templat (berurutan, paling banyak GAMBAR_MAKS_PER_BAGIAN); Daftar Pustaka tidak diberi gambar (sesudahnya lampiran ekspor BIMA) */
+  gambarPerBagian: Record<string, GambarNaskah[]>;
   /** judul dokumen: isi bagian Judul (mode berhuruf), selain itu blok pertama sebelum judul bagian templat yang pertama */
   judulDokumen: string;
   /** { "Nama Bagian templat": teks } hanya bagian yang ditemukan; baris dipisah \n; tanpa kalimat petunjuk dan tanda [ ] */
@@ -115,11 +118,11 @@ export function lepasTandaIsian(baris: string[]): string[] {
   if (hasil[0] === "[") hasil.shift();
   if (hasil.length === 0) return [];
   const pertama = hasil[0];
-  if (pertama.startsWith("[") && !adalahSitasiAwal(pertama) && !/^\[(?:tabel|gambar)\]$/i.test(pertama)) {
+  if (pertama.startsWith("[") && !adalahSitasiAwal(pertama) && !/^\[(?:tabel|gambar)(?:\s+\d+)?\]$/i.test(pertama)) {
     hasil[0] = pertama.slice(1).trim();
     const akhir = hasil.length - 1;
     const terakhir = hasil[akhir];
-    if (terakhir.endsWith("]") && !/^\[(?:tabel|gambar)\]$/i.test(terakhir) && hitung(terakhir, "]") > hitung(terakhir, "[")) hasil[akhir] = terakhir.slice(0, -1).trim();
+    if (terakhir.endsWith("]") && !/^\[(?:tabel|gambar)(?:\s+\d+)?\]$/i.test(terakhir) && hitung(terakhir, "]") > hitung(terakhir, "[")) hasil[akhir] = terakhir.slice(0, -1).trim();
   }
   return hasil.filter((b) => b !== "" && !/^(?:…|\.{3})$/.test(b));
 }
@@ -214,6 +217,7 @@ export function potongPerBagian(blok: BlokTeks[], bagian: BagianTemplatDto[]): H
     new Set(blok.map((b) => cocokkan(b, nama, false)).filter((k): k is Kecocokan => k !== null && k.huruf !== null).map((k) => k.nama)).size >= 2;
 
   const teksPerBagian: Record<string, string[]> = {};
+  const gambarPerBagian: Record<string, GambarNaskah[]> = {};
   const ditemukan: string[] = [];
   const sudahAda = new Set<string>();
   let aktif: string | null = null; // nama bagian templat yang sedang diisi
@@ -243,7 +247,19 @@ export function potongPerBagian(blok: BlokTeks[], bagian: BagianTemplatDto[]): H
       sebelum.push(b.teks);
       continue;
     }
-    if (aktif && !diLuarTemplat) teksPerBagian[aktif].push(b.teks);
+    if (aktif && !diLuarTemplat) {
+      // gambar yang disimpan diberi nomor urut per bagian ("[gambar 2]" = gambar tersimpan ke-2), jadi penanda di teks dan gambar yang
+      // dilampirkan ke Layanan LLM pasti berpasangan; gambar kecil atau melebihi batas tetap "[gambar]"
+      let teks = b.teks;
+      if (b.gambar && normalisasiJudul(aktif) !== "daftar pustaka") {
+        const daftar = (gambarPerBagian[aktif] ??= []);
+        if (daftar.length < GAMBAR_MAKS_PER_BAGIAN) {
+          daftar.push(b.gambar);
+          teks = `[gambar ${daftar.length}]`;
+        }
+      }
+      teksPerBagian[aktif].push(teks);
+    }
   }
 
   const hasil: Record<string, string> = {};
@@ -276,7 +292,7 @@ export function potongPerBagian(blok: BlokTeks[], bagian: BagianTemplatDto[]): H
     const ada = blok.find((b) => b.jenis === "paragraf" && POLA_AWALAN_KATA_KUNCI.test(b.teks));
     kataKunci = ada ? ada.teks.replace(POLA_AWALAN_KATA_KUNCI, "").trim() : null;
   }
-  return { judulDokumen, teksPerBagian: hasil, judulBagianDitemukan: ditemukan, kataKunci: kataKunci || null };
+  return { judulDokumen, teksPerBagian: hasil, judulBagianDitemukan: ditemukan, kataKunci: kataKunci || null, gambarPerBagian };
 }
 
 /** potongTeks(): blok naskah → teks per bagian sesuai templat skema. */

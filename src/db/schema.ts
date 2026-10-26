@@ -390,6 +390,26 @@ export const dokumenContoh = pgTable("dokumen_contoh", {
 });
 
 /**
+ * Gambar di dalam isian per bagian (diagram alir, bagan, tabel bergambar) hasil ekstraksi PDF/DOCX, untuk dikirim ke Layanan LLM
+ * bersama teks bagiannya. pemilik = "versi:<uuid versi_proposal>" atau "contoh:<kode dokumen_contoh>". Aditif, 26 Okt 2026.
+ */
+export const gambarNaskah = pgTable(
+  "gambar_naskah",
+  {
+    id: pk(),
+    pemilik: text("pemilik").notNull(),
+    bagian: text("bagian").notNull(),
+    urutan: integer("urutan").notNull(),
+    tipe: text("tipe").notNull(),
+    lebar: integer("lebar").notNull(),
+    tinggi: integer("tinggi").notNull(),
+    bytes: bytea("bytes").notNull(),
+    dibuatPada: waktu("dibuat_pada").defaultNow().notNull(),
+  },
+  (t) => [index("gambar_naskah_pemilik_idx").on(t.pemilik)],
+);
+
+/**
  * PDF contoh proposal BIMA asli untuk "Uji pada Contoh" (keputusan Arsy 26 Okt 2026: empat PDF di data/uji-nyata dipakai sebagai dokumen
  * uji di produksi). Dimasukkan sekali lewat scripts/unggah-contoh-asli.ts (berkasnya tidak pernah masuk git) dan TIDAK ikut dikosongkan
  * "Reset & isi data demo"; seed mendaftarkannya ulang ke dokumen_contoh (kode pdf-asli-NN). Aditif, 26 Okt 2026.

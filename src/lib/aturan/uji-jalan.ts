@@ -16,9 +16,10 @@ import { adalahVarianContoh } from "@/lib/contoh/proposal";
 import { VARIAN_ASLI } from "./contoh-asli";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
 import type { BagianTemplatDto, ButirCek, DokumenPeriksa, HasilButirDeterministik, HasilButirSemantik, HasilUjiContoh } from "@/lib/kontrak";
-import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
+import { nilaiSemantikDenganOpsi, parameterSemantik } from "@/lib/pemeriksa/semantik/mesin";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ekstrakNaskah, jenisBerkas } from "@/lib/pengajuan/ekstraksi";
+import { muatGambarNaskah, pemilikContoh, simpanGambarNaskah } from "@/lib/pengajuan/gambar-simpan";
 import { potongPerBagian } from "@/lib/pengajuan/potong";
 import { siapkanButirUji, type ButirUji, type SumberUji } from "./layanan";
 
@@ -110,6 +111,12 @@ export async function mulaiUji(m: { skemaId: string; periodeId: string | null; t
       catatan: `Diunggah ${m.pelaku} untuk Uji pada Contoh.`,
       label: "unggahan",
     });
+    try {
+      await simpanGambarNaskah(pemilikContoh(kode), potong.gambarPerBagian);
+    } catch (e) {
+      console.error("simpanGambarNaskah", kode, e);
+      peringatan.push(`Gambar di "${u.nama}" tidak tersimpan; butir semantik dinilai dari teksnya saja.`);
+    }
     dokumen.push({ kode, nama: u.nama, unggahan: true, bagianDitemukan: ditemukan, bagianTemplat: jumlahBagian });
   }
 
@@ -191,9 +198,15 @@ export async function ujiSemantikSatu(ujiId: string, dokumenKode: string, butirK
   if (!butir || !uji.dokumen.includes(dokumenKode)) throw new UjiDitolakError("Butir atau dokumen tidak termasuk uji ini.");
   const d = (await muatDokumen([dokumenKode])).get(dokumenKode);
   if (!d) throw new UjiDitolakError("Dokumen contoh tidak ditemukan.");
+  // tiruan tidak membaca gambar; nyata: hanya gambar bagian sasaran butir yang dimuat
+  const { bagian, lampiran } = parameterSemantik(butir);
+  const dokumen: DokumenPeriksa = {
+    ...keDokumenPeriksa(d),
+    gambarPerBagian: opsi.tiruan || lampiran || !bagian ? {} : await muatGambarNaskah(pemilikContoh(dokumenKode), bagian),
+  };
   const [hasil] = opsi.tiruan
-    ? (await nilaiSemantikDenganOpsi(keDokumenPeriksa(d), [butir], { tiruan: true, penyedia: kirimPermintaanTiruan })).map((x) => x.hasil)
-    : await nilaiSemantikTeks(keDokumenPeriksa(d), [butir]);
+    ? (await nilaiSemantikDenganOpsi(dokumen, [butir], { tiruan: true, penyedia: kirimPermintaanTiruan })).map((x) => x.hasil)
+    : await nilaiSemantikTeks(dokumen, [butir]);
   await db
     .insert(ujiContohHasil)
     .values({ ujiId, dokumenKode, butirKode, jenis: "semantik", hasil: hasil as unknown as Record<string, unknown> })

@@ -11,6 +11,7 @@ import { AKHIRAN_SIMULASI } from "@/lib/aturan/draf";
 import { catatLogAudit } from "@/lib/audit";
 import type { ButirCek, RingkasanPemeriksaanSemantik } from "@/lib/kontrak/tipe";
 import { modeLlm } from "@/lib/llm/konfigurasi";
+import { muatGambarNaskah, pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
 import { nilaiSemantikDenganOpsi, type OpsiNilai } from "./mesin";
 import { siapkanTeksTanpaIdentitas } from "./teks";
 
@@ -166,7 +167,8 @@ export async function jalankan(versiId: string, opsi: OpsiNilai = {}): Promise<R
     const teksLampiran = Object.fromEntries(Object.entries(versi.teksLampiran).map(([k, v]) => [k, tanpa(v)]));
 
     // langkah 4-7
-    const hasil = await nilaiSemantikDenganOpsi({ teksPerBagian, teksLampiran }, butir, { ...opsi, tiruan });
+    const gambarPerBagian = tiruan ? {} : await muatGambarNaskah(pemilikVersi(versiId));
+    const hasil = await nilaiSemantikDenganOpsi({ teksPerBagian, teksLampiran, gambarPerBagian }, butir, { ...opsi, tiruan });
 
     // langkah 8: simpan satu baris hasil per butir (upsert agar id hasil, dan koreksi yang menempel, tetap)
     if (hasil.length) {

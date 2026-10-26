@@ -85,7 +85,8 @@ describe.skipIf(!semuaAda)("PDF contoh proposal BIMA asli (data/uji-nyata, hanya
           // lima kata pertama petunjuk tidak boleh menjadi awal isian
           expect(normalisasiJudul(teks.slice(0, 40)), x.nama).not.toBe(normalisasiJudul(petunjuk.slice(0, 40)));
           expect(teks.startsWith("[") && !/^\[\d+\]/.test(teks), x.nama).toBe(false); // "[1] ..." adalah nomor pustaka, bukan tanda isian
-          expect(teks.trimEnd().endsWith("]") && !/\[\d+\]$/.test(teks.trimEnd()), x.nama).toBe(false);
+          // bagian boleh berakhir dengan nomor pustaka "[12]" atau penanda gambar "[gambar 1]" (gambar tanpa keterangan di akhir bagian)
+          expect(teks.trimEnd().endsWith("]") && !/\[(?:\d+|gambar(?:\s+\d+)?)\]$/.test(teks.trimEnd()), x.nama).toBe(false);
         }
       });
 

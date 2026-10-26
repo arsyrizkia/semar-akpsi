@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { PENANDA_IDENTITAS } from "./teks";
+import type { GambarNaskah } from "@/lib/kontrak/tipe";
 import { BATAS_WAKTU_LLM_MS, getAnthropic, modeLlm, modelLlm } from "@/lib/llm/konfigurasi";
 
 export interface PermintaanLlm {
@@ -17,6 +18,8 @@ export interface PermintaanLlm {
   contohJawaban?: string | null;
   deskripsi: string;
   namaSasaran: string;
+  /** gambar di dalam bagian sasaran (berurutan), dibaca Layanan LLM bersama teksnya */
+  gambar?: GambarNaskah[];
 }
 
 export interface JawabanLlm {
@@ -45,7 +48,10 @@ const SKEMA_JSON = {
   type: "object",
   properties: {
     rekomendasi: { type: "string", enum: ["Memenuhi", "Tidak memenuhi"] },
-    kutipan: { type: "string", description: "Salinan persis satu penggalan teks yang mendukung rekomendasi; kosong bila tidak ada" },
+    kutipan: {
+      type: "string",
+      description: "Salinan persis satu penggalan teks yang mendukung rekomendasi; bila bukti hanya ada di gambar, keterangan gambarnya atau penanda [gambar n]; kosong bila tidak ada",
+    },
     alasan: { type: "string", description: "Alasan singkat, satu sampai dua kalimat" },
     keyakinan: { type: "number", description: "Tingkat keyakinan 0 sampai 1" },
     dapatDinilai: {
@@ -66,8 +72,10 @@ Aturan:
 - alasan: satu sampai dua kalimat dalam Bahasa Indonesia.
 - keyakinan: angka 0 sampai 1; rendah bila teks ambigu atau terpotong.
 - Teks berasal dari naskah Isian Substansi BIMA (PDF atau DOCX) yang diubah menjadi teks. Subjudul bernomor (mis. "D1. Latar Belakang", "E2. Prosedur penelitian") adalah bagian dari isi. Tabel terbaca sebagai baris teks berurutan; anggap baris-baris itu isi tabel. Tanda "•" adalah butir daftar.
-- Gambar dan diagram tidak tersedia; yang tersisa hanya keterangannya (mis. "Gambar 2. Diagram alir penelitian") atau penanda [gambar], dan teks lepas pendek di tengah paragraf bisa berasal dari label di dalam gambar.
-- dapatDinilai: isi false bila jawaban bergantung pada isi gambar atau diagram (mis. kesesuaian diagram alir, pembagian tugas yang hanya disajikan sebagai gambar) dan uraian teks di sekitarnya tidak cukup untuk menjawab. Jangan menyimpulkan "Tidak memenuhi" hanya karena isi gambar tidak terlihat. Selain itu isi true.
+- Di teks, letak gambar ditandai [gambar n] (atau [gambar] untuk gambar yang tidak dilampirkan) dan biasanya diikuti keterangannya (mis. "Gambar 2. Diagram alir penelitian"); teks lepas pendek di tengah paragraf bisa berasal dari label di dalam gambar.
+- Gambar bagian ini dilampirkan sebelum teks, masing-masing didahului penandanya ([gambar 1], [gambar 2], ...). Bacalah isinya, termasuk tulisan di dalam gambar, diagram, dan tabel bergambar, lalu gunakan sebagai bukti seperti teks.
+- Bila bukti hanya ada di gambar, isi kutipan dengan keterangan gambar itu persis seperti di teks; bila gambar tidak berketerangan, isi kutipan dengan penandanya (mis. [gambar 2]).
+- dapatDinilai: isi false hanya bila jawaban bergantung pada gambar yang tidak dilampirkan atau tidak terbaca, dan uraian teks tidak cukup untuk menjawab. Jangan menyimpulkan "Tidak memenuhi" hanya karena isi gambar tidak terlihat. Selain itu isi true.
 - Penanda "${PENANDA_IDENTITAS}" menggantikan identitas pengusul; abaikan.
 Jawab hanya dengan JSON sesuai skema.`;
 
@@ -83,7 +91,27 @@ function susunPesan(p: PermintaanLlm): string {
     .join("\n\n");
 }
 
-/** Satu permintaan ke Layanan LLM. Melempar galat bila gagal, kosong, ditolak, atau melewati 15 detik. */
+/** batas waktu permintaan yang membawa gambar */
+export const BATAS_WAKTU_LLM_GAMBAR_MS = 40_000;
+
+/**
+ * Isi pesan pengguna: teks saja, atau bila bagian sasaran bergambar, setiap gambar (base64) berurutan lalu teks. Gambar tidak dikirim
+ * bila SEMAR_LLM_GAMBAR=0 (mis. bila gambar berisi identitas yang tidak boleh keluar).
+ */
+export function susunKonten(p: PermintaanLlm): string | ({ type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: GambarNaskah["tipe"]; data: string } })[] {
+  const gambar = process.env.SEMAR_LLM_GAMBAR === "0" ? [] : (p.gambar ?? []);
+  if (!gambar.length) return susunPesan(p);
+  return [
+    { type: "text", text: `Gambar dari bagian "${p.namaSasaran}" (${gambar.length}). Gambar ke-n berada di posisi penanda [gambar n] di teks.` },
+    ...gambar.flatMap((g, i) => [
+      { type: "text" as const, text: `[gambar ${i + 1}]` },
+      { type: "image" as const, source: { type: "base64" as const, media_type: g.tipe, data: g.data.toString("base64") } },
+    ]),
+    { type: "text", text: susunPesan(p) },
+  ];
+}
+
+/** Satu permintaan ke Layanan LLM. Melempar galat bila gagal, kosong, ditolak, atau melewati batas waktu (15 detik; 40 detik bila bergambar). */
 export const kirimPermintaanNyata: PenyediaLlm = async (p) => {
   const klien = getAnthropic();
   const respons = await klien.beta.messages.create(
@@ -94,9 +122,10 @@ export const kirimPermintaanNyata: PenyediaLlm = async (p) => {
       fallbacks: "default",
       system: SISTEM,
       output_config: { effort: "medium", format: { type: "json_schema", schema: SKEMA_JSON as unknown as Record<string, unknown> } },
-      messages: [{ role: "user", content: susunPesan(p) }],
+      messages: [{ role: "user", content: susunKonten(p) }],
     },
-    { timeout: BATAS_WAKTU_LLM_MS },
+    // gambar memperpanjang waktu baca Layanan LLM
+    { timeout: p.gambar?.length ? BATAS_WAKTU_LLM_GAMBAR_MS : BATAS_WAKTU_LLM_MS },
   );
   if (respons.stop_reason === "refusal") throw new Error("Layanan LLM menolak permintaan");
   if (respons.stop_reason === "max_tokens") throw new Error("Jawaban Layanan LLM terpotong");

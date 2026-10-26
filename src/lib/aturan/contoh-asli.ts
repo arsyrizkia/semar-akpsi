@@ -2,13 +2,14 @@
  * PDF contoh proposal BIMA asli sebagai dokumen "Uji pada Contoh" (M-15, J-03b). Keputusan Arsy 26 Okt 2026: empat PDF di
  * data/uji-nyata dipakai sebagai dokumen uji di produksi. Berkasnya tidak pernah masuk git: scripts/unggah-contoh-asli.ts memasukkannya
  * sekali ke tabel contoh_asli, yang tidak ikut dikosongkan "Reset & isi data demo". daftarkanContohAsli membaca setiap PDF (ekstrakNaskah +
- * potongPerBagian menurut templat bawaan skemanya) lalu menulis baris dokumen_contoh berkode sama, jadi M-15 dan J-03b memakai jalur yang
- * sama dengan contoh rekaan; seed memanggilnya sesudah reset.
+ * potongPerBagian menurut templat bawaan skemanya) lalu menulis baris dokumen_contoh berkode sama beserta gambar per bagian (gambar_naskah),
+ * jadi M-15 dan J-03b memakai jalur yang sama dengan contoh rekaan; seed memanggilnya sesudah reset.
  */
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contohAsli, dokumenContoh, skemaPendanaan } from "@/db/schema";
 import { ekstrakNaskah } from "@/lib/pengajuan/ekstraksi";
+import { pemilikContoh, simpanGambarNaskah } from "@/lib/pengajuan/gambar-simpan";
 import { potongPerBagian } from "@/lib/pengajuan/potong";
 import { bagianBawaan, lengkapiBagian } from "@/lib/templat/isian-substansi";
 
@@ -33,11 +34,11 @@ export async function pastikanTabelContohAsli(): Promise<void> {
 }
 
 /** Daftarkan (ulang) setiap PDF asli ke dokumen_contoh. Mengembalikan jumlah bagian templat yang dikenali per PDF. */
-export async function daftarkanContohAsli(): Promise<{ kode: string; nama: string; bagianDikenali: number; bagianTemplat: number }[]> {
+export async function daftarkanContohAsli(): Promise<{ kode: string; nama: string; bagianDikenali: number; bagianTemplat: number; gambar: number }[]> {
   const db = getDb();
   await pastikanTabelContohAsli();
   const [baris, skema] = await Promise.all([db.select().from(contohAsli).orderBy(contohAsli.kode), db.select().from(skemaPendanaan)]);
-  const hasil: { kode: string; nama: string; bagianDikenali: number; bagianTemplat: number }[] = [];
+  const hasil: { kode: string; nama: string; bagianDikenali: number; bagianTemplat: number; gambar: number }[] = [];
   for (const b of baris) {
     const bagian = lengkapiBagian(bagianBawaan(b.skemaKode === "PT" ? "terapan" : "dasar").map((x, i) => ({ ...x, urutan: i + 1 })));
     const potong = potongPerBagian(await ekstrakNaskah(b.bytes, b.namaBerkas, b.tipe), bagian);
@@ -56,7 +57,8 @@ export async function daftarkanContohAsli(): Promise<{ kode: string; nama: strin
       label: LABEL_ASLI,
     };
     await db.insert(dokumenContoh).values({ kode: b.kode, ...nilai }).onConflictDoUpdate({ target: dokumenContoh.kode, set: nilai });
-    hasil.push({ kode: b.kode, nama: b.nama, bagianDikenali: Object.keys(potong.teksPerBagian).length, bagianTemplat: bagian.length });
+    const gambar = await simpanGambarNaskah(pemilikContoh(b.kode), potong.gambarPerBagian);
+    hasil.push({ kode: b.kode, nama: b.nama, bagianDikenali: Object.keys(potong.teksPerBagian).length, bagianTemplat: bagian.length, gambar });
   }
   return hasil;
 }

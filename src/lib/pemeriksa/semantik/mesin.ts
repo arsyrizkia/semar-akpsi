@@ -2,7 +2,7 @@
  * Mesin penilaian semantik (UC-09) tanpa basis data: kirimPermintaan dengan ulang, cocokkanKutipan, bentuk hasil.
  * Dipakai nilaiSemantikTeks (UC-09 dan "Uji pada Contoh" J-03) dan jalankanPemeriksaanSemantik.
  */
-import type { ButirCek, DokumenPeriksa, HasilButirSemantik, ParameterButir } from "@/lib/kontrak/tipe";
+import type { ButirCek, DokumenPeriksa, GambarNaskah, HasilButirSemantik, ParameterButir } from "@/lib/kontrak/tipe";
 import { PERCOBAAN_ULANG_LLM, modeLlm } from "@/lib/llm/konfigurasi";
 import { penyediaBawaan, type JawabanLlm, type PenyediaLlm } from "./llm";
 import { ambilBerdasarkanNama, cocokkanKutipan } from "./teks";
@@ -23,23 +23,26 @@ interface Sasaran {
   utama: string;
   pendukung: string;
   nama: string;
+  /** gambar bagian sasaran (butir atas lampiran tidak membawa gambar) */
+  gambar: GambarNaskah[];
 }
 
-function parameterSemantik(b: ButirCek): { bagian: string | null; lampiran: string | null } {
+export function parameterSemantik(b: ButirCek): { bagian: string | null; lampiran: string | null } {
   const p = b.parameter as ParameterButir | null;
   if (p && p.tipe === "semantik") return { bagian: p.bagian ?? null, lampiran: p.lampiran ?? null };
   return { bagian: null, lampiran: null };
 }
 
 /** Teks sasaran butir: bagian proposal, atau lampiran (dengan bagian sebagai pembanding). */
-export function tentukanSasaran(dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran">, b: ButirCek): Sasaran {
+export function tentukanSasaran(dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran" | "gambarPerBagian">, b: ButirCek): Sasaran {
   const { bagian, lampiran } = parameterSemantik(b);
   const teksBagian = ambilBerdasarkanNama(dokumen.teksPerBagian, bagian);
   if (lampiran) {
     const teksLampiran = ambilBerdasarkanNama(dokumen.teksLampiran, lampiran);
-    return { utama: teksLampiran, pendukung: teksBagian, nama: `Lampiran: ${lampiran}` };
+    return { utama: teksLampiran, pendukung: teksBagian, nama: `Lampiran: ${lampiran}`, gambar: [] };
   }
-  return { utama: teksBagian, pendukung: "", nama: bagian ?? "Proposal" };
+  const kunciGambar = bagian ? Object.keys(dokumen.gambarPerBagian ?? {}).find((k) => k.trim().toLowerCase() === bagian.trim().toLowerCase()) : undefined;
+  return { utama: teksBagian, pendukung: "", nama: bagian ?? "Proposal", gambar: kunciGambar ? (dokumen.gambarPerBagian?.[kunciGambar] ?? []) : [] };
 }
 
 const tidur = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -121,7 +124,7 @@ function skenarioTiruan(indeks: number, opsiSkenario?: OpsiNilai["skenario"]): "
 }
 
 async function periksaSatu(
-  dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran">,
+  dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran" | "gambarPerBagian">,
   b: ButirCek,
   indeks: number,
   penyedia: PenyediaLlm,
@@ -159,15 +162,18 @@ async function periksaSatu(
       contohJawaban: b.contohJawaban,
       deskripsi: b.deskripsi,
       namaSasaran: sasaran.nama,
+      gambar: sasaran.gambar.length ? sasaran.gambar : undefined,
     },
     { jedaMs },
   );
-  return { hasil: bentukHasil(b, jawaban, `${sasaran.utama}\n${sasaran.pendukung}`, tiruan, galat), percobaan };
+  // penanda gambar yang dilampirkan selalu sah sebagai kutipan, juga bila teks sasaran tidak memuatnya (naskah tanpa penanda)
+  const penanda = sasaran.gambar.map((_, i) => `[gambar ${i + 1}]`).join("\n");
+  return { hasil: bentukHasil(b, jawaban, `${sasaran.utama}\n${sasaran.pendukung}\n${penanda}`, tiruan, galat), percobaan };
 }
 
 /** Inti nilaiSemantikTeks dengan opsi (tes memasang penyedia sendiri). */
 export async function nilaiSemantikDenganOpsi(
-  dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran">,
+  dokumen: Pick<DokumenPeriksa, "teksPerBagian" | "teksLampiran" | "gambarPerBagian">,
   butir: ButirCek[],
   opsi: OpsiNilai = {},
 ): Promise<{ hasil: HasilButirSemantik; percobaan: number }[]> {

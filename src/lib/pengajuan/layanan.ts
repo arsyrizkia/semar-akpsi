@@ -28,6 +28,7 @@ import { masaPengusulanBerjalan, NAMA_PERIODE_SKALA, periodeSudahDibuka, waktuDe
 import { adalahPengajuanPertama, hitungMasaPengusulan, statusSetelahPemeriksaan, transisiProposal } from "./aturan";
 import { ekstrakNaskah, ekstrakTeksLampiran } from "./ekstraksi";
 import { bagianDariBaris } from "../templat/isian-substansi";
+import { pemilikVersi, simpanGambarNaskah } from "./gambar-simpan";
 import { potongTeks } from "./potong";
 import type { KlaimPengajuan } from "./token";
 
@@ -290,6 +291,12 @@ export async function prosesPengajuan(proposalId: string): Promise<void> {
       })
       .returning();
     versiId = versi.id;
+    // gambar per bagian untuk pemeriksaan semantik; gagal simpan tidak menahan pengajuan (penilaian jatuh ke teks saja)
+    try {
+      await simpanGambarNaskah(pemilikVersi(versi.id), hasilPotong.gambarPerBagian);
+    } catch (e) {
+      console.error("simpanGambarNaskah", versi.id, e);
+    }
     if (p.judul !== dariBima.ringkasan.judul) await db.update(proposal).set({ judul: dariBima.ringkasan.judul }).where(eq(proposal.id, p.id));
 
     const hasil = await jalankanPemeriksaanDeterministik(versi.id);

@@ -143,7 +143,7 @@ export function periksaFrasa(dokumen: DokumenPeriksa, bagian: string, frasa: str
   return gagal(`kalimat "${ringkas}" tidak ditemukan`, bagian, `Bagian "${bagian}" harus memuat kalimat "${frasa}"`);
 }
 
-const POLA_PENANDA_ISI = /^\s*\[(?:tabel|gambar)\]\s*$/i;
+const POLA_PENANDA_ISI = /^\s*\[(?:tabel|gambar)(?:\s+\d+)?\]\s*$/i;
 
 /** Bagian terisi: ada kata (tidak termasuk tabel/gambar/keterangannya) atau, bila hanya berisi tabel atau gambar, penanda tabel/gambar. */
 export function periksaBagianTerisi(dokumen: DokumenPeriksa, bagian: string): HasilPeriksa {
@@ -160,7 +160,7 @@ const POLA_DIAGRAM_ALIR = /(?:diagram\s+al[iu]r|bagan\s+al[iu]r|al[iu]r\s+peneli
 const POLA_GAMBAR_BERIKUT = /\bgambar\s+(?:\d+\s+)?berikut\b/i;
 
 /**
- * Bagian wajib gambar (diagram alir Metode): gambar ada bila ada penanda gambar dari berkas DOCX ("[gambar]"), baris keterangan
+ * Bagian wajib gambar (diagram alir Metode): gambar ada bila ada penanda gambar dari berkas ("[gambar]" atau "[gambar n]"), baris keterangan
  * "Gambar n. ...", atau kalimat "disajikan pada Gambar berikut". Keterangan yang menyebut diagram alir disebut di angka pembukti;
  * kesesuaian isi gambar dinilai butir semantik, bukan butir ini.
  */
@@ -171,7 +171,7 @@ export function periksaDiagramAlir(dokumen: DokumenPeriksa, bagian: string, kete
   const polaKet = dasarAlir ? POLA_DIAGRAM_ALIR : new RegExp(normFrasa(keterangan).split(" ").map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"), "i");
   const ketAlir = baris.find((b) => POLA_KETERANGAN_GAMBAR.test(b) && polaKet.test(normFrasa(b)));
   if (ketAlir) return lolos(`keterangan gambar ${sebut} ditemukan: "${ketAlir.slice(0, 80)}"`, bagian);
-  const penanda = baris.find((b) => /^\s*\[gambar\]\s*$/i.test(b));
+  const penanda = baris.find((b) => /^\s*\[gambar(?:\s+\d+)?\]\s*$/i.test(b));
   if (penanda) return lolos("gambar ditemukan di berkas (penanda gambar)", bagian);
   const ket = baris.find((b) => POLA_KETERANGAN_GAMBAR.test(b) || POLA_GAMBAR_BERIKUT.test(b));
   if (ket) return lolos(`gambar ditemukan: "${ket.slice(0, 80)}"`, bagian);

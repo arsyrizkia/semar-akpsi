@@ -128,6 +128,14 @@ export interface KepalaTemplatDto {
 }
 
 /** Bahan yang diperiksa. Dipakai pemeriksaan nyata (dari versi_proposal) maupun "Uji pada Contoh" (dokumen_contoh). */
+/** Gambar di dalam isian sebuah bagian (diagram alir, tabel bergambar, peta jalan), sudah dikecilkan untuk Layanan LLM. */
+export interface GambarNaskah {
+  tipe: "image/png" | "image/jpeg";
+  data: Buffer;
+  lebar: number;
+  tinggi: number;
+}
+
 export interface DokumenPeriksa {
   judul: string;
   /** Judul menurut sistem BIMA (untuk butir judul_sama) */
@@ -141,6 +149,8 @@ export interface DokumenPeriksa {
   teksLampiran: Record<string, string>;
   /** Daftar judul bagian sebagaimana ditemukan di naskah, berurutan */
   judulBagianDitemukan: string[];
+  /** Gambar per bagian (kunci = nama bagian templat), berurutan; dikirim ke Layanan LLM bersama teks bagian itu */
+  gambarPerBagian?: Record<string, GambarNaskah[]>;
 }
 
 export interface KonteksPeriksa {

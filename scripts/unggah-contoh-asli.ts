@@ -39,7 +39,7 @@ async function utama() {
     await db.insert(contohAsli).values({ kode: `pdf-asli-${String(b.nomor).padStart(2, "0")}`, ...nilai }).onConflictDoUpdate({ target: contohAsli.kode, set: nilai });
     console.log("unggah", b.berkas, `${(bytes.length / 1_048_576).toFixed(2)} MB`);
   }
-  for (const h of await daftarkanContohAsli()) console.log("daftar", h.kode, h.nama, `bagian dikenali ${h.bagianDikenali}/${h.bagianTemplat}`);
+  for (const h of await daftarkanContohAsli()) console.log("daftar", h.kode, h.nama, `bagian dikenali ${h.bagianDikenali}/${h.bagianTemplat}`, `gambar ${h.gambar}`);
 }
 
 utama()

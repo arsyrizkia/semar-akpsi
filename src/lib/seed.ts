@@ -10,7 +10,10 @@ import { simpanBerkas } from "./berkas";
 import { daftarkanContohAsli } from "./aturan/contoh-asli";
 import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type DefinisiContoh, type VarianContoh } from "./contoh/proposal";
 import { turunkanButirDariTemplat } from "./seed-butir";
-import { bagianBawaan, kepalaBawaan, keKolomBagian } from "./templat/isian-substansi";
+import { bagianBawaan, kepalaBawaan, keKolomBagian, lengkapiBagian } from "./templat/isian-substansi";
+import { ekstrakNaskah } from "./pengajuan/ekstraksi";
+import { pastikanTabelGambarNaskah, pemilikContoh, pemilikVersi, simpanGambarNaskah } from "./pengajuan/gambar-simpan";
+import { potongPerBagian } from "./pengajuan/potong";
 import akunJson from "../../data/contoh/akun.json";
 import katalogJson from "../../data/contoh/katalog-butir.json";
 import skemaJson from "../../data/contoh/skema.json";
@@ -26,11 +29,24 @@ const TABEL_RESET = [
   "pengaturan_demo", "koreksi_rekomendasi", "keputusan_komponen", "penilaian", "penugasan_reviewer", "job_semantik",
   "hasil_pemeriksaan", "versi_proposal", "proposal", "berkas_versi", "uji_contoh_hasil", "uji_contoh", "dokumen_contoh", "butir_cek", "basis_aturan",
   "bagian_templat", "templat_proposal", "periode_seleksi", "skema_pendanaan", "akun", "bima_kotak_masuk", "bima_berkas",
-  "bima_proposal", "bima_reviewer", "bima_akun",
+  "bima_proposal", "bima_reviewer", "bima_akun", "gambar_naskah",
 ];
 
 const hari = (n: number) => new Date(Date.now() + n * 86_400_000);
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * Gambar per bagian dari naskah .docx contoh rekaan, dibaca lewat jalur yang sama dengan unggahan (ekstrakNaskah → potongPerBagian),
+ * lalu disimpan untuk pemeriksaan semantik bergambar. Gagal baca tidak menggagalkan seed.
+ */
+async function simpanGambarDocx(pemilik: string, docx: Uint8Array): Promise<void> {
+  try {
+    const bagian = lengkapiBagian(bagianBawaan("dasar").map((x, i) => ({ ...x, urutan: i + 1 })));
+    await simpanGambarNaskah(pemilik, potongPerBagian(await ekstrakNaskah(Buffer.from(docx), "contoh.docx", DOCX), bagian).gambarPerBagian);
+  } catch (e) {
+    console.error("simpanGambarDocx", pemilik, e);
+  }
+}
 
 function idProposalBima(n: number) {
   return `PRP-2026-${String(n).padStart(4, "0")}`;
@@ -41,6 +57,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
   const db = getDb();
 
   if (reset) {
+    await pastikanTabelGambarNaskah();
     await db.execute(sql.raw(`TRUNCATE TABLE ${TABEL_RESET.map((t) => `"${t}"`).join(", ")} RESTART IDENTITY CASCADE`));
   }
 
@@ -210,6 +227,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       judulBagianDitemukan: Object.keys(def.bagian),
       catatan: x.ket,
     });
+    await simpanGambarDocx(pemilikContoh(`contoh-${x.v}`), await buatDocx(def));
   }
 
   async function kirimKeBima(def: DefinisiContoh, n: number, pengusulIdBima: string, statusBima: string) {
@@ -235,7 +253,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .insert(s.proposal)
       .values({ idProposal: idBima, judul: def.judul, skemaId: skemaPD.id, periodeId: periode.id, pengusulId: akunId("pengusul-1"), status: "Terkirim", waktuTerkirim: hari(-5) })
       .returning();
-    const berkasSemar = await simpanBerkas({ ruang: "semar", nama: `${idBima}-V1.docx`, tipe: DOCX, bytes: await buatDocx(def), peran: "naskah" });
+    const docxD = await buatDocx(def);
+    const berkasSemar = await simpanBerkas({ ruang: "semar", nama: `${idBima}-V1.docx`, tipe: DOCX, bytes: docxD, peran: "naskah" });
     const [v] = await db
       .insert(s.versiProposal)
       .values({
@@ -255,6 +274,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
         waktu: hari(-5),
       })
       .returning();
+    await simpanGambarDocx(pemilikVersi(v.id), docxD);
 
     const butirDet = await db.select().from(s.butirCek).where(sql`${s.butirCek.basisAturanId} = ${basisBaris.PD} AND ${s.butirCek.jenis} = 'deterministik'`);
     const bukti = (b: (typeof butirDet)[number]): { bagian: string | null; angka: string } => {
@@ -308,6 +328,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       judulBagianDitemukan: Object.keys(defF.bagian),
       catatan: "Kata kunci dipisah koma (,), bukan titik koma (;), seperti contoh BIMA no. 5.",
     });
+    await simpanGambarDocx(pemilikContoh("contoh-f"), await buatDocx(defF));
     await kirimKeBima(defF, 5, "pengusul-3", "Draf"); // PRP-2026-0005 tetap, tidak menggeser nomor skenario reviewer (0004)
     nomor = Math.max(nomor, 6);
   }
