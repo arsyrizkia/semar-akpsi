@@ -118,7 +118,7 @@ function IsiSemantik({ baris, data, ambang }: { baris: BarisSemantik; data: Data
                 <li key={j.jenis}>
                   <BatangMendatar baris={[{ kunci: j.jenis, label: j.jenis, nilai: j.persen, teks: `${formatPersen(j.persen)} (${formatAngka(j.jumlah)})` }]} maks={100} lebarLabel="11rem" />
                   {alasan.length ? (
-                    <ul className="mt-1 space-y-0.5 border-l-2 border-primer-100 pl-3 text-xs text-teks-redup sm:ml-[11.75rem]">
+                    <ul className="mt-1 space-y-0.5 border-l-2 border-primer-100 pl-3 text-xs text-teks-redup">
                       {alasan.map((a) => (
                         <li key={a}>&ldquo;{a}&rdquo;</li>
                       ))}

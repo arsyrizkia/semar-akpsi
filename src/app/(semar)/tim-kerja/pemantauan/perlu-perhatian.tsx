@@ -14,7 +14,8 @@ const tautan = "font-semibold text-primer-800 underline decoration-primer-400 un
 
 /**
  * Daftar "Perlu perhatian" J-05 (triase): butir yang menyala, paling jauh dari ambang lebih dulu; di bawahnya butir yang sudah
- * berlabel Perlu ditinjau. Centang "Perlu Diperbaiki" lalu "Tandai Butir" (bilah lengket di dasar daftar) membuka M-09 (UC-04 s.6-7);
+ * berlabel Perlu ditinjau. Centang "Perlu Diperbaiki" lalu "Tandai Butir" (bilah lengket di dasar daftar; di bawah 1024 px diangkat
+ * di atas pil navigator demo yang tetap di kiri bawah) membuka M-09 (UC-04 s.6-7);
  * "Rincian" membuka M-08 (S-1).
  */
 export function PerluPerhatian({
@@ -68,7 +69,7 @@ export function PerluPerhatian({
       )}
 
       {bisaDitandai ? (
-        <div className="sticky bottom-0 z-20 -mx-1 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-primer-200 bg-white px-1 py-3">
+        <div className="sticky bottom-0 z-20 -mx-1 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-primer-200 bg-white px-1 py-3 max-lg:bottom-[4.25rem]">
           <Button onClick={() => mintaTandai()}>Tandai Butir{jumlahDipilih ? ` (${jumlahDipilih})` : ""}</Button>
           <p aria-live="polite" className="text-sm">
             {galatPilih ? (
