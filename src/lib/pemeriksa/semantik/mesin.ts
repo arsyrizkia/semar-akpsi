@@ -90,6 +90,16 @@ export function bentukHasil(
     return { ...h, alasanSistem: `Layanan LLM tidak memberi jawaban setelah ${PERCOBAAN_ULANG_LLM} percobaan${galat ? ` (${galat})` : ""}.` };
   }
   const kutipan = jawaban.kutipan.trim();
+  if (jawaban.dapatDinilai === false) {
+    // bukti ada di gambar/diagram yang tidak terbaca sebagai teks: tidak divonis, reviewer menilai dari berkas
+    return {
+      ...h,
+      status: "Perlu diperiksa manual",
+      tingkatKeyakinan: jawaban.keyakinan,
+      kutipan: kutipan && cocokkanKutipan(teksVerifikasi, kutipan) ? kutipan : null,
+      alasanSistem: `Isi yang ditanyakan ada pada gambar atau diagram yang tidak terbaca sebagai teks; reviewer menilai langsung dari berkas. ${jawaban.alasan}`,
+    };
+  }
   const dasarHasil = { ...h, rekomendasi: jawaban.rekomendasi, tingkatKeyakinan: jawaban.keyakinan, alasanSistem: jawaban.alasan };
   if (kutipan && cocokkanKutipan(teksVerifikasi, kutipan)) {
     return { ...dasarHasil, status: jawaban.rekomendasi, kutipan };

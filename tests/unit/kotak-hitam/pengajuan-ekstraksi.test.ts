@@ -7,7 +7,7 @@ import { buatDocx, susunContoh, type VarianContoh } from "@/lib/contoh/proposal"
 import type { ButirCek, DokumenPeriksa, KonteksPeriksa, ParameterButir } from "@/lib/kontrak/tipe";
 import { periksaDeterministikTeks } from "@/lib/pemeriksa/deterministik";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
-import { blokDariHtml, ekstrakNaskah, TIPE_DOCX } from "@/lib/pengajuan/ekstraksi";
+import { blokDariHtml, ekstrakNaskah, TIPE_DOCX, normalkanButirPdf } from "@/lib/pengajuan/ekstraksi";
 import { potongTeks } from "@/lib/pengajuan/potong";
 import { judulBerhuruf } from "@/lib/templat/isian-substansi";
 import { buatTokenPengajuan, verifikasiTokenPengajuan } from "@/lib/pengajuan/token";
@@ -101,5 +101,12 @@ describe("token pengajuan", () => {
     expect(k!.jti.length).toBeGreaterThan(10);
     expect(await verifikasiTokenPengajuan(t + "x")).toBeNull();
     expect(await verifikasiTokenPengajuan(undefined)).toBeNull();
+  });
+});
+
+describe("normalkanButirPdf (PDF ekspor BIMA)", () => {
+  it("KH-normalkanButirPdf-01: glyph butir Wingdings/Symbol (Private Use Area) menjadi tanda butir biasa; teks lain tidak berubah", () => {
+    expect(normalkanButirPdf("Luaran:\n\uf071 Publikasi jurnal\n\uf0b7 HKI")).toBe("Luaran:\n\u2022 Publikasi jurnal\n\u2022 HKI");
+    expect(normalkanButirPdf("Tanpa butir [1] (2024).")).toBe("Tanpa butir [1] (2024).");
   });
 });

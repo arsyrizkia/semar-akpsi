@@ -117,8 +117,14 @@ export async function ekstrakTeksPdf(bytes: Uint8Array): Promise<string> {
   return Array.isArray(text) ? text.join("\n") : text;
 }
 
+/**
+ * Glyph butir daftar dari font simbol (Wingdings/Symbol) di PDF ekspor Word/BIMA terbaca sebagai karakter Private Use Area
+ * (mis. U+F071, U+F0B7). Diganti tanda butir biasa supaya teks, kutipan, dan hitungan kata tidak membawa karakter tak terbaca.
+ */
+export const normalkanButirPdf = (teks: string) => teks.replace(/[\uE000-\uF8FF]/g, "•");
+
 export async function ekstrakPdf(bytes: Buffer): Promise<BlokTeks[]> {
-  const teks = await ekstrakTeksPdf(bytes);
+  const teks = normalkanButirPdf(await ekstrakTeksPdf(bytes));
   return teks
     .split(/\r?\n/)
     .map((b) => b.trim())

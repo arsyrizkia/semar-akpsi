@@ -100,14 +100,19 @@ const KELAS_KUTIP: Record<string, string> = { "'": "['\u2018\u2019]", "\u2018": 
 /** Satu token kutipan menjadi pola: tanda kutip lurus dan lengkung dianggap sama, karakter lain persis. */
 const polaToken = (t: string) => [...t].map((c) => KELAS_KUTIP[c] ?? escapeRegex(c)).join("");
 
+/** Token tanda butir daftar (•, ▪, -, *, glyph Private Use dari PDF): dilewati saat mencocokkan kutipan. */
+const BUTIR = "[\\u2022\\u25AA\\u25CF\\u25E6\\u2023\\u2219\\u00B7\\uE000-\\uF8FF*\\-\\u2013\\u2014]";
+const adalahTokenButir = (t: string) => new RegExp(`^${BUTIR}+$`).test(t);
+
 /**
- * Mencari kutipan di teks (UC-09 langkah 7). Perbedaan spasi/baris baru dan tanda kutip lurus/lengkung diabaikan;
+ * Mencari kutipan di teks (UC-09 langkah 7). Perbedaan spasi/baris baru dan tanda kutip lurus/lengkung diabaikan, begitu pula
+ * tanda butir daftar yang berdiri sendiri (PDF BIMA menulis butir dengan glyph Wingdings yang tidak ikut disalin Layanan LLM);
  * huruf besar-kecil dan tanda baca lain dibedakan. Mengembalikan rentang di teks asli, atau null.
  */
 export function cariKutipan(teks: string, kutipan: string | null | undefined): { mulai: number; akhir: number } | null {
-  const token = (kutipan ?? "").trim().split(/\s+/).filter(Boolean);
+  const token = (kutipan ?? "").trim().split(/\s+/).filter((t) => t && !adalahTokenButir(t));
   if (token.length === 0 || !teks) return null;
-  const pola = token.map(polaToken).join("\\s+");
+  const pola = token.map(polaToken).join(`(?:\\s+${BUTIR}+)*\\s+`);
   const m = new RegExp(pola).exec(teks);
   return m ? { mulai: m.index, akhir: m.index + m[0].length } : null;
 }

@@ -105,6 +105,25 @@ describe("bentukHasil", () => {
     const h = bentukHasil(b, { ...jawabanBaik, kutipan: "" }, teks, false);
     expect(h.status).toBe("Perlu diperiksa manual");
   });
+  it("KP-bentukHasil-06: dapatDinilai false (bukti di gambar) -> Perlu diperiksa manual tanpa vonis, kutipan sah tetap disimpan", () => {
+    const h = bentukHasil(b, { ...jawabanBaik, rekomendasi: "Tidak memenuhi", dapatDinilai: false, keyakinan: 0.4 }, teks, false);
+    expect(h.status).toBe("Perlu diperiksa manual");
+    expect(h.rekomendasi).toBeNull();
+    expect(h.kutipan).toBe(jawabanBaik.kutipan);
+    expect(h.alasanSistem).toContain("gambar atau diagram");
+    expect(bentukHasil(b, { ...jawabanBaik, dapatDinilai: false, kutipan: "karangan" }, teks, false).kutipan).toBeNull();
+  });
+});
+
+describe("cocokkanKutipan: naskah PDF BIMA", () => {
+  const teksPdf = "Adapun luaran yang dijanjikan Tahun ke-1:\n\uf071 Publikasi jurnal internasional (Scopus Q2)\n\u2022 HKI Desain Industri.";
+  it("KP-cocokkanKutipan-B1: tanda butir (glyph Private Use atau •) di teks dilewati walau tidak ikut dikutip", () => {
+    expect(cocokkanKutipan(teksPdf, "Tahun ke-1: Publikasi jurnal internasional (Scopus Q2) HKI Desain Industri.")).toBe(true);
+  });
+  it("KP-cocokkanKutipan-B2: tanda butir yang ikut dikutip juga diterima; kata yang berbeda tetap ditolak", () => {
+    expect(cocokkanKutipan(teksPdf, "Tahun ke-1: \u2022 Publikasi jurnal")).toBe(true);
+    expect(cocokkanKutipan(teksPdf, "Tahun ke-1: Publikasi buku")).toBe(false);
+  });
 });
 
 describe("nilaiSemantikDenganOpsi", () => {

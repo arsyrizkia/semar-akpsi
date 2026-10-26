@@ -92,6 +92,15 @@ describe("cocokkanSitasi (MS-03): cabang", () => {
     expect(cocokkanSitasi(isi("a"), konteks, "sitasi_bernomor").batasDilanggar).toContain("tidak ada sitasi bernomor");
     expect(cocokkanSitasi(isi("(Budi, 2020) [1]"), konteks, "sitasi_bernomor").batasDilanggar).toContain("nama-tahun");
   });
+  it("KP-cocokkanSitasi-02b: gaya (n) seperti PDF BIMA no. 6 dan 10 tetap gagal (templat meminta [n]) dengan pesan yang menyebut kurung biasa", () => {
+    const h = cocokkanSitasi(isi("menurut WHO (1) dan studi lain (2)-(3) pada 2024 (2024)", "1. A\n2. B\n3. C"), konteks, "sitasi_bernomor");
+    expect(h.status).toBe("Gagal");
+    expect(h.angkaPembukti).toContain("3 sitasi ditulis dalam kurung biasa (n)");
+    expect(h.batasDilanggar).toContain("bukan kurung siku [n]");
+    const jumlah = cocokkanSitasi(isi("menurut WHO (1) dan (2)", "1. A\n2. B"), konteks, "jumlah_referensi_sama");
+    expect(jumlah.status).toBe("Gagal");
+    expect(jumlah.angkaPembukti).toContain("sitasi ditulis (n), bukan [n]");
+  });
   it("KP-cocokkanSitasi-03: pustaka_berurutan: bagian Daftar Pustaka tidak ada versus ada tanpa entri", () => {
     expect(cocokkanSitasi(isi("a [1]"), konteks, "pustaka_berurutan").angkaPembukti).toBe("bagian Daftar Pustaka tidak ditemukan");
     expect(cocokkanSitasi(isi("a [1]", "tanpa nomor"), konteks, "pustaka_berurutan").angkaPembukti).toBe("tidak ada entri bernomor di Daftar Pustaka");

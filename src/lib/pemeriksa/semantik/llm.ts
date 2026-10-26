@@ -25,6 +25,8 @@ export interface JawabanLlm {
   alasan: string;
   /** 0..1 */
   keyakinan: number;
+  /** false bila jawaban bergantung pada isi gambar/diagram yang tidak tersedia sebagai teks (hasil menjadi Perlu diperiksa manual) */
+  dapatDinilai?: boolean;
 }
 
 /** Penyedia jawaban; melempar galat bila tidak merespons. Dapat diganti dalam tes. */
@@ -35,6 +37,7 @@ const SkemaJawaban = z.object({
   kutipan: z.string(),
   alasan: z.string(),
   keyakinan: z.number(),
+  dapatDinilai: z.boolean().optional(),
 });
 
 /** Skema JSON untuk structured outputs (tanpa batasan numerik; rentang dijepit di kode). */
@@ -45,8 +48,12 @@ const SKEMA_JSON = {
     kutipan: { type: "string", description: "Salinan persis satu penggalan teks yang mendukung rekomendasi; kosong bila tidak ada" },
     alasan: { type: "string", description: "Alasan singkat, satu sampai dua kalimat" },
     keyakinan: { type: "number", description: "Tingkat keyakinan 0 sampai 1" },
+    dapatDinilai: {
+      type: "boolean",
+      description: "false bila jawaban bergantung pada isi gambar atau diagram yang tidak tersedia sebagai teks dan uraian di sekitarnya tidak cukup; selain itu true",
+    },
   },
-  required: ["rekomendasi", "kutipan", "alasan", "keyakinan"],
+  required: ["rekomendasi", "kutipan", "alasan", "keyakinan", "dapatDinilai"],
   additionalProperties: false,
 } as const;
 
@@ -58,6 +65,9 @@ Aturan:
 - kutipan: salin PERSIS (kata demi kata) satu penggalan berurutan dari teks yang paling mendukung rekomendasi, maksimal 300 karakter. Jangan memparafrasakan, jangan menggabungkan dua penggalan. Bila tidak ada penggalan yang relevan, isi dengan teks kosong.
 - alasan: satu sampai dua kalimat dalam Bahasa Indonesia.
 - keyakinan: angka 0 sampai 1; rendah bila teks ambigu atau terpotong.
+- Teks berasal dari naskah Isian Substansi BIMA (PDF atau DOCX) yang diubah menjadi teks. Subjudul bernomor (mis. "D1. Latar Belakang", "E2. Prosedur penelitian") adalah bagian dari isi. Tabel terbaca sebagai baris teks berurutan; anggap baris-baris itu isi tabel. Tanda "•" adalah butir daftar.
+- Gambar dan diagram tidak tersedia; yang tersisa hanya keterangannya (mis. "Gambar 2. Diagram alir penelitian") atau penanda [gambar], dan teks lepas pendek di tengah paragraf bisa berasal dari label di dalam gambar.
+- dapatDinilai: isi false bila jawaban bergantung pada isi gambar atau diagram (mis. kesesuaian diagram alir, pembagian tugas yang hanya disajikan sebagai gambar) dan uraian teks di sekitarnya tidak cukup untuk menjawab. Jangan menyimpulkan "Tidak memenuhi" hanya karena isi gambar tidak terlihat. Selain itu isi true.
 - Penanda "${PENANDA_IDENTITAS}" menggantikan identitas pengusul; abaikan.
 Jawab hanya dengan JSON sesuai skema.`;
 

@@ -318,6 +318,8 @@ export function cekKataKunci(dokumen: DokumenPeriksa, jumlah: number, pemisah: s
 /* ------------------------------------------------------------------ */
 
 const POLA_SITASI = /\[\s*(\d+(?:\s*[,;]\s*\d+|\s*[–-]\s*\d+)*)\s*\]/g;
+/** Nomor dalam kurung biasa, mis. "(1)", "(5)-(6)", "(2, 3)": bukan gaya templat ([n]); hanya dihitung untuk memperjelas pesan gagal. */
+const POLA_SITASI_KURUNG = /\(\s*(\d{1,3}(?:\s*[,;]\s*\d{1,3}|\s*[–-]\s*\d{1,3})*)\s*\)/g;
 const POLA_NAMA_TAHUN =
   /\(\s*[A-ZÀ-Ý][A-Za-zÀ-ÿ.'’-]+(?:\s+(?:dkk\.?|et\s+al\.?|dan\s+[A-ZÀ-Ý][\w.'’-]+|&\s*[A-ZÀ-Ý][\w.'’-]+))?\s*,?\s+(?:19|20)\d{2}[a-z]?\s*\)/g;
 
@@ -372,6 +374,8 @@ interface AnalisisSitasi {
   sitasi: number[];
   berbeda: number[];
   namaTahun: number;
+  /** sitasi bergaya (n) yang tidak dihitung sebagai sitasi [n] */
+  sitasiKurung: number;
   pustaka: EntriPustaka[];
   adaPustaka: boolean;
 }
@@ -383,14 +387,21 @@ function analisisSitasi(dokumen: DokumenPeriksa, konteks: KonteksPeriksa, pustak
   const isi = bagianIsi(dokumen, konteks).filter((k) => !adalahPust(k) && !adalahKataKunci(k));
   const sitasi: number[] = [];
   let namaTahun = 0;
+  let sitasiKurung = 0;
+  const kunciPustaka = Object.keys(dokumen.teksPerBagian).find(adalahPust);
+  const pustaka = kunciPustaka ? entriPustaka(dokumen.teksPerBagian[kunciPustaka]) : [];
+  const nomorMaks = Math.max(0, ...pustaka.map((e) => e.nomor));
   for (const k of isi) {
     const t = dokumen.teksPerBagian[k];
     sitasi.push(...nomorSitasi(t));
     namaTahun += (t.match(POLA_NAMA_TAHUN) ?? []).length;
+    // gaya (n) hanya dihitung bila nomornya dalam rentang daftar pustaka (bukan tahun, persen, atau penomoran butir besar)
+    for (const m of t.matchAll(POLA_SITASI_KURUNG)) {
+      const n = Number(m[1].split(/[,;–-]/)[0]);
+      if (n >= 1 && n <= (nomorMaks || 300)) sitasiKurung++;
+    }
   }
-  const kunciPustaka = Object.keys(dokumen.teksPerBagian).find(adalahPust);
-  const pustaka = kunciPustaka ? entriPustaka(dokumen.teksPerBagian[kunciPustaka]) : [];
-  return { sitasi, berbeda: [...new Set(sitasi)].sort((a, b) => a - b), namaTahun, pustaka, adaPustaka: Boolean(kunciPustaka) };
+  return { sitasi, berbeda: [...new Set(sitasi)].sort((a, b) => a - b), namaTahun, sitasiKurung, pustaka, adaPustaka: Boolean(kunciPustaka) };
 }
 
 export function cocokkanSitasi(
@@ -404,8 +415,9 @@ export function cocokkanSitasi(
   if (tipe === "sitasi_bernomor") {
     const angka = `${fmt(a.sitasi.length)} sitasi bernomor (${fmt(a.berbeda.length)} nomor berbeda), ${fmt(a.namaTahun)} sitasi gaya nama-tahun`;
     if (a.sitasi.length > 0 && a.namaTahun === 0) return lolos(angka, "Isi naskah");
-    const sebab = a.sitasi.length === 0 ? "tidak ada sitasi bernomor [n]" : "ada sitasi gaya nama-tahun";
-    return gagal(angka, "Isi naskah", `Sitasi dalam paragraf harus bernomor [n]: ${sebab}`);
+    const kurung = a.sitasi.length === 0 && a.sitasiKurung > 0 ? `${fmt(a.sitasiKurung)} sitasi ditulis dalam kurung biasa (n)` : "";
+    const sebab = kurung ? `${kurung}, bukan kurung siku [n]` : a.sitasi.length === 0 ? "tidak ada sitasi bernomor [n]" : "ada sitasi gaya nama-tahun";
+    return gagal(kurung ? `${angka}; ${kurung}` : angka, "Isi naskah", `Sitasi dalam paragraf harus bernomor [n]: ${sebab}`);
   }
 
   if (tipe === "pustaka_berurutan") {
@@ -450,7 +462,8 @@ export function cocokkanSitasi(
     return lolos(angka, "Daftar Pustaka");
   }
   const tidakCocok = [
-    tidakDikutip.length ? `nomor ${tidakDikutip.join(", ")} tidak dikutip` : "",
+    a.berbeda.length === 0 && a.sitasiKurung > 0 ? `sitasi ditulis (n), bukan [n], sehingga tidak terhitung` : "",
+    tidakDikutip.length && !(a.berbeda.length === 0 && a.sitasiKurung > 0) ? `nomor ${tidakDikutip.join(", ")} tidak dikutip` : "",
     tanpaEntri.length ? `nomor ${tanpaEntri.join(", ")} dikutip tetapi tidak ada di daftar` : "",
   ]
     .filter(Boolean)
