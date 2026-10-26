@@ -24,16 +24,27 @@ export interface ButirTampil {
   status: StatusHasilSemantik;
   rekomendasi: Keputusan | null;
   kutipan: string | null;
+  /** penggalan bukti lain yang juga disorot di teks */
+  kutipanLain: string[];
   tingkatKeyakinan: number | null;
   alasanSistem: string | null;
   tiruan: boolean;
   koreksi: KoreksiTampil | null;
 }
 
+/** Gambar naskah di sebuah bagian; `nomor` = n pada penanda "[gambar n]" di teks. Isi gambar diambil lewat rute gambar proposal. */
+export interface GambarTampil {
+  id: string;
+  nomor: number;
+  lebar: number;
+  tinggi: number;
+}
+
 export interface TabTeks {
   nama: string;
   jenis: "bagian" | "lampiran";
   teks: string;
+  gambar: GambarTampil[];
 }
 
 export interface PenilaianTampil {

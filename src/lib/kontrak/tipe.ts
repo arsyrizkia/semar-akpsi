@@ -177,6 +177,8 @@ export interface HasilButirSemantik {
   rekomendasi: Keputusan | null;
   /** Kutipan yang sudah diverifikasi ada di teks (cocokkanKutipan) */
   kutipan: string | null;
+  /** Penggalan bukti lain (maks. 2), masing-masing sudah diverifikasi ada di teks; kosong bila `kutipan` null */
+  kutipanLain?: string[];
   /** 0..1 */
   tingkatKeyakinan: number | null;
   alasanSistem: string | null;

@@ -12,6 +12,7 @@ import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type Definisi
 import { turunkanButirDariTemplat } from "./seed-butir";
 import { bagianBawaan, kepalaBawaan, keKolomBagian, lengkapiBagian } from "./templat/isian-substansi";
 import { ekstrakNaskah } from "./pengajuan/ekstraksi";
+import { sisipkanPenandaGambar } from "./pengajuan/gambar";
 import { pastikanTabelGambarNaskah, pemilikContoh, pemilikVersi, simpanGambarNaskah } from "./pengajuan/gambar-simpan";
 import { potongPerBagian } from "./pengajuan/potong";
 import akunJson from "../../data/contoh/akun.json";
@@ -37,14 +38,18 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 /**
  * Gambar per bagian dari naskah .docx contoh rekaan, dibaca lewat jalur yang sama dengan unggahan (ekstrakNaskah → potongPerBagian),
- * lalu disimpan untuk pemeriksaan semantik bergambar. Gagal baca tidak menggagalkan seed.
+ * lalu disimpan untuk pemeriksaan semantik bergambar dan tampilan J-08. Mengembalikan teks bagian contoh yang sudah diberi penanda
+ * "[gambar n]" di letak gambarnya. Gagal baca tidak menggagalkan seed (teks dikembalikan apa adanya).
  */
-async function simpanGambarDocx(pemilik: string, docx: Uint8Array): Promise<void> {
+async function simpanGambarDocx(pemilik: string, docx: Uint8Array, teksPerBagian: Record<string, string>): Promise<Record<string, string>> {
   try {
     const bagian = lengkapiBagian(bagianBawaan("dasar").map((x, i) => ({ ...x, urutan: i + 1 })));
-    await simpanGambarNaskah(pemilik, potongPerBagian(await ekstrakNaskah(Buffer.from(docx), "contoh.docx", DOCX), bagian).gambarPerBagian);
+    const gambar = potongPerBagian(await ekstrakNaskah(Buffer.from(docx), "contoh.docx", DOCX), bagian).gambarPerBagian;
+    await simpanGambarNaskah(pemilik, gambar);
+    return Object.fromEntries(Object.entries(teksPerBagian).map(([k, t]) => [k, sisipkanPenandaGambar(t, gambar[k]?.length ?? 0)]));
   } catch (e) {
     console.error("simpanGambarDocx", pemilik, e);
+    return teksPerBagian;
   }
 }
 
@@ -227,7 +232,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       judulBagianDitemukan: Object.keys(def.bagian),
       catatan: x.ket,
     });
-    await simpanGambarDocx(pemilikContoh(`contoh-${x.v}`), await buatDocx(def));
+    const teks = await simpanGambarDocx(pemilikContoh(`contoh-${x.v}`), await buatDocx(def), def.bagian);
+    await db.update(s.dokumenContoh).set({ teksPerBagian: teks }).where(sql`${s.dokumenContoh.kode} = ${`contoh-${x.v}`}`);
   }
 
   async function kirimKeBima(def: DefinisiContoh, n: number, pengusulIdBima: string, statusBima: string) {
@@ -274,7 +280,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
         waktu: hari(-5),
       })
       .returning();
-    await simpanGambarDocx(pemilikVersi(v.id), docxD);
+    const teksD = await simpanGambarDocx(pemilikVersi(v.id), docxD, def.bagian);
+    await db.update(s.versiProposal).set({ teksPerBagian: teksD }).where(sql`${s.versiProposal.id} = ${v.id}`);
 
     const butirDet = await db.select().from(s.butirCek).where(sql`${s.butirCek.basisAturanId} = ${basisBaris.PD} AND ${s.butirCek.jenis} = 'deterministik'`);
     const bukti = (b: (typeof butirDet)[number]): { bagian: string | null; angka: string } => {
@@ -328,7 +335,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       judulBagianDitemukan: Object.keys(defF.bagian),
       catatan: "Kata kunci dipisah koma (,), bukan titik koma (;), seperti contoh BIMA no. 5.",
     });
-    await simpanGambarDocx(pemilikContoh("contoh-f"), await buatDocx(defF));
+    const teksF = await simpanGambarDocx(pemilikContoh("contoh-f"), await buatDocx(defF), defF.bagian);
+    await db.update(s.dokumenContoh).set({ teksPerBagian: teksF }).where(sql`${s.dokumenContoh.kode} = ${"contoh-f"}`);
     await kirimKeBima(defF, 5, "pengusul-3", "Draf"); // PRP-2026-0005 tetap, tidak menggeser nomor skenario reviewer (0004)
     nomor = Math.max(nomor, 6);
   }

@@ -80,6 +80,19 @@ function dasar(b: ButirCek, bagian: string | null, tiruan: boolean): HasilButirS
 }
 
 /** Menyusun hasil satu butir dari jawaban LLM: cocokkanKutipan (S-1) atau tanpa jawaban (S-2). */
+/** kutipan tambahan yang disimpan per butir */
+export const KUTIPAN_LAIN_MAKS = 2;
+
+/** Kutipan tambahan yang sah: tidak kosong, bukan duplikat kutipan utama, ditemukan di teks; paling banyak KUTIPAN_LAIN_MAKS. */
+export function saringKutipanLain(daftar: string[] | undefined, utama: string, teksVerifikasi: string): string[] {
+  const sah: string[] = [];
+  for (const k of (daftar ?? []).map((x) => x.trim())) {
+    if (sah.length >= KUTIPAN_LAIN_MAKS) break;
+    if (k && k !== utama && !sah.includes(k) && cocokkanKutipan(teksVerifikasi, k)) sah.push(k);
+  }
+  return sah;
+}
+
 export function bentukHasil(
   b: ButirCek,
   jawaban: JawabanLlm | null,
@@ -105,7 +118,7 @@ export function bentukHasil(
   }
   const dasarHasil = { ...h, rekomendasi: jawaban.rekomendasi, tingkatKeyakinan: jawaban.keyakinan, alasanSistem: jawaban.alasan };
   if (kutipan && cocokkanKutipan(teksVerifikasi, kutipan)) {
-    return { ...dasarHasil, status: jawaban.rekomendasi, kutipan };
+    return { ...dasarHasil, status: jawaban.rekomendasi, kutipan, kutipanLain: saringKutipanLain(jawaban.kutipanLain, kutipan, teksVerifikasi) };
   }
   if (!kutipan && jawaban.rekomendasi === "Tidak memenuhi") {
     // tidak ada penggalan yang bisa dikutip (mis. unsur memang tidak ada): bukan kutipan palsu

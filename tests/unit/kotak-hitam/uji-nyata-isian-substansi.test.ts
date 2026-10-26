@@ -51,7 +51,7 @@ describe.skipIf(!semuaAda)("PDF contoh proposal BIMA asli (data/uji-nyata, hanya
       const bagian = lengkapiBagian(bagianBawaan(b.skema).map((x, i) => ({ ...x, urutan: i + 1 })));
       hasil.set(b.nama, { berkas: b, bagian, potong: potongPerBagian(await ekstrakPdf(bytes), bagian), teksPenuh: await ekstrakTeksPdf(new Uint8Array(bytes)) });
     }
-  });
+  }, 60_000); // empat PDF asli beserta gambarnya (dikecilkan sharp)
 
   for (const b of BERKAS) {
     describe(b.nama.replace(/\.pdf$/, ""), () => {

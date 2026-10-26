@@ -53,3 +53,19 @@ export async function siapkanGambar(s: SumberGambar): Promise<GambarNaskah | nul
     return null;
   }
 }
+
+const POLA_KETERANGAN_GAMBAR = /^\s*gambar\s+\d+\s*[.:]/i;
+
+/**
+ * Teks bagian yang disusun langsung (bukan hasil baca berkas, mis. naskah contoh rekaan) belum memuat penanda gambar. Sisipkan
+ * "[gambar 1]".."[gambar n]" tepat sebelum n baris keterangan "Gambar k. ..." pertama, sama dengan letak gambar di berkas .docx-nya.
+ * Teks yang sudah berpenanda bernomor tidak diubah.
+ */
+export function sisipkanPenandaGambar(teks: string, jumlah: number): string {
+  if (jumlah <= 0 || /^\[gambar \d+\]$/im.test(teks)) return teks;
+  let n = 0;
+  return teks
+    .split("\n")
+    .flatMap((baris) => (n < jumlah && POLA_KETERANGAN_GAMBAR.test(baris) ? [`[gambar ${++n}]`, baris] : [baris]))
+    .join("\n");
+}

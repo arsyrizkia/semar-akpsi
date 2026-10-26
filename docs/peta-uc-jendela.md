@@ -23,7 +23,7 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | J-08b | Keputusan Penilaian | Reviewer | `/reviewer/pemeriksaan/[penugasanId]/keputusan` | UC-07 s.9-12 |
 | BIMA | Halaman BIMA tiruan | Semua (simulasi) | `/bima/masuk`, `/bima/pengajuan` (Unduh Templat), `/bima/kotak-masuk` (ID proposal menaut ke J-05b) | UC-05, API |
 
-Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401).
+Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401). Gambar naskah per bagian: `/api/semar/proposal/[idProposal]/gambar/[idGambar]` (J-08, hak akses sama dengan unduh berkas; gambar harus milik versi proposal itu).
 
 ## WND prototipe: layar, modal, transisi, pemicu
 

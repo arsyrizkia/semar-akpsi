@@ -9,6 +9,7 @@ import {
   berkasVersi,
   bimaBerkas,
   butirCek,
+  gambarNaskah,
   hasilPemeriksaan,
   keputusanKomponen,
   koreksiRekomendasi,
@@ -24,6 +25,7 @@ import { bima } from "@/lib/bima/client";
 import { KOMPONEN_BORANG, type Keputusan, type ParameterButir, type StatusHasilSemantik } from "@/lib/kontrak/tipe";
 import { cariKutipan, ambilBerdasarkanNama } from "@/lib/pemeriksa/semantik/teks";
 import { pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
+import { pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
 import { bolehUbahPenilaian } from "./status";
 import type { BarisDaftarPenugasan, BerkasTampil, ButirTampil, DataKeputusan, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks } from "./tipe";
 import {
@@ -153,21 +155,27 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
   // pembacaan yang saling bebas dijalankan serempak (NFR 2.3: J-08 terbuka paling lama 3 detik)
   const [[prop], [versi]] = await ulangSekali(() => Promise.all([ambilProposal(), db.select().from(versiProposal).where(eq(versiProposal.id, idVersi))]));
 
-  const [daftarBagian, pen, semuaHasil, semantik, berkas] = await ulangSekali(() => Promise.all([
+  const [daftarBagian, pen, semuaHasil, semantik, berkas, gambar] = await ulangSekali(() => Promise.all([
     versi.templatId ? db.select().from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan)) : Promise.resolve([]),
     pastikanPenilaian(penugasan.id),
     ambilHasilPemeriksaan(idVersi),
     // rekomendasi harus sudah ada saat reviewer membuka (UC-07 langkah 1); bila belum, jadwalkan tanpa menunggu
     pastikanSemantikBerjalan(idVersi),
     daftarBerkasProposal(prop.p.idProposal, versi.berkasId),
+    daftarGambarVersi(idVersi),
   ]));
 
   // tab: bagian menurut urutan templat, lalu lampiran
   const namaBagian = daftarBagian.map((b) => b.nama);
   for (const k of Object.keys(versi.teksPerBagian)) if (!namaBagian.some((n) => n.toLowerCase() === k.toLowerCase())) namaBagian.push(k);
   const tab: TabTeks[] = [
-    ...namaBagian.map((n) => ({ nama: n, jenis: "bagian" as const, teks: ambilBerdasarkanNama(versi.teksPerBagian, n) })),
-    ...Object.entries(versi.teksLampiran).map(([n, t]) => ({ nama: `Lampiran: ${n}`, jenis: "lampiran" as const, teks: t })),
+    ...namaBagian.map((n) => ({
+      nama: n,
+      jenis: "bagian" as const,
+      teks: ambilBerdasarkanNama(versi.teksPerBagian, n),
+      gambar: gambar.filter((g) => g.bagian.trim().toLowerCase() === n.trim().toLowerCase()).map(({ id, nomor, lebar, tinggi }) => ({ id, nomor, lebar, tinggi })),
+    })),
+    ...Object.entries(versi.teksLampiran).map(([n, t]) => ({ nama: `Lampiran: ${n}`, jenis: "lampiran" as const, teks: t, gambar: [] })),
   ];
 
   const [koreksi, komponenRows] = await ulangSekali(() =>
@@ -190,6 +198,7 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
         status: r.h.status as StatusHasilSemantik,
         rekomendasi: r.h.rekomendasi,
         kutipan: r.h.kutipan,
+        kutipanLain: r.h.kutipanLain ?? [],
         tingkatKeyakinan: r.h.tingkatKeyakinan,
         alasanSistem: r.h.alasanSistem,
         tiruan: r.h.tiruan,
@@ -217,6 +226,20 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     penilaian: penilaianTampil,
     berkas,
   };
+}
+
+/** Metadata gambar per bagian versi (tanpa isi gambar); gagal baca = tanpa gambar, teks tetap tampil. */
+async function daftarGambarVersi(versiId: string): Promise<{ id: string; bagian: string; nomor: number; lebar: number; tinggi: number }[]> {
+  try {
+    const baris = await getDb()
+      .select({ id: gambarNaskah.id, bagian: gambarNaskah.bagian, urutan: gambarNaskah.urutan, lebar: gambarNaskah.lebar, tinggi: gambarNaskah.tinggi })
+      .from(gambarNaskah)
+      .where(eq(gambarNaskah.pemilik, pemilikVersi(versiId)))
+      .orderBy(asc(gambarNaskah.bagian), asc(gambarNaskah.urutan));
+    return baris.map((b) => ({ id: b.id, bagian: b.bagian, nomor: b.urutan + 1, lebar: b.lebar, tinggi: b.tinggi }));
+  } catch {
+    return [];
+  }
 }
 
 /** Naskah (versi SEMAR; cadangan: naskah di BIMA) dan lampiran di BIMA. Hanya metadata, tanpa isi berkas. */

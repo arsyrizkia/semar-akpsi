@@ -177,8 +177,8 @@ async function salinNaskahContoh(periodeId: string): Promise<void> {
     FROM versi_proposal c, proposal p
     WHERE c.id = ${sumber.id}::uuid AND p.id = v.proposal_id AND p.periode_id = ${periodeId}::uuid`);
   await db.execute(sql`
-    INSERT INTO hasil_pemeriksaan (versi_id, butir_id, butir_kode, jenis, bagian, status, angka_pembukti, batas_dilanggar, rekomendasi, kutipan, tingkat_keyakinan, alasan_sistem, tiruan)
-    SELECT v.id, h.butir_id, h.butir_kode, h.jenis, h.bagian, h.status, h.angka_pembukti, h.batas_dilanggar, h.rekomendasi, h.kutipan, h.tingkat_keyakinan, h.alasan_sistem, h.tiruan
+    INSERT INTO hasil_pemeriksaan (versi_id, butir_id, butir_kode, jenis, bagian, status, angka_pembukti, batas_dilanggar, rekomendasi, kutipan, kutipan_lain, tingkat_keyakinan, alasan_sistem, tiruan)
+    SELECT v.id, h.butir_id, h.butir_kode, h.jenis, h.bagian, h.status, h.angka_pembukti, h.batas_dilanggar, h.rekomendasi, h.kutipan, h.kutipan_lain, h.tingkat_keyakinan, h.alasan_sistem, h.tiruan
     FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id CROSS JOIN hasil_pemeriksaan h
     WHERE p.periode_id = ${periodeId}::uuid AND h.versi_id = ${sumber.id}::uuid
     ON CONFLICT DO NOTHING`);

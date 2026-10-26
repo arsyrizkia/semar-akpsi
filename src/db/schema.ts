@@ -294,6 +294,8 @@ export const hasilPemeriksaan = pgTable(
     batasDilanggar: text("batas_dilanggar"),
     rekomendasi: keputusanEnum("rekomendasi"),
     kutipan: text("kutipan"),
+    /** penggalan bukti lain (maks. 2) yang juga sudah diverifikasi ada di teks; disorot bersama `kutipan` di J-08 */
+    kutipanLain: jsonb("kutipan_lain").$type<string[]>().notNull().default([]),
     tingkatKeyakinan: real("tingkat_keyakinan"),
     alasanSistem: text("alasan_sistem"),
     /** true bila dihasilkan mode tiruan LLM */

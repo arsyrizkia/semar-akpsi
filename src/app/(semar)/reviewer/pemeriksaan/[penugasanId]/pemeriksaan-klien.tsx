@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronRight, FileText, Loader2, Lock, XCircle } from "lucide-react";
 import {
   Alert,
   BarKeyakinan,
   Bagian,
   Button,
+  Checkbox,
   Select,
   KepalaHalaman,
   StatusBadge,
@@ -21,9 +22,11 @@ import {
   kelasTombol,
 } from "@/components/ui";
 import { cariKutipan } from "@/lib/pemeriksa/semantik/teks";
-import type { ButirTampil, DataPemeriksaan, KoreksiTampil } from "@/lib/penilaian/tipe";
+import type { RentangSorot } from "@/lib/penilaian/sorotan";
+import type { ButirTampil, DataPemeriksaan, KoreksiTampil, TabTeks } from "@/lib/penilaian/tipe";
 import { perluBacaSendiri, ringkasRekomendasi } from "@/lib/penilaian/status";
 import { ModalKoreksi } from "./modal-koreksi";
+import { TeksBersorot, idDomPenggalan, idPenggalan } from "./teks-bersorot";
 
 const MAKS_POLLING = 40;
 
@@ -41,6 +44,31 @@ function simpanDiUrl(tab: string, butirKode: string | null) {
 }
 
 const ukuranBerkas = (b: number) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toLocaleString("id-ID", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+/** Semua kutipan bukti butir (utama lalu yang lain). */
+const kutipanButir = (b: ButirTampil) => (b.kutipan ? [b.kutipan, ...b.kutipanLain] : []);
+
+/** Kutipan "[gambar n]" ditampilkan sebagai nama gambarnya. */
+const tampilKutipan = (k: string) => {
+  const m = /^\[gambar (\d+)\]$/i.exec(k.trim());
+  return m ? `Isi gambar ${m[1]} di bagian ini` : `“${k}”`;
+};
+
+/**
+ * Rentang kutipan bukti di teks satu tab: setiap kutipan butir yang tampil di tab itu, atau hanya butir terpilih bila sorotan semua
+ * butir dimatikan. Butir tanpa kutipan sah (mis. Perlu diperiksa manual) tidak menyorot apa pun.
+ */
+function rentangTab(t: TabTeks, butir: ButirTampil[], semua: boolean, terpilih: string | null): RentangSorot[] {
+  const hasil: RentangSorot[] = [];
+  for (const b of butir) {
+    if (b.tab !== t.nama || (!semua && b.hasilId !== terpilih)) continue;
+    kutipanButir(b).forEach((k, i) => {
+      const r = cariKutipan(t.teks, k);
+      if (r) hasil.push({ id: idPenggalan(b.hasilId, i), mulai: r.mulai, akhir: r.akhir });
+    });
+  }
+  return hasil;
+}
 
 /** Jumlah butir semantik per bagian; tanda seru (dengan teks bantu) bila ada butir yang harus dibaca sendiri. */
 function LencanaJumlah({ butir, tab }: { butir: ButirTampil[]; tab: string }) {
@@ -73,7 +101,9 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
   const [terpilih, setTerpilih] = useState<string | null>(butirDariUrl?.hasilId ?? null);
   const [koreksiLokal, setKoreksiLokal] = useState<Record<string, KoreksiTampil>>({});
   const [butirKoreksi, setButirKoreksi] = useState<string | null>(null); // M-10 terbuka untuk butir ini
-  const tandaRef = useRef<HTMLElement | null>(null);
+  // penggalan yang dituju (k = urutan kutipan butir terpilih) dan asal pilihan: dari teks cukup digulir seperlunya
+  const [fokus, setFokus] = useState<{ k: number; dariTeks: boolean; nomor: number }>({ k: 0, dariTeks: false, nomor: 0 });
+  const [sorotSemua, setSorotSemua] = useState(true);
   const final = data.penilaian.status === "Final";
   const naskah = data.berkas.find((f) => f.peran === "naskah") ?? data.berkas[0] ?? null;
   const lampiran = data.berkas.filter((f) => f !== naskah);
@@ -82,6 +112,12 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
   const butir: ButirTampil[] = useMemo(() => data.butir.map((b) => ({ ...b, koreksi: koreksiLokal[b.hasilId] ?? b.koreksi })), [data.butir, koreksiLokal]);
   const butirTab = butir.filter((b) => b.tab === tabAktif);
   const butirTerpilih = butir.find((b) => b.hasilId === terpilih) ?? null;
+  const petaButir = useMemo(() => new Map(butir.map((b) => [b.hasilId, b])), [butir]);
+  const rentangPerTab = useMemo(
+    () => new Map(data.tab.map((t) => [t.nama, rentangTab(t, butir, sorotSemua, terpilih)])),
+    [data.tab, butir, sorotSemua, terpilih],
+  );
+  const urlGambar = (id: string) => `/api/semar/proposal/${encodeURIComponent(data.proposal.idProposal)}/gambar/${id}`;
   const butirDimodal = butir.find((b) => b.hasilId === butirKoreksi) ?? null;
   // M-10 tetap terpasang sesudah ditutup (supaya fokus dapat kembali ke tombol pemicu); `nomorBuka` memberi isian segar tiap dibuka
   const [terakhir, setTerakhir] = useState<{ id: string; nomor: number } | null>(null);
@@ -103,22 +139,38 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
     return () => clearTimeout(t);
   }, [data.semantik.siap, kali, router]);
 
-  // Klik butir: gulir panel teks ke kutipan dan sorot (tanpa gulir halus bila pengguna meminta gerak dikurangi)
+  // Pilih butir atau kutipan: gulir teks ke penggalannya (tanpa gulir halus bila pengguna meminta gerak dikurangi)
   useEffect(() => {
-    if (!terpilih || !tandaRef.current) return;
+    if (!terpilih) return;
+    const el = document.getElementById(idDomPenggalan(idPenggalan(terpilih, fokus.k)));
+    if (!el) return;
     const kurang = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    tandaRef.current.scrollIntoView({ behavior: kurang ? "auto" : "smooth", block: "center" });
-  }, [terpilih, tabAktif]);
+    el.scrollIntoView({ behavior: kurang ? "auto" : "smooth", block: fokus.dariTeks ? "nearest" : "center" });
+  }, [terpilih, tabAktif, fokus]);
 
   function ubahTab(t: string) {
     setTabAktif(t);
     simpanDiUrl(t, butirTerpilih?.tab === t ? butirTerpilih.kode : null);
   }
 
-  function pilihButir(b: ButirTampil) {
+  function pilihButir(b: ButirTampil, k = 0) {
     setTerpilih(b.hasilId);
+    setFokus((f) => ({ k, dariTeks: false, nomor: f.nomor + 1 }));
     if (b.tab !== tabAktif) setTabAktif(b.tab);
     simpanDiUrl(b.tab, b.kode);
+  }
+
+  // Label butir di teks: pilih butir itu dan tampilkan kartunya di panel Butir Semantik (layar lebar: panel berdampingan)
+  function pilihDariTeks(id: string) {
+    const i = id.lastIndexOf("#");
+    const b = petaButir.get(id.slice(0, i));
+    if (!b) return;
+    setTerpilih(b.hasilId);
+    setFokus((f) => ({ k: Number(id.slice(i + 1)), dariTeks: true, nomor: f.nomor + 1 }));
+    simpanDiUrl(b.tab, b.kode);
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      document.querySelector(`li[data-hasil="${b.hasilId}"]`)?.scrollIntoView({ block: "nearest" });
+    }
   }
 
   const lanjut = (
@@ -231,7 +283,11 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
           ))}
         </TabsList>
 
-        <Bagian judul="Teks Proposal" className="min-w-0">
+        <Bagian
+          judul="Teks Proposal"
+          className="min-w-0"
+          aksi={<Checkbox id="sorot-semua" label="Sorot bukti semua butir" checked={sorotSemua} onCheckedChange={(v) => setSorotSemua(v === true)} />}
+        >
           <div className="mb-3 xl:hidden">
             <label htmlFor="pilih-bagian" className="mb-1 block text-xs font-semibold text-teks-redup">Bagian proposal</label>
             <Select id="pilih-bagian" value={tabAktif} onChange={(e) => ubahTab(e.target.value)}>
@@ -263,32 +319,34 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
               <p className="mt-1 text-xs text-teks-redup">Rincian dan koreksi ada di bagian Butir Semantik di bawah teks.</p>
             </div>
           ) : null}
+          {(() => {
+            const n = rentangPerTab.get(tabAktif)?.length ?? 0;
+            return n > 0 ? (
+              <p className="mb-2 text-xs text-teks-redup">
+                <mark className="rounded-[2px] bg-peringatan-100 px-1 text-primer-900 shadow-[inset_0_-2px_0_var(--color-peringatan-300)]">Penggalan bersorot</mark> dikutip sistem sebagai bukti rekomendasi
+                {sorotSemua ? <> (<span className="angka">{n}</span> di bagian ini)</> : " butir terpilih"}. Kode butir di ujungnya membuka rinciannya.
+              </p>
+            ) : null;
+          })()}
           <div>
-            {data.tab.map((t) => {
-              const rentang = butirTerpilih?.tab === t.nama ? cariKutipan(t.teks, butirTerpilih.kutipan) : null;
-              return (
-                <TabsContent key={t.nama} value={t.nama} className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap lg:max-h-[65vh] lg:overscroll-contain break-words text-[15px] leading-relaxed text-primer-900">
-                  {t.teks.trim() === "" ? (
-                    <span className="italic text-teks-redup">Bagian ini tidak ditemukan pada naskah.</span>
-                  ) : rentang ? (
-                    <>
-                      {t.teks.slice(0, rentang.mulai)}
-                      <mark
-                        ref={(el) => {
-                          tandaRef.current = el;
-                        }}
-                        className="rounded bg-peringatan-300 px-0.5 text-primer-900 ring-2 ring-peringatan-500"
-                      >
-                        {t.teks.slice(rentang.mulai, rentang.akhir)}
-                      </mark>
-                      {t.teks.slice(rentang.akhir)}
-                    </>
-                  ) : (
-                    t.teks
-                  )}
-                </TabsContent>
-              );
-            })}
+            {data.tab.map((t) => (
+              <TabsContent key={t.nama} value={t.nama} className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap lg:max-h-[65vh] lg:overscroll-contain break-words text-[15px] leading-relaxed text-primer-900">
+                {t.teks.trim() === "" ? (
+                  <span className="italic text-teks-redup">Bagian ini tidak ditemukan pada naskah.</span>
+                ) : (
+                  <TeksBersorot
+                    teks={t.teks}
+                    rentang={rentangPerTab.get(t.nama) ?? []}
+                    butir={petaButir}
+                    terpilih={terpilih}
+                    gambar={t.gambar}
+                    urlGambar={urlGambar}
+                    namaBagian={t.nama}
+                    saatPilih={pilihDariTeks}
+                  />
+                )}
+              </TabsContent>
+            ))}
           </div>
         </Bagian>
 
@@ -312,7 +370,7 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                 const sendiri = perluBacaSendiri(b.status);
                 const dipilih = terpilih === b.hasilId;
                 return (
-                  <li key={b.hasilId} className={dipilih ? "bg-primer-50 shadow-[inset_3px_0_0_var(--color-primer-400)]" : undefined}>
+                  <li key={b.hasilId} data-hasil={b.hasilId} className={dipilih ? "scroll-my-2 bg-primer-50 shadow-[inset_3px_0_0_var(--color-primer-400)]" : "scroll-my-2"}>
                     <article aria-labelledby={`judul-butir-${b.hasilId}`} className="space-y-2 px-3 pb-2 pt-3">
                       {/* tombol semantik: menyorot kutipan di teks; isi butir tetap terbaca pembaca layar */}
                       <button
@@ -338,7 +396,22 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
                         <p className="text-xs text-teks-redup">Sistem merekomendasikan “{b.rekomendasi}”, tetapi kutipannya belum dapat dipastikan ada di teks.</p>
                       ) : null}
                       {b.kutipan ? (
-                        <blockquote className="border-l-4 border-primer-400 pl-3 text-sm text-primer-900">“{b.kutipan}”</blockquote>
+                        <div className="space-y-2">
+                          {kutipanButir(b).length > 1 ? <p className="text-xs font-semibold text-teks-redup">Kutipan bukti ({kutipanButir(b).length})</p> : null}
+                          {kutipanButir(b).map((k, i) => (
+                            <div key={i}>
+                              <blockquote className="border-l-4 border-peringatan-300 pl-3 text-sm text-primer-900">{tampilKutipan(k)}</blockquote>
+                              <button
+                                type="button"
+                                onClick={() => pilihButir(b, i)}
+                                className="ml-4 mt-0.5 inline-flex min-h-6 cursor-pointer items-center text-xs font-semibold text-primer-700 underline underline-offset-2 hover:text-primer-800"
+                              >
+                                Tunjukkan di Teks
+                                {kutipanButir(b).length > 1 ? <span className="sr-only"> (kutipan {i + 1} butir {b.kode})</span> : <span className="sr-only"> (butir {b.kode})</span>}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       ) : sendiri ? null : (
                         <p className="text-xs text-teks-redup">Tidak ada kutipan pendukung.</p>
                       )}

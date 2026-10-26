@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { ButirCek, DokumenPeriksa, GambarNaskah } from "@/lib/kontrak/tipe";
 import { kirimPermintaanTiruan, susunKonten, type JawabanLlm, type PenyediaLlm, type PermintaanLlm } from "@/lib/pemeriksa/semantik/llm";
-import { bentukHasil, mintaJawaban, nilaiSemantikDenganOpsi, tentukanSasaran } from "@/lib/pemeriksa/semantik/mesin";
+import { KUTIPAN_LAIN_MAKS, bentukHasil, mintaJawaban, nilaiSemantikDenganOpsi, saringKutipanLain, tentukanSasaran } from "@/lib/pemeriksa/semantik/mesin";
 import { PENANDA_IDENTITAS, cocokkanKutipan, siapkanTeksTanpaIdentitas } from "@/lib/pemeriksa/semantik/teks";
 
 const butir = (kode: string, bagian: string, lampiran?: string): ButirCek => ({
@@ -208,5 +208,37 @@ describe("gambar per bagian ke Layanan LLM", () => {
     expect(sah.status).toBe("Memenuhi");
     const [{ hasil: salah }] = await nilaiSemantikDenganOpsi(tanpaPenanda, [butir("UNS-10", "Metode")], { penyedia: jawab("[gambar 2]"), tiruan: false, jedaMs: 0 });
     expect(salah.status).toBe("Perlu diperiksa manual");
+  });
+});
+
+describe("kutipan bukti lebih dari satu", () => {
+  const teks = dokumen.teksPerBagian.Ringkasan;
+  const urgensi = "Penelitian ini penting karena urgensi banjir pesisir meningkat.";
+  const tujuan = "Tujuan penelitian adalah membangun model prediksi curah hujan harian.";
+
+  it("KP-saringKutipanLain-01: hanya kutipan yang ada di teks, bukan duplikat kutipan utama atau sesamanya, paling banyak dua", () => {
+    expect(saringKutipanLain([urgensi, "  ", tujuan, urgensi, "Kalimat karangan."], tujuan, teks)).toEqual([urgensi]);
+    expect(saringKutipanLain(undefined, tujuan, teks)).toEqual([]);
+    expect(saringKutipanLain(["Penelitian ini penting", "urgensi banjir pesisir", "model prediksi curah hujan"], tujuan, teks)).toHaveLength(KUTIPAN_LAIN_MAKS);
+  });
+  it("KP-bentukHasil-07: kutipan utama sah: kutipan lain yang sah ikut disimpan; kutipan utama tidak sah: tanpa kutipan lain", () => {
+    const b = butir("UNS-01", "Ringkasan");
+    const sah = bentukHasil(b, { ...jawabanBaik, kutipan: tujuan, kutipanLain: [urgensi, "Tidak ada di naskah."] }, teks, false);
+    expect(sah.status).toBe("Memenuhi");
+    expect(sah.kutipanLain).toEqual([urgensi]);
+    const salah = bentukHasil(b, { ...jawabanBaik, kutipan: "Tidak ada di naskah.", kutipanLain: [urgensi] }, teks, false);
+    expect(salah.status).toBe("Perlu diperiksa manual");
+    expect(salah.kutipanLain ?? []).toEqual([]);
+  });
+  it("KP-kirimPermintaanTiruan-01: tiruan memberi kalimat lain yang hampir sama kuatnya sebagai kutipan tambahan (salinan persis)", async () => {
+    const j = await kirimPermintaanTiruan({
+      teksUtama: "Urgensi banjir pesisir meningkat setiap tahun di wilayah ini.\nUrgensi banjir pesisir juga menekan ekonomi warga setempat.\nCuaca cerah.",
+      pertanyaan: "Apakah ringkasan memuat urgensi banjir pesisir?",
+      deskripsi: "Ringkasan memuat urgensi",
+      namaSasaran: "Ringkasan",
+    });
+    expect(j.rekomendasi).toBe("Memenuhi");
+    expect(j.kutipanLain).toHaveLength(1);
+    expect(j.kutipanLain![0]).not.toBe(j.kutipan);
   });
 });

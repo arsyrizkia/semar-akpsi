@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import type { BagianTemplatDto, GambarNaskah } from "@/lib/kontrak/tipe";
 import { susunBarisHalaman, type BlokTeks } from "@/lib/pengajuan/ekstraksi";
-import { GAMBAR_MAKS_PER_BAGIAN, LUAS_MAKS_GAMBAR, SISI_MAKS_GAMBAR, siapkanGambar, ukuranSasaran } from "@/lib/pengajuan/gambar";
+import { GAMBAR_MAKS_PER_BAGIAN, LUAS_MAKS_GAMBAR, SISI_MAKS_GAMBAR, siapkanGambar, sisipkanPenandaGambar, ukuranSasaran } from "@/lib/pengajuan/gambar";
 import { potongPerBagian } from "@/lib/pengajuan/potong";
 
 describe("susunBarisHalaman", () => {
@@ -95,5 +95,17 @@ describe("potongPerBagian: gambar per bagian", () => {
     expect(baris[1]).toBe("[gambar 1]");
     expect(baris[GAMBAR_MAKS_PER_BAGIAN]).toBe(`[gambar ${GAMBAR_MAKS_PER_BAGIAN}]`);
     expect(baris.at(-1)).toBe("[gambar]");
+  });
+});
+
+describe("sisipkanPenandaGambar", () => {
+  it("KP-sisipkanPenandaGambar-01: penanda disisipkan sebelum n keterangan gambar pertama; keterangan sesudahnya tidak", () => {
+    const t = "Tahap penelitian (Gambar 1).\nGambar 1. Diagram alir\nUraian.\nGambar 2: Lokasi";
+    expect(sisipkanPenandaGambar(t, 1)).toBe("Tahap penelitian (Gambar 1).\n[gambar 1]\nGambar 1. Diagram alir\nUraian.\nGambar 2: Lokasi");
+    expect(sisipkanPenandaGambar(t, 2).split("\n").filter((b) => b.startsWith("[gambar"))).toEqual(["[gambar 1]", "[gambar 2]"]);
+  });
+  it("KP-sisipkanPenandaGambar-02: tanpa gambar atau sudah berpenanda bernomor, teks tidak berubah", () => {
+    expect(sisipkanPenandaGambar("Gambar 1. x", 0)).toBe("Gambar 1. x");
+    expect(sisipkanPenandaGambar("[gambar 1]\nGambar 1. x", 1)).toBe("[gambar 1]\nGambar 1. x");
   });
 });
