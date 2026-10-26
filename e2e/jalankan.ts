@@ -842,7 +842,10 @@ async function utama() {
       // M-15 Uji pada Contoh: pilih contoh + unggah naskah, kemajuan bertahap, lalu J-03b
       await klik(page, "Uji pada Contoh");
       await tungguModal(page, "Uji pada Contoh");
-      yakin(await page.evaluate(() => document.querySelector("#contoh-contoh-a")?.getAttribute("data-state") === "checked"), "M-15: Contoh A tidak terpilih bawaan");
+      yakin(
+        await page.evaluate(() => document.querySelector("[role=dialog] button[role=checkbox][id^='contoh-']")?.getAttribute("data-state") === "checked"),
+        "M-15: contoh pertama (PDF asli bila sudah diunggah) tidak terpilih bawaan",
+      );
       const naskahUji = path.join(HASIL, "naskah-uji-contoh-b.docx");
       writeFileSync(naskahUji, await buatDocx(susunContoh("b")));
       await (await page.$("#berkas-uji") as ElementHandle<HTMLInputElement>).uploadFile(naskahUji);

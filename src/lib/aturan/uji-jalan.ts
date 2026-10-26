@@ -13,6 +13,7 @@ import { getDb } from "@/db";
 import { dokumenContoh, ujiContoh, ujiContohHasil } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { adalahVarianContoh } from "@/lib/contoh/proposal";
+import { VARIAN_ASLI } from "./contoh-asli";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
 import type { BagianTemplatDto, ButirCek, DokumenPeriksa, HasilButirDeterministik, HasilButirSemantik, HasilUjiContoh } from "@/lib/kontrak";
 import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
@@ -57,14 +58,27 @@ const keDokumenPeriksa = (d: BarisDokumen): DokumenPeriksa => ({
   judulBagianDitemukan: d.judulBagianDitemukan,
 });
 
-/** Dokumen contoh yang dapat dipilih untuk sebuah skema (contoh skema itu; bila belum ada, semua contoh), urut kode. */
-export async function daftarContohUji(skemaId: string): Promise<{ kode: string; nama: string; catatan: string | null; unggahan: boolean; bisaUnduh: boolean }[]> {
+/**
+ * Dokumen contoh yang dapat dipilih untuk sebuah skema: PDF asli BIMA (semua skema; skema yang sama lebih dulu), lalu contoh rekaan
+ * skema itu (bila belum ada, semua contoh rekaan), lalu unggahan. `unduh`: format berkas yang dapat diunduh (unggahan tidak disimpan
+ * berkasnya).
+ */
+export async function daftarContohUji(skemaId: string): Promise<{ kode: string; nama: string; catatan: string | null; unggahan: boolean; unduh: "pdf" | "docx" | null }[]> {
   const db = getDb();
-  let baris = await db.select().from(dokumenContoh).where(eq(dokumenContoh.skemaId, skemaId));
-  if (baris.length === 0) baris = await db.select().from(dokumenContoh);
-  return baris
-    .map((d) => ({ kode: d.kode, nama: d.nama, catatan: d.catatan, unggahan: d.label === "unggahan", bisaUnduh: adalahVarianContoh(d.varian) }))
-    .sort((a, b) => Number(a.unggahan) - Number(b.unggahan) || a.kode.localeCompare(b.kode));
+  const semua = await db.select().from(dokumenContoh);
+  const asli = semua.filter((d) => d.varian === VARIAN_ASLI);
+  let lain = semua.filter((d) => d.varian !== VARIAN_ASLI && d.skemaId === skemaId);
+  if (!lain.some((d) => d.label !== "unggahan")) lain = [...lain, ...semua.filter((d) => d.varian !== VARIAN_ASLI && d.label !== "unggahan" && d.skemaId !== skemaId)];
+  const urutan = (d: (typeof semua)[number]) => (d.varian === VARIAN_ASLI ? (d.skemaId === skemaId ? 0 : 1) : d.label === "unggahan" ? 3 : 2);
+  return [...asli, ...lain]
+    .sort((a, b) => urutan(a) - urutan(b) || a.kode.localeCompare(b.kode, "id", { numeric: true }))
+    .map((d) => ({
+      kode: d.kode,
+      nama: d.nama,
+      catatan: d.catatan,
+      unggahan: d.label === "unggahan",
+      unduh: d.varian === VARIAN_ASLI ? "pdf" : adalahVarianContoh(d.varian) ? "docx" : null,
+    }));
 }
 
 /** Langkah 1: siapkan uji (baca unggahan, bekukan butir). Melempar UjiDitolakError untuk masukan yang tidak dapat diuji. */

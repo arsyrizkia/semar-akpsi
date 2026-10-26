@@ -40,6 +40,7 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   const urlKembali = templat ? urlTabAturan(templat, { periodeId: periodeTerpilih?.id }) : `/tim-kerja/aturan?skema=${skemaTerpilih.id}${periodeTerpilih ? `&periode=${periodeTerpilih.id}` : ""}`;
   const [ujiId, contohUji] = await Promise.all([ujiParam ? Promise.resolve(ujiParam) : ujiTerakhir(skemaTerpilih.id, templat ?? null), daftarContohUji(skemaTerpilih.id)]);
   const uji = ujiId ? await ambilHasilUji(ujiId) : null;
+  const formatUnduh = new Map(contohUji.map((c) => [c.kode, c.unduh]));
   const tombolUji = (label: string, varian: "utama" | "sekunder") => (
     <TombolUjiContoh skemaId={skemaTerpilih.id} periodeId={periodeTerpilih?.id ?? null} templatId={templat ?? null} contoh={contohUji} label={label} varian={varian} />
   );
@@ -123,15 +124,15 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                 <TR key={r.dokumenKode}>
                   <TD>
                     <span className="font-semibold">{r.dokumenNama}</span>
-                    {r.dokumenKode.startsWith("contoh-") ? (
+                    {formatUnduh.get(r.dokumenKode) ? (
                       <a
                         href={`/api/semar/contoh/${encodeURIComponent(r.dokumenKode)}/unduh`}
                         download
-                        aria-label={`Unduh .docx: ${r.dokumenNama}`}
+                        aria-label={`Unduh .${formatUnduh.get(r.dokumenKode)}: ${r.dokumenNama}`}
                         className="mt-0.5 flex w-fit items-center gap-1 text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900"
                       >
                         <Download aria-hidden className="size-3.5" />
-                        Unduh .docx
+                        Unduh .{formatUnduh.get(r.dokumenKode)}
                       </a>
                     ) : null}
                   </TD>

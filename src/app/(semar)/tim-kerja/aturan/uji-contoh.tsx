@@ -35,8 +35,8 @@ export interface ContohUji {
   nama: string;
   catatan: string | null;
   unggahan: boolean;
-  /** contoh bawaan: naskahnya dapat diunduh (.docx) untuk dibaca sebelum diuji */
-  bisaUnduh: boolean;
+  /** format naskah yang dapat diunduh untuk dibaca sebelum diuji (PDF asli BIMA atau .docx contoh rekaan); unggahan tidak disimpan berkasnya */
+  unduh: "pdf" | "docx" | null;
 }
 
 interface Log {
@@ -278,7 +278,8 @@ export function TombolUjiContoh({
           <div className="space-y-5">
             {catatan ? <p className="text-sm text-peringatan-700">{catatan}</p> : null}
             <fieldset>
-              <legend className="mb-2 text-sm font-semibold text-primer-800">Contoh yang tersedia</legend>
+              <legend className="text-sm font-semibold text-primer-800">Contoh yang tersedia</legend>
+              <p className="mb-2 mt-0.5 text-xs text-teks-redup">Yang diuji hanya Isian Substansi (bagian A sampai H); halaman depan dan lampiran dari BIMA dilewati.</p>
               {contoh.length ? (
                 <ul className="max-h-48 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
                   {contoh.map((c) => (
@@ -301,15 +302,15 @@ export function TombolUjiContoh({
                         {c.unggahan ? <span className="ml-1.5 rounded-sm bg-abu-100 px-1 text-xs text-abu-700">unggahan</span> : null}
                         {c.catatan && !c.unggahan ? <span className="block text-xs text-teks-redup">{c.catatan}</span> : null}
                       </label>
-                      {c.bisaUnduh ? (
+                      {c.unduh ? (
                         <a
                           href={`/api/semar/contoh/${encodeURIComponent(c.kode)}/unduh`}
                           download
-                          aria-label={`Unduh .docx: ${c.nama}`}
+                          aria-label={`Unduh .${c.unduh}: ${c.nama}`}
                           className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:bg-primer-50 hover:text-primer-900 pointer-coarse:min-h-11"
                         >
                           <Download aria-hidden className="size-3.5" />
-                          Unduh .docx
+                          Unduh .{c.unduh}
                         </a>
                       ) : null}
                     </li>

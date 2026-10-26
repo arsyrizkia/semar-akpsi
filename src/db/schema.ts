@@ -390,6 +390,25 @@ export const dokumenContoh = pgTable("dokumen_contoh", {
 });
 
 /**
+ * PDF contoh proposal BIMA asli untuk "Uji pada Contoh" (keputusan Arsy 26 Okt 2026: empat PDF di data/uji-nyata dipakai sebagai dokumen
+ * uji di produksi). Dimasukkan sekali lewat scripts/unggah-contoh-asli.ts (berkasnya tidak pernah masuk git) dan TIDAK ikut dikosongkan
+ * "Reset & isi data demo"; seed mendaftarkannya ulang ke dokumen_contoh (kode pdf-asli-NN). Aditif, 26 Okt 2026.
+ */
+export const contohAsli = pgTable("contoh_asli", {
+  id: pk(),
+  /** kode dokumen_contoh, mis. pdf-asli-05 */
+  kode: text("kode").notNull().unique(),
+  nama: text("nama").notNull(),
+  /** PD | PT */
+  skemaKode: text("skema_kode").notNull(),
+  namaBerkas: text("nama_berkas").notNull(),
+  tipe: text("tipe").notNull(),
+  ukuran: integer("ukuran").notNull(),
+  bytes: bytea("bytes").notNull(),
+  diunggahPada: waktu("diunggah_pada").defaultNow().notNull(),
+});
+
+/**
  * Satu kali "Uji pada Contoh" (UC-02 langkah 6): butir dan konteks templat dibekukan saat uji dimulai, hasil per dokumen per butir
  * di uji_contoh_hasil. J-03b menampilkan hasil tersimpan (tidak menguji ulang setiap kali dibuka). Aditif, 25 Okt 2026.
  */

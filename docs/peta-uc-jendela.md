@@ -23,7 +23,7 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | J-08b | Keputusan Penilaian | Reviewer | `/reviewer/pemeriksaan/[penugasanId]/keputusan` | UC-07 s.9-12 |
 | BIMA | Halaman BIMA tiruan | Semua (simulasi) | `/bima/masuk`, `/bima/pengajuan` (Unduh Templat), `/bima/kotak-masuk` (ID proposal menaut ke J-05b) | UC-05, API |
 
-Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: naskah contoh bawaan .docx dibangkitkan ulang dengan pembangkit yang sama dengan teks yang diuji; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401).
+Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401).
 
 ## WND prototipe: layar, modal, transisi, pemicu
 
@@ -43,7 +43,7 @@ Modal memakai Dialog `radix-ui` (fokus terjebak, Esc menutup, `aria-labelledby`)
 | J-03 | "Ubah" (butir turunan templat) | M-04 Butir Turunan Templat | modal | pesan 4a; "Buka Templat Proposal" ke J-02, "Tutup" |
 | J-03 | "Nonaktifkan" | M-03 Konfirmasi Nonaktifkan | modal | |
 | J-03 | "Simpan Versi" | M-05 Simpan Versi | modal | 8a ditolak di dalam modal |
-| J-03 | "Uji pada Contoh" | M-15 Uji pada Contoh (pilih contoh tersedia, masing-masing dengan "Unduh .docx" untuk membaca naskahnya, dan/atau unggah .docx/.pdf maks. 3,5 MB; "Jalankan Uji" menampilkan kemajuan: glif berdenyut + kata kerja + detik + persen, bilah persen, butir yang sedang dinilai, log langkah selesai; "Hentikan") lalu J-03b | modal ke layar | |
+| J-03 | "Uji pada Contoh" | M-15 Uji pada Contoh (pilih contoh tersedia: empat PDF asli BIMA lebih dulu, lalu contoh rekaan A/B/C/F, masing-masing dengan "Unduh .pdf"/"Unduh .docx"; yang diuji hanya Isian Substansi A-H, dan/atau unggah .docx/.pdf maks. 3,5 MB; "Jalankan Uji" menampilkan kemajuan: glif berdenyut + kata kerja + detik + persen, bilah persen, butir yang sedang dinilai, log langkah selesai; "Hentikan") lalu J-03b | modal ke layar | |
 | J-03b | kode butir; "Kembali ke Aturan Pemeriksaan"; "Uji Ulang"; "Unduh .docx" (Ringkasan per Contoh, contoh bawaan) | J-03 (baris tersorot); J-03; M-15 lalu J-03b; unduhan | layar; layar; modal; unduhan | |
 | J-03 | "Templat Proposal {skema}"; gembok "templat" pada butir turunan | J-02 (skema yang sama) | layar | |
 | J-03 | "ditandai di Pemantauan" (butir berlabel Perlu ditinjau) | J-05 `?periode=&skema=&butir=` (M-08 butir itu terbuka) | layar + modal | |

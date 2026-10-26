@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import * as s from "@/db/schema";
 import { simpanBerkas } from "./berkas";
+import { daftarkanContohAsli } from "./aturan/contoh-asli";
 import { buatDocx, buatLampiranPdf, hitungKataContoh, susunContoh, type DefinisiContoh, type VarianContoh } from "./contoh/proposal";
 import { turunkanButirDariTemplat } from "./seed-butir";
 import { bagianBawaan, kepalaBawaan, keKolomBagian } from "./templat/isian-substansi";
@@ -309,6 +310,13 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     });
     await kirimKeBima(defF, 5, "pengusul-3", "Draf"); // PRP-2026-0005 tetap, tidak menggeser nomor skenario reviewer (0004)
     nomor = Math.max(nomor, 6);
+  }
+
+  /* PDF contoh BIMA asli (tabel contoh_asli, tidak ikut reset) didaftarkan ulang sebagai dokumen Uji pada Contoh; gagal baca tidak menggagalkan seed */
+  try {
+    await daftarkanContohAsli();
+  } catch (e) {
+    console.error("daftarkanContohAsli", e);
   }
 
   return {
