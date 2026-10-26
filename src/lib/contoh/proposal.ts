@@ -18,6 +18,9 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { PENGANTAR_ISIAN_SUBSTANSI, bagianBawaan, judulBerhuruf, petunjukResmi } from "../templat/isian-substansi";
 
 export type VarianContoh = "a" | "b" | "c" | "d" | "e" | "f";
+const SEMUA_VARIAN: readonly string[] = ["a", "b", "c", "d", "e", "f"];
+/** Varian contoh bawaan (dokumen_contoh.varian); "u" = naskah unggahan. */
+export const adalahVarianContoh = (v: string): v is VarianContoh => SEMUA_VARIAN.includes(v);
 
 export const BAGIAN_CONTOH = ["Judul", "Ringkasan", "Kata Kunci", "Pendahuluan", "Metode", "Hasil yang Diharapkan", "Jadwal Penelitian", "Daftar Pustaka"] as const;
 export const LAMPIRAN_CONTOH = ["Surat Pernyataan Mitra", "Artikel Ketua Pengusul", "Surat Keterangan Mahasiswa Bimbingan"] as const;

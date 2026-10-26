@@ -12,6 +12,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { dokumenContoh, ujiContoh, ujiContohHasil } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
+import { adalahVarianContoh } from "@/lib/contoh/proposal";
 import { nilaiSemantikTeks, periksaDeterministikTeks } from "@/lib/kontrak";
 import type { BagianTemplatDto, ButirCek, DokumenPeriksa, HasilButirDeterministik, HasilButirSemantik, HasilUjiContoh } from "@/lib/kontrak";
 import { nilaiSemantikDenganOpsi } from "@/lib/pemeriksa/semantik/mesin";
@@ -57,12 +58,12 @@ const keDokumenPeriksa = (d: BarisDokumen): DokumenPeriksa => ({
 });
 
 /** Dokumen contoh yang dapat dipilih untuk sebuah skema (contoh skema itu; bila belum ada, semua contoh), urut kode. */
-export async function daftarContohUji(skemaId: string): Promise<{ kode: string; nama: string; catatan: string | null; unggahan: boolean }[]> {
+export async function daftarContohUji(skemaId: string): Promise<{ kode: string; nama: string; catatan: string | null; unggahan: boolean; bisaUnduh: boolean }[]> {
   const db = getDb();
   let baris = await db.select().from(dokumenContoh).where(eq(dokumenContoh.skemaId, skemaId));
   if (baris.length === 0) baris = await db.select().from(dokumenContoh);
   return baris
-    .map((d) => ({ kode: d.kode, nama: d.nama, catatan: d.catatan, unggahan: d.label === "unggahan" }))
+    .map((d) => ({ kode: d.kode, nama: d.nama, catatan: d.catatan, unggahan: d.label === "unggahan", bisaUnduh: adalahVarianContoh(d.varian) }))
     .sort((a, b) => Number(a.unggahan) - Number(b.unggahan) || a.kode.localeCompare(b.kode));
 }
 

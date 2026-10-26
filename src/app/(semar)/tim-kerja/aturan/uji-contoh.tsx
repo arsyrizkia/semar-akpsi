@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, FileUp, X } from "lucide-react";
+import { AlertTriangle, Check, Download, FileUp, X } from "lucide-react";
 import { Button, Checkbox, Modal } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { aksiMulaiUji, aksiSelesaikanUji, aksiUjiDeterministik } from "./uji/aksi";
@@ -35,6 +35,8 @@ export interface ContohUji {
   nama: string;
   catatan: string | null;
   unggahan: boolean;
+  /** contoh bawaan: naskahnya dapat diunduh (.docx) untuk dibaca sebelum diuji */
+  bisaUnduh: boolean;
 }
 
 interface Log {
@@ -294,11 +296,22 @@ export function TombolUjiContoh({
                         }
                         className="mt-0.5"
                       />
-                      <label htmlFor={`contoh-${c.kode}`} className="cursor-pointer text-sm">
+                      <label htmlFor={`contoh-${c.kode}`} className="min-w-0 flex-1 cursor-pointer text-sm">
                         <span className="text-primer-900">{c.nama}</span>
                         {c.unggahan ? <span className="ml-1.5 rounded-sm bg-abu-100 px-1 text-xs text-abu-700">unggahan</span> : null}
                         {c.catatan && !c.unggahan ? <span className="block text-xs text-teks-redup">{c.catatan}</span> : null}
                       </label>
+                      {c.bisaUnduh ? (
+                        <a
+                          href={`/api/semar/contoh/${encodeURIComponent(c.kode)}/unduh`}
+                          download
+                          aria-label={`Unduh .docx: ${c.nama}`}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:bg-primer-50 hover:text-primer-900 pointer-coarse:min-h-11"
+                        >
+                          <Download aria-hidden className="size-3.5" />
+                          Unduh .docx
+                        </a>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

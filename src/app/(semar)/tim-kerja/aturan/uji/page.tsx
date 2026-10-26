@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { Alert, Badge, Bagian, BarKeyakinan, KeadaanKosong, KepalaHalaman, kelasTombol, LencanaStatus, Table, TBody, TD, TH, THead, TR } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
 import { urlTabAturan } from "@/lib/templat/daftar";
@@ -120,7 +121,20 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
             <TBody>
               {ringkasan.map((r) => (
                 <TR key={r.dokumenKode}>
-                  <TD className="font-semibold">{r.dokumenNama}</TD>
+                  <TD>
+                    <span className="font-semibold">{r.dokumenNama}</span>
+                    {r.dokumenKode.startsWith("contoh-") ? (
+                      <a
+                        href={`/api/semar/contoh/${encodeURIComponent(r.dokumenKode)}/unduh`}
+                        download
+                        aria-label={`Unduh .docx: ${r.dokumenNama}`}
+                        className="mt-0.5 flex w-fit items-center gap-1 text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900"
+                      >
+                        <Download aria-hidden className="size-3.5" />
+                        Unduh .docx
+                      </a>
+                    ) : null}
+                  </TD>
                   <TD angka>{r.lolos}</TD>
                   <TD angka className={r.gagal > 0 ? "font-semibold text-bata-700" : undefined}>
                     {r.gagal}
