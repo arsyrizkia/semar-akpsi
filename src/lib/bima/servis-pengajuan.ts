@@ -6,11 +6,11 @@
  * karena BIMA tiruan berbagi satu basis data dengan SEMAR dan tidak memiliki katalog skema sendiri. Lampiran wajib dan templat
  * lampirannya milik BIMA (src/lib/bima/lampiran.ts), bukan templat SEMAR.
  */
-import { and, desc, eq, like } from "drizzle-orm";
+import { and, desc, eq, inArray, like } from "drizzle-orm";
 import { lampiranWajibSkema } from "./lampiran";
 import { getDb } from "@/db";
 import { ambilPeriodeBerjalanId } from "@/lib/waktu";
-import { bimaBerkas, bimaProposal, skemaPendanaan, templatProposal } from "@/db/schema";
+import { bimaBerkas, bimaKotakMasuk, bimaProposal, skemaPendanaan, templatProposal } from "@/db/schema";
 import { simpanBerkas } from "../berkas";
 
 export interface OpsiSkemaBima {
@@ -122,4 +122,37 @@ export async function simpanUsulanBima(m: MasukanUsulan): Promise<{ idProposal: 
     await simpanBerkas({ ruang: "bima", nama: berkas.nama, tipe: berkas.tipe, bytes: berkas.bytes, peran: "lampiran", proposalId: id, namaLampiran });
   }
   return { idProposal: id };
+}
+
+/** Hasil penilaian administrasi yang diterima BIMA dari SEMAR untuk satu usulan (keputusan reviewer terbaru). */
+export interface HasilPenilaianBima {
+  memenuhi: number;
+  jumlahKomponen: number;
+  tidakMemenuhi: string[];
+  umpanBalik: string;
+  diterimaPada: Date;
+}
+
+/** Keputusan reviewer terbaru per usulan dari kotak masuk BIMA (tampil di halaman pengajuan pengusul). */
+export async function hasilPenilaianUsulan(idProposal: string[]): Promise<Map<string, HasilPenilaianBima>> {
+  const hasil = new Map<string, HasilPenilaianBima>();
+  if (!idProposal.length) return hasil;
+  const baris = await getDb()
+    .select()
+    .from(bimaKotakMasuk)
+    .where(and(eq(bimaKotakMasuk.jenis, "keputusan"), inArray(bimaKotakMasuk.idProposal, idProposal)))
+    .orderBy(desc(bimaKotakMasuk.diterimaPada));
+  for (const b of baris) {
+    if (!b.idProposal || hasil.has(b.idProposal)) continue;
+    const p = b.payload as { komponen?: { komponen: string; keputusan: string }[]; umpanBalik?: string };
+    const komponen = p.komponen ?? [];
+    hasil.set(b.idProposal, {
+      memenuhi: komponen.filter((k) => k.keputusan === "Memenuhi").length,
+      jumlahKomponen: komponen.length,
+      tidakMemenuhi: komponen.filter((k) => k.keputusan !== "Memenuhi").map((k) => k.komponen),
+      umpanBalik: p.umpanBalik ?? "",
+      diterimaPada: b.diterimaPada,
+    });
+  }
+  return hasil;
 }

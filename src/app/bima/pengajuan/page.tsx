@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { wajibPengusulBima } from "@/lib/bima/sesi";
-import { ambilUsulanPengusul, daftarSkemaBima, daftarUsulanPengusul } from "@/lib/bima/servis-pengajuan";
+import { ambilUsulanPengusul, daftarSkemaBima, daftarUsulanPengusul, hasilPenilaianUsulan } from "@/lib/bima/servis-pengajuan";
 import { susunContoh } from "@/lib/contoh/proposal";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { FormPengajuan } from "./form-pengajuan";
@@ -22,7 +22,7 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
   const q = await searchParams;
   const [usulan, skema] = await Promise.all([daftarUsulanPengusul(akun.idBima), daftarSkemaBima()]);
   const terpilih = q.proposal ? await ambilUsulanPengusul(akun.idBima, q.proposal) : null;
-  const pengaturan = await ambilPengaturanDemo();
+  const [pengaturan, hasilPenilaian] = await Promise.all([ambilPengaturanDemo(), hasilPenilaianUsulan(usulan.map((u) => u.id))]);
   const judulPerbaikan = susunContoh("e").judul;
   const tampilForm = terpilih ? terpilih.statusBima !== "Terkirim" : q.baru === "1" || usulan.length === 0;
 
@@ -60,6 +60,7 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
                   <th scope="col" className="px-3 py-2 font-semibold">ID Proposal</th>
                   <th scope="col" className="px-3 py-2 font-semibold">Judul</th>
                   <th scope="col" className="px-3 py-2 font-semibold">Status</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Hasil penilaian</th>
                   <th scope="col" className="px-3 py-2 font-semibold">Tindakan</th>
                 </tr>
               </thead>
@@ -70,6 +71,24 @@ export default async function Pengajuan({ searchParams }: { searchParams: Promis
                     <td className="px-3 py-2 align-top">{u.judul}</td>
                     <td className="px-3 py-2 align-top">
                       <span className="border border-slate-400 bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800">{u.statusBima}</span>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      {(() => {
+                        const h = hasilPenilaian.get(u.id);
+                        if (!h) return <span className="text-slate-500">{u.statusBima === "Terkirim" ? "Menunggu penilaian reviewer" : "-"}</span>;
+                        return (
+                          <details>
+                            <summary className="cursor-pointer font-semibold text-slate-900">
+                              {h.memenuhi} dari {h.jumlahKomponen} komponen Memenuhi
+                            </summary>
+                            <div className="mt-1 space-y-1 text-xs text-slate-700">
+                              {h.tidakMemenuhi.length ? <p>Tidak memenuhi: {h.tidakMemenuhi.join("; ")}.</p> : null}
+                              {h.umpanBalik ? <p>Umpan balik reviewer: {h.umpanBalik}</p> : null}
+                              <p className="text-slate-500">Diterima dari SEMAR {h.diterimaPada.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}.</p>
+                            </div>
+                          </details>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 align-top">
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
