@@ -2,7 +2,10 @@
  * Aturan murni J-04 (UC-03 langkah 1): kapan periode masuk daftar penugasan dan bagaimana status penetapannya diringkas.
  */
 
-/** Periode masuk daftar J-04 bila sakelar masa pengusulan "ditutup" dan tanggal tutupnya sudah lewat menurut jam demo. */
+/**
+ * Periode masuk daftar J-04 bila tanggal tutupnya sudah lewat menurut jam demo; sakelar masa pengusulan "berjalan" hanya berlaku bagi
+ * periode berjalan (`masaBerjalan` = sakelar berjalan DAN periode ini periode berjalan, lihat masaBerjalanUntuk).
+ */
 export function periodeDitutup(p: { tanggalTutup: Date; sekarang: Date; masaBerjalan: boolean }): boolean {
   return !p.masaBerjalan && p.tanggalTutup.getTime() <= p.sekarang.getTime();
 }

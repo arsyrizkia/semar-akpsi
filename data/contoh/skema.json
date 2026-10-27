@@ -1,21 +1,29 @@
 {
   "label": "struktur templat mengikuti Isian Substansi Proposal",
   "skema": [
-    { "kode": "PD", "namaSkema": "Penelitian Dasar", "deskripsi": "Skema pendanaan penelitian dasar; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)." },
-    { "kode": "PT", "namaSkema": "Penelitian Terapan", "deskripsi": "Skema pendanaan penelitian terapan; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)." }
+    {
+      "kode": "PD",
+      "namaSkema": "Penelitian Dasar",
+      "deskripsi": "Skema pendanaan penelitian dasar; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)."
+    },
+    {
+      "kode": "PT",
+      "namaSkema": "Penelitian Terapan",
+      "deskripsi": "Skema pendanaan penelitian terapan; struktur templat mengikuti Isian Substansi Proposal (bagian A-H)."
+    }
   ],
   "periode": {
     "tahun": 2026,
-    "nama": "Seleksi Pendanaan 2026 (contoh sementara)",
-    "bukaHariRelatif": -21,
-    "tutupHariRelatif": 14,
-    "batasBebanReviewer": 2
+    "nama": "Seleksi Pendanaan 2026",
+    "bukaHariRelatif": -150,
+    "tutupHariRelatif": -40,
+    "batasBebanReviewer": 45
   },
   "periodeBerikut": {
     "tahun": 2027,
-    "nama": "Seleksi Pendanaan 2027 (contoh sementara)",
-    "buka": "2027-03-01",
-    "tutup": "2027-04-30",
+    "nama": "Seleksi Pendanaan 2027",
+    "bukaHariRelatif": -14,
+    "tutupHariRelatif": 21,
     "batasBebanReviewer": 2
   }
 }

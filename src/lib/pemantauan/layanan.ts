@@ -14,7 +14,7 @@ import { pilahButirDitandai } from "./status-butir";
 import { rekapKemajuan, type HasilKemajuan } from "./kemajuan";
 import { rekapKesesuaian, type ContohGagal, type ContohRincian, type HasilRekap, type SelGagal, type SelSemantik } from "./rekap";
 
-/** Periode J-05: periode biasa yang sudah dibuka, ditambah periode Simulasi Contoh (1.200 proposal; uji beban 10.000 tetap dikecualikan). */
+/** Periode J-05: Seleksi Pendanaan 2026 (1.200 proposal) dan 2027 (alur end-to-end) yang sudah dibuka; periode simulasi lama dikecualikan. */
 export async function daftarPeriode() {
   return getDb()
     .select()

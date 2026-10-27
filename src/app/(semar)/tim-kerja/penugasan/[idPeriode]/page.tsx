@@ -16,7 +16,7 @@ import { TombolTetapkan } from "./tombol-tetapkan";
 
 export const metadata: Metadata = { title: "J-04b Usulan Penugasan" };
 export const dynamic = "force-dynamic";
-/** Susun dan Tetapkan pada skala 10.000 proposal berjalan sebagai server action halaman ini. */
+/** Susun dan Tetapkan ribuan proposal berjalan sebagai server action halaman ini. */
 export const maxDuration = 300;
 
 type Param = Promise<{ idPeriode: string }>;

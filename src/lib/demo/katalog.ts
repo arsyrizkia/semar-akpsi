@@ -66,9 +66,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/templat",
     skenario: [
-      { id: "normal", nama: "Templat berlaku", ringkas: "Skema PD punya templat Aktif; masa pengusulan ditutup (Terbitkan berakhir di jalur utama)." },
+      { id: "normal", nama: "Templat berlaku", ringkas: "Skema PD punya templat Aktif; masa pengusulan 2027 ditutup lewat sakelar (Terbitkan berakhir di jalur utama). Nyalakan lagi sakelar untuk alur 2027." },
       { id: "tanpa-templat", nama: "Skema belum punya templat (S-1)", ringkas: "Skema PK tanpa templat; Templat Baru membuat versi 1." },
-      { id: "masa-berjalan", nama: "Masa pengusulan berjalan (9a)", ringkas: "Terbitkan untuk periode berjalan menyimpan templat sebagai draf; periode 2027 tidak terpengaruh." },
+      { id: "masa-berjalan", nama: "Masa pengusulan berjalan (9a)", ringkas: "Masa pengusulan 2027 berjalan: Terbitkan untuk periode 2027 menyimpan templat sebagai draf." },
       { id: "draf-tersimpan", nama: "Draf tersimpan", ringkas: "Draf versi berikutnya sudah ada dan dibuka kembali." },
     ],
   },
@@ -125,13 +125,10 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     alamatPindah: "/tim-kerja/penugasan",
     bawaan: "siap",
     skenario: [
-      { id: "kosong", nama: "Kosong", ringkas: "Tidak ada proposal Terkirim yang perlu ditugaskan dan tidak ada usulan yang menunggu penetapan." },
-      { id: "siap", nama: "1.200 proposal siap disusun", ringkas: "1.200 proposal Terkirim dari 14 institusi, 30 reviewer bersedia, batas beban 45; belum ada usulan.", mendaratDi: "J-04b" },
-      { id: "siap-kecil", nama: "Proposal Terkirim siap disusun (kecil)", ringkas: "Enam proposal Terkirim, masa ditutup; belum ada usulan." },
+      { id: "siap", nama: "1.200 proposal siap disusun", ringkas: "Periode 2026: 1.200 proposal Terkirim dari 14 institusi, 30 reviewer bersedia, batas beban 45; belum ada usulan.", mendaratDi: "J-04b" },
       { id: "menunggu", nama: "Usulan menunggu penetapan (1.200)", ringkas: "1.200 usulan (batas beban 45) sudah disusun, belum ditetapkan.", mendaratDi: "J-04b" },
       { id: "kekurangan", nama: "Kekurangan reviewer (S-1)", ringkas: "Batas beban 35 untuk 1.200 proposal; Susun ditekan otomatis, panel S-1 menyarankan batas yang cukup.", mendaratDi: "J-04b" },
       { id: "ditetapkan", nama: "Sudah ditetapkan (1.200)", ringkas: "1.200 penugasan ditetapkan dan tercatat di kotak masuk BIMA.", mendaratDi: "J-04b" },
-      { id: "skala", nama: "Uji beban: 10.000 proposal", ringkas: "Simulasi 10.000 proposal Terkirim pada periode ditutup, ±130 reviewer dari 40 institusi, batas beban 100." },
     ],
   },
   {
@@ -149,7 +146,6 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
       { id: "menunggu", nama: "Usulan menunggu penetapan (1.200)", ringkas: "1.200 usulan sudah disusun, belum ditetapkan." },
       { id: "kekurangan", nama: "Kekurangan reviewer (S-1)", ringkas: "Batas beban 35: panel Kekurangan Reviewer dengan saran batas tampil." },
       { id: "ditetapkan", nama: "Sudah ditetapkan (1.200)", ringkas: "Penugasan ditetapkan dan tercatat di kotak masuk BIMA." },
-      { id: "siap-kecil", nama: "Enam proposal siap disusun", ringkas: "Enam proposal Terkirim; belum ada usulan; batas beban 3." },
     ],
   },
   {
@@ -163,8 +159,6 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     bawaan: "bermasalah",
     skenario: [
       ...ID_SKENARIO_PEMANTAUAN.map((id) => ({ id, nama: SKENARIO_PEMANTAUAN[id].nama, ringkas: SKENARIO_PEMANTAUAN[id].ringkas })),
-      { id: "contoh", nama: "Data kecil periode utama", ringkas: "Periode 2026 contoh: dua proposal Ditahan dan satu penilaian Final dengan tiga koreksi." },
-      { id: "belum-final", nama: "Belum ada penilaian final", ringkas: "Periode 2026 contoh tanpa penilaian final; hanya gagal saat pengajuan yang terisi." },
     ],
   },
   {
@@ -176,7 +170,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     peranSesi: "tim_kerja",
     akunBawaan: "dppm-pengelola",
     alamatPindah: "/tim-kerja/pemantauan",
-    skenario: [{ id: "contoh", nama: "Proposal dengan penilaian dan koreksi", ringkas: "Data pemantauan contoh; rincian PRP-2026-0004 dibuka." }],
+    skenario: [{ id: "contoh", nama: "Rincian proposal contoh 2026", ringkas: "Rincian PRP-2026-0004 (periode 2026) dibuka." }],
   },
   {
     kode: "J-06",
@@ -204,7 +198,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     bawaan: "baru",
     skenario: [
       { id: "kosong", nama: "Kosong", ringkas: "Reviewer tanpa penugasan." },
-      { id: "baru", nama: "Ada penugasan Baru", ringkas: "PRP-2026-0004 berlabel Baru." },
+      { id: "baru", nama: "Ada penugasan Baru", ringkas: "PRP-2026-0004 (periode 2026) berlabel Baru; penugasan periode 2027 tetap ada." },
       { id: "draf", nama: "Ada penugasan Draf", ringkas: "Penilaian sebagian tersimpan; label Draf." },
       { id: "selesai", nama: "Semua Selesai", ringkas: "Penilaian final tersimpan dan terkirim ke BIMA; label Selesai." },
     ],
@@ -247,9 +241,9 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     akunBawaan: "pengusul-1",
     alamatPindah: "/bima/pengajuan",
     skenario: [
-      { id: "lolos", nama: "Draf lolos semua butir", ringkas: "PRP-2026-0001; masa berjalan; Ajukan Usulan menghasilkan Terkirim." },
-      { id: "ditahan", nama: "Draf ditahan lalu diperbaiki", ringkas: "PRP-2026-0002; Metode melebihi batas; Ajukan ulang dengan naskah perbaikan." },
-      { id: "ditolak", nama: "Draf ditahan lalu ditolak", ringkas: "PRP-2026-0003; tutup masa di BIMA lalu Ajukan ulang (Ditolak)." },
+      { id: "lolos", nama: "Draf lolos semua butir", ringkas: "PRP-2027-0001; masa 2027 berjalan; Ajukan Usulan menghasilkan Terkirim." },
+      { id: "ditahan", nama: "Draf ditahan lalu diperbaiki", ringkas: "PRP-2027-0002; Metode melebihi batas; Ajukan ulang dengan naskah perbaikan." },
+      { id: "ditolak", nama: "Draf ditahan lalu ditolak", ringkas: "PRP-2027-0003; tutup masa di BIMA lalu Ajukan ulang (Ditolak)." },
     ],
   },
   {

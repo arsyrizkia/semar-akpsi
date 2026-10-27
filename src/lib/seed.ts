@@ -14,6 +14,8 @@ import { bagianBawaan, kepalaBawaan, keKolomBagian, lengkapiBagian } from "./tem
 import { ekstrakNaskah } from "./pengajuan/ekstraksi";
 import { sisipkanPenandaGambar } from "./pengajuan/gambar";
 import { hitungTenggat } from "./penilaian/masa";
+import { pasangSkenarioPemantauan } from "./demo/pemantauan";
+import { NAMA_PERIODE_2026, NAMA_PERIODE_2027 } from "./demo/profil-skala";
 import { pastikanTabelGambarNaskah, pemilikContoh, pemilikVersi, simpanGambarNaskah } from "./pengajuan/gambar-simpan";
 import { potongPerBagian } from "./pengajuan/potong";
 import akunJson from "../../data/contoh/akun.json";
@@ -25,6 +27,8 @@ export interface OpsiSeed {
   reset?: boolean;
   /** Sertakan proposal yang sudah Terkirim + penugasan ke reviewer (bahan pengembangan B dan D). Bawaan: true. */
   skenarioReviewer?: boolean;
+  /** Bangun 1.200 proposal periode 2026 beserta data pemantauan (±1 menit). Bawaan: true. */
+  data2026?: boolean;
 }
 
 const TABEL_RESET = [
@@ -54,8 +58,9 @@ async function simpanGambarDocx(pemilik: string, docx: Uint8Array, teksPerBagian
   }
 }
 
-function idProposalBima(n: number) {
-  return `PRP-2026-${String(n).padStart(4, "0")}`;
+/** Nomor usulan BIMA per tahun periode: PRP-2027-0001 dst. (draf pengusul contoh), PRP-2026-0004 (proposal contoh reviewer-2). */
+function idProposalBima(n: number, tahun = 2027) {
+  return `PRP-${tahun}-${String(n).padStart(4, "0")}`;
 }
 
 export async function jalankanSeed(opsi: OpsiSeed = {}) {
@@ -111,101 +116,114 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       })),
   );
 
-  /* skema, periode */
+  /* skema, periode: hanya dua periode. 2026 sudah ditutup (1.200 proposal, penugasan dan pemantauan); 2027 sedang dibuka (alur
+     end-to-end dari pengajuan sampai hasil). Nanti periode ditarik dari BIMA; untuk prototipe cukup seed. */
   const skemaBaris = await db
     .insert(s.skemaPendanaan)
     .values(skemaJson.skema.map((x) => ({ kode: x.kode, namaSkema: x.namaSkema, deskripsi: x.deskripsi })))
     .returning();
-  const [periode] = await db
+  const [periode, periode2027] = await db
     .insert(s.periodeSeleksi)
-    .values({
-      tahun: skemaJson.periode.tahun,
-      nama: skemaJson.periode.nama,
-      tanggalBuka: hari(skemaJson.periode.bukaHariRelatif),
-      tanggalTutup: hari(skemaJson.periode.tutupHariRelatif),
-      batasBebanReviewer: skemaJson.periode.batasBebanReviewer,
-    })
+    .values([
+      {
+        tahun: 2026,
+        nama: NAMA_PERIODE_2026,
+        tanggalBuka: hari(skemaJson.periode.bukaHariRelatif),
+        tanggalTutup: hari(skemaJson.periode.tutupHariRelatif),
+        batasBebanReviewer: skemaJson.periode.batasBebanReviewer,
+      },
+      {
+        tahun: 2027,
+        nama: NAMA_PERIODE_2027,
+        tanggalBuka: hari(skemaJson.periodeBerikut.bukaHariRelatif),
+        tanggalTutup: hari(skemaJson.periodeBerikut.tutupHariRelatif),
+        batasBebanReviewer: skemaJson.periodeBerikut.batasBebanReviewer,
+      },
+    ])
     .returning();
-  /* periode berikutnya (2027): belum dibuka; hanya muncul di pilihan Periode Berlaku templat dan penyaring Tahun */
-  const pb = skemaJson.periodeBerikut;
-  if (pb) {
-    await db.insert(s.periodeSeleksi).values({ tahun: pb.tahun, nama: pb.nama, tanggalBuka: new Date(`${pb.buka}T00:00:00+07:00`), tanggalTutup: new Date(`${pb.tutup}T23:59:59+07:00`), batasBebanReviewer: pb.batasBebanReviewer });
-  }
 
-  /* templat terbit + basis aturan + butir */
+  /* templat terbit + basis aturan + butir, satu pasang per periode (2026 versi 1, 2027 versi 2; versi basis unik per skema) */
   const pengelolaId = akunId("dppm-pengelola");
   const templatBaris: Record<string, string> = {};
   const basisBaris: Record<string, string> = {};
+  const PER_PERIODE = [
+    { p: periode, versi: 1, terbit: skemaJson.periode.bukaHariRelatif - 10, berlaku: skemaJson.periode.bukaHariRelatif - 1 },
+    { p: periode2027, versi: 2, terbit: skemaJson.periodeBerikut.bukaHariRelatif - 6, berlaku: skemaJson.periodeBerikut.bukaHariRelatif - 1 },
+  ];
   for (const sk of skemaBaris) {
     const skemaIsian = sk.kode === "PT" ? "terapan" : "dasar";
     const bagian = bagianBawaan(skemaIsian);
     const kepala = kepalaBawaan(skemaIsian);
-    const [t] = await db
-      .insert(s.templatProposal)
-      .values({
-        skemaId: sk.id,
-        versi: 1,
-        status: "Terbit",
-        periodeBerlakuId: periode.id,
-        diterbitkanPada: hari(-30),
-        dibuatOleh: pengelolaId,
-        judulDokumen: kepala.judulDokumen,
-        subjudul: kepala.subjudul,
-        pengantar: kepala.pengantar,
-      })
-      .returning();
-    templatBaris[sk.kode] = t.id;
-    await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, ...keKolomBagian(b) })));
+    for (const pp of PER_PERIODE) {
+      const [t] = await db
+        .insert(s.templatProposal)
+        .values({
+          skemaId: sk.id,
+          versi: pp.versi,
+          status: "Terbit",
+          periodeBerlakuId: pp.p.id,
+          diterbitkanPada: hari(pp.terbit),
+          dibuatOleh: pengelolaId,
+          judulDokumen: kepala.judulDokumen,
+          subjudul: kepala.subjudul,
+          pengantar: kepala.pengantar,
+        })
+        .returning();
+      await db.insert(s.bagianTemplat).values(bagian.map((b, i) => ({ templatId: t.id, urutan: i + 1, ...keKolomBagian(b) })));
 
-    const [basis] = await db
-      .insert(s.basisAturan)
-      .values({
-        kode: `BA-${sk.kode}`,
-        nama: `Basis Aturan ${sk.namaSkema} (contoh sementara)`,
-        skemaId: sk.id,
-        periodeId: periode.id,
-        versi: 1,
-        tanggalBerlaku: hari(skemaJson.periode.bukaHariRelatif - 1),
-        dibuatOleh: pengelolaId,
-      })
-      .returning();
-    basisBaris[sk.kode] = basis.id;
+      const [basis] = await db
+        .insert(s.basisAturan)
+        .values({
+          kode: `BA-${sk.kode}-${pp.p.tahun}`,
+          nama: `Basis Aturan ${sk.namaSkema} ${pp.p.tahun}`,
+          skemaId: sk.id,
+          periodeId: pp.p.id,
+          versi: pp.versi,
+          tanggalBerlaku: hari(pp.berlaku),
+          dibuatOleh: pengelolaId,
+        })
+        .returning();
+      if (pp.p.id === periode.id) {
+        templatBaris[sk.kode] = t.id;
+        basisBaris[sk.kode] = basis.id;
+      }
 
-    const turunan = turunkanButirDariTemplat(bagian);
-    const butir = [
-      ...turunan.map((b) => ({ ...b, templatId: t.id })),
-      ...katalogJson.butir.map((b) => ({
-        kode: b.kode,
-        deskripsi: b.deskripsi,
-        jenis: b.jenis as "deterministik" | "semantik",
-        asal: "manual" as const,
-        komponen: b.komponen,
-        pemeriksa: b.pemeriksa,
-        parameter: b.parameter as Record<string, unknown>,
-        aturanHitung: (b as { aturanHitung?: string }).aturanHitung ?? null,
-        pertanyaan: (b as { pertanyaan?: string }).pertanyaan ?? null,
-        contohJawaban: (b as { contohJawaban?: string }).contohJawaban ?? null,
-        templatId: null as string | null,
-      })),
-    ];
-    await db.insert(s.butirCek).values(
-      butir.map((b, i) => ({
-        basisAturanId: basis.id,
-        templatId: b.templatId,
-        kode: b.kode,
-        deskripsi: b.deskripsi,
-        jenis: b.jenis,
-        asal: b.asal,
-        komponen: b.komponen,
-        pemeriksa: b.pemeriksa,
-        parameter: b.parameter as Record<string, unknown>,
-        aturanHitung: b.aturanHitung,
-        pertanyaan: b.pertanyaan,
-        contohJawaban: b.contohJawaban,
-        status: "Aktif" as const,
-        urutan: i + 1,
-      })),
-    );
+      const turunan = turunkanButirDariTemplat(bagian);
+      const butir = [
+        ...turunan.map((b) => ({ ...b, templatId: t.id })),
+        ...katalogJson.butir.map((b) => ({
+          kode: b.kode,
+          deskripsi: b.deskripsi,
+          jenis: b.jenis as "deterministik" | "semantik",
+          asal: "manual" as const,
+          komponen: b.komponen,
+          pemeriksa: b.pemeriksa,
+          parameter: b.parameter as Record<string, unknown>,
+          aturanHitung: (b as { aturanHitung?: string }).aturanHitung ?? null,
+          pertanyaan: (b as { pertanyaan?: string }).pertanyaan ?? null,
+          contohJawaban: (b as { contohJawaban?: string }).contohJawaban ?? null,
+          templatId: null as string | null,
+        })),
+      ];
+      await db.insert(s.butirCek).values(
+        butir.map((b, i) => ({
+          basisAturanId: basis.id,
+          templatId: b.templatId,
+          kode: b.kode,
+          deskripsi: b.deskripsi,
+          jenis: b.jenis,
+          asal: b.asal,
+          komponen: b.komponen,
+          pemeriksa: b.pemeriksa,
+          parameter: b.parameter as Record<string, unknown>,
+          aturanHitung: b.aturanHitung,
+          pertanyaan: b.pertanyaan,
+          contohJawaban: b.contohJawaban,
+          status: "Aktif" as const,
+          urutan: i + 1,
+        })),
+      );
+    }
   }
 
   /* dokumen contoh (Uji pada Contoh) + proposal di BIMA */
@@ -237,8 +255,8 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     await db.update(s.dokumenContoh).set({ teksPerBagian: teks }).where(sql`${s.dokumenContoh.kode} = ${`contoh-${x.v}`}`);
   }
 
-  async function kirimKeBima(def: DefinisiContoh, n: number, pengusulIdBima: string, statusBima: string) {
-    const id = idProposalBima(n);
+  async function kirimKeBima(def: DefinisiContoh, n: number, pengusulIdBima: string, statusBima: string, tahun = 2027) {
+    const id = idProposalBima(n, tahun);
     await db.insert(s.bimaProposal).values({ id, judul: def.judul, skemaKode: "PD", pengusulIdBima, statusBima, kataKunci: def.kataKunci });
     const naskah = await simpanBerkas({ ruang: "bima", nama: `${id}-proposal.docx`, tipe: DOCX, bytes: await buatDocx(def), peran: "naskah", proposalId: id });
     await db.update(s.bimaProposal).set({ naskahBerkasId: naskah.id }).where(sql`${s.bimaProposal.id} = ${id}`);
@@ -248,6 +266,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     return id;
   }
 
+  /* draf pengusul contoh periode 2027 (alur end-to-end): PRP-2027-0001 A, 0002 B, 0003 C, 0004 F */
   let nomor = 1;
   for (const x of varian) await kirimKeBima(definisi[x.v], nomor++, x.pengusul!, "Draf");
 
@@ -255,10 +274,12 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
   let skenario: Record<string, string> | null = null;
   if (skenarioReviewer) {
     const def = susunContoh("d");
-    const idBima = await kirimKeBima(def, nomor++, "pengusul-1", "Terkirim");
+    // periode 2026 (sudah ditutup): diajukan sebelum tanggal tutupnya
+    const idBima = await kirimKeBima(def, 4, "pengusul-1", "Terkirim", 2026);
+    const diajukan = hari(skemaJson.periode.tutupHariRelatif - 5);
     const [p] = await db
       .insert(s.proposal)
-      .values({ idProposal: idBima, judul: def.judul, skemaId: skemaPD.id, periodeId: periode.id, pengusulId: akunId("pengusul-1"), status: "Terkirim", waktuTerkirim: hari(-5) })
+      .values({ idProposal: idBima, judul: def.judul, skemaId: skemaPD.id, periodeId: periode.id, pengusulId: akunId("pengusul-1"), status: "Terkirim", waktuTerkirim: diajukan })
       .returning();
     const docxD = await buatDocx(def);
     const berkasSemar = await simpanBerkas({ ruang: "semar", nama: `${idBima}-V1.docx`, tipe: DOCX, bytes: docxD, peran: "naskah" });
@@ -278,7 +299,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
         judulBagianDitemukan: Object.keys(def.bagian),
         judulDokumen: def.judul,
         statusPemeriksaan: "Selesai",
-        waktu: hari(-5),
+        waktu: diajukan,
       })
       .returning();
     const teksD = await simpanGambarDocx(pemilikVersi(v.id), docxD, def.bagian);
@@ -316,7 +337,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
       .insert(s.penugasanReviewer)
       .values({ proposalId: p.id, versiId: v.id, reviewerId: akunId("reviewer-2"), periodeId: periode.id, status: "Ditetapkan", label: "Baru" })
       .returning();
-    // penugasan contoh ditetapkan hari ini: masa penilaian periode utama dimulai, tenggat akhir hari ke-7 (WIB)
+    // masa penilaian 2026 dimulai (tenggat akhir hari ke-7, WIB); data 1.200 di akhir seed menggesernya ke hari ke-5
     await db.update(s.periodeSeleksi).set({ mulaiPenilaian: new Date(), batasPenilaian: hitungTenggat(new Date(), 7) }).where(sql`${s.periodeSeleksi.id} = ${periode.id}`);
     skenario = { idProposal: idBima, proposalId: p.id, versiId: v.id, penugasanId: pn.id, reviewer: "reviewer-2" };
   }
@@ -340,9 +361,11 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     });
     const teksF = await simpanGambarDocx(pemilikContoh("contoh-f"), await buatDocx(defF), defF.bagian);
     await db.update(s.dokumenContoh).set({ teksPerBagian: teksF }).where(sql`${s.dokumenContoh.kode} = ${"contoh-f"}`);
-    await kirimKeBima(defF, 5, "pengusul-3", "Draf"); // PRP-2026-0005 tetap, tidak menggeser nomor skenario reviewer (0004)
-    nomor = Math.max(nomor, 6);
+    await kirimKeBima(defF, nomor++, "pengusul-3", "Draf"); // PRP-2027-0004
   }
+
+  /* periode 2026: 1.200 proposal (profil contoh1200) dalam keadaan J-05 bawaan "bermasalah" (masa penilaian hari ke-5) */
+  if (opsi.data2026 !== false) await pasangSkenarioPemantauan("bermasalah");
 
   /* PDF contoh BIMA asli (tabel contoh_asli, tidak ikut reset) didaftarkan ulang sebagai dokumen Uji pada Contoh; gagal baca tidak menggagalkan seed */
   try {
@@ -355,7 +378,7 @@ export async function jalankanSeed(opsi: OpsiSeed = {}) {
     skema: skemaBaris.length,
     periodeId: periode.id,
     akun: akunSemar.length,
-    proposalBima: nomor - 1,
+    proposalBima: nomor - 1 + (skenarioReviewer ? 1 : 0),
     skenarioReviewer: skenario,
   };
 }

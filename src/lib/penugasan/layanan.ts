@@ -9,7 +9,7 @@ import { akun, penugasanReviewer, periodeSeleksi, proposal, versiProposal } from
 import { pastikanAkunMassal } from "@/lib/auth";
 import { bima, BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
-import { ambilPeriodeAktif, masaPengusulanBerjalan, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
+import { ambilPeriodeAktif, ambilPeriodeBerjalanId, masaBerjalanUntuk, masaPengusulanBerjalan, periodeSudahDibuka, waktuDemo } from "@/lib/waktu";
 import { dalamKumpulanPeriode } from "@/lib/demo/profil-skala";
 import type { Db } from "@/lib/aturan/draf";
 import type { BarisUsulanPenugasan, HasilPilihReviewer, HasilSusunPenugasan, SebaranBeban } from "@/lib/kontrak/tipe";
@@ -660,14 +660,16 @@ export async function ambilRingkasanPeriode(periodeId: string): Promise<Ringkasa
   const db = getDb();
   const [p] = await db.select().from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId));
   if (!p) return null;
-  const [terkirim, belumDitugaskan, diusulkan, ditetapkan, berjalan, sekarang] = await Promise.all([
+  const [terkirim, belumDitugaskan, diusulkan, ditetapkan, sakelarBerjalan, sekarang, periodeBerjalanId] = await Promise.all([
     db.select({ n: sql<number>`count(*)::int` }).from(proposal).where(and(eq(proposal.periodeId, periodeId), eq(proposal.status, "Terkirim"))),
     hitungPerluDitugaskan(periodeId),
     hitungPenugasan(periodeId, "Diusulkan"),
     hitungPenugasan(periodeId, "Ditetapkan"),
     masaPengusulanBerjalan(),
     waktuDemo(),
+    ambilPeriodeBerjalanId(),
   ]);
+  const berjalan = masaBerjalanUntuk(sakelarBerjalan, p.id, periodeBerjalanId);
   return {
     id: p.id,
     nama: p.nama,
@@ -693,10 +695,11 @@ export async function ambilRingkasanPeriode(periodeId: string): Promise<Ringkasa
  */
 export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriode[]; jumlahBerjalan: number }> {
   const db = getDb();
-  const [semua, berjalan, sekarang] = await Promise.all([
+  const [semua, sakelarBerjalan, sekarang, periodeBerjalanId] = await Promise.all([
     db.select().from(periodeSeleksi).where(periodeSudahDibuka()).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)),
     masaPengusulanBerjalan(),
     waktuDemo(),
+    ambilPeriodeBerjalanId(),
   ]);
   const [terkirim, belum, penugasan, reviewer] = await Promise.all([
     db.select({ periodeId: proposal.periodeId, n: sql<number>`count(*)::int` }).from(proposal).where(eq(proposal.status, "Terkirim")).groupBy(proposal.periodeId),
@@ -728,7 +731,7 @@ export async function daftarPeriodeDitutup(): Promise<{ periode: RingkasanPeriod
     belumDitugaskan: ambil(belum, p.id),
     diusulkan: tugas(p.id, "Diusulkan"),
     ditetapkan: tugas(p.id, "Ditetapkan") + tugas(p.id, "Selesai"),
-    ditutup: periodeDitutup({ tanggalTutup: p.tanggalTutup, sekarang, masaBerjalan: berjalan }),
+    ditutup: periodeDitutup({ tanggalTutup: p.tanggalTutup, sekarang, masaBerjalan: masaBerjalanUntuk(sakelarBerjalan, p.id, periodeBerjalanId) }),
     reviewerBersedia: reviewer.filter((r) => dalamKumpulanPeriode(p.nama, r.idBima)).length,
   }));
   return { periode: semuaRingkas.filter((p) => p.ditutup), jumlahBerjalan: semuaRingkas.filter((p) => !p.ditutup).length };

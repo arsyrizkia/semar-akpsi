@@ -1,12 +1,12 @@
 /**
- * Skenario J-05 berskala (UC-04) pada periode Simulasi Contoh 2026 (1.200 proposal). Keputusan per baris berasal dari
+ * Skenario J-05 berskala (UC-04) pada periode Seleksi Pendanaan 2026 (1.200 proposal profil contoh1200). Keputusan per baris berasal dari
  * pemantauan-skenario.ts (murni, teruji); berkas ini menulisnya set-based (jsonb_array_elements), sama dengan pola demo/skala.ts.
  *
  * Urutan pasang (dapat diulang; setiap skenario mulai dari keadaan dasar yang sama):
  *  1. siapkanContoh1200(): data 1.200 proposal ada, penugasan dan kotak masuk penugasan periode itu dikosongkan.
- *  2. Basis aturan simulasi per periode (salinan basis terbaru PD dan PT, periode_id = periode simulasi, kode berakhiran "-SIM",
- *     versi = maks + 1 per skema karena indeks unik basis_skema_versi_uq per skema). Hasil dipetakan ulang ke butirnya menurut kode, jadi periode utama tidak
- *     tersentuh dan J-03/J-05/J-05b periode simulasi konsisten.
+ *  2. Basis aturan dasar periode 2026 per skema (versi terendah periode itu, dibuat seed). Hasil proposal profil dipetakan ulang ke
+ *     butirnya menurut kode (proposal PT ke butir PT), jadi J-03/J-05/J-05b periode 2026 konsisten. Semua langkah hanya menyentuh
+ *     proposal berawalan profil (C12-2026-); PRP-2026-0004 dan periode 2027 tidak tersentuh.
  *  3. Lapisan skenario sebelumnya dibersihkan: versi gagal (V1) dihapus dan V2 kembali menjadi V1, basis versi perbaikan dihapus,
  *     status butir kembali Aktif.
  *  4. Gagal saat pengajuan: versi yang dinilai digeser menjadi V2 dan V1 disisipkan dengan hasil deterministik Gagal (meniru UC-05:
@@ -23,7 +23,7 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import * as s from "@/db/schema";
-import { AKHIRAN_SIMULASI, type Db } from "@/lib/aturan/draf";
+import type { Db } from "@/lib/aturan/draf";
 import { catatLogAudit } from "@/lib/audit";
 import { KOMPONEN_BORANG } from "@/lib/kontrak/tipe";
 import { susunUsulan } from "@/lib/penugasan/aturan";
@@ -43,6 +43,8 @@ import {
 } from "./pemantauan-skenario";
 
 const P = PROFIL.contoh1200;
+/** akhiran kode basis versi perbaikan (skenario sesudah-perbaikan) supaya dapat dikenali dan dibuang saat skenario lain dipasang */
+const AKHIRAN_PERBAIKAN = "-PERBAIKAN";
 const UKURAN_KELOMPOK = 4000;
 /** batas beban penugasan data pemantauan (25 reviewer massal bersedia x 50 >= 1.200) */
 const BATAS_BEBAN = 50;
@@ -61,54 +63,22 @@ interface BasisSim {
   skemaId: string;
 }
 
-/**
- * Basis aturan simulasi per skema (dibuat sekali, dipakai ulang): salinan basis terbaru skema itu di luar periode simulasi, berkode
- * akhiran "-SIM" sehingga pencarian versi tertinggi tanpa periode (draf J-03, Simpan Versi, pemeriksa) melewatinya. Basis dan butirnya
- * dibuat dalam satu transaksi; basis simulasi tanpa butir (pembuatan pertama yang terputus) dibuat ulang.
- */
-async function pastikanBasisSimulasi(periodeId: string, tanggalBerlaku: Date): Promise<Record<KodeSkema, BasisSim>> {
+/** Basis aturan dasar periode per skema: versi terendah milik periode itu (dibuat seed bersama templat periode). */
+async function ambilBasisPeriode(periodeId: string): Promise<Record<KodeSkema, BasisSim>> {
   const db = getDb();
   const hasil = {} as Record<KodeSkema, BasisSim>;
   for (const kode of ["PD", "PT"] as const) {
     const [skema] = await db.select().from(s.skemaPendanaan).where(eq(s.skemaPendanaan.kode, kode));
     if (!skema) throw new Error(`skema ${kode} belum ada; jalankan "Reset & isi data demo" lebih dulu`);
-    const [ada] = baris<{ id: string; versi: number; butir: number }>(
+    const [b] = baris<{ id: string; versi: number }>(
       await db.execute(sql`
-        SELECT b.id, b.versi, (SELECT count(*) FROM butir_cek c WHERE c.basis_aturan_id = b.id)::int AS butir
-        FROM basis_aturan b WHERE b.periode_id = ${periodeId} AND b.skema_id = ${skema.id} ORDER BY b.versi LIMIT 1`),
+        SELECT b.id, b.versi FROM basis_aturan b
+        WHERE b.periode_id = ${periodeId} AND b.skema_id = ${skema.id} AND b.tanggal_berlaku < '9999-01-01'
+          AND EXISTS (SELECT 1 FROM butir_cek c WHERE c.basis_aturan_id = b.id)
+        ORDER BY b.versi LIMIT 1`),
     );
-    if (ada && ada.butir > 0) {
-      await db.execute(sql`
-        UPDATE basis_aturan SET tanggal_berlaku = ${tanggalBerlaku.toISOString()},
-               kode = CASE WHEN kode LIKE ${`%${AKHIRAN_SIMULASI}`} THEN kode ELSE kode || ${AKHIRAN_SIMULASI} END
-        WHERE id = ${ada.id}`);
-      hasil[kode] = { id: ada.id, versi: ada.versi, skemaId: skema.id };
-      continue;
-    }
-    if (ada) {
-      await db.execute(sql`UPDATE versi_proposal SET basis_aturan_id = NULL WHERE basis_aturan_id = ${ada.id}`);
-      await db.delete(s.basisAturan).where(eq(s.basisAturan.id, ada.id));
-    }
-    const [sumber] = baris<{ id: string; kode: string; nama: string }>(
-      await db.execute(sql`
-        SELECT id, kode, nama FROM basis_aturan
-        WHERE skema_id = ${skema.id} AND tanggal_berlaku < '9999-01-01' AND (periode_id IS NULL OR periode_id <> ${periodeId})
-          AND kode NOT LIKE ${`%${AKHIRAN_SIMULASI}`}
-        ORDER BY versi DESC LIMIT 1`),
-    );
-    if (!sumber) throw new Error(`basis aturan ${kode} belum ada; jalankan "Reset & isi data demo" lebih dulu`);
-    const baru = await db.transaction(async (tx) => {
-      const [b] = baris<{ id: string; versi: number }>(
-        await tx.execute(sql`
-          INSERT INTO basis_aturan (kode, nama, skema_id, periode_id, versi, tanggal_berlaku)
-          SELECT ${`${sumber.kode}${AKHIRAN_SIMULASI}`}::text, ${`${sumber.nama.replace(/\s*\(contoh sementara\)/i, "")} (Simulasi Contoh)`}::text, ${skema.id}::uuid, ${periodeId}::uuid,
-                 (SELECT max(versi) + 1 FROM basis_aturan WHERE skema_id = ${skema.id}), ${tanggalBerlaku.toISOString()}::timestamptz
-          RETURNING id, versi`),
-      );
-      await salinButir(tx, sumber.id, b.id);
-      return b;
-    });
-    hasil[kode] = { ...baru, skemaId: skema.id };
+    if (!b) throw new Error(`basis aturan ${kode} periode 2026 belum ada; jalankan "Reset & isi data demo" lebih dulu`);
+    hasil[kode] = { id: b.id, versi: b.versi, skemaId: skema.id };
   }
   return hasil;
 }
@@ -129,43 +99,55 @@ async function salinButir(db: Db, dari: string, ke: string, ubah?: { kode: strin
 const butirPerKode = (basisId: string) => sql`
   SELECT DISTINCT ON (kode) id, kode FROM butir_cek WHERE basis_aturan_id = ${basisId} ORDER BY kode, (status = 'Aktif') DESC, urutan`;
 
-/** Hasil dan versi periode dipetakan ke basis simulasi pertama; lapisan skenario sebelumnya dibuang. */
+/** Proposal profil periode (awalan id), sebagai syarat SQL atas alias `p`. */
+const profilP = (periodeId: string) => sql`p.periode_id = ${periodeId} AND p.id_proposal LIKE ${P.awalanIdProposal + "%"}`;
+
+/** Hasil dan versi proposal profil dipetakan ke basis dasar periode; lapisan skenario sebelumnya dibuang. */
 async function bersihkanLapisan(periodeId: string, basis: Record<KodeSkema, BasisSim>) {
   const db = getDb();
-  await db.delete(s.penugasanReviewer).where(eq(s.penugasanReviewer.periodeId, periodeId));
+  await db.execute(sql`DELETE FROM penugasan_reviewer pr USING proposal p WHERE pr.proposal_id = p.id AND ${profilP(periodeId)}`);
   for (const b of Object.values(basis)) {
     await db.execute(sql`
       UPDATE hasil_pemeriksaan h SET butir_id = c.id
       FROM versi_proposal v, proposal p, (${butirPerKode(b.id)}) c
-      WHERE h.versi_id = v.id AND p.id = v.proposal_id AND p.periode_id = ${periodeId} AND p.skema_id = ${b.skemaId}
+      WHERE h.versi_id = v.id AND p.id = v.proposal_id AND ${profilP(periodeId)} AND p.skema_id = ${b.skemaId}
         AND c.kode = h.butir_kode AND h.butir_id <> c.id`);
     // hasil berkode yang tidak ada di basis skema itu (proposal PT yang disalin dari contoh PD)
     await db.execute(sql`
       DELETE FROM hasil_pemeriksaan h USING versi_proposal v, proposal p
-      WHERE h.versi_id = v.id AND p.id = v.proposal_id AND p.periode_id = ${periodeId} AND p.skema_id = ${b.skemaId}
+      WHERE h.versi_id = v.id AND p.id = v.proposal_id AND ${profilP(periodeId)} AND p.skema_id = ${b.skemaId}
         AND NOT EXISTS (SELECT 1 FROM butir_cek c WHERE c.basis_aturan_id = ${b.id} AND c.kode = h.butir_kode)`);
     await db.execute(sql`
       UPDATE versi_proposal v SET basis_aturan_id = ${b.id} FROM proposal p
-      WHERE p.id = v.proposal_id AND p.periode_id = ${periodeId} AND p.skema_id = ${b.skemaId} AND v.basis_aturan_id IS DISTINCT FROM ${b.id}`);
+      WHERE p.id = v.proposal_id AND ${profilP(periodeId)} AND p.skema_id = ${b.skemaId} AND v.basis_aturan_id IS DISTINCT FROM ${b.id}`);
     await db.execute(sql`UPDATE butir_cek SET status = 'Aktif', ditandai_oleh = NULL, ditandai_pada = NULL WHERE basis_aturan_id = ${b.id} AND status = 'Perlu ditinjau'`);
   }
-  // basis versi perbaikan (skenario sesudah-perbaikan) tidak lagi dirujuk: hapus beserta butirnya
-  await db.execute(sql`DELETE FROM basis_aturan WHERE periode_id = ${periodeId} AND id NOT IN (${basis.PD.id}, ${basis.PT.id})`);
+  // basis versi perbaikan (skenario sesudah-perbaikan): rujukan dipindah ke basis dasar lalu dihapus beserta butirnya
+  const lapisan = sql`SELECT id FROM basis_aturan WHERE periode_id = ${periodeId} AND id NOT IN (${basis.PD.id}, ${basis.PT.id}) AND kode LIKE ${"%" + AKHIRAN_PERBAIKAN}`;
+  for (const b of Object.values(basis)) {
+    await db.execute(sql`
+      UPDATE hasil_pemeriksaan h SET butir_id = c.id
+      FROM butir_cek lama, (${butirPerKode(b.id)}) c
+      WHERE h.butir_id = lama.id AND lama.basis_aturan_id IN (${lapisan}) AND c.kode = h.butir_kode
+        AND EXISTS (SELECT 1 FROM basis_aturan x WHERE x.id = lama.basis_aturan_id AND x.skema_id = ${b.skemaId})`);
+    await db.execute(sql`UPDATE versi_proposal SET basis_aturan_id = ${b.id} WHERE basis_aturan_id IN (${lapisan}) AND basis_aturan_id IN (SELECT id FROM basis_aturan WHERE skema_id = ${b.skemaId})`);
+  }
+  await db.execute(sql`DELETE FROM basis_aturan WHERE id IN (${lapisan})`);
   // versi gagal saat pengajuan
   await db.execute(sql`
     DELETE FROM versi_proposal v USING proposal p
-    WHERE p.id = v.proposal_id AND p.periode_id = ${periodeId} AND v.nomor = 1
+    WHERE p.id = v.proposal_id AND ${profilP(periodeId)} AND v.nomor = 1
       AND EXISTS (SELECT 1 FROM versi_proposal w WHERE w.proposal_id = v.proposal_id AND w.nomor = 2)`);
   await db.execute(sql`
     UPDATE versi_proposal v SET nomor = 1, kode = 'V1' FROM proposal p
-    WHERE p.id = v.proposal_id AND p.periode_id = ${periodeId} AND v.nomor = 2`);
+    WHERE p.id = v.proposal_id AND ${profilP(periodeId)} AND v.nomor = 2`);
 }
 
-/** CTE versi terbaru (yang dinilai) setiap proposal periode */
+/** CTE versi terbaru (yang dinilai) setiap proposal profil periode */
 const versiTerbaru = (periodeId: string) => sql`
   SELECT DISTINCT ON (v.proposal_id) v.id, v.proposal_id, p.id_proposal
   FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id
-  WHERE p.periode_id = ${periodeId}
+  WHERE ${profilP(periodeId)}
   ORDER BY v.proposal_id, v.nomor DESC`;
 
 export interface HasilPasangPemantauan {
@@ -198,7 +180,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
     })
     .where(eq(s.periodeSeleksi.id, periodeId))
     .returning();
-  const basis = await pastikanBasisSimulasi(periodeId, periode.tanggalBuka);
+  const basis = await ambilBasisPeriode(periode.id);
   await bersihkanLapisan(periodeId, basis);
 
   /* masukan pembangkit: proposal (skema, indeks institusi) dan kode butir yang punya hasil */
@@ -207,14 +189,14 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
     await db.execute(sql`
       SELECT p.id_proposal AS "idProposal", sp.kode AS skema, a.institusi
       FROM proposal p JOIN skema_pendanaan sp ON sp.id = p.skema_id JOIN akun a ON a.id = p.pengusul_id
-      WHERE p.periode_id = ${periodeId} ORDER BY p.id_proposal`),
+      WHERE ${profilP(periodeId)} ORDER BY p.id_proposal`),
   ).map<ProposalSim>((p) => ({ idProposal: p.idProposal, skema: p.skema, institusi: indeksInstitusi.get(p.institusi) ?? -1 }));
   const kodeButir = baris<{ skema: KodeSkema; jenis: "semantik" | "deterministik"; kode: string }>(
     await db.execute(sql`
       SELECT DISTINCT sp.kode AS skema, h.jenis, h.butir_kode AS kode
       FROM hasil_pemeriksaan h JOIN versi_proposal v ON v.id = h.versi_id JOIN proposal p ON p.id = v.proposal_id
       JOIN skema_pendanaan sp ON sp.id = p.skema_id
-      WHERE p.periode_id = ${periodeId} ORDER BY 1, 2, 3`),
+      WHERE ${profilP(periodeId)} ORDER BY 1, 2, 3`),
   );
   const butir: ButirSim = { PD: { semantik: [], deterministik: [] }, PT: { semantik: [], deterministik: [] } };
   for (const b of kodeButir) butir[b.skema][b.jenis].push(b.kode);
@@ -225,14 +207,14 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
     const ids = k.gagal.map((g) => g.idProposal);
     await db.execute(sql`
       UPDATE versi_proposal v SET nomor = 2, kode = 'V2' FROM proposal p
-      WHERE p.id = v.proposal_id AND p.periode_id = ${periodeId} AND p.id_proposal IN (SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))`);
+      WHERE p.id = v.proposal_id AND ${profilP(periodeId)} AND p.id_proposal IN (SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))`);
     await db.execute(sql`
       INSERT INTO versi_proposal (proposal_id, nomor, kode, templat_id, basis_aturan_id, berkas_id, teks_per_bagian, kata_kunci, lampiran_ada,
                                   judul_dokumen, status_pemeriksaan, waktu, teks_lampiran, judul_bagian_ditemukan)
       SELECT v.proposal_id, 1, 'V1', v.templat_id, v.basis_aturan_id, v.berkas_id, v.teks_per_bagian, v.kata_kunci, v.lampiran_ada,
              v.judul_dokumen, 'Selesai', v.waktu - interval '2 days', v.teks_lampiran, v.judul_bagian_ditemukan
       FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id
-      WHERE p.periode_id = ${periodeId} AND v.nomor = 2`);
+      WHERE ${profilP(periodeId)} AND v.nomor = 2`);
     const pasangan = k.gagal.flatMap((g) => g.butir.map((kode) => ({ id: g.idProposal, kode, ...buktiGagal(kode, acakBerbiji(`bukti:${g.idProposal}:${kode}`)()) })));
     await db.execute(sql`
       WITH g AS (SELECT x->>'id' AS id, x->>'kode' AS kode, x->>'angka' AS angka, x->>'batas' AS batas FROM jsonb_array_elements(${JSON.stringify(pasangan)}::jsonb) AS x)
@@ -244,7 +226,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
       JOIN versi_proposal v2 ON v2.proposal_id = p.id AND v2.nomor = 2
       JOIN hasil_pemeriksaan h ON h.versi_id = v2.id AND h.jenis = 'deterministik'
       LEFT JOIN g ON g.id = p.id_proposal AND g.kode = h.butir_kode
-      WHERE p.periode_id = ${periodeId}`);
+      WHERE ${profilP(periodeId)}`);
   }
 
   /* 5. hasil semantik versi yang dinilai: [id, kode, memenuhi 1/0, keyakinan] */
@@ -269,7 +251,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
     const [baru] = baris<{ id: string }>(
       await db.execute(sql`
         INSERT INTO basis_aturan (kode, nama, skema_id, periode_id, versi, tanggal_berlaku)
-        SELECT kode, nama, skema_id, periode_id, (SELECT max(versi) + 1 FROM basis_aturan WHERE skema_id = ${lama.skemaId}), ${berlaku.toISOString()}::timestamptz
+        SELECT kode || ${AKHIRAN_PERBAIKAN}, nama, skema_id, periode_id, (SELECT max(versi) + 1 FROM basis_aturan WHERE skema_id = ${lama.skemaId}), ${berlaku.toISOString()}::timestamptz
         FROM basis_aturan WHERE id = ${lama.id}
         RETURNING id`),
     );
@@ -302,7 +284,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
   ).filter((r) => dalamKumpulanPeriode(P.namaPeriode, r.idBima) && reviewerMassal(r.idBima));
   const usulan = susunUsulan(
     baris<{ id: string; institusi: string | null }>(
-      await db.execute(sql`SELECT p.id, a.institusi FROM proposal p JOIN akun a ON a.id = p.pengusul_id WHERE p.periode_id = ${periodeId} AND p.status = 'Terkirim'`),
+      await db.execute(sql`SELECT p.id, a.institusi FROM proposal p JOIN akun a ON a.id = p.pengusul_id WHERE ${profilP(periodeId)} AND p.status = 'Terkirim'`),
     ).map((p) => ({ id: p.id, institusiPengusul: p.institusi ?? "-" })),
     reviewer.map((r) => ({ id: r.id, nama: r.nama, institusi: r.institusi ?? "-" })),
     {},
@@ -363,7 +345,7 @@ export async function pasangSkenarioPemantauan(id: IdSkenarioPemantauan): Promis
   await db.execute(sql`
     INSERT INTO keputusan_komponen (penilaian_id, komponen, keputusan)
     SELECT pl.id, kb.komponen, 'Memenuhi'
-    FROM penilaian pl JOIN penugasan_reviewer pr ON pr.id = pl.penugasan_id
+    FROM penilaian pl JOIN penugasan_reviewer pr ON pr.id = pl.penugasan_id JOIN proposal p ON p.id = pr.proposal_id AND ${profilP(periodeId)}
     CROSS JOIN unnest(${sql.raw(`ARRAY[${KOMPONEN_BORANG.map((x) => `'${x.replaceAll("'", "''")}'`).join(",")}]`)}::text[]) AS kb(komponen)
     WHERE pr.periode_id = ${periodeId}`);
 

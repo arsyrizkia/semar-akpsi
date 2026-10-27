@@ -1,16 +1,20 @@
 /**
- * Profil data demo berskala besar untuk UC-03 (murni, tanpa impor server; dipakai pembangkit demo/skala.ts, layanan penugasan,
- * dan daftar Masuk cepat). Setiap profil punya periode sendiri yang namanya berawalan NAMA_PERIODE_SKALA ("Simulasi "), jadi
- * semua pembaca periode lain (J-02, J-05, pengajuan) mengecualikannya, dan kumpulan reviewernya sendiri. Keduanya simulasi, bukan
- * skala seleksi sebenarnya (naskah: 79.210 usulan 2026, 1.066-1.244 reviewer):
- *  - skala10k   : uji beban 10.000 proposal, 130 reviewer rvw-skala-* dari 40 institusi;
+ * Profil data demo berskala (murni, tanpa impor server; dipakai pembangkit demo/skala.ts, layanan penugasan, dan daftar Masuk cepat).
+ * Hanya ada dua periode: Seleksi Pendanaan 2026 (masa pengusulan sudah ditutup, berisi 1.200 proposal profil ini ditambah proposal
+ * contoh PRP-2026-0004 untuk reviewer-2) dan Seleksi Pendanaan 2027 (masa pengusulan berjalan, alur end-to-end). Skala seleksi
+ * sebenarnya jauh lebih besar (naskah: 79.210 usulan 2026, 1.066-1.244 reviewer); 1.200 cukup untuk memperagakan UC-03 dan UC-04.
  *  - contoh1200 : 1.200 proposal (PD dan PT) dari 14 institusi yang timpang, 28 reviewer rvw-c12-* (3 tidak bersedia) ditambah
  *                 reviewer-1..5 yang dapat masuk (30 bersedia), supaya hasil penetapan terlihat di J-07 reviewer contoh.
+ * Data profil dikenali dari awalan id (C12-2026-, rvw-c12-, pgs-c12-), jadi operasi massal tidak menyentuh proposal lain di periode yang sama.
  */
-/** Awalan nama periode simulasi berskala besar; pembaca periode lain mengecualikannya (dipakai ulang oleh waktu.ts). */
+/** Awalan nama periode simulasi lama (sebelum 26 Okt 2026); pembaca periode tetap mengecualikannya bila masih ada di basis data. */
 export const NAMA_PERIODE_SKALA = "Simulasi ";
 
-export type KunciProfil = "skala10k" | "contoh1200";
+/** Nama periode yang sudah ditutup (2026) dan periode berjalan (2027). */
+export const NAMA_PERIODE_2026 = "Seleksi Pendanaan 2026";
+export const NAMA_PERIODE_2027 = "Seleksi Pendanaan 2027";
+
+export type KunciProfil = "contoh1200";
 
 export interface ProfilSkala {
   kunci: KunciProfil;
@@ -35,25 +39,9 @@ export interface ProfilSkala {
 }
 
 export const PROFIL: Record<KunciProfil, ProfilSkala> = {
-  skala10k: {
-    kunci: "skala10k",
-    namaPeriode: `${NAMA_PERIODE_SKALA}Uji Beban 2026 (10.000 proposal)`,
-    awalanIdProposal: "SKL-2026-",
-    awalanReviewer: "rvw-skala-",
-    awalanPengusul: "pgs-skala-",
-    jumlahProposal: 10_000,
-    jumlahReviewer: 130,
-    jumlahPengusul: 4000,
-    jumlahInstitusi: 40,
-    tidakBersedia: (n) => n % 11 === 0,
-    reviewerContoh: [],
-    batasBawaan: 100,
-    bobotInstitusi: [],
-    porsiTerapan: 0,
-  },
   contoh1200: {
     kunci: "contoh1200",
-    namaPeriode: `${NAMA_PERIODE_SKALA}Contoh 2026 (1.200 proposal)`,
+    namaPeriode: NAMA_PERIODE_2026,
     awalanIdProposal: "C12-2026-",
     awalanReviewer: "rvw-c12-",
     awalanPengusul: "pgs-c12-",
@@ -71,20 +59,15 @@ export const PROFIL: Record<KunciProfil, ProfilSkala> = {
   },
 };
 
-/** Nama lama periode profil (sebelum 25 Okt 2026), diganti otomatis saat skenario disiapkan. */
-export const NAMA_LAMA: Record<string, KunciProfil> = {
-  "Skala Nyata 2026 (10.000 proposal)": "skala10k",
-  "Skala Nyata 2026 (1.200 proposal)": "contoh1200",
-};
-
 /** Profil periode menurut namanya; null untuk periode biasa. */
 export function profilPeriode(namaPeriode: string): ProfilSkala | null {
   return Object.values(PROFIL).find((p) => p.namaPeriode === namaPeriode) ?? null;
 }
 
-const AWALAN_MASSAL = Object.values(PROFIL).map((p) => p.awalanReviewer);
+// rvw-skala-* (uji beban 10.000 lama) tetap dianggap massal bila datanya masih tersisa sebelum Reset
+const AWALAN_MASSAL = [...Object.values(PROFIL).map((p) => p.awalanReviewer), "rvw-skala-"];
 
-/** Reviewer massal (rvw-skala-*, rvw-c12-*): tidak ditampilkan sebagai pilihan Masuk cepat. */
+/** Reviewer massal (rvw-c12-*): tidak ditampilkan sebagai pilihan Masuk cepat. */
 export const reviewerMassal = (idBima: string) => AWALAN_MASSAL.some((a) => idBima.startsWith(a));
 
 /**

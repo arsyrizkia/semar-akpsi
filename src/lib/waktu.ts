@@ -25,18 +25,13 @@ export async function ubahPengaturanDemo(ubah: Partial<Pick<PengaturanDemo, "mas
   const db = getDb();
   await ambilPengaturanDemo();
   if (ubah.masaPengusulan) {
-    // Sakelar masa menggeser tanggalTutup periode berjalan supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
-    // dengan statusnya: "ditutup" = tanggalTutup semenit lalu (hari ini); "berjalan" = tanggalTutup dua pekan lagi.
+    // Sakelar masa menggeser tanggalTutup periode berjalan (2027) supaya tanggal yang tampil (J-04, pesan 3a.2 J-06) konsisten
+    // dengan statusnya: "ditutup" = tanggalTutup semenit lalu (hari ini); "berjalan" = tanggalTutup dua pekan lagi. Periode lain
+    // (2026, sudah ditutup) tidak ikut digeser.
     const [p] = await db.select().from(periodeSeleksi).where(and(notLike(periodeSeleksi.nama, `${NAMA_PERIODE_SKALA}%`), periodeSudahDibuka())).orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka)).limit(1);
     if (p) {
       const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
       await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, p.id));
-    }
-    // skenario uji beban: periode aktif J-04 (periode tersendiri) ikut digeser supaya lencana dan tanggal tutupnya konsisten
-    const { periodeAktifId } = await ambilPengaturanDemo();
-    if (periodeAktifId && periodeAktifId !== p?.id) {
-      const tutup = new Date(ubah.masaPengusulan === "ditutup" ? Date.now() - 60_000 : Date.now() + 14 * HARI_MS);
-      await db.update(periodeSeleksi).set({ tanggalTutup: tutup }).where(eq(periodeSeleksi.id, periodeAktifId));
     }
   }
   await db
@@ -82,7 +77,7 @@ export async function masaPengusulanBerjalan(): Promise<boolean> {
 
 export type PeriodeSeleksi = typeof periodeSeleksi.$inferSelect;
 
-/** Awalan nama periode skenario uji beban; periode ini disembunyikan dari pilihan periode jendela lain. */
+/** Awalan nama periode simulasi lama (sebelum 26 Okt 2026); bila masih ada, disembunyikan dari pilihan periode. */
 export { NAMA_PERIODE_SKALA };
 
 /** Periode yang dibuka J-04: periodeAktifId pada pengaturan demo bila ada, selain itu periode terbaru. */
