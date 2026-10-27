@@ -1,6 +1,6 @@
 // Uji kotak hitam katalog Navigator demo (CRC NavigatorDemo; pemisahan "Pindah layar" dan "Pasang skenario"): pencocokan alamat ke layar.
 import { describe, expect, it } from "vitest";
-import { KATALOG_JENDELA, alamatPindah, alamatSkenario, cariSkenario, jendelaDariJalur } from "@/lib/demo/katalog";
+import { KATALOG_JENDELA, KATALOG_UC, alamatPindah, alamatSkenario, cariSkenario, jendelaDariJalur, layarUsecase, usecaseDariJendela } from "@/lib/demo/katalog";
 
 describe("jendelaDariJalur", () => {
   const kode = (jalur: string) => jendelaDariJalur(jalur)?.kode;
@@ -49,5 +49,33 @@ describe("alamat Pindah layar dan Pasang skenario", () => {
     expect(cariSkenario("J-04b", "kekurangan")).toBeDefined();
     expect(cariSkenario("J-08b", "draf")).toBeDefined();
     expect(cariSkenario("J-08b", "tidak-ada")).toBeUndefined();
+  });
+});
+
+describe("navigator per use case", () => {
+  it("KH-katalogUc-01: UC-01..UC-09 dan Umum berurutan; setiap layar dan skenario yang dirujuk ada di katalog jendela", () => {
+    expect(KATALOG_UC.map((u) => u.kode)).toEqual(["UC-01", "UC-02", "UC-03", "UC-04", "UC-05", "UC-06", "UC-07", "UC-08", "UC-09", "Umum"]);
+    for (const u of KATALOG_UC) {
+      for (const l of u.layar) {
+        const j = KATALOG_JENDELA.find((x) => x.kode === l.kode);
+        expect(j, `${u.kode}: ${l.kode}`).toBeDefined();
+        for (const id of l.skenario ?? []) expect(cariSkenario(l.kode, id), `${u.kode}: ${l.kode}/${id}`).toBeDefined();
+      }
+    }
+  });
+  it("KH-katalogUc-02: setiap jendela termasuk sekurangnya satu use case; use case bawaan layar adalah yang pertama memuatnya", () => {
+    for (const j of KATALOG_JENDELA) expect(usecaseDariJendela(j.kode), j.kode).toBeDefined();
+    expect(usecaseDariJendela("J-08")?.kode).toBe("UC-07");
+    expect(usecaseDariJendela("BIMA-1")?.kode).toBe("UC-05");
+    expect(usecaseDariJendela("J-01")?.kode).toBe("Umum");
+  });
+  it("KH-katalogUc-03: layarUsecase menyaring skenario sesuai use case (J-08 berbeda di UC-07, UC-08, UC-09)", () => {
+    const ids = (kode: string) => layarUsecase(KATALOG_UC.find((u) => u.kode === kode)!).find((l) => l.jendela.kode === "J-08")?.skenario.map((s) => s.id);
+    expect(ids("UC-07")).toEqual(["normal", "draf", "final"]);
+    expect(ids("UC-08")).toEqual(["normal"]);
+    expect(ids("UC-09")).toEqual(["normal", "perlu-manual", "belum-rekomendasi"]);
+    const uc03 = layarUsecase(KATALOG_UC.find((u) => u.kode === "UC-03")!);
+    expect(uc03.find((l) => l.jendela.kode === "J-04")?.skenario).toEqual([]);
+    expect(uc03.find((l) => l.jendela.kode === "J-04b")?.skenario.map((s) => s.id)).toEqual(["siap", "menunggu", "kekurangan", "ditetapkan"]);
   });
 });

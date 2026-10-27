@@ -244,6 +244,7 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
       { id: "lolos", nama: "Draf lolos semua butir", ringkas: "PRP-2027-0001; masa 2027 berjalan; Ajukan Usulan menghasilkan Terkirim." },
       { id: "ditahan", nama: "Draf ditahan lalu diperbaiki", ringkas: "PRP-2027-0002; Metode melebihi batas; Ajukan ulang dengan naskah perbaikan." },
       { id: "ditolak", nama: "Draf ditahan lalu ditolak", ringkas: "PRP-2027-0003; tutup masa di BIMA lalu Ajukan ulang (Ditolak)." },
+      { id: "koma", nama: "Kata kunci dipisah koma", ringkas: "PRP-2027-0004 (pengusul-3); Ajukan Usulan menghasilkan Ditahan karena butir kata kunci Gagal." },
     ],
   },
   {
@@ -257,6 +258,52 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     skenario: [{ id: "normal", nama: "Kotak masuk saat ini", ringkas: "Penugasan dan keputusan yang diterima dari SEMAR (ringkasan + 100 terbaru)." }],
   },
 ];
+
+/* ------------------------------ per use case ------------------------------ */
+
+/** Satu use case di navigator: layar-layarnya dan skenario keadaan yang relevan (subset skenario jendela; kosong = semua). */
+export interface UsecaseDemo {
+  kode: string;
+  nama: string;
+  peran: string;
+  layar: { kode: string; skenario?: string[] }[];
+}
+
+/**
+ * Navigator dikelompokkan per use case (UC-01..UC-09) ditambah kelompok Umum (masuk, kotak masuk BIMA). Skenario tetap milik jendela
+ * (siapkanSkenario(jendela, id)); satu skenario boleh muncul di beberapa use case (mis. J-08 normal di UC-07, UC-08, dan UC-09).
+ */
+export const KATALOG_UC: UsecaseDemo[] = [
+  { kode: "UC-01", nama: "Mengelola templat proposal", peran: "Tim Kerja (pengelola)", layar: [{ kode: "J-02" }, { kode: "J-02a" }] },
+  { kode: "UC-02", nama: "Mengelola aturan pemeriksaan", peran: "Tim Kerja (pengelola)", layar: [{ kode: "J-03" }, { kode: "J-03b" }] },
+  { kode: "UC-03", nama: "Menugaskan reviewer", peran: "Tim Kerja DPPM", layar: [{ kode: "J-04", skenario: [] }, { kode: "J-04b" }] },
+  { kode: "UC-04", nama: "Memantau kesesuaian penilaian", peran: "Tim Kerja DPPM", layar: [{ kode: "J-05" }, { kode: "J-05b" }] },
+  { kode: "UC-05", nama: "Mengajukan proposal", peran: "Pengusul (BIMA)", layar: [{ kode: "BIMA-1", skenario: ["lolos", "ditahan", "ditolak"] }, { kode: "J-06" }] },
+  { kode: "UC-06", nama: "Memeriksa butir deterministik", peran: "Sistem (di dalam UC-05)", layar: [{ kode: "BIMA-1", skenario: ["koma", "ditahan"] }, { kode: "J-06", skenario: ["ditahan", "terkirim"] }] },
+  { kode: "UC-07", nama: "Melakukan pemeriksaan akhir", peran: "Reviewer", layar: [{ kode: "J-07" }, { kode: "J-08", skenario: ["normal", "draf", "final"] }, { kode: "J-08b" }] },
+  { kode: "UC-08", nama: "Mengoreksi rekomendasi sistem", peran: "Reviewer (di dalam UC-07)", layar: [{ kode: "J-08", skenario: ["normal"] }] },
+  { kode: "UC-09", nama: "Memeriksa butir semantik", peran: "Sistem; Layanan LLM", layar: [{ kode: "J-08", skenario: ["normal", "perlu-manual", "belum-rekomendasi"] }] },
+  { kode: "Umum", nama: "Masuk dan kotak masuk BIMA", peran: "Semua peran", layar: [{ kode: "J-01" }, { kode: "BIMA-2" }] },
+];
+
+export function cariUsecase(kode: string): UsecaseDemo | undefined {
+  return KATALOG_UC.find((u) => u.kode === kode);
+}
+
+/** Use case pertama yang memuat jendela ini (bawaan pilihan navigator saat layar itu dibuka). */
+export function usecaseDariJendela(kodeJendela: string): UsecaseDemo | undefined {
+  return KATALOG_UC.find((u) => u.layar.some((l) => l.kode === kodeJendela));
+}
+
+/** Layar use case beserta jendela dan skenario yang ditampilkan (urut katalog jendela). */
+export function layarUsecase(u: UsecaseDemo): { jendela: JendelaDemo; skenario: SkenarioDemo[] }[] {
+  return u.layar.flatMap((l) => {
+    const jendela = cariJendela(l.kode);
+    if (!jendela) return [];
+    const skenario = l.skenario ? l.skenario.map((id) => jendela.skenario.find((s) => s.id === id)).filter((s): s is SkenarioDemo => Boolean(s)) : jendela.skenario;
+    return [{ jendela, skenario }];
+  });
+}
 
 /** Nama cookie (tidak httpOnly) berisi skenario yang terakhir dipilih: "<jendela>/<skenario>" */
 export const COOKIE_SKENARIO = "semar_skenario";

@@ -579,6 +579,8 @@ export async function siapkanSkenario(kodeJendela: string, id: string): Promise<
       return dariJalanPintas(await siapkanJalanPintas("UC-05b"));
     case "BIMA-1/ditolak":
       return dariJalanPintas(await siapkanJalanPintas("UC-05c"));
+    case "BIMA-1/koma":
+      return dariJalanPintas(await siapkanJalanPintas("UC-06-koma"));
     case "BIMA-2/normal":
       return { akun: "dppm-pengelola", tujuan: "/bima/kotak-masuk", catatan: "Kotak masuk BIMA tiruan: penugasan dan keputusan yang diterima dari SEMAR." };
   }

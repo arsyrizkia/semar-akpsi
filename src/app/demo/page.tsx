@@ -8,7 +8,7 @@ import { logAudit } from "@/db/schema";
 import { formatWaktu } from "@/lib/utils";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { modeLlm } from "@/lib/llm/konfigurasi";
-import { KATALOG_JENDELA, alamatPindah, alamatSkenario } from "@/lib/demo/katalog";
+import { KATALOG_UC, alamatPindah, alamatSkenario, layarUsecase } from "@/lib/demo/katalog";
 import { KontrolDemo } from "./kontrol-demo";
 
 export const metadata: Metadata = { title: "Pusat Demo", robots: { index: false, follow: false } };
@@ -125,49 +125,62 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ g
           <KontrolDemo masa={pengaturan.masaPengusulan} />
         </Bagian>
 
-        <Bagian judul="Layar dan skenario">
-          <Table aria-label="Layar SEMAR dan BIMA tiruan">
+        <Bagian judul="Use case, layar, dan keadaan">
+          <p className="mb-3 max-w-3xl text-sm text-teks-redup">
+            Setiap use case berisi layar-layarnya. &ldquo;Buka layar&rdquo; hanya berpindah (data tetap); memilih keadaan menyiapkan data lalu membuka layarnya.
+            Periode 2026 dipakai untuk penugasan, pemantauan, dan penilaian berskala; periode 2027 untuk alur pengajuan sampai hasil.
+          </p>
+          <Table aria-label="Use case, layar, dan keadaan">
             <THead>
               <TR>
                 <TH>Layar</TH>
-                <TH className="hidden md:table-cell">Peran</TH>
                 <TH>Pindah layar (data tetap)</TH>
-                <TH>Pasang skenario (menyiapkan data)</TH>
+                <TH>Keadaan (menyiapkan data)</TH>
               </TR>
             </THead>
             <TBody>
-              {KATALOG_JENDELA.map((j) => (
-                <TR key={j.kode}>
-                  <TD className="whitespace-nowrap">
-                    <span className={j.induk ? "pl-4" : undefined}>
+              {KATALOG_UC.flatMap((u) => [
+                <TR key={u.kode} className="bg-primer-50">
+                  <TD colSpan={3} className="font-semibold text-primer-900">
+                    <span className="mr-2 font-mono text-xs text-teks-redup">{u.kode}</span>
+                    {u.nama}
+                    <span className="ml-2 text-xs font-normal text-abu-700">{u.peran}</span>
+                  </TD>
+                </TR>,
+                ...layarUsecase(u).map(({ jendela: j, skenario }) => (
+                  <TR key={`${u.kode}:${j.kode}`}>
+                    <TD className="whitespace-nowrap pl-6">
                       <span className="font-mono text-xs font-semibold text-teks-redup">{j.kode}</span> {j.nama.replace("BIMA: ", "BIMA ")}
-                    </span>
-                  </TD>
-                  <TD className="hidden text-xs text-abu-700 md:table-cell">{j.peran}</TD>
-                  <TD>
-                    <a href={alamatPindah(j.kode)} rel="nofollow" data-pindah={j.kode} className={kelasTautanKecil}>
-                      Buka layar
-                    </a>
-                  </TD>
-                  <TD>
-                    <ul className="flex flex-wrap gap-1.5">
-                      {j.skenario.map((sk) => (
-                        <li key={sk.id}>
-                          <a href={alamatSkenario(j.kode, sk.id)} rel="nofollow" data-skenario-kartu={`${j.kode}/${sk.id}`} title={sk.ringkas} className={kelasTautanKecil}>
-                            {sk.nama}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </TD>
-                </TR>
-              ))}
+                    </TD>
+                    <TD>
+                      <a href={alamatPindah(j.kode)} rel="nofollow" data-pindah={j.kode} className={kelasTautanKecil}>
+                        Buka layar
+                      </a>
+                    </TD>
+                    <TD>
+                      {skenario.length ? (
+                        <ul className="flex flex-wrap gap-1.5">
+                          {skenario.map((sk) => (
+                            <li key={sk.id}>
+                              <a href={alamatSkenario(j.kode, sk.id)} rel="nofollow" data-skenario-kartu={`${j.kode}/${sk.id}`} title={sk.ringkas} className={kelasTautanKecil}>
+                                {sk.nama}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-xs text-abu-600">Keadaan disiapkan lewat layar berikutnya.</span>
+                      )}
+                    </TD>
+                  </TR>
+                )),
+              ])}
             </TBody>
           </Table>
         </Bagian>
 
-        <Bagian judul="Use case">
-          <TabelUc judul="Jalan pintas use case" daftar={UC} />
+        <Bagian judul="Jalan pintas alur utama">
+          <TabelUc judul="Jalan pintas alur utama use case" daftar={UC} />
         </Bagian>
 
         <Bagian judul="Enam skenario Bab 10.1">

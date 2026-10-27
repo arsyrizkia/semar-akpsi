@@ -4,7 +4,19 @@ import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStor
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Compass, ChevronDown, Loader2 } from "lucide-react";
 import { ambilMasaPengusulan, setSakelarMasa } from "@/app/demo/aksi";
-import { COOKIE_SKENARIO, KATALOG_JENDELA, alamatPindah, alamatSkenario, cariJendela, cariSkenario, jendelaDariJalur } from "@/lib/demo/katalog";
+import {
+  COOKIE_SKENARIO,
+  KATALOG_UC,
+  alamatPindah,
+  alamatSkenario,
+  cariJendela,
+  cariSkenario,
+  cariUsecase,
+  jendelaDariJalur,
+  layarUsecase,
+  usecaseDariJendela,
+  type JendelaDemo,
+} from "@/lib/demo/katalog";
 import { cn } from "@/lib/utils";
 
 const KUNCI = "semar:navigator";
@@ -38,6 +50,29 @@ const tanpaLangganan = () => () => {};
 function bacaCookieSkenario(): string | null {
   const baris = document.cookie.split("; ").find((c) => c.startsWith(`${COOKIE_SKENARIO}=`));
   return baris ? decodeURIComponent(baris.slice(COOKIE_SKENARIO.length + 1)) : null;
+}
+
+/* Use case yang terakhir dipilih di navigator (sessionStorage): dipakai sebagai pilihan bawaan bila memuat layar yang sedang dibuka. */
+const KUNCI_UC = "semar:navigator-uc";
+const PERISTIWA_UC = "semar:navigator-uc-ubah";
+function langgananUc(cb: () => void) {
+  window.addEventListener(PERISTIWA_UC, cb);
+  return () => window.removeEventListener(PERISTIWA_UC, cb);
+}
+function bacaUc(): string {
+  try {
+    return sessionStorage.getItem(KUNCI_UC) ?? "";
+  } catch {
+    return "";
+  }
+}
+function simpanUc(kode: string) {
+  try {
+    sessionStorage.setItem(KUNCI_UC, kode);
+  } catch {
+    /* penyimpanan tidak tersedia: pilihan hanya berlaku selama halaman ini */
+  }
+  window.dispatchEvent(new Event(PERISTIWA_UC));
 }
 
 /* Catatan skenario (parameter ?catatan= dari /demo/mulai): disimpan per jalur di sessionStorage dan ditampilkan di panel navigator, bukan di badan halaman. */
@@ -104,9 +139,10 @@ function PenangkapCatatan() {
 }
 
 /**
- * Navigator demo mengambang. Dua hal yang dipisah tegas:
- *  - "Pindah layar/peran": tautan ke /demo/pindah; hanya membuka layar (dan memasang sesi peran bila perlu). Data TIDAK berubah.
- *  - "Pasang skenario": tombol ke /demo/mulai; menyiapkan data skenario jendela yang sedang dibuka, lalu membukanya. Data berubah.
+ * Navigator demo mengambang, dikelompokkan per use case (UC-01..UC-09, ditambah Umum). Use case dipilih dulu (bawaan: use case layar
+ * yang sedang dibuka), lalu setiap layar use case itu tampil dengan dua hal yang dipisah tegas:
+ *  - "Buka": tautan ke /demo/pindah; hanya membuka layar (dan memasang sesi peran bila perlu). Data TIDAK berubah.
+ *  - keadaan (skenario): tombol ke /demo/mulai; menyiapkan data keadaan itu, lalu membuka layarnya. Data berubah.
  * Catatan skenario tampil di panel ini. Papan pintas: Alt+Shift+N membuka/menciutkan, Esc menciutkan.
  */
 export function NavigatorDemo() {
@@ -124,6 +160,14 @@ export function NavigatorDemo() {
 
   const catatanSkenario = useCatatanSkenario(jalur);
   const jendela = jendelaDariJalur(jalur, kueri);
+  const ucTersimpan = useSyncExternalStore(langgananUc, bacaUc, () => "");
+  // use case bawaan: yang terakhir dipilih bila memuat layar ini, selain itu use case pertama yang memuat layar ini
+  const ucSimpan = cariUsecase(ucTersimpan);
+  const uc =
+    (ucSimpan && (!jendela || ucSimpan.layar.some((l) => l.kode === jendela.kode)) ? ucSimpan : undefined) ??
+    (jendela ? usecaseDariJendela(jendela.kode) : undefined) ??
+    ucSimpan ??
+    KATALOG_UC[0];
   const [kodeCookie, idCookie] = cookieSkenario?.split("/") ?? [];
   const jendelaCookie = kodeCookie ? cariJendela(kodeCookie) : undefined;
   const skenarioCookie = kodeCookie && idCookie ? cariSkenario(kodeCookie, idCookie) : undefined;
@@ -168,7 +212,8 @@ export function NavigatorDemo() {
     };
   }, [terbuka, jalur]);
 
-  const pasang = useCallback((kodeJendela: string, id: string) => {
+  const pasang = useCallback((kodeJendela: string, id: string, kodeUc: string) => {
+    simpanUc(kodeUc);
     const sk = cariSkenario(kodeJendela, id);
     setMenyiapkan(`${kodeJendela}${sk ? `: ${sk.nama}` : ""}`);
     // panel diciutkan sebelum pindah supaya jendela tujuan tidak langsung tertutup panel; kemajuan tampil di pil
@@ -212,16 +257,20 @@ export function NavigatorDemo() {
   );
 
   const namaPendek = (j: { kode: string; nama: string }) => (j.kode.startsWith("BIMA") ? j.nama.replace("BIMA: ", "BIMA ") : `${j.kode} ${j.nama}`);
-  const ringkasAktif = skenarioCookie && jendelaCookie ? `${jendelaCookie.kode} · ${skenarioCookie.nama}` : null;
+  const kodePendek = (j: JendelaDemo) => (j.kode.startsWith("BIMA") ? `B-${j.kode.slice(-1)}` : j.kode);
+  // use case skenario aktif: yang dipilih bila memuat jendela skenario itu, selain itu use case pertama jendela itu
+  const ucAktif = jendelaCookie ? (ucSimpan?.layar.some((l) => l.kode === jendelaCookie.kode) ? ucSimpan : usecaseDariJendela(jendelaCookie.kode)) : undefined;
+  const awalanUc = ucAktif && ucAktif.kode !== "Umum" ? `${ucAktif.kode} · ` : "";
+  const ringkasAktif = skenarioCookie && jendelaCookie ? `${awalanUc}${jendelaCookie.kode} · ${skenarioCookie.nama}` : null;
   // pil hanya menyebut skenario bila cocok dengan jendela yang sedang dibuka; selain itu keadaan data saat ini tidak diketahui
   const labelPil = menyiapkan
     ? `Menyiapkan ${menyiapkan}…`
     : jendela
       ? mendarat && skenarioCookie && jendelaCookie
-        ? `${jendelaCookie.kode} · ${skenarioCookie.nama}`
+        ? `${awalanUc}${jendelaCookie.kode} · ${skenarioCookie.nama}`
         : aktifDiJendela && skenarioCookie
-          ? `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · ${skenarioCookie.nama}`
-          : `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · skenario belum dipilih`
+          ? `${awalanUc}${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · ${skenarioCookie.nama}`
+          : `${jendela.kode.startsWith("BIMA") ? namaPendek(jendela) : jendela.kode} · keadaan belum dipilih`
       : "Navigator demo";
 
   if (!terbuka) {
@@ -294,78 +343,90 @@ export function NavigatorDemo() {
             </p>
           ) : null}
 
-          <section aria-labelledby="nav-pindah">
-            <h2 id="nav-pindah" className="text-xs font-semibold text-primer-800">
-              Pindah layar/peran
-            </h2>
-            <p className="mb-1.5 text-xs text-teks-redup">Data tidak berubah. Peran dipasang hanya bila sesi saat ini belum cocok.</p>
-            <ul className="grid grid-cols-2 gap-1">
-              {KATALOG_JENDELA.map((j) => {
+          <section aria-labelledby="nav-uc">
+            <label id="nav-uc" htmlFor="nav-pilih-uc" className="text-xs font-semibold text-primer-800">
+              Use case
+            </label>
+            <select
+              id="nav-pilih-uc"
+              value={uc.kode}
+              onChange={(e) => simpanUc(e.target.value)}
+              data-testid="navigator-uc"
+              className="mt-1 min-h-9 w-full rounded border border-primer-300 bg-white px-2 py-1.5 text-sm text-primer-900"
+            >
+              {KATALOG_UC.map((u) => (
+                <option key={u.kode} value={u.kode}>
+                  {u.kode === "Umum" ? "Umum" : u.kode} · {u.nama}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-teks-redup">
+              Peran: {uc.peran}. &ldquo;Buka&rdquo; hanya berpindah layar (data tetap); memilih keadaan menyiapkan data lalu membuka layarnya.
+            </p>
+            <ol className="mt-3 space-y-3">
+              {layarUsecase(uc).map(({ jendela: j, skenario }) => {
                 const sekarang = jendela?.kode === j.kode;
                 return (
-                  <li key={j.kode}>
-                    <a
-                      href={alamatPindah(j.kode)}
-                      rel="nofollow"
-                      data-jendela={j.kode}
-                      onClick={(e) => {
-                        // klik biasa: panel diciutkan sebelum pindah supaya tidak menutupi layar tujuan (Ctrl/Cmd-klik tetap membuka tab baru)
-                        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                        e.preventDefault();
-                        aturTerbuka(false);
-                        window.location.assign(alamatPindah(j.kode));
-                      }}
-                      aria-current={sekarang ? "page" : undefined}
-                      title={`${namaPendek(j)} (${j.peran})`}
-                      className={cn(
-                        "flex h-full min-h-9 items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors",
-                        sekarang ? "border-primer-400 bg-primer-50 font-semibold text-primer-900" : "border-primer-200 bg-white text-primer-800 hover:bg-primer-50",
-                      )}
-                    >
-                      <span className="w-11 shrink-0 whitespace-nowrap font-mono text-xs font-semibold text-teks-redup">{j.kode.startsWith("BIMA") ? `B-${j.kode.slice(-1)}` : j.kode}</span>
-                      <span className="line-clamp-2 leading-tight">{j.nama.replace("BIMA: ", "")}</span>
-                    </a>
+                  <li key={j.kode} data-layar={j.kode}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={cn("min-w-0 text-xs leading-snug", sekarang ? "font-semibold text-primer-900" : "text-primer-800")}>
+                        <span className="mr-1 font-mono font-semibold text-teks-redup">{kodePendek(j)}</span>
+                        {j.nama.replace("BIMA: ", "BIMA ")}
+                        {sekarang ? <span className="ml-1 font-normal text-teks-redup">(sedang dibuka)</span> : null}
+                      </p>
+                      <a
+                        href={alamatPindah(j.kode)}
+                        rel="nofollow"
+                        data-jendela={j.kode}
+                        onClick={(e) => {
+                          // klik biasa: panel diciutkan sebelum pindah supaya tidak menutupi layar tujuan (Ctrl/Cmd-klik tetap membuka tab baru)
+                          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                          e.preventDefault();
+                          simpanUc(uc.kode);
+                          aturTerbuka(false);
+                          window.location.assign(alamatPindah(j.kode));
+                        }}
+                        aria-current={sekarang ? "page" : undefined}
+                        aria-label={`Buka ${namaPendek(j)} tanpa mengubah data`}
+                        className="inline-flex min-h-8 shrink-0 items-center rounded border border-primer-300 bg-white px-2 text-xs font-semibold text-primer-800 transition-colors hover:bg-primer-50"
+                      >
+                        Buka
+                      </a>
+                    </div>
+                    {skenario.length ? (
+                      <ul className="mt-1 space-y-1">
+                        {skenario.map((sk) => {
+                          const aktif = kodeCookie === j.kode && idCookie === sk.id;
+                          return (
+                            <li key={sk.id}>
+                              <button
+                                type="button"
+                                disabled={Boolean(menyiapkan)}
+                                onClick={() => pasang(j.kode, sk.id, uc.kode)}
+                                aria-pressed={aktif}
+                                data-skenario={sk.id}
+                                className={cn(
+                                  "w-full rounded border px-2 py-1.5 text-left transition-colors disabled:opacity-60",
+                                  aktif ? "border-primer-400 bg-primer-50" : "border-primer-200 bg-white hover:bg-primer-50",
+                                )}
+                              >
+                                <span className="flex items-center justify-between gap-2 text-xs font-semibold text-primer-900">
+                                  {sk.nama}
+                                  {aktif ? <span className="rounded-sm bg-primer-800 px-1.5 text-xs font-semibold text-latar">aktif</span> : null}
+                                </span>
+                                <span className="block text-xs text-teks-redup">{sk.ringkas}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-teks-redup">Keadaannya disiapkan lewat layar berikutnya.</p>
+                    )}
                   </li>
                 );
               })}
-            </ul>
-          </section>
-
-          <section aria-labelledby="nav-skenario">
-            <h2 id="nav-skenario" className="text-xs font-semibold text-primer-800">
-              Pasang skenario{jendela ? ` untuk ${namaPendek(jendela)}` : ""}
-            </h2>
-            <p className="mb-1.5 text-xs text-teks-redup">Menyiapkan data demo lalu membuka layar ini. Data berubah (Reset penuh ada di Pusat Demo).</p>
-            {jendela ? (
-              <ul className="space-y-1">
-                {jendela.skenario.map((sk) => {
-                  const aktif = aktifDiJendela === sk.id;
-                  return (
-                    <li key={sk.id}>
-                      <button
-                        type="button"
-                        disabled={Boolean(menyiapkan)}
-                        onClick={() => pasang(jendela.kode, sk.id)}
-                        aria-pressed={aktif}
-                        data-skenario={sk.id}
-                        className={cn(
-                          "w-full rounded border px-2 py-1.5 text-left transition-colors disabled:opacity-60",
-                          aktif ? "border-primer-400 bg-primer-50" : "border-primer-200 bg-white hover:bg-primer-50",
-                        )}
-                      >
-                        <span className="flex items-center justify-between gap-2 text-xs font-semibold text-primer-900">
-                          {sk.nama}
-                          {aktif ? <span className="rounded-sm bg-primer-800 px-1.5 text-xs font-semibold text-latar">aktif</span> : null}
-                        </span>
-                        <span className="block text-xs text-teks-redup">{sk.ringkas}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-xs text-teks-redup">Pindah ke salah satu layar di atas; skenario keadaannya muncul di sini.</p>
-            )}
+            </ol>
           </section>
 
           <section aria-labelledby="nav-masa">
