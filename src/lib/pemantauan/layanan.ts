@@ -23,6 +23,16 @@ export async function daftarPeriode() {
     .orderBy(desc(periodeSeleksi.tahun), desc(periodeSeleksi.tanggalBuka));
 }
 
+/** Periode bawaan J-05: periode terbaru yang sudah punya penugasan ditetapkan (ada yang dipantau), selain itu periode terbaru. */
+export async function periodeBawaan<T extends { id: string }>(periode: T[]): Promise<T | undefined> {
+  if (periode.length <= 1) return periode[0];
+  const r = await getDb().execute(sql`
+    SELECT DISTINCT periode_id FROM penugasan_reviewer
+    WHERE status <> 'Diusulkan' AND periode_id IN (SELECT jsonb_array_elements_text(${JSON.stringify(periode.map((p) => p.id))}::jsonb)::uuid)`);
+  const ada = new Set((r as unknown as { rows: { periode_id: string }[] }).rows.map((x) => x.periode_id));
+  return periode.find((p) => ada.has(p.id)) ?? periode[0];
+}
+
 export async function daftarSkema() {
   return getDb().select().from(skemaPendanaan).orderBy(skemaPendanaan.namaSkema);
 }

@@ -6,7 +6,7 @@ import { Sparkline } from "@/components/grafik/batang";
 import { KeadaanKosong, KepalaHalaman } from "@/components/ui";
 import { wajibTimKerja } from "@/lib/auth";
 import type { TabPemantauan } from "@/lib/pemantauan/alamat";
-import { daftarPeriode, daftarSkema, susunKemajuan, susunLaporan } from "@/lib/pemantauan/layanan";
+import { daftarPeriode, daftarSkema, periodeBawaan, susunKemajuan, susunLaporan } from "@/lib/pemantauan/layanan";
 import { waktuDemo } from "@/lib/waktu";
 import { formatPersen } from "@/lib/pemantauan/rekap";
 import { cn, formatAngka } from "@/lib/utils";
@@ -35,7 +35,7 @@ export default async function Halaman({ searchParams }: { searchParams: Params }
   const sesi = await wajibTimKerja();
   const sp = await searchParams;
   const [periodeAda, skemaAda] = await Promise.all([daftarPeriode(), daftarSkema()]);
-  const periode = periodeAda.find((p) => p.id === satu(sp.periode)) ?? periodeAda[0];
+  const periode = periodeAda.find((p) => p.id === satu(sp.periode)) ?? (await periodeBawaan(periodeAda));
   const skema = skemaAda.find((s) => s.id === satu(sp.skema)) ?? skemaAda[0];
 
   const kepala = <KepalaHalaman kode="J-05" judul="Pemantauan Kesesuaian" keterangan="Butir mana yang rekomendasinya sering dikoreksi reviewer atau sering gagal saat pengajuan." remah={[{ label: "Pemantauan Kesesuaian" }]} />;
