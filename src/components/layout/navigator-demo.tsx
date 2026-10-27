@@ -161,9 +161,12 @@ export function NavigatorDemo() {
   const catatanSkenario = useCatatanSkenario(jalur);
   const jendela = jendelaDariJalur(jalur, kueri);
   const ucTersimpan = useSyncExternalStore(langgananUc, bacaUc, () => "");
-  // use case bawaan: yang terakhir dipilih bila memuat layar ini, selain itu use case pertama yang memuat layar ini
+  // pilihan di panel ini selalu menang; selain itu yang terakhir dipilih (halaman sebelumnya) bila memuat layar ini, lalu use case
+  // pertama yang memuat layar ini
+  const [pilihanUc, setPilihanUc] = useState<string | null>(null);
   const ucSimpan = cariUsecase(ucTersimpan);
   const uc =
+    cariUsecase(pilihanUc ?? "") ??
     (ucSimpan && (!jendela || ucSimpan.layar.some((l) => l.kode === jendela.kode)) ? ucSimpan : undefined) ??
     (jendela ? usecaseDariJendela(jendela.kode) : undefined) ??
     ucSimpan ??
@@ -350,7 +353,10 @@ export function NavigatorDemo() {
             <select
               id="nav-pilih-uc"
               value={uc.kode}
-              onChange={(e) => simpanUc(e.target.value)}
+              onChange={(e) => {
+                setPilihanUc(e.target.value);
+                simpanUc(e.target.value);
+              }}
               data-testid="navigator-uc"
               className="mt-1 min-h-9 w-full rounded border border-primer-300 bg-white px-2 py-1.5 text-sm text-primer-900"
             >
