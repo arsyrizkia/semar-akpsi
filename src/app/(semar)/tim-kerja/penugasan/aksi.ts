@@ -7,7 +7,7 @@ import { BimaGagalError } from "@/lib/bima/client";
 import { catatLogAudit } from "@/lib/audit";
 import { MasaBelumDitutupError, PenugasanDitolakError, pindahkanBanyak, susunPenugasan, tetapkanPenugasan, type PilihanPindah } from "@/lib/penugasan/layanan";
 import type { TujuanPindah } from "@/lib/penugasan/aturan";
-import { periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
+import { masaDariLama, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
 import type { HasilPindahAksi, HasilSusunAksi, HasilTetapkanAksi } from "./tipe";
 
 const JALUR = "/tim-kerja/penugasan";
@@ -29,11 +29,8 @@ export async function aksiSusun(_sebelumnya: HasilSusunAksi, data: FormData): Pr
   const batas = Number(String(data.get("batas") ?? "").trim());
   if (!periodeId.success) return { galat: "Periode tidak dikenali." };
   if (!Number.isInteger(batas) || batas < 1) return { galat: "Isi “Batas Beban per Reviewer” dengan bilangan bulat minimal 1." };
-  // masa penilaian (tidak dikirim bila isiannya terkunci karena masa sudah dimulai): koma desimal diterima
-  const angkaIsian = (k: string) => Number(String(data.get(k) ?? "").trim().replace(",", "."));
-  const masa: ParamMasa | undefined = data.has("lamaHari")
-    ? { lamaHari: angkaIsian("lamaHari"), jamPerHari: angkaIsian("jamPerHari"), menitPerProposal: angkaIsian("menitPerProposal") }
-    : undefined;
+  // lama masa penilaian (tidak dikirim bila isiannya terkunci karena masa sudah dimulai); jam per hari dan menit per proposal standar sistem
+  const masa: ParamMasa | undefined = data.has("lamaHari") ? masaDariLama(Number(String(data.get("lamaHari") ?? "").trim())) : undefined;
   if (masa) {
     const g = periksaParamMasa(masa);
     if (g) return { galat: g, kolom: "masa" };

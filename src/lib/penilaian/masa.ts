@@ -2,7 +2,8 @@
  * Masa penilaian administrasi (aman diimpor komponen klien). Seluruh proposal satu periode dinilai reviewer dalam satu masa singkat
  * (bawaan 7 hari sejak penugasan ditetapkan; naskah: seleksi administrasi 2026 berlangsung delapan hari). Dari lama masa, jam kerja
  * reviewer per hari, dan waktu pemeriksaan per proposal (to-be 5,17 menit, Tabel 5.2 duration analysis) dihitung kapasitas satu
- * reviewer, tenggat, posisi hari, proyeksi selesai, dan status jadwal setiap reviewer. Hari dihitung menurut kalender WIB.
+ * reviewer, tenggat, posisi hari, proyeksi selesai, dan status jadwal setiap reviewer. Hari dihitung menurut kalender WIB. Hanya lama
+ * masa yang diisi Tim Kerja (J-04b); jam per hari dan menit per proposal mengikuti MASA_BAWAAN (masaDariLama).
  */
 
 export interface ParamMasa {
@@ -15,6 +16,12 @@ export interface ParamMasa {
 }
 
 export const MASA_BAWAAN: ParamMasa = { lamaHari: 7, jamPerHari: 2, menitPerProposal: 5.17 };
+
+/**
+ * Masa penilaian dari lama hari isian J-04b. Jam menilai per hari (batas waktu reviewer) dan menit per proposal adalah standar sistem,
+ * bukan isian: Tim Kerja cukup menentukan batas beban dan lama masa, lalu waktu menilai per hari dihitung.
+ */
+export const masaDariLama = (lamaHari: number): ParamMasa => ({ ...MASA_BAWAAN, lamaHari });
 /** rentang isian yang diterima (J-04b) */
 export const RENTANG_MASA = { lamaHari: [1, 31], jamPerHari: [0.5, 12], menitPerProposal: [1, 60] } as const;
 
@@ -29,6 +36,18 @@ export const kapasitasReviewer = (m: ParamMasa) => Math.floor(m.lamaHari * kapas
 
 /** Jam yang dibutuhkan untuk menilai `beban` proposal. */
 export const jamDibutuhkan = (beban: number, m: Pick<ParamMasa, "menitPerProposal">) => (beban * m.menitPerProposal) / 60;
+
+/** Menit menilai per hari yang dibutuhkan satu reviewer untuk `beban` proposal bila dibagi rata sepanjang masa penilaian. */
+export const menitPerHariDibutuhkan = (beban: number, m: Pick<ParamMasa, "lamaHari" | "menitPerProposal">) => (beban * m.menitPerProposal) / m.lamaHari;
+
+/** "33 menit", "1 jam 20 menit", "2 jam" (dibulatkan ke menit; durasi positif minimal 1 menit). */
+export function formatDurasi(menit: number): string {
+  const total = menit > 0 ? Math.max(1, Math.round(menit)) : 0;
+  const jam = Math.floor(total / 60);
+  const sisa = total % 60;
+  if (!jam) return `${sisa} menit`;
+  return sisa ? `${jam} jam ${sisa} menit` : `${jam} jam`;
+}
 
 /** Galat isian masa penilaian (null bila sah). */
 export function periksaParamMasa(m: ParamMasa): string | null {

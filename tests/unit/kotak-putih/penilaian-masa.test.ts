@@ -3,12 +3,15 @@
 import { describe, expect, it } from "vitest";
 import {
   MASA_BAWAAN,
+  formatDurasi,
   formatTenggat,
   hariPenilaian,
   hitungTenggat,
   jamDibutuhkan,
   kapasitasPerHari,
   kapasitasReviewer,
+  masaDariLama,
+  menitPerHariDibutuhkan,
   periksaParamMasa,
   posisiMasa,
   proyeksiSelesai,
@@ -36,6 +39,21 @@ describe("kapasitas", () => {
   it("KP-galatKapasitas-01: batas di atas kapasitas ditolak dengan pesan berawalan Batas Beban; sama dengan kapasitas diterima", () => {
     expect(galatKapasitas(162, MASA_BAWAAN)).toBeNull();
     expect(galatKapasitas(163, MASA_BAWAAN)).toMatch(/^Batas Beban per Reviewer 163 melebihi kapasitas satu reviewer: 162 proposal dalam 7 hari/);
+  });
+  it("KP-masaDariLama-01: hanya lama yang diisi; jam per hari dan menit per proposal mengikuti MASA_BAWAAN", () => {
+    expect(masaDariLama(10)).toEqual({ lamaHari: 10, jamPerHari: MASA_BAWAAN.jamPerHari, menitPerProposal: MASA_BAWAAN.menitPerProposal });
+    expect(kapasitasReviewer(masaDariLama(10))).toBe(232);
+  });
+  it("KP-menitPerHariDibutuhkan-01: beban x menit / lama; 45 proposal dalam 7 hari ±33 menit, 162 proposal ±2 jam", () => {
+    expect(menitPerHariDibutuhkan(45, MASA_BAWAAN)).toBeCloseTo(33.24, 2);
+    expect(menitPerHariDibutuhkan(162, MASA_BAWAAN)).toBeCloseTo(119.65, 2);
+  });
+  it("KP-formatDurasi-01: menit saja, jam dan menit, jam bulat; durasi positif minimal 1 menit; nol", () => {
+    expect(formatDurasi(33.24)).toBe("33 menit");
+    expect(formatDurasi(80.4)).toBe("1 jam 20 menit");
+    expect(formatDurasi(119.65)).toBe("2 jam");
+    expect(formatDurasi(0.2)).toBe("1 menit");
+    expect(formatDurasi(0)).toBe("0 menit");
   });
 });
 

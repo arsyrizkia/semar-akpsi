@@ -269,7 +269,7 @@ export function galatKapasitas(batas: number, masa: ParamMasa): string | null {
   const kap = kapasitasReviewer(masa);
   if (batas <= kap) return null;
   const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 });
-  return `Batas Beban per Reviewer ${batas} melebihi kapasitas satu reviewer: ${kap} proposal dalam ${masa.lamaHari} hari (${desimal.format(masa.jamPerHari)} jam per hari, ${desimal.format(masa.menitPerProposal)} menit per proposal). Turunkan batas, atau ubah masa penilaian.`;
+  return `Batas Beban per Reviewer ${batas} melebihi kapasitas satu reviewer: ${kap} proposal dalam ${masa.lamaHari} hari (paling lama ${desimal.format(masa.jamPerHari)} jam menilai per hari, ±${desimal.format(masa.menitPerProposal)} menit per proposal). Turunkan batas, atau perpanjang lama penilaian.`;
 }
 
 /**

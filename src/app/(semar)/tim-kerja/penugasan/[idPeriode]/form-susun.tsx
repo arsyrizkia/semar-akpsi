@@ -1,25 +1,25 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Alert, Button, Isian, ModalKonfirmasi } from "@/components/ui";
-import { formatTenggat, jamDibutuhkan, kapasitasReviewer, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
+import { formatDurasi, formatTenggat, kapasitasReviewer, masaDariLama, menitPerHariDibutuhkan, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
+import { cn } from "@/lib/utils";
 import { aksiSusun } from "../aksi";
 import type { HasilSusunAksi } from "../tipe";
 
 const angka = new Intl.NumberFormat("id-ID");
 const desimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 });
-/** isian desimal: koma atau titik */
-const bacaAngka = (s: string) => Number(s.trim().replace(",", "."));
 
 /**
  * J-04b langkah 1-4 dan S-1: isian "Batas Beban per Reviewer", tombol "Susun Usulan Penugasan", dan panel "Kekurangan Reviewer".
  * Panel S-1 memuat kapasitas, institusi pengusul penghambat (bila hambatannya institusi), dan saran batas terkecil yang cukup
  * dengan tombol "Susun dengan batas n". Saat S-1 tidak ada data yang berubah (usulan dan batas lama tetap). Menyusun ulang saat usulan
  * sudah ada meminta konfirmasi dulu karena usulan lama, termasuk pemindahan manual, akan diganti.
- * Masa penilaian (lama, jam menilai per hari, menit per proposal) menentukan kapasitas satu reviewer; batas beban tidak boleh
- * melebihinya. Sesudah penugasan pertama ditetapkan, masa terkunci dan tenggatnya ditampilkan.
+ * Tim Kerja hanya mengisi batas beban dan lama masa penilaian. Waktu menilai per hari dihitung otomatis dari menit per proposal
+ * (standar sistem); kapasitas satu reviewer = batas jam menilai per hari sepanjang masa, dan batas beban tidak boleh melebihinya.
+ * Sesudah penugasan pertama ditetapkan, lama masa terkunci dan tenggatnya ditampilkan.
  */
 export function FormSusun({
   periodeId,
@@ -51,14 +51,18 @@ export function FormSusun({
   const form = useRef<HTMLFormElement>(null);
   const [batas, setBatas] = useState(String(batasAwal));
   const [lama, setLama] = useState(String(masaAwal.lamaHari));
-  const [jam, setJam] = useState(desimal.format(masaAwal.jamPerHari));
-  const [menit, setMenit] = useState(desimal.format(masaAwal.menitPerProposal));
   const terkunci = mulaiPenilaian !== null;
-  const masa: ParamMasa = terkunci ? masaAwal : { lamaHari: bacaAngka(lama), jamPerHari: bacaAngka(jam), menitPerProposal: bacaAngka(menit) };
+  const masa: ParamMasa = terkunci ? masaAwal : masaDariLama(Number(lama.trim()));
   const galatMasaIsian = terkunci ? null : periksaParamMasa(masa);
   const kapasitas = galatMasaIsian ? null : kapasitasReviewer(masa);
   const nBatas = Number(batas);
-  const lewatKapasitas = kapasitas !== null && Number.isInteger(nBatas) && nBatas > kapasitas;
+  const batasSah = Number.isInteger(nBatas) && nBatas > 0;
+  const lewatKapasitas = kapasitas !== null && batasSah && nBatas > kapasitas;
+  // waktu menilai per hari dihitung dari batas beban dan lama masa (tidak diisi)
+  const menitHarian = kapasitas !== null && batasSah ? menitPerHariDibutuhkan(nBatas, masa) : null;
+  const idBatas = useId();
+  const idLama = useId();
+  const idWaktu = useId();
   const router = useRouter();
   const jalur = usePathname();
   const cari = useSearchParams();
@@ -112,6 +116,7 @@ export function FormSusun({
       >
         <input type="hidden" name="periodeId" value={periodeId} />
         <Isian
+          id={idBatas}
           label="Batas Beban per Reviewer"
           name="batas"
           type="number"
@@ -128,10 +133,35 @@ export function FormSusun({
         />
         <fieldset className="flex flex-wrap items-start gap-3" disabled={!ditutup || terkunci} aria-describedby="keterangan-masa">
           <legend className="sr-only">Masa penilaian</legend>
-          <Isian label="Lama Penilaian (hari)" name="lamaHari" type="number" min={1} max={31} step={1} inputMode="numeric" autoComplete="off" value={lama} onChange={(e) => setLama(e.target.value)} className="w-40" />
-          <Isian label="Jam Menilai per Hari" name="jamPerHari" inputMode="decimal" autoComplete="off" value={jam} onChange={(e) => setJam(e.target.value)} className="w-40" />
-          <Isian label="Menit per Proposal" name="menitPerProposal" inputMode="decimal" autoComplete="off" value={menit} onChange={(e) => setMenit(e.target.value)} className="w-40" />
+          <Isian
+            id={idLama}
+            label="Lama Penilaian (hari)"
+            name="lamaHari"
+            type="number"
+            min={1}
+            max={31}
+            step={1}
+            inputMode="numeric"
+            autoComplete="off"
+            value={lama}
+            onChange={(e) => setLama(e.target.value)}
+            galat={terkunci ? undefined : (galatMasaIsian ?? galatMasa)}
+            className="w-44"
+          />
         </fieldset>
+        <div className="w-48">
+          <span id={idWaktu} className="mb-1 block text-sm font-semibold text-primer-800">
+            Waktu Menilai per Hari
+          </span>
+          <output
+            htmlFor={`${idBatas} ${idLama}`}
+            aria-labelledby={idWaktu}
+            className={cn("angka flex h-10 items-center text-base font-semibold", lewatKapasitas ? "text-bata-700" : "text-primer-900")}
+          >
+            {menitHarian === null ? "-" : `±${formatDurasi(menitHarian)}`}
+          </output>
+          <p className="mt-1 text-xs text-teks-redup">per reviewer, paling lama {formatDurasi(masa.jamPerHari * 60)}</p>
+        </div>
         <Button type="submit" varian={adaUsulan ? "sekunder" : "utama"} memuat={menyusun} disabled={!ditutup || perluDitugaskan === 0 || lewatKapasitas || !!galatMasaIsian} className="mt-6">
           Susun Usulan Penugasan
         </Button>
@@ -144,21 +174,14 @@ export function FormSusun({
         ) : (
           <>Masa penilaian dimulai saat penugasan ditetapkan dan berakhir pada akhir hari ke-{Number.isInteger(masa.lamaHari) ? masa.lamaHari : "-"}. </>
         )}
-        {galatMasaIsian ? (
-          <span className="font-medium text-bata-700">{galatMasaIsian}</span>
-        ) : (
+        {kapasitas !== null ? (
           <>
-            Kapasitas satu reviewer: <strong className="angka font-semibold text-primer-900">{angka.format(kapasitas!)}</strong> proposal ({desimal.format(masa.jamPerHari)} jam × {masa.lamaHari} hari ÷{" "}
-            {desimal.format(masa.menitPerProposal)} menit per proposal).
-            {Number.isInteger(nBatas) && nBatas > 0 ? <> Batas {angka.format(nBatas)} membutuhkan ±{desimal.format(jamDibutuhkan(nBatas, masa))} jam per reviewer.</> : null}
+            Waktu menilai dihitung dari rata-rata ±{desimal.format(masa.menitPerProposal)} menit per proposal. Dengan waktu menilai paling lama{" "}
+            {formatDurasi(masa.jamPerHari * 60)} per hari, kapasitas satu reviewer <strong className="angka font-semibold text-primer-900">{angka.format(kapasitas)}</strong> proposal
+            dalam {masa.lamaHari} hari.
           </>
-        )}
+        ) : null}
       </p>
-      {galatMasa ? (
-        <Alert jenis="galat" className="mt-3">
-          {galatMasa}
-        </Alert>
-      ) : null}
 
       <div aria-live="polite" className="empty:hidden">
         {menyusun ? (
