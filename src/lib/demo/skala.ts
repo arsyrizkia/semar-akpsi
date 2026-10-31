@@ -9,6 +9,8 @@ import { and, eq, like, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import * as s from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
+import { jalankan as jalankanSemantik } from "@/lib/pemeriksa/semantik/jalankan";
+import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { setPeriodeAktif } from "@/lib/waktu";
 import { PROFIL, type ProfilSkala } from "./profil-skala";
 
@@ -124,30 +126,59 @@ async function buatProposalBerbobot(profil: ProfilSkala, periodeId: string, skem
 }
 
 /**
- * Naskah dan hasil pemeriksaan proposal contoh PRP-2026-0004 (skenario reviewer, Terkirim) disalin ke setiap versi profil supaya J-05b
- * dan J-08 berisi; judul di teks bagian diganti judul proposal. Bila contoh itu belum ada, versi tetap tanpa naskah (kerangka).
+ * Versi proposal contoh PRP-2026-0004 (skenario reviewer, Terkirim) yang menjadi sumber salinan profil. Seed hanya membuat hasil
+ * deterministiknya dan job semantik Menunggu (dikerjakan saat J-08 dibuka), jadi hasil semantiknya dibuat dulu di sini (penyedia tiruan,
+ * tanpa LLM) bila belum ada. Tanpa ini salinan 1.200 proposal tidak punya hasil semantik dan J-05 kosong (hasil semantik 0 sejak reset 27 Okt 2026).
  */
-async function salinNaskahContoh(periodeId: string, awalan: string): Promise<void> {
+async function versiSumberContoh(): Promise<string | null> {
   const db = getDb();
   const [sumber] = (
     (await db.execute(sql`
-      SELECT v.id, v.berkas_id, v.templat_id, v.basis_aturan_id FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id
+      SELECT v.id FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id
       WHERE p.id_proposal = 'PRP-2026-0004' AND v.berkas_id IS NOT NULL ORDER BY v.nomor DESC LIMIT 1`)) as unknown as { rows: { id: string }[] }
   ).rows;
-  if (!sumber) return;
-  await db.execute(sql`
+  if (!sumber) return null;
+  if (!(await adaHasilSemantik(sql`SELECT ${sumber.id}::uuid`))) await jalankanSemantik(sumber.id, { tiruan: true, penyedia: kirimPermintaanTiruan });
+  return sumber.id;
+}
+
+/** Ada paling sedikit satu hasil semantik pada versi-versi dari subkueri id versi. */
+async function adaHasilSemantik(idVersi: ReturnType<typeof sql>): Promise<boolean> {
+  const { rows } = (await getDb().execute(sql`SELECT EXISTS (SELECT 1 FROM hasil_pemeriksaan WHERE jenis = 'semantik' AND versi_id IN (${idVersi})) AS ada`)) as unknown as {
+    rows: { ada: boolean }[];
+  };
+  return rows[0]?.ada === true;
+}
+
+/** Versi proposal profil pada periode (berdasarkan awalan id), sebagai subkueri id. */
+const versiProfil = (periodeId: string, awalan: string) =>
+  sql`SELECT v.id FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id WHERE p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"}`;
+
+/** Hasil pemeriksaan (deterministik dan semantik) versi sumber disalin ke setiap versi profil; yang sudah ada dilewati. */
+async function salinHasilContoh(periodeId: string, awalan: string, sumberId: string): Promise<void> {
+  await getDb().execute(sql`
+    INSERT INTO hasil_pemeriksaan (versi_id, butir_id, butir_kode, jenis, bagian, status, angka_pembukti, batas_dilanggar, rekomendasi, kutipan, kutipan_lain, tingkat_keyakinan, alasan_sistem, tiruan)
+    SELECT v.id, h.butir_id, h.butir_kode, h.jenis, h.bagian, h.status, h.angka_pembukti, h.batas_dilanggar, h.rekomendasi, h.kutipan, h.kutipan_lain, h.tingkat_keyakinan, h.alasan_sistem, h.tiruan
+    FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id CROSS JOIN hasil_pemeriksaan h
+    WHERE p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"} AND h.versi_id = ${sumberId}::uuid
+    ON CONFLICT DO NOTHING`);
+}
+
+/**
+ * Naskah dan hasil pemeriksaan proposal contoh PRP-2026-0004 disalin ke setiap versi profil supaya J-05b dan J-08 berisi; judul di teks
+ * bagian diganti judul proposal. Bila contoh itu belum ada, versi tetap tanpa naskah (kerangka).
+ */
+async function salinNaskahContoh(periodeId: string, awalan: string): Promise<void> {
+  const sumberId = await versiSumberContoh();
+  if (!sumberId) return;
+  await getDb().execute(sql`
     UPDATE versi_proposal v SET
       berkas_id = c.berkas_id, templat_id = COALESCE(v.templat_id, c.templat_id), basis_aturan_id = COALESCE(v.basis_aturan_id, c.basis_aturan_id),
       teks_per_bagian = jsonb_set(c.teks_per_bagian, '{Judul}', to_jsonb(p.judul)), kata_kunci = c.kata_kunci,
       lampiran_ada = c.lampiran_ada, teks_lampiran = c.teks_lampiran, judul_bagian_ditemukan = c.judul_bagian_ditemukan
     FROM versi_proposal c, proposal p
-    WHERE c.id = ${sumber.id}::uuid AND p.id = v.proposal_id AND p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"}`);
-  await db.execute(sql`
-    INSERT INTO hasil_pemeriksaan (versi_id, butir_id, butir_kode, jenis, bagian, status, angka_pembukti, batas_dilanggar, rekomendasi, kutipan, kutipan_lain, tingkat_keyakinan, alasan_sistem, tiruan)
-    SELECT v.id, h.butir_id, h.butir_kode, h.jenis, h.bagian, h.status, h.angka_pembukti, h.batas_dilanggar, h.rekomendasi, h.kutipan, h.kutipan_lain, h.tingkat_keyakinan, h.alasan_sistem, h.tiruan
-    FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id CROSS JOIN hasil_pemeriksaan h
-    WHERE p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"} AND h.versi_id = ${sumber.id}::uuid
-    ON CONFLICT DO NOTHING`);
+    WHERE c.id = ${sumberId}::uuid AND p.id = v.proposal_id AND p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"}`);
+  await salinHasilContoh(periodeId, awalan, sumberId);
 }
 
 async function buatDataMassal(profil: ProfilSkala, periodeId: string): Promise<void> {
@@ -209,6 +240,10 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
     // data kosong, rusak, atau sebagian: bangun ulang dari nol (hanya data berawalan profil)
     await hapusDataProfil(profil, periode.id);
     await buatDataMassal(profil, periode.id);
+  } else if (!(await adaHasilSemantik(versiProfil(periode.id, profil.awalanIdProposal)))) {
+    // data lama yang dibangun sebelum sumbernya punya hasil semantik: lengkapi hasilnya tanpa membangun ulang
+    const sumberId = await versiSumberContoh();
+    if (sumberId) await salinHasilContoh(periode.id, profil.awalanIdProposal, sumberId);
   }
   const waktuBuatMs = dibuatBaru ? Date.now() - mulai : 0;
 
