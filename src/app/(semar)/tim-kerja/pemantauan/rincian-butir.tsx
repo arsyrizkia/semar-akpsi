@@ -61,7 +61,7 @@ export function RincianButir({ data, ambang }: { data: DataRincian; ambang: Amba
       buka={!!baris}
       saatUbah={(b) => !b && tutup()}
       kode="M-08"
-      judul={baris ? `Rincian Butir ${baris.kode}` : "Rincian Butir"}
+      judul="Rincian Butir"
       deskripsi={baris?.deskripsi ?? ""}
       kaki={
         <div className="flex flex-wrap justify-end gap-2">
@@ -153,7 +153,7 @@ function IsiSemantik({ baris, data, ambang }: { baris: BarisSemantik; data: Data
         <>
           <Subjudul>Tren harian</Subjudul>
           <GarisHarian
-            judul={`${baris.kode}: % disetujui per hari`}
+            judul="% disetujui per hari"
             titik={tren}
             ambang={ambang.disetujui}
             penanda={data.penandaVersi.map((p) => ({ hari: p.hari, label: `v${p.versi} berlaku` }))}
@@ -200,7 +200,7 @@ function IsiSemantik({ baris, data, ambang }: { baris: BarisSemantik; data: Data
         <ul className="space-y-4">
           {tampil.map((c, i) => (
             <li key={`${c.proposalId}-${i}`} className="border-b border-primer-100 pb-4 last:border-0">
-              <Link href={`/tim-kerja/proposal/${c.proposalId}`} className={tautan}>
+              <Link href={`/tim-kerja/proposal/${c.proposalId}?butir=${encodeURIComponent(baris.kode)}`} className={tautan}>
                 {c.judulProposal}
               </Link>
               <p className="angka text-xs text-teks-redup">

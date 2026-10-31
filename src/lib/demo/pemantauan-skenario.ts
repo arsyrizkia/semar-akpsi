@@ -127,7 +127,7 @@ export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantaua
   bermasalah: {
     id: "bermasalah",
     nama: "Satu butir bermasalah (1.200)",
-    ringkas: "Hari ke-5: UNS-10 (diagram alir Metode) hanya ±58% disetujui: sistem terlalu longgar, kutipan salah tempat, dan memburuk tiap hari. Kemajuan penilaian sesuai jadwal.",
+    ringkas: "Hari ke-5: butir diagram alir Metode hanya ±58% disetujui: sistem terlalu longgar, kutipan salah tempat, dan memburuk tiap hari. Kemajuan penilaian sesuai jadwal.",
     final: { PD: 560, PT: 400 },
     hariBerjalan: 5,
     semantik: { "UNS-10": { ...UNS10_BURUK, tren: [0.7, 0.8, 0.95, 1.05, 1.2, 1.2, 1.2] }, "UNS-08": UNS08_SEDANG },
@@ -136,7 +136,7 @@ export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantaua
   "terlalu-ketat": {
     id: "terlalu-ketat",
     nama: "Aturan terlalu ketat (1.200)",
-    ringkas: "Hari ke-6: KTA-04 (Metode ≤ 1.000 kata) gagal pada ±28% pengajuan, ±45% di Universitas Nusantara Contoh; UNS-09 sering dibalik reviewer menjadi Memenuhi.",
+    ringkas: "Hari ke-6: butir panjang Metode (maks. 1.000 kata) gagal pada ±28% pengajuan, ±45% di Universitas Nusantara Contoh; butir peta jalan penelitian sering dibalik reviewer menjadi Memenuhi.",
     final: { PD: 630, PT: 450 },
     hariBerjalan: 6,
     semantik: {
@@ -153,7 +153,7 @@ export const SKENARIO_PEMANTAUAN: Record<IdSkenarioPemantauan, SkenarioPemantaua
   "sesudah-perbaikan": {
     id: "sesudah-perbaikan",
     nama: "Sesudah butir diperbaiki (1.200)",
-    ringkas: "UNS-10 ditandai di hari ke-3, basis aturan versi baru berlaku mulai hari ke-4 (naskah yang belum dinilai diperiksa ulang): ±58% naik menjadi ±91% disetujui.",
+    ringkas: "Butir diagram alir Metode ditandai di hari ke-3, basis aturan versi baru berlaku mulai hari ke-4 (naskah yang belum dinilai diperiksa ulang): ±58% naik menjadi ±91% disetujui.",
     final: FINAL_PENUH,
     hariBerjalan: JUMLAH_HARI,
     semantik: { "UNS-10": UNS10_BURUK, "UNS-08": UNS08_SEDANG },

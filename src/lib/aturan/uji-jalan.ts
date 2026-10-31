@@ -19,7 +19,9 @@ import type { BagianTemplatDto, ButirCek, DokumenPeriksa, HasilButirDeterministi
 import { nilaiSemantikDenganOpsi, parameterSemantik } from "@/lib/pemeriksa/semantik/mesin";
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ekstrakNaskah, jenisBerkas } from "@/lib/pengajuan/ekstraksi";
-import { muatGambarNaskah, pemilikContoh, simpanGambarNaskah } from "@/lib/pengajuan/gambar-simpan";
+import { daftarGambarPemilik, muatGambarNaskah, pemilikContoh, simpanGambarNaskah } from "@/lib/pengajuan/gambar-simpan";
+import { susunButirTampil, susunTab } from "@/lib/penilaian/tinjauan";
+import type { ButirTampil, TabTeks } from "@/lib/penilaian/tipe";
 import { potongPerBagian } from "@/lib/pengajuan/potong";
 import { siapkanButirUji, type ButirUji, type SumberUji } from "./layanan";
 
@@ -266,6 +268,66 @@ export async function ambilHasilUji(ujiId: string): Promise<HasilUjiTersimpan | 
     contoh,
     belumDinilai: Math.max(0, jumlahSem - hasil.filter((h) => h.jenis === "semantik").length),
   };
+}
+
+/** Hasil deterministik satu dokumen uji untuk J-03b per dokumen. */
+export interface DeterministikTinjauan {
+  kode: string;
+  deskripsi: string;
+  status: HasilButirDeterministik["status"];
+  angkaPembukti: string;
+  batasDilanggar: string | null;
+}
+
+/** Bahan J-03b per dokumen (?dokumen=): teks contoh per bagian Isian Substansi dengan sorotan bukti, seperti J-08 tetapi hanya baca. */
+export interface TinjauanUji {
+  dokumen: { kode: string; nama: string };
+  tab: TabTeks[];
+  butir: ButirTampil[];
+  deterministik: DeterministikTinjauan[];
+}
+
+export async function muatTinjauanUji(ujiId: string, dokumenKode: string): Promise<TinjauanUji | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(ujiId)) return null;
+  const db = getDb();
+  const [uji] = await db.select().from(ujiContoh).where(eq(ujiContoh.id, ujiId));
+  if (!uji || !uji.dokumen.includes(dokumenKode)) return null;
+  const [dok, hasil, gambar] = await Promise.all([
+    muatDokumen([dokumenKode]),
+    db.select().from(ujiContohHasil).where(and(eq(ujiContohHasil.ujiId, ujiId), eq(ujiContohHasil.dokumenKode, dokumenKode))),
+    daftarGambarPemilik(pemilikContoh(dokumenKode)),
+  ]);
+  const d = dok.get(dokumenKode);
+  if (!d) return null;
+  const butir = new Map((uji.butir as ButirCek[]).map((b) => [b.kode, b]));
+  // hanya Isian Substansi yang diuji (halaman depan dan lampiran milik BIMA)
+  const urutanBagian = [...(uji.bagianTemplat as BagianTemplatDto[])].sort((a, b) => a.urutan - b.urutan).map((b) => b.nama);
+  const tab = susunTab({ urutanBagian, teksPerBagian: d.teksPerBagian, gambar });
+  const urut = (k: string) => [...butir.keys()].indexOf(k);
+  const semantik = hasil
+    .filter((h) => h.jenis === "semantik")
+    .map((h) => h.hasil as unknown as HasilButirSemantik)
+    .sort((a, b) => urut(a.kode) - urut(b.kode))
+    .map((h) => ({
+      hasilId: `uji:${h.kode}`,
+      kode: h.kode,
+      deskripsi: butir.get(h.kode)?.deskripsi ?? "",
+      parameter: butir.get(h.kode)?.parameter ?? null,
+      status: h.status,
+      rekomendasi: h.rekomendasi,
+      kutipan: h.kutipan,
+      kutipanLain: h.kutipanLain ?? [],
+      tingkatKeyakinan: h.tingkatKeyakinan,
+      alasanSistem: h.alasanSistem,
+      tiruan: h.tiruan,
+      koreksi: null,
+    }));
+  const deterministik = hasil
+    .filter((h) => h.jenis === "deterministik")
+    .map((h) => h.hasil as unknown as HasilButirDeterministik)
+    .sort((a, b) => urut(a.kode) - urut(b.kode))
+    .map((h) => ({ kode: h.kode, deskripsi: butir.get(h.kode)?.deskripsi ?? "", status: h.status, angkaPembukti: h.angkaPembukti, batasDilanggar: h.batasDilanggar }));
+  return { dokumen: { kode: d.kode, nama: d.nama }, tab, butir: susunButirTampil(semantik, tab), deterministik };
 }
 
 /** Uji terakhir yang sudah selesai atau dihentikan untuk templat (atau skema bila tanpa templat). */

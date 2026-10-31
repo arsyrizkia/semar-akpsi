@@ -83,7 +83,11 @@ export function PenyediaTandai({
           return;
         }
         // langkah berikutnya (Buka di Aturan Pemeriksaan) sudah ada di baris butir yang ditandai, jadi cukup satu pesan singkat
-        beriTahu.sukses(`Butir ${h.ditandai.join(", ")} sekarang berlabel “${STATUS_DITANDAI}”.`);
+        beriTahu.sukses(
+          h.ditandai.length === 1
+            ? `Butir “${info.get(h.ditandai[0])?.deskripsi ?? "terpilih"}” sekarang berlabel “${STATUS_DITANDAI}”.`
+            : `${h.ditandai.length} butir sekarang berlabel “${STATUS_DITANDAI}”.`,
+        );
       });
     });
   }
@@ -108,7 +112,7 @@ export function PenyediaTandai({
         <ul className="mt-3 space-y-1">
           {(sasaran ?? []).map((k) => (
             <li key={k}>
-              <span className="font-mono text-xs font-semibold">{k}</span> {info.get(k)?.deskripsi}
+              {info.get(k)?.deskripsi}
             </li>
           ))}
         </ul>

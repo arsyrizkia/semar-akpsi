@@ -36,15 +36,17 @@ const baris = (t: string) => t.split(/\r?\n/);
 
 /**
  * M-02 Form Butir (Tambah Butir / Ubah): Bagian, Jenis Aturan, parameter sesuai jenis (berlabel Deterministik atau Semantik), lalu
- * Kode dan Deskripsi yang terisi otomatis. Isian teks bebas "Aturan Hitung" diganti formulir ini (catatan inkonsistensi no. 36).
+ * Deskripsi yang terisi otomatis. Isian teks bebas "Aturan Hitung" diganti formulir ini (catatan inkonsistensi no. 36). Kode butir
+ * dibuat otomatis (kodeOtomatis) dan tidak ditampilkan: pengguna mengenali butir dari deskripsinya (catatan inkonsistensi no. 64).
  */
 export function FormAturanModal(props: PropsFormAturan) {
   return <IsiForm key={`${props.mode}:${props.awal.kode}:${props.awal.jenisAturan}:${props.awal.unsur}:${props.awal.frasa}:${props.awal.bagian}`} {...props} />;
 }
 
 function IsiForm({ mode, awal, bagian, kodeTerpakai, kunciIsi, hanyaPertanyaan, keKetentuan, sibuk, galatServer, saatSimpan, saatBatal }: PropsFormAturan) {
-  const [f, setF] = useState<FormAturan>(awal);
-  const [kodeSunting, setKodeSunting] = useState(mode === "ubah");
+  // butir baru langsung mendapat kode otomatis (tidak ada isian kode); butir yang diubah mempertahankan kodenya
+  const [f, setF] = useState<FormAturan>(() => (mode === "tambah" && !awal.kode ? { ...awal, kode: kodeOtomatis(awal.jenisAturan, kodeTerpakai) } : awal));
+  const kodeSunting = mode === "ubah";
   const [deskSunting, setDeskSunting] = useState(false);
   const [coba, setCoba] = useState(false);
   const info = infoJenis(f.jenisAturan);
@@ -71,7 +73,7 @@ function IsiForm({ mode, awal, bagian, kodeTerpakai, kunciIsi, hanyaPertanyaan, 
       ukuran="lg"
       buka
       saatUbah={(b) => !sibuk && !b && saatBatal()}
-      judul={mode === "ubah" ? `Ubah Butir ${awal.kode}`.trim() : "Tambah Butir"}
+      judul={mode === "ubah" ? "Ubah Butir" : "Tambah Butir"}
       kaki={
         <>
           <Button varian="sekunder" onClick={saatBatal} disabled={sibuk}>
@@ -168,31 +170,21 @@ function IsiForm({ mode, awal, bagian, kodeTerpakai, kunciIsi, hanyaPertanyaan, 
         {info && !beku ? (
           <div className="grid gap-4 border-t border-primer-100 pt-4 md:grid-cols-2">
             {ikatIsi ? (
-              <>
-                <div>
-                  <p className="text-sm font-medium text-primer-900">Kode</p>
-                  <p className="text-sm text-teks-redup">Diberikan otomatis saat templat terbit.</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-primer-900">Deskripsi</p>
-                  <p className="text-sm">{deskripsiOtomatis(f) || "-"}</p>
-                </div>
-              </>
+              <div className="md:col-span-2">
+                <p className="text-sm font-medium text-primer-900">Deskripsi</p>
+                <p className="text-sm">{deskripsiOtomatis(f) || "-"}</p>
+              </div>
             ) : (
-              <>
-                <Isian
-                  label="Kode"
-                  name="kode"
-                  autoComplete="off"
-                  spellCheck={false}
-                  wajib
-                  value={f.kode}
-                  disabled={mode === "ubah"}
-                  galat={tampil("kode")}
-                  onChange={(e) => (setKodeSunting(true), setF((s) => ({ ...s, kode: e.target.value })))}
-                />
-                <Isian label="Deskripsi" name="deskripsi" autoComplete="off" wajib value={f.deskripsi} galat={tampil("deskripsi")} onChange={(e) => (setDeskSunting(true), setF((s) => ({ ...s, deskripsi: e.target.value })))} />
-              </>
+              <Isian
+                label="Deskripsi"
+                name="deskripsi"
+                autoComplete="off"
+                wajib
+                value={f.deskripsi}
+                galat={tampil("deskripsi") ?? tampil("kode")}
+                onChange={(e) => (setDeskSunting(true), setF((s) => ({ ...s, deskripsi: e.target.value })))}
+                className="md:col-span-2"
+              />
             )}
           </div>
         ) : null}

@@ -12,12 +12,7 @@ export const metadata: Metadata = { title: "J-06 Hasil Pemeriksaan Pengajuan" };
 export const dynamic = "force-dynamic";
 
 function NamaButir({ h }: { h: BarisHasilPengajuan }) {
-  return (
-    <>
-      <span className="font-medium">{h.nama}</span>
-      <span className="block font-mono text-xs text-abu-600">{h.kode}</span>
-    </>
-  );
+  return <span className="font-medium">{h.nama}</span>;
 }
 
 /**

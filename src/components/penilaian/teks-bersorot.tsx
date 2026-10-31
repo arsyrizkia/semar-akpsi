@@ -27,14 +27,16 @@ function IkonStatus({ status }: { status: ButirTampil["status"] }) {
 }
 
 /**
- * Teks satu bagian proposal dengan kutipan bukti tersorot. Setiap penggalan yang dikutip sistem disorot lembut; penggalan butir
- * terpilih disorot kuat. Di ujung penggalan ada label kode butir (dengan ikon status) yang memilih butir itu. Penanda "[gambar n]"
- * ditampilkan sebagai gambarnya, berbingkai sorot bila gambar itu dikutip sebagai bukti.
+ * Teks satu bagian proposal dengan kutipan bukti tersorot (J-08, J-05b, J-03b). Setiap penggalan yang dikutip sistem disorot lembut;
+ * penggalan butir terpilih disorot kuat. Di ujung penggalan ada penanda berisi ikon status dan nomor butir (nomor yang sama dengan
+ * daftar butir; kode butir tidak ditampilkan) yang memilih butir itu. Penanda "[gambar n]" ditampilkan sebagai gambarnya, berbingkai
+ * sorot bila gambar itu dikutip sebagai bukti.
  */
 export function TeksBersorot({
   teks,
   rentang,
   butir,
+  nomor,
   terpilih,
   gambar,
   urlGambar,
@@ -45,6 +47,8 @@ export function TeksBersorot({
   rentang: RentangSorot[];
   /** hasilId -> butir */
   butir: Map<string, ButirTampil>;
+  /** hasilId -> nomor tampil butir pada bagian ini */
+  nomor: Map<string, number>;
   terpilih: string | null;
   gambar: GambarTampil[];
   urlGambar: (id: string) => string;
@@ -74,20 +78,22 @@ export function TeksBersorot({
         const b = butir.get(hasilId);
         if (!b) return null;
         const dipilih = hasilId === terpilih;
+        const n = nomor.get(hasilId);
         return (
           <button
             key={`${i}-${r}`}
             type="button"
             onClick={() => saatPilih(r)}
             aria-pressed={dipilih}
-            aria-label={`Butir ${b.kode}, rekomendasi ${b.status}${b.koreksi ? ", sudah Anda koreksi" : ""}. Tampilkan rinciannya`}
+            aria-label={`Butir ${n ?? ""}: ${b.deskripsi}. Rekomendasi ${b.status}${b.koreksi ? ", sudah dikoreksi" : ""}. Tampilkan rinciannya`}
+            title={b.deskripsi}
             className={cn(
-              "mx-0.5 inline-flex h-6 cursor-pointer touch-manipulation items-center gap-1 whitespace-nowrap rounded border px-1.5 align-middle font-mono text-xs leading-none transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primer-600",
+              "mx-0.5 inline-flex h-6 min-w-6 cursor-pointer touch-manipulation items-center justify-center gap-0.5 whitespace-nowrap rounded border px-1 align-middle text-xs font-semibold tabular-nums leading-none transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primer-600",
               dipilih ? "border-peringatan-500 bg-peringatan-300 text-primer-900" : "border-peringatan-300 bg-peringatan-50 text-primer-800 hover:bg-peringatan-100",
             )}
           >
             <IkonStatus status={b.status} />
-            <span translate="no">{b.kode}</span>
+            <span>{n}</span>
           </button>
         );
       });

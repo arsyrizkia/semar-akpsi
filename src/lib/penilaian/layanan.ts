@@ -9,7 +9,6 @@ import {
   berkasVersi,
   bimaBerkas,
   butirCek,
-  gambarNaskah,
   hasilPemeriksaan,
   keputusanKomponen,
   koreksiRekomendasi,
@@ -24,12 +23,12 @@ import type { Akun } from "@/lib/auth";
 import { catatLogAudit } from "@/lib/audit";
 import { bima } from "@/lib/bima/client";
 import { KOMPONEN_BORANG, type Keputusan, type ParameterButir, type StatusHasilSemantik } from "@/lib/kontrak/tipe";
-import { cariKutipan, ambilBerdasarkanNama } from "@/lib/pemeriksa/semantik/teks";
 import { pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
-import { pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
+import { daftarGambarPemilik, pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
 import { waktuDemo } from "@/lib/waktu";
 import { formatTenggat, hitungTenggat, posisiMasa, teksSisa } from "./masa";
 import { bolehUbahPenilaian } from "./status";
+import { susunButirTampil, susunTab, type BahanButir } from "./tinjauan";
 import type { BarisDaftarPenugasan, BerkasTampil, ButirTampil, DataKeputusan, DataPemeriksaan, HasilAksi, PenilaianTampil, TabTeks, TenggatTampil } from "./tipe";
 import {
   PESAN_KOMPONEN_BELUM_LENGKAP,
@@ -109,27 +108,6 @@ async function pastikanPenilaian(penugasanId: string) {
   return baru;
 }
 
-function pilihTab(
-  tabs: TabTeks[],
-  kutipan: string | null,
-  param: ParameterButir | null,
-): string {
-  if (kutipan) {
-    const t = tabs.find((x) => cariKutipan(x.teks, kutipan));
-    if (t) return t.nama;
-  }
-  const p = param && param.tipe === "semantik" ? param : null;
-  if (p?.lampiran) {
-    const t = tabs.find((x) => x.jenis === "lampiran" && x.nama.toLowerCase() === `lampiran: ${p.lampiran}`.toLowerCase());
-    if (t) return t.nama;
-  }
-  if (p?.bagian) {
-    const t = tabs.find((x) => x.jenis === "bagian" && x.nama.trim().toLowerCase() === p.bagian.trim().toLowerCase());
-    if (t) return t.nama;
-  }
-  return tabs[0]?.nama ?? "";
-}
-
 /** Pembacaan paralel membuka beberapa sambungan WebSocket ke Neon sekaligus; satu kegagalan sambungan sesaat diulang sekali. */
 async function ulangSekali<T>(kerja: () => Promise<T>): Promise<T> {
   try {
@@ -183,22 +161,11 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     // rekomendasi harus sudah ada saat reviewer membuka (UC-07 langkah 1); bila belum, jadwalkan tanpa menunggu
     pastikanSemantikBerjalan(idVersi),
     daftarBerkasProposal(prop.p.idProposal, versi.berkasId),
-    daftarGambarVersi(idVersi),
+    daftarGambarPemilik(pemilikVersi(idVersi)),
     ambilTenggat([penugasan.periodeId]),
   ]));
 
-  // tab: bagian menurut urutan templat, lalu lampiran
-  const namaBagian = daftarBagian.map((b) => b.nama);
-  for (const k of Object.keys(versi.teksPerBagian)) if (!namaBagian.some((n) => n.toLowerCase() === k.toLowerCase())) namaBagian.push(k);
-  const tab: TabTeks[] = [
-    ...namaBagian.map((n) => ({
-      nama: n,
-      jenis: "bagian" as const,
-      teks: ambilBerdasarkanNama(versi.teksPerBagian, n),
-      gambar: gambar.filter((g) => g.bagian.trim().toLowerCase() === n.trim().toLowerCase()).map(({ id, nomor, lebar, tinggi }) => ({ id, nomor, lebar, tinggi })),
-    })),
-    ...Object.entries(versi.teksLampiran).map(([n, t]) => ({ nama: `Lampiran: ${n}`, jenis: "lampiran" as const, teks: t, gambar: [] })),
-  ];
+  const tab = susunTab({ urutanBagian: daftarBagian.map((b) => b.nama), teksPerBagian: versi.teksPerBagian, teksLampiran: versi.teksLampiran, gambar });
 
   const [koreksi, komponenRows] = await ulangSekali(() =>
     Promise.all([
@@ -208,25 +175,7 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
   );
   const petaKoreksi = new Map(koreksi.map((k) => [k.hasilId, k]));
 
-  const butir: ButirTampil[] = semuaHasil
-    .filter((r) => r.h.jenis === "semantik")
-    .map((r) => {
-      const k = petaKoreksi.get(r.h.id);
-      return {
-        hasilId: r.h.id,
-        kode: r.h.butirKode,
-        deskripsi: r.deskripsi,
-        tab: pilihTab(tab, r.h.kutipan, r.parameter as ParameterButir | null),
-        status: r.h.status as StatusHasilSemantik,
-        rekomendasi: r.h.rekomendasi,
-        kutipan: r.h.kutipan,
-        kutipanLain: r.h.kutipanLain ?? [],
-        tingkatKeyakinan: r.h.tingkatKeyakinan,
-        alasanSistem: r.h.alasanSistem,
-        tiruan: r.h.tiruan,
-        koreksi: k ? { keputusan: k.keputusanReviewer, alasan: k.alasan, jenisKekeliruan: k.jenisKekeliruan } : null,
-      };
-    });
+  const butir = susunButirTampil(bahanButir(semuaHasil, petaKoreksi), tab);
   const det = semuaHasil.filter((r) => r.h.jenis === "deterministik");
 
   const penilaianTampil: PenilaianTampil = {
@@ -252,18 +201,49 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
   };
 }
 
-/** Metadata gambar per bagian versi (tanpa isi gambar); gagal baca = tanpa gambar, teks tetap tampil. */
-async function daftarGambarVersi(versiId: string): Promise<{ id: string; bagian: string; nomor: number; lebar: number; tinggi: number }[]> {
-  try {
-    const baris = await getDb()
-      .select({ id: gambarNaskah.id, bagian: gambarNaskah.bagian, urutan: gambarNaskah.urutan, lebar: gambarNaskah.lebar, tinggi: gambarNaskah.tinggi })
-      .from(gambarNaskah)
-      .where(eq(gambarNaskah.pemilik, pemilikVersi(versiId)))
-      .orderBy(asc(gambarNaskah.bagian), asc(gambarNaskah.urutan));
-    return baris.map((b) => ({ id: b.id, bagian: b.bagian, nomor: b.urutan + 1, lebar: b.lebar, tinggi: b.tinggi }));
-  } catch {
-    return [];
-  }
+/** Hasil semantik (ambilHasilPemeriksaan) beserta koreksi per hasilId, sebelum ditempatkan pada tab. */
+function bahanButir(
+  semuaHasil: Awaited<ReturnType<typeof ambilHasilPemeriksaan>>,
+  petaKoreksi: Map<string, { keputusanReviewer: Keputusan; alasan: string; jenisKekeliruan: string }>,
+): BahanButir[] {
+  return semuaHasil
+    .filter((r) => r.h.jenis === "semantik")
+    .map((r) => {
+      const k = petaKoreksi.get(r.h.id);
+      return {
+        hasilId: r.h.id,
+        kode: r.h.butirKode,
+        deskripsi: r.deskripsi,
+        parameter: r.parameter as ParameterButir | null,
+        status: r.h.status as StatusHasilSemantik,
+        rekomendasi: r.h.rekomendasi,
+        kutipan: r.h.kutipan,
+        kutipanLain: r.h.kutipanLain ?? [],
+        tingkatKeyakinan: r.h.tingkatKeyakinan,
+        alasanSistem: r.h.alasanSistem,
+        tiruan: r.h.tiruan,
+        koreksi: k ? { keputusan: k.keputusanReviewer, alasan: k.alasan, jenisKekeliruan: k.jenisKekeliruan } : null,
+      };
+    });
+}
+
+/** Bahan teks bersorot J-05b (hanya baca): tab dan butir semantik versi yang dinilai, dengan koreksi reviewer bila ada. */
+export async function muatTinjauanVersi(versiId: string): Promise<{ tab: TabTeks[]; butir: ButirTampil[] } | null> {
+  if (!UUID.test(versiId)) return null;
+  const db = getDb();
+  const [versi] = await db.select().from(versiProposal).where(eq(versiProposal.id, versiId));
+  if (!versi) return null;
+  const [daftarBagian, semuaHasil, gambar] = await ulangSekali(() =>
+    Promise.all([
+      versi.templatId ? db.select({ nama: bagianTemplat.nama }).from(bagianTemplat).where(eq(bagianTemplat.templatId, versi.templatId)).orderBy(asc(bagianTemplat.urutan)) : Promise.resolve([]),
+      ambilHasilPemeriksaan(versiId),
+      daftarGambarPemilik(pemilikVersi(versiId)),
+    ]),
+  );
+  const idHasil = semuaHasil.filter((r) => r.h.jenis === "semantik").map((r) => r.h.id);
+  const koreksi = idHasil.length ? await db.select().from(koreksiRekomendasi).where(inArray(koreksiRekomendasi.hasilId, idHasil)) : [];
+  const tab = susunTab({ urutanBagian: daftarBagian.map((b) => b.nama), teksPerBagian: versi.teksPerBagian, teksLampiran: versi.teksLampiran, gambar });
+  return { tab, butir: susunButirTampil(bahanButir(semuaHasil, new Map(koreksi.map((k) => [k.hasilId, k]))), tab) };
 }
 
 /** Naskah (versi SEMAR; cadangan: naskah di BIMA) dan lampiran di BIMA. Hanya metadata, tanpa isi berkas. */

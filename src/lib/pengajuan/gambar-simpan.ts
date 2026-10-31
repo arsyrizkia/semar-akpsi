@@ -6,6 +6,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { gambarNaskah } from "@/db/schema";
 import type { GambarNaskah } from "@/lib/kontrak/tipe";
+import type { GambarBagian } from "@/lib/penilaian/tinjauan";
 
 export const pemilikVersi = (versiId: string) => `versi:${versiId}`;
 export const pemilikContoh = (kode: string) => `contoh:${kode}`;
@@ -68,4 +69,18 @@ export async function muatGambarNaskah(pemilik: string, bagian?: string | null):
   const hasil: Record<string, GambarNaskah[]> = {};
   for (const b of baris) (hasil[b.bagian] ??= []).push({ tipe: b.tipe as GambarNaskah["tipe"], data: b.bytes, lebar: b.lebar, tinggi: b.tinggi });
   return hasil;
+}
+
+/** Metadata gambar per bagian milik `pemilik` (versi proposal atau dokumen contoh), tanpa isi; gagal baca = tanpa gambar. */
+export async function daftarGambarPemilik(pemilik: string): Promise<GambarBagian[]> {
+  try {
+    const baris = await getDb()
+      .select({ id: gambarNaskah.id, bagian: gambarNaskah.bagian, urutan: gambarNaskah.urutan, lebar: gambarNaskah.lebar, tinggi: gambarNaskah.tinggi })
+      .from(gambarNaskah)
+      .where(eq(gambarNaskah.pemilik, pemilik))
+      .orderBy(asc(gambarNaskah.bagian), asc(gambarNaskah.urutan));
+    return baris.map((b) => ({ id: b.id, bagian: b.bagian, nomor: b.urutan + 1, lebar: b.lebar, tinggi: b.tinggi }));
+  } catch {
+    return [];
+  }
 }

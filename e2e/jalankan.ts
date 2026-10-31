@@ -663,7 +663,8 @@ async function utama() {
       await adaTeks(page, "1 frasa wajib");
       await klik(page, "Aturan Pemeriksaan");
       await adaTeks(page, "Tambah Butir");
-      await klikAria(page, "Hapus aturan FRS-01");
+      // kode butir tidak tampil lagi (catatan #64): tombol Hapus dicari pada baris butir-FRS-01
+      await page.$eval(`[id="butir-FRS-01"]`, (tr) => ([...tr.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Hapus") as HTMLButtonElement).click());
       await tungguModal(page, "Konfirmasi Hapus Aturan");
       await klik(page, "Hapus");
       await tungguModalTutup(page);
@@ -725,7 +726,7 @@ async function utama() {
       const idSemantik = await page.evaluate(() => [...document.querySelectorAll("tbody tr[id^='butir-UNS']")][0]?.id ?? null);
       yakin(idSemantik, "butir semantik turunan tidak ada");
       await page.$eval(`[id="${idSemantik}"]`, (tr) => ([...tr.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Ubah") as HTMLButtonElement).click());
-      await tungguModal(page, `Ubah Butir ${idSemantik.replace("butir-", "")}`);
+      await tungguModal(page, "Ubah Butir");
       await isiLabel(page, "Pertanyaan Pemeriksaan", "Apakah isi bagian ini sesuai dengan unsur yang diminta (diubah e2e)?");
       await klik(page, "Simpan Butir");
       await tungguModalTutup(page);
@@ -831,13 +832,16 @@ async function utama() {
       await pilihLabel(page, "Jenis Aturan", (t) => t.startsWith("Pertanyaan semantik bebas"));
       await isiLabel(page, "Pertanyaan Pemeriksaan", "Apakah ringkasan menyebut tujuan penelitian dengan jelas?");
       await isiLabel(page, "Contoh Jawaban", "Tujuan penelitian ini adalah menyusun model prediksi.");
-      await isiLabel(page, "Kode", "SEM-E2E");
       await isiLabel(page, "Deskripsi", "Ringkasan menyebut tujuan penelitian");
       await foto(page, "j03-m02-form");
       await klik(page, "Simpan Butir");
       await tungguModalTutup(page);
-      await adaTeks(page, "SEM-E2E");
-      yakin(await page.evaluate(() => !!document.querySelector("section[data-kelompok='Ringkasan'] [id='butir-SEM-E2E']")), "butir SEM-E2E tidak muncul di kelompok Ringkasan");
+      await adaTeks(page, "Ringkasan menyebut tujuan penelitian");
+      // kode butir manual dibuat otomatis (tidak diisi); baris dikenali dari deskripsinya
+      const idManual = await page.evaluate(
+        () => [...document.querySelectorAll("section[data-kelompok='Ringkasan'] tr[id^='butir-']")].find((tr) => tr.textContent?.includes("Ringkasan menyebut tujuan penelitian"))?.id ?? "",
+      );
+      yakin(idManual, "butir manual tidak muncul di kelompok Ringkasan");
       c("butir manual semantik ditambahkan lewat M-02 terstruktur dan muncul di kelompok bagiannya");
       // M-15 Uji pada Contoh: pilih contoh + unggah naskah, kemajuan bertahap, lalu J-03b
       await klik(page, "Uji pada Contoh");
@@ -881,14 +885,14 @@ async function utama() {
       yakin(page.url().includes("tab=aturan"), "Kembali ke Aturan Pemeriksaan tidak mendarat di tab Aturan");
       c("Back dari tab Aturan kembali ke J-03b; Kembali ke Aturan Pemeriksaan membuka tab Aturan");
       // M-03 Nonaktifkan
-      await page.$eval(`[id="butir-SEM-E2E"]`, (tr) => ([...tr.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Nonaktifkan") as HTMLButtonElement).click());
+      await page.$eval(`[id="${idManual}"]`, (tr) => ([...tr.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Nonaktifkan") as HTMLButtonElement).click());
       await tungguModal(page, "Konfirmasi Nonaktifkan");
       await foto(page, "j03-m03-nonaktifkan");
       await klik(page, "Nonaktifkan");
       await tungguModalTutup(page);
-      await page.waitForFunction(() => !document.getElementById("butir-SEM-E2E"), { timeout: 30_000 });
+      await page.waitForFunction((id) => !document.getElementById(id), { timeout: 30_000 }, idManual);
       await pilihLabel(page, "Status", (t) => t === "Nonaktif");
-      await page.waitForFunction(() => !!document.getElementById("butir-SEM-E2E"), { timeout: 10_000 });
+      await page.waitForFunction((id) => !!document.getElementById(id), { timeout: 10_000 }, idManual);
       c("M-03: Nonaktifkan butir manual; butir nonaktif tersembunyi dan tampil dengan penyaring Status Nonaktif");
       // M-05 / 8a
       await atur("berjalan");
@@ -1030,14 +1034,15 @@ async function utama() {
       yakin(jalur(page) === "/tim-kerja/pemantauan", `UC-04 seharusnya membuka J-05, bukan ${jalur(page)}`);
       await judulTab("J-05");
       const t = await teksHalaman(page);
-      for (const s of ["Rekomendasi disetujui", "Butir perlu perhatian", "Pernah gagal saat pengajuan", "Penilaian final", "UNS-10", "terlalu longgar", "Kutipan salah tempat"]) {
+      for (const s of ["Rekomendasi disetujui", "Butir perlu perhatian", "Pernah gagal saat pengajuan", "Penilaian final", "terlalu longgar", "Kutipan salah tempat"]) {
         yakin(t.includes(s), `"${s}" tidak tampil di J-05`);
       }
       await foto(page, "j05-pemantauan");
       c("angka ringkas tampil; Perlu perhatian memuat UNS-10 (terlalu longgar, terbanyak kutipan salah tempat)");
       // M-08 dari "Rincian" UNS-10
-      await page.$eval("a[aria-label='Rincian butir UNS-10']", (a) => (a as HTMLElement).click());
-      await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir UNS-10")), { timeout: 15_000 });
+      yakin(await page.$("[id='butir-perhatian-UNS-10']"), "UNS-10 tidak ada di Perlu perhatian");
+      await page.$eval("li:has([id='butir-perhatian-UNS-10']) a[aria-label^='Rincian butir']", (a) => (a as HTMLElement).click());
+      await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] h2")].some((h) => (h.textContent ?? "").startsWith("Rincian Butir")), { timeout: 15_000 });
       yakin(page.url().includes("butir=UNS-10"), "butir yang dibuka tidak tersimpan di URL");
       const isi = await page.$eval("[role=dialog]", (d) => (d as HTMLElement).innerText);
       for (const s of ["Arah koreksi", "Jenis kekeliruan", "Tren harian", "Contoh proposal"]) yakin(isi.includes(s), `M-08 tanpa bagian "${s}"`);

@@ -16,7 +16,7 @@ const PILIHAN_URUT: { nilai: string; label: string }[] = [
   { nilai: "-disetujui", label: "Disetujui, tertinggi dulu" },
   { nilai: "-hasil", label: "Hasil, terbanyak dulu" },
   { nilai: "-longgar", label: "Terlalu longgar, terbanyak dulu" },
-  { nilai: "butir", label: "Kode butir" },
+  { nilai: "butir", label: "Urutan aturan" },
 ];
 
 function urutkan(baris: BarisSemantik[], kolom: KolomUrut, turun: boolean): BarisSemantik[] {
@@ -82,9 +82,8 @@ export function TabSemantik({ baris, ambang, adaBanding }: { baris: BarisSemanti
           {urutkan(baris, urut.kolom, urut.turun).map((b) => (
             <TR key={b.kode}>
               <TD className="min-w-56 max-w-sm">
-                <span className="font-mono text-xs font-semibold text-primer-800">{b.kode}</span>
                 <p>
-                  <TautanRincian kode={b.kode} className={tautanButir} labelAria={`${b.deskripsi} (rincian butir ${b.kode})`}>
+                  <TautanRincian kode={b.kode} className={tautanButir} labelAria={`${b.deskripsi} (buka rincian butir)`}>
                     {b.deskripsi}
                   </TautanRincian>
                 </p>

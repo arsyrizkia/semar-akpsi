@@ -61,7 +61,7 @@ export function ModalKoreksi({
       }}
       kode="M-10"
       judul="Koreksi Rekomendasi"
-      deskripsi={`Butir ${butir.kode}: keputusan Anda menggantikan rekomendasi sistem.`}
+      deskripsi="Keputusan Anda menggantikan rekomendasi sistem untuk butir ini."
       ukuran="md"
       kaki={
         <>
@@ -76,6 +76,10 @@ export function ModalKoreksi({
     >
       <div className="space-y-4">
         <dl className="space-y-2 rounded-md bg-abu-50 p-3 text-sm">
+          <div>
+            <dt className="text-xs font-semibold text-teks-redup">Butir</dt>
+            <dd className="font-medium text-primer-900">{butir.deskripsi}</dd>
+          </div>
           <div>
             <dt className="text-xs font-semibold text-teks-redup">Rekomendasi sistem</dt>
             <dd>{butir.rekomendasi ?? butir.status}</dd>

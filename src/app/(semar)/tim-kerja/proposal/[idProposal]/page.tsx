@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Bagian, BarKeyakinan, KeadaanKosong, KepalaHalaman, StatusBadge, Table, TBody, TD, TH, THead, TR, TombolUnduh, kelasTombol } from "@/components/ui";
+import { Bagian, KeadaanKosong, KepalaHalaman, StatusBadge, Table, TBody, TD, TH, THead, TR, TombolUnduh, kelasTombol } from "@/components/ui";
+import { TinjauanNaskah } from "@/components/penilaian/tinjauan-naskah";
 import { wajibTimKerja } from "@/lib/auth";
 import { ambilRincianProposal } from "@/lib/pemantauan/proposal";
+import { muatTinjauanVersi } from "@/lib/penilaian/layanan";
 import { ringkasHasil, statusPenilaianDariLabel, urutkanHasil } from "@/lib/pemantauan/rincian-proposal";
 import { formatAngka, formatWaktu } from "@/lib/utils";
 
@@ -12,16 +14,21 @@ export const dynamic = "force-dynamic";
 
 const ukuranBerkas = (b: number) => (b >= 1_048_576 ? `${(b / 1_048_576).toLocaleString("id-ID", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
-/** J-05b Rincian Proposal: identitas, versi pengajuan, hasil pemeriksaan, penugasan, status penilaian beserta koreksi, dan berkas. Hanya baca. */
-export default async function Halaman({ params }: { params: Promise<{ idProposal: string }> }) {
+/**
+ * J-05b Rincian Proposal: identitas, versi pengajuan, hasil pemeriksaan, penugasan, status penilaian beserta koreksi, dan berkas. Hanya
+ * baca. Hasil semantik ditampilkan seperti J-08 reviewer: teks proposal per bagian dengan sorotan kutipan bukti dan panel butir (beserta
+ * koreksi reviewer), tanpa tombol koreksi. Bagian dan butir terpilih tersimpan di URL (?tab=&butir=).
+ */
+export default async function Halaman({ params, searchParams }: { params: Promise<{ idProposal: string }>; searchParams: Promise<{ tab?: string; butir?: string }> }) {
   const sesi = await wajibTimKerja();
-  const { idProposal } = await params;
+  const [{ idProposal }, { tab, butir }] = await Promise.all([params, searchParams]);
   const p = await ambilRincianProposal(decodeURIComponent(idProposal));
   if (!p) notFound();
+  const tinjauan = p.versiDinilai ? await muatTinjauanVersi(p.versiDinilai.id) : null;
 
   const urut = urutkanHasil(p.hasil);
   const deterministik = urut.filter((h) => h.jenis === "deterministik");
-  const semantik = urut.filter((h) => h.jenis === "semantik");
+  const adaSemantik = urut.some((h) => h.jenis === "semantik");
   const ringkas = ringkasHasil(p.hasil);
   const tautanPemantauan = `/tim-kerja/pemantauan?periode=${p.periode.id}&skema=${p.skema.id}`;
   const tautanButirJ03 = (kode: string) => `/tim-kerja/aturan?skema=${p.skema.id}&periode=${p.periode.id}&butir=${encodeURIComponent(kode)}`;
@@ -140,13 +147,12 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
                   <TR key={h.butirId}>
                     <TD className="max-w-sm">
                       {sesi.pengelola ? (
-                        <Link href={tautanButirJ03(h.butirKode)} className="font-mono text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2">
-                          {h.butirKode}
+                        <Link href={tautanButirJ03(h.butirKode)} className={tautan} title="Buka butir ini di Aturan Pemeriksaan">
+                          {h.deskripsi}
                         </Link>
                       ) : (
-                        <span className="font-mono text-xs font-semibold text-teks-redup">{h.butirKode}</span>
+                        h.deskripsi
                       )}
-                      <p>{h.deskripsi}</p>
                     </TD>
                     <TD>{h.bagian ?? "-"}</TD>
                     <TD>
@@ -165,57 +171,32 @@ export default async function Halaman({ params }: { params: Promise<{ idProposal
       </Bagian>
 
       <Bagian judul="Hasil Pemeriksaan Semantik">
-        {semantik.length === 0 ? (
+        {!adaSemantik || !tinjauan ? (
           <p className="text-sm text-teks-redup">Belum ada hasil pemeriksaan semantik.</p>
         ) : (
-          <>
-            <p className="mb-3 text-sm text-teks-redup">
-              <span className="angka">{ringkas.semantik.memenuhi}</span> Memenuhi, <span className="angka">{ringkas.semantik.tidakMemenuhi}</span> Tidak memenuhi,{" "}
-              <span className="angka">{ringkas.semantik.perluManual}</span> perlu diperiksa manual, <span className="angka">{ringkas.semantik.belumAda}</span> belum ada rekomendasi.
-            </p>
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Butir</TH>
-                  <TH>Rekomendasi Sistem</TH>
-                  <TH>Kutipan</TH>
-                  <TH>Keputusan Reviewer</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {semantik.map((h) => (
-                  <TR key={h.butirId}>
-                    <TD className="min-w-48 max-w-xs">
-                      <Link href={`${tautanPemantauan}&butir=${encodeURIComponent(h.butirKode)}`} className="font-mono text-xs font-semibold text-primer-800 underline decoration-primer-400 underline-offset-2 hover:text-primer-900 hover:decoration-2" title="Rincian butir di Pemantauan (J-05)">
-                        {h.butirKode}
-                      </Link>
-                      <p>{h.deskripsi}</p>
-                    </TD>
-                    <TD className="min-w-40">
-                      <StatusBadge status={h.status} /> {h.tiruan ? <Badge>tiruan</Badge> : null}
-                      {h.tingkatKeyakinan !== null ? <BarKeyakinan nilai={h.tingkatKeyakinan} className="mt-2" /> : null}
-                    </TD>
-                    <TD className="min-w-48 max-w-sm text-xs">{h.kutipan ? <q>{h.kutipan}</q> : "-"}</TD>
-                    <TD className="min-w-40 text-xs">
-                      {h.koreksi ? (
-                        <>
-                          <StatusBadge status="Dikoreksi reviewer" /> <span className="font-semibold">{h.koreksi.keputusanReviewer}</span>
-                          <p className="mt-1 text-teks-redup">
-                            {h.koreksi.jenisKekeliruan ? `${h.koreksi.jenisKekeliruan}: ` : ""}
-                            {h.koreksi.alasan}
-                          </p>
-                        </>
-                      ) : (
-                        <span className="text-teks-redup">Belum dikoreksi</span>
-                      )}
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          </>
+          <p className="text-sm text-teks-redup">
+            <span className="angka">{ringkas.semantik.memenuhi}</span> Memenuhi, <span className="angka">{ringkas.semantik.tidakMemenuhi}</span> Tidak memenuhi,{" "}
+            <span className="angka">{ringkas.semantik.perluManual}</span> perlu diperiksa manual, <span className="angka">{ringkas.semantik.belumAda}</span> belum ada rekomendasi. Penggalan bersorot
+            adalah kutipan bukti yang dipakai sistem; koreksi reviewer tampil pada butirnya.
+          </p>
         )}
       </Bagian>
+      {adaSemantik && tinjauan ? (
+        <div className="mt-4">
+          <TinjauanNaskah
+            tab={tinjauan.tab}
+            butir={tinjauan.butir}
+            alamatGambar={`/api/semar/proposal/${encodeURIComponent(p.idProposal)}/gambar`}
+            tabAwal={tab}
+            butirAwal={butir}
+            ringkasPanel={
+              <span className="angka text-xs text-teks-redup">
+                {tinjauan.butir.length} butir, {tinjauan.butir.filter((b) => b.koreksi).length} dikoreksi reviewer
+              </span>
+            }
+          />
+        </div>
+      ) : null}
 
       <Bagian judul="Penugasan dan Penilaian">
         {p.penugasan.length === 0 ? (

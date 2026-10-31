@@ -33,9 +33,8 @@ export function TabDeterministik({ baris, ambang, pengajuan }: { baris: BarisDet
           {pernah.map((b) => (
             <TR key={b.kode}>
               <TD className="min-w-56 max-w-sm">
-                <span className="font-mono text-xs font-semibold text-primer-800">{b.kode}</span>
                 <p>
-                  <TautanRincian kode={b.kode} className={tautanButir} labelAria={`${b.deskripsi} (rincian butir ${b.kode})`}>
+                  <TautanRincian kode={b.kode} className={tautanButir} labelAria={`${b.deskripsi} (buka rincian butir)`}>
                     {b.deskripsi}
                   </TautanRincian>
                 </p>
@@ -86,7 +85,7 @@ export function TabDeterministik({ baris, ambang, pengajuan }: { baris: BarisDet
           <ul className="mt-2 grid gap-1 sm:grid-cols-2">
             {tidakPernah.map((b) => (
               <li key={b.kode} className="text-xs">
-                <span className="font-mono font-semibold text-primer-800">{b.kode}</span> {b.deskripsi}
+                {b.deskripsi}
               </li>
             ))}
           </ul>
@@ -163,7 +162,7 @@ export function TabTren({
             ambang={ambang.disetujui}
             baris={banding.map((b) => ({
               kunci: b.kode,
-              label: `${b.kode} ${b.baru.deskripsi}`,
+              label: b.baru.deskripsi,
               lama: { persen: b.lama.persen, teks: `v${b.lama.versi}: ${formatPersen(b.lama.persen)} (${formatAngka(b.lama.jumlah)} hasil)` },
               baru: { persen: b.baru.persen, teks: `v${b.baru.versi}: ${formatPersen(b.baru.persen)} (${formatAngka(b.baru.jumlah)} hasil)` },
             }))}

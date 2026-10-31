@@ -200,7 +200,7 @@ export function TombolUjiContoh({
     const pekerja = async () => {
       while (!berhenti.current && berikut < tugas.length) {
         const { d, b } = tugas[berikut++];
-        setRinci(`${d.nama} · ${b.kode} ${b.deskripsi}`);
+        setRinci(`${d.nama} · ${b.deskripsi}`);
         const h = await nilaiSatu(r.ujiId, d.kode, b.kode);
         const s = perDok.get(d.kode)!;
         s.dinilai++;

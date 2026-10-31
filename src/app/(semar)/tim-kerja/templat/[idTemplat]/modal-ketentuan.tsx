@@ -376,7 +376,6 @@ function IsiModal({ buka, saatUbah, indeks, bagian, baru, saatBatalBaru, saatTer
             <ul className="space-y-1">
               {pratinjau.map((b, i) => (
                 <li key={`${b.kode}-${i}`} className="flex flex-wrap items-center gap-2">
-                  <span translate="no" className="font-mono text-xs font-semibold text-abu-700">{b.kode.replace(/-\d+$/, "")}</span>
                   <span className="min-w-0 flex-1">{b.deskripsi}</span>
                   <LencanaJenis jenis={b.jenis} />
                 </li>

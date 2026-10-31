@@ -12,18 +12,18 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | J-02 | Templat Proposal (daftar) | Tim Kerja (pengelola) | `/tim-kerja/templat?tahun=&skema=&status=` | UC-01 s.1-3 |
 | J-02a | Rincian Templat (tab Bagian, Aturan Pemeriksaan, Lampiran, Halaman Depan) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=&periode=&sorot=&hasil=` (`/susun` mengalihkan) | UC-01 s.4-10 |
 | J-03 | Aturan Pemeriksaan (tab di J-02a, tanpa menu sendiri) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=aturan`; `/tim-kerja/aturan?skema=&periode=&sorot=` (juga `butir=`) mengalihkan ke sini | UC-02 |
-| J-03b | Hasil Uji pada Contoh | Tim Kerja (pengelola) | `/tim-kerja/aturan/uji?skema=&periode=&templat=&uji=` (hasil tersimpan) | UC-02 s.6 |
+| J-03b | Hasil Uji pada Contoh | Tim Kerja (pengelola) | `/tim-kerja/aturan/uji?skema=&periode=&templat=&uji=` (hasil tersimpan); `&dokumen=&tab=&butir=` satu dokumen bersorot seperti J-08 (hanya baca) | UC-02 s.6 |
 | J-04 | Penugasan Reviewer | Tim Kerja | `/tim-kerja/penugasan` (tautan lama `?susun=1` dialihkan ke J-04b periode aktif) | UC-03 s.1 |
 | J-04b | Usulan Penugasan | Tim Kerja | `/tim-kerja/penugasan/[idPeriode]?tab=usulan\|sebaran\|ditetapkan&q=&rev=&inst=&skema=&syarat=melanggar&urut=&per=&hal=` (`?susun=1` hanya dari skenario S-1; `?tetap=n` pesan sesudah Tetapkan) | UC-03 s.2-8 |
 | J-05 | Pemantauan Kesesuaian | Tim Kerja | `/tim-kerja/pemantauan?periode=&skema=&tab=&urut=&butir=` (tab: kosong = Butir Semantik, `deterministik`, `tren`) | UC-04 |
-| J-05b | Rincian Proposal | Tim Kerja | `/tim-kerja/proposal/[idProposal]` (id BIMA atau uuid) | UC-04, penunjang |
+| J-05b | Rincian Proposal | Tim Kerja | `/tim-kerja/proposal/[idProposal]?tab=&butir=` (id BIMA atau uuid); hasil semantik = teks bersorot seperti J-08 (hanya baca, koreksi reviewer tampil) | UC-04, penunjang |
 | J-06 | Hasil Pemeriksaan Pengajuan | Pengusul (dibuka dari BIMA) | `/pengusul/hasil/[idProposal]` (diawali `/pengusul/mulai`) | UC-05/06 |
 | J-07 | Daftar Penugasan | Reviewer | `/reviewer/penugasan` | UC-07 |
 | J-08 | Pemeriksaan Proposal | Reviewer | `/reviewer/pemeriksaan/[penugasanId]?tab=&butir=` (data JSON: `.../data`) | UC-07/08/09 |
 | J-08b | Keputusan Penilaian | Reviewer | `/reviewer/pemeriksaan/[penugasanId]/keputusan` | UC-07 s.9-12 |
 | BIMA | Halaman BIMA tiruan | Semua (simulasi) | `/bima/masuk`, `/bima/pengajuan` (Unduh Templat), `/bima/kotak-masuk` (ID proposal menaut ke J-05b) | UC-05, API |
 
-Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401). Gambar naskah per bagian: `/api/semar/proposal/[idProposal]/gambar/[idGambar]` (J-08, hak akses sama dengan unduh berkas; gambar harus milik versi proposal itu).
+Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401). Gambar naskah per bagian: `/api/semar/proposal/[idProposal]/gambar/[idGambar]` (J-08 dan J-05b, hak akses sama dengan unduh berkas; gambar harus milik versi proposal itu); `/api/semar/contoh/[kode]/gambar/[idGambar]` (J-03b per dokumen; hanya pengelola; gambar harus milik dokumen contoh itu).
 
 ## WND prototipe: layar, modal, transisi, pemicu
 
@@ -44,7 +44,7 @@ Modal memakai Dialog `radix-ui` (fokus terjebak, Esc menutup, `aria-labelledby`)
 | J-03 | "Nonaktifkan" | M-03 Konfirmasi Nonaktifkan | modal | |
 | J-03 | "Simpan Versi" | M-05 Simpan Versi | modal | 8a ditolak di dalam modal |
 | J-03 | "Uji pada Contoh" | M-15 Uji pada Contoh (pilih contoh tersedia: empat PDF asli BIMA lebih dulu, lalu contoh rekaan A/B/C/F, masing-masing dengan "Unduh .pdf"/"Unduh .docx"; yang diuji hanya Isian Substansi A-H, dan/atau unggah .docx/.pdf maks. 3,5 MB; "Jalankan Uji" menampilkan kemajuan: glif berdenyut + kata kerja + detik + persen, bilah persen, butir yang sedang dinilai, log langkah selesai; "Hentikan") lalu J-03b | modal ke layar | |
-| J-03b | kode butir; "Kembali ke Aturan Pemeriksaan"; "Uji Ulang"; "Unduh .docx" (Ringkasan per Contoh, contoh bawaan) | J-03 (baris tersorot); J-03; M-15 lalu J-03b; unduhan | layar; layar; modal; unduhan | |
+| J-03b | deskripsi butir; "Kembali ke Aturan Pemeriksaan"; "Uji Ulang"; "Unduh .docx" (Ringkasan per Contoh, contoh bawaan); nama dokumen (Ringkasan per Contoh dan kepala kolom); pilihan dokumen, "Kembali ke Semua Hasil" | J-03 (baris tersorot); J-03; M-15 lalu J-03b; unduhan; J-03b `&dokumen=`; J-03b | layar; layar; modal; unduhan; layar; layar | kode butir tidak tampil di layar mana pun (catatan #64) |
 | J-03 | "Templat Proposal {skema}"; gembok "templat" pada butir turunan | J-02 (skema yang sama) | layar | |
 | J-03 | "ditandai di Pemantauan" (butir berlabel Perlu ditinjau) | J-05 `?periode=&skema=&butir=` (M-08 butir itu terbuka) | layar + modal | |
 | M-02 | "Simpan Butir" | J-03 (baris butir tersorot, toast) | modal ke layar | papan tidak dipasang ulang saat id basis berganti, sorotan bertahan |

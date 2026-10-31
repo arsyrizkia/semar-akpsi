@@ -1,6 +1,6 @@
 // Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: Method Specification susunSorotan (sorotan kutipan bukti J-08); setiap cabang.
 import { describe, expect, it } from "vitest";
-import { cariPenandaGambar, susunSorotan } from "@/lib/penilaian/sorotan";
+import { cariPenandaGambar, nomorButirPerTab, susunSorotan } from "@/lib/penilaian/sorotan";
 
 describe("susunSorotan", () => {
   it("KP-susunSorotan-01: tanpa rentang, teks utuh satu potongan tanpa sorotan", () => {
@@ -49,5 +49,19 @@ describe("susunSorotan", () => {
   });
   it("KP-cariPenandaGambar-01: hanya penanda bernomor sebaris penuh; [gambar] tanpa nomor dan penanda di tengah kalimat tetap teks", () => {
     expect(cariPenandaGambar("[gambar]\nlihat [gambar 1] di sini\n[gambar 3]")).toEqual([{ mulai: 34, akhir: 44, nomor: 3 }]);
+  });
+});
+
+describe("nomorButirPerTab", () => {
+  it("KP-nomorButirPerTab-01: nomor mulai dari 1 di setiap tab, mengikuti urutan butir", () => {
+    const n = nomorButirPerTab([
+      { hasilId: "a", tab: "Metode" },
+      { hasilId: "b", tab: "Pendahuluan" },
+      { hasilId: "c", tab: "Metode" },
+    ]);
+    expect([n.get("a"), n.get("b"), n.get("c")]).toEqual([1, 1, 2]);
+  });
+  it("KP-nomorButirPerTab-02: tanpa butir, peta kosong", () => {
+    expect(nomorButirPerTab([]).size).toBe(0);
   });
 });

@@ -123,7 +123,6 @@ function BarisPerhatian({ item: i, ambang, children, aksi }: { item: ItemPerhati
       <div className="min-w-0">
         <p id={`butir-perhatian-${b.kode}`}>
           <span className="flex flex-wrap items-center gap-2 text-xs text-teks-redup">
-            <span className="font-mono font-semibold text-primer-800">{b.kode}</span>
             <span>{i.jenis === "semantik" ? "Semantik" : "Deterministik"}</span>
           </span>
           <span className="mt-0.5 block font-semibold text-primer-900">{b.deskripsi}</span>
@@ -169,7 +168,7 @@ function BarisPerhatian({ item: i, ambang, children, aksi }: { item: ItemPerhati
         )}
       </div>
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2 text-sm sm:flex-col sm:items-end">
-        <TautanRincian kode={b.kode} className={`${tautan} pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center`} labelAria={`Rincian butir ${b.kode}`}>
+        <TautanRincian kode={b.kode} className={`${tautan} pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center`} labelAria={`Rincian butir: ${b.deskripsi}`}>
           Rincian
         </TautanRincian>
         {aksi}

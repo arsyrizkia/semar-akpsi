@@ -68,3 +68,18 @@ export function susunSorotan(teks: string, rentang: RentangSorot[]): Potongan[] 
 }
 
 const sama = (x: string[], y: string[]) => x.length === y.length && x.every((v, i) => v === y[i]);
+
+/**
+ * Nomor tampil butir (1..n) per tab, menurut urutan butir pada tab itu. Nomor ini menggantikan kode butir di layar: penanda di ujung
+ * penggalan bersorot dan kartu butir memakai nomor yang sama.
+ */
+export function nomorButirPerTab(butir: { hasilId: string; tab: string }[]): Map<string, number> {
+  const jumlah = new Map<string, number>();
+  const hasil = new Map<string, number>();
+  for (const b of butir) {
+    const n = (jumlah.get(b.tab) ?? 0) + 1;
+    jumlah.set(b.tab, n);
+    hasil.set(b.hasilId, n);
+  }
+  return hasil;
+}

@@ -84,6 +84,8 @@ type FilterStatusButir = "" | "Aktif" | "Draf" | "Perlu ditinjau" | "Nonaktif";
 const kodeDariHash = (h: string) => (h.startsWith("#butir-") ? decodeURIComponent(h.slice(7)) : null);
 const fokusGalatPertama = (selektor: string) => setTimeout(() => document.querySelector<HTMLElement>(`${selektor} [aria-invalid="true"]`)?.focus(), 50);
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+/** Deskripsi butir dalam tanda kutip untuk notifikasi (kode butir tidak ditampilkan ke pengguna). */
+const kutip = (d: string) => `“${d.length > 70 ? `${d.slice(0, 69).trimEnd()}…` : d}”`;
 
 function dariButir(b: ButirTampil): BarisTampil {
   const p = b.parameter;
@@ -236,7 +238,7 @@ export function PapanAturan({
       return setTerkunci(true);
     }
     const f = formDariButir({ kode: t.kode, deskripsi: t.deskripsi, jenis: t.jenis, parameter: t.parameter, pertanyaan: t.pertanyaan, contohJawaban: t.contohJawaban });
-    if (!f) return beriTahu.galat(`Parameter butir ${t.kode} tidak dikenali formulir. Nonaktifkan lalu tambahkan butir baru.`);
+    if (!f) return beriTahu.galat(`Parameter butir ${kutip(t.deskripsi)} tidak dikenali formulir. Nonaktifkan lalu tambahkan butir baru.`);
     setModalForm({ mode: "ubah", awal: f, butir: t, asal: null, hanyaPertanyaan: false });
   }
 
@@ -271,7 +273,7 @@ export function PapanAturan({
         }
         startTransition(() => {
           tutupForm();
-          beriTahu.sukses(`Butir ${r.kode} diperbarui pada versi yang sedang disusun.`);
+          beriTahu.sukses(`Butir ${kutip(modalForm.butir?.deskripsi ?? f.deskripsi)} diperbarui pada versi yang sedang disusun.`);
           setSorot(r.kode);
           router.refresh();
         });
@@ -284,7 +286,7 @@ export function PapanAturan({
       if (r.ok && "butirId" in r) {
         startTransition(() => {
           tutupForm();
-          beriTahu.sukses(r.baru ? `Butir ${r.kode} ditambahkan pada versi yang sedang disusun.` : `Butir ${r.kode} diperbarui.`);
+          beriTahu.sukses(r.baru ? `Butir ${kutip(h.nilai.deskripsi)} ditambahkan pada versi yang sedang disusun.` : `Butir ${kutip(h.nilai.deskripsi)} diperbarui.`);
           setSorot(r.kode);
           router.refresh();
         });
@@ -302,6 +304,7 @@ export function PapanAturan({
 
   function konfirmasiNonaktif() {
     if (!nonaktif) return;
+    const nama = nonaktif.deskripsi;
     setGalatNonaktif(null);
     mulai(async () => {
       const r = await aksiNonaktifkan(skemaId, nonaktif.id);
@@ -314,7 +317,7 @@ export function PapanAturan({
       }
       startTransition(() => {
         setNonaktif(null);
-        beriTahu.sukses(`Butir ${r.kode} dinonaktifkan pada versi yang sedang disusun.`);
+        beriTahu.sukses(`Butir ${kutip(nama)} dinonaktifkan pada versi yang sedang disusun.`);
         router.refresh();
       });
     });
@@ -327,7 +330,7 @@ export function PapanAturan({
     const i = bagianMentah.findIndex((x) => x.nama.trim() === a.bagian);
     if (i >= 0) saatUbahBagian(i, hapusDariBagian(bagianMentah[i], { jenisAturan: a.jenisAturan, frasa: a.frasa, unsur: a.unsur }));
     setHapusAturan(null);
-    beriTahu.sukses(`Aturan ${b.kode} dihapus dari ketentuan bagian "${a.bagian}". Simpan Draf untuk menyimpannya.`);
+    beriTahu.sukses(`Aturan ${kutip(b.deskripsi)} dihapus dari ketentuan bagian "${a.bagian}". Simpan Draf untuk menyimpannya.`);
   }
 
   function simpanVersi(e: React.FormEvent) {
@@ -450,7 +453,6 @@ export function PapanAturan({
           <Table>
             <THead>
               <TR>
-                <TH>Kode</TH>
                 <TH>Deskripsi</TH>
                 <TH>Jenis</TH>
                 <TH>Asal</TH>
@@ -464,19 +466,18 @@ export function PapanAturan({
             <TBody>
               {k.butir.length === 0 ? (
                 <TR>
-                  <TD colSpan={7} className="py-4 text-center text-teks-redup">
+                  <TD colSpan={6} className="py-4 text-center text-teks-redup">
                     Belum ada aturan untuk bagian ini.
                   </TD>
                 </TR>
               ) : null}
               {k.butir.map((b) => (
                 <TR key={b.key} id={`butir-${b.kode}`} tersorot={sorotSet.has(b.kode) && !(sorotBanyak && b.status === "Nonaktif")} className={`scroll-mt-24 ${kelasBaris(b) ?? ""}`}>
-                  <TD className="whitespace-nowrap font-mono text-xs font-semibold">
-                    <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline" translate="no">
-                      {b.kode}
+                  <TD className="min-w-48">
+                    <a href={`#butir-${b.kode}`} className="underline-offset-2 hover:underline">
+                      {b.deskripsi}
                     </a>
                   </TD>
-                  <TD className="min-w-48">{b.deskripsi}</TD>
                   <TD className="capitalize">{b.jenis}</TD>
                   <TD className="whitespace-nowrap">
                     {b.pratinjau ? (
@@ -501,16 +502,16 @@ export function PapanAturan({
                   <TD className="whitespace-nowrap">
                     {b.status !== "Nonaktif" && !hanyaBaca ? (
                       <span className="flex justify-end gap-1">
-                        <Button varian="sekunder" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk} aria-label={`Ubah butir ${b.kode}`}>
+                        <Button varian="sekunder" ukuran="sm" onClick={() => klikUbah(b)} disabled={sibuk} aria-label={`Ubah butir: ${b.deskripsi}`}>
                           Ubah
                         </Button>
                         {bisaHapus(b) ? (
-                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => setHapusAturan(b)} disabled={sibuk} aria-label={`Hapus aturan ${b.kode}`}>
+                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => setHapusAturan(b)} disabled={sibuk} aria-label={`Hapus aturan: ${b.deskripsi}`}>
                             Hapus
                           </Button>
                         ) : null}
                         {b.butir && (!butirTerkunci(b.asal) || b.jenis === "semantik") ? (
-                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => (setGalatNonaktif(null), setNonaktif(b.butir))} disabled={sibuk} aria-label={`Nonaktifkan butir ${b.kode}`}>
+                          <Button varian="hantu" ukuran="sm" className="text-bata-700 hover:bg-bata-100" onClick={() => (setGalatNonaktif(null), setNonaktif(b.butir))} disabled={sibuk} aria-label={`Nonaktifkan butir: ${b.deskripsi}`}>
                             Nonaktifkan
                           </Button>
                         ) : null}
@@ -546,7 +547,7 @@ export function PapanAturan({
         {hapusAturan ? (
           <>
             <p>
-              Aturan <span className="font-mono font-semibold" translate="no">{hapusAturan.kode}</span>: {hapusAturan.deskripsi}
+              Aturan: <span className="font-semibold">{hapusAturan.deskripsi}</span>
             </p>
             <p className="mt-2 text-teks-redup">Aturan dihapus dari ketentuan bagian pada draf ini; petunjuk dan .docx ikut berubah setelah Simpan Draf.</p>
           </>
@@ -568,7 +569,7 @@ export function PapanAturan({
         {nonaktif ? (
           <>
             <p>
-              Butir <span className="font-mono font-semibold" translate="no">{nonaktif.kode}</span>: {nonaktif.deskripsi}
+              Butir: <span className="font-semibold">{nonaktif.deskripsi}</span>
             </p>
             <p className="mt-2 text-teks-redup">Butir tidak lagi dipakai pada pemeriksaan sesudah versi yang sedang disusun disimpan. Versi yang berlaku sekarang tidak berubah.</p>
           </>
