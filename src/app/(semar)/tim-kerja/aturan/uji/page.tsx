@@ -314,7 +314,7 @@ function RingkasDeterministik({ d }: { d: TinjauanUji["deterministik"] }) {
   const gagal = d.filter((h) => h.status === "Gagal");
   return (
     <details className="mb-6 rounded-md border border-primer-200 bg-white text-sm">
-      <summary className="flex min-h-10 cursor-pointer items-center gap-2 px-3 py-2 font-semibold text-primer-900">
+      <summary className="min-h-10 cursor-pointer px-3 py-2 font-semibold leading-6 text-primer-900">
         Butir deterministik: <span className="angka">{d.length - gagal.length}</span> dari <span className="angka">{d.length}</span> lolos
         {gagal.length ? <span className="font-medium text-bata-700">, {gagal.length} gagal</span> : null}
       </summary>
