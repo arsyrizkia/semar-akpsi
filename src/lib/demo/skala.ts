@@ -154,6 +154,19 @@ async function adaHasilSemantik(idVersi: ReturnType<typeof sql>): Promise<boolea
 const versiProfil = (periodeId: string, awalan: string) =>
   sql`SELECT v.id FROM versi_proposal v JOIN proposal p ON p.id = v.proposal_id WHERE p.periode_id = ${periodeId}::uuid AND p.id_proposal LIKE ${awalan + "%"}`;
 
+/**
+ * Hasil pemeriksaan profil utuh: ada hasil semantik dan tidak ada butir yang tercatat dua kali pada satu versi. Data yang dibangun sebelum
+ * sumbernya punya hasil semantik (reset 27 Okt 2026) atau yang hasilnya pernah tersalin ganda dibangun ulang, bukan ditambal.
+ */
+async function hasilProfilUtuh(periodeId: string, awalan: string): Promise<boolean> {
+  if (!(await adaHasilSemantik(versiProfil(periodeId, awalan)))) return false;
+  const { rows } = (await getDb().execute(sql`
+    SELECT EXISTS (
+      SELECT 1 FROM hasil_pemeriksaan WHERE versi_id IN (${versiProfil(periodeId, awalan)}) GROUP BY versi_id, butir_kode HAVING count(*) > 1
+    ) AS ganda`)) as unknown as { rows: { ganda: boolean }[] };
+  return rows[0]?.ganda !== true;
+}
+
 /** Hasil pemeriksaan (deterministik dan semantik) versi sumber disalin ke setiap versi profil; yang sudah ada dilewati. */
 async function salinHasilContoh(periodeId: string, awalan: string, sumberId: string): Promise<void> {
   await getDb().execute(sql`
@@ -235,15 +248,11 @@ export async function siapkanProfilSkala(profil: ProfilSkala): Promise<HasilSiap
 
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.proposal).where(and(eq(s.proposal.periodeId, periode.id), like(s.proposal.idProposal, `${profil.awalanIdProposal}%`)));
   const [{ r }] = await db.select({ r: sql<number>`count(*)::int` }).from(s.akun).where(like(s.akun.idBima, `${profil.awalanReviewer}%`));
-  const dibuatBaru = n !== profil.jumlahProposal || r !== profil.jumlahReviewer;
+  const dibuatBaru = n !== profil.jumlahProposal || r !== profil.jumlahReviewer || !(await hasilProfilUtuh(periode.id, profil.awalanIdProposal));
   if (dibuatBaru) {
-    // data kosong, rusak, atau sebagian: bangun ulang dari nol (hanya data berawalan profil)
+    // data kosong, rusak, sebagian, atau hasil pemeriksaannya tidak utuh: bangun ulang dari nol (hanya data berawalan profil)
     await hapusDataProfil(profil, periode.id);
     await buatDataMassal(profil, periode.id);
-  } else if (!(await adaHasilSemantik(versiProfil(periode.id, profil.awalanIdProposal)))) {
-    // data lama yang dibangun sebelum sumbernya punya hasil semantik: lengkapi hasilnya tanpa membangun ulang
-    const sumberId = await versiSumberContoh();
-    if (sumberId) await salinHasilContoh(periode.id, profil.awalanIdProposal, sumberId);
   }
   const waktuBuatMs = dibuatBaru ? Date.now() - mulai : 0;
 
