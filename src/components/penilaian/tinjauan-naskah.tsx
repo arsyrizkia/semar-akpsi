@@ -299,7 +299,8 @@ export function TinjauanNaskah({
                         {kutipanButir(b).length > 1 ? <p className="text-xs font-semibold text-teks-redup">Kutipan bukti ({kutipanButir(b).length})</p> : null}
                         {kutipanButir(b).map((k, i) => (
                           <div key={i}>
-                            <blockquote className="border-l-4 border-peringatan-300 pl-3 text-xs leading-relaxed text-primer-900">{tampilKutipan(k)}</blockquote>
+                            {/* dipotong dua baris: kutipan utuh tersorot di teks (Tunjukkan di Teks) dan tetap terbaca pembaca layar */}
+                            <blockquote className="line-clamp-2 border-l-4 border-peringatan-300 pl-3 text-xs leading-relaxed text-primer-900">{tampilKutipan(k)}</blockquote>
                             <button
                               type="button"
                               onClick={() => pilihButir(b, i)}
