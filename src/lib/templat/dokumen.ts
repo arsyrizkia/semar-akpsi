@@ -9,6 +9,7 @@
  * dalam sel tabel dan dibuka oleh `blokDariHtml`. Kalimat petunjuk, "[ ]", dan "[Sisipkan ...]" tidak dihitung `hitungKata`. Logo disematkan
  * dari src/lib/templat/aset/logo-kementerian.ts. Perkakas tata letak (para, sel, tabelTetap) diekspor untuk templat lampiran BIMA tiruan.
  */
+import JSZip from "jszip";
 import { AlignmentType, BorderStyle, Document, Footer, HeadingLevel, ImageRun, LineRuleType, Packer, Paragraph, ShadingType, Table, TableCell, TableLayoutType, TableRow, TextRun, VerticalAlign, VerticalMergeType, WidthType } from "docx";
 import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak/tipe";
 import { normalisasiJudul } from "@/lib/pemeriksa/deterministik/teks";
@@ -41,6 +42,11 @@ export interface PaketDokumen {
   teksKaki?: string;
   /** judul pada properti dokumen */
   judul?: string;
+  /**
+   * Kunci templat (bawaan: ya bila tanpa isiBagian): dokumen hanya-baca (Word: Restrict Editing) kecuali baris isian putih setiap bagian,
+   * sehingga pengusul hanya dapat mengetik di tempat isian, bukan mengubah kop, judul bagian, atau petunjuk.
+   */
+  kunci?: boolean;
 }
 
 export const BAGIAN_WAJIB_DOKUMEN = ["Kata Kunci", "Daftar Pustaka"] as const;
@@ -168,6 +174,37 @@ export const tabelTetap = (lebar: number[], baris: TableRow[], tanpaGaris = fals
 
 /** Paragraf pemisah sangat tipis di antara dua tabel agar Word tidak menyatukannya. */
 export const pemisahTabel = () => new Paragraph({ spacing: { after: 0, before: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: "", size: 2 })] });
+
+/* ------------------------------ kunci templat: hanya baris isian yang dapat disunting ------------------------------ */
+
+/** Penanda sementara awal/akhir wilayah sunting (paragraf setinggi 1 pt); diganti w:permStart/w:permEnd oleh kunciTemplat. */
+const penandaIzin = (jenis: "MULAI" | "AKHIR", id: number) =>
+  new Paragraph({ spacing: { after: 0, before: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: `\u27e6IZIN-${jenis}-${id}\u27e7`, size: 2 })] });
+
+const POLA_PENANDA_IZIN = /<w:p(?: [^>]*)?>(?:(?!<\/w:p>)[\s\S])*?\u27e6IZIN-(MULAI|AKHIR)-(\d+)\u27e7(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g;
+
+/**
+ * Mengunci berkas templat: perlindungan dokumen hanya-baca (w:documentProtection edit="readOnly") dengan pengecualian untuk semua orang
+ * (w:permStart edGrp="everyone") pada setiap baris isian. Penanda dari penandaIzin diganti paragraf kosong setinggi 1 pt yang memuat
+ * awal atau akhir wilayah sunting, jadi tata letak tidak berubah. Microsoft Word menghormati kunci ini dan menyorot wilayah isian.
+ */
+export async function kunciTemplat(docx: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(docx);
+  const dokumen = await zip.file("word/document.xml")!.async("string");
+  const paragrafTipis = (isi: string) => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr>${isi}</w:p>`;
+  zip.file(
+    "word/document.xml",
+    dokumen.replace(POLA_PENANDA_IZIN, (_, jenis: string, id: string) =>
+      paragrafTipis(jenis === "MULAI" ? `<w:permStart w:id="${id}" w:edGrp="everyone"/>` : `<w:permEnd w:id="${id}"/>`),
+    ),
+  );
+  // urutan skema w:settings: documentProtection sebelum evenAndOddHeaders dan compat
+  const pengaturan = await zip.file("word/settings.xml")!.async("string");
+  const lindung = `<w:documentProtection w:edit="readOnly" w:enforcement="1"/>`;
+  const sisip = /<w:(evenAndOddHeaders|defaultTabStop|compat)\b/.exec(pengaturan);
+  zip.file("word/settings.xml", sisip ? `${pengaturan.slice(0, sisip.index)}${lindung}${pengaturan.slice(sisip.index)}` : pengaturan.replace("</w:settings>", `${lindung}</w:settings>`));
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
 
 export const LOGO = () => Buffer.from(LOGO_KEMENTERIAN_BASE64, "base64");
 export const logo = (px: number) => new ImageRun({ type: "png", data: LOGO(), transformation: { width: px, height: px }, altText: { name: "Lambang", description: "Lambang kementerian", title: "Lambang" } });
@@ -364,14 +401,18 @@ function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
   return o;
 }
 
-/** Satu bagian = tabel satu kolom: baris kepala berlatar biru muda (judul berhuruf tebal + petunjuk miring) dan baris isian berbingkai. */
-function tabelBagian(b: BagianTemplatDto, indeks: number, isiBagian?: PaketDokumen["isiBagian"]): Table {
+/**
+ * Satu bagian = tabel satu kolom: baris kepala berlatar biru muda (judul berhuruf tebal + petunjuk miring) dan baris isian berbingkai.
+ * `kunci`: isi baris isian diapit penanda wilayah sunting (kunciTemplat).
+ */
+function tabelBagian(b: BagianTemplatDto, indeks: number, isiBagian?: PaketDokumen["isiBagian"], kunci = false): Table {
   const kepala: Paragraph[] = [para(judulBerhuruf(indeks, b.nama), { font: FONT_ISIAN_JUDUL, ukuran: 22, tebal: true })];
   const petunjuk = panduanBagian(b);
   if (petunjuk) kepala.push(para(petunjuk, { font: FONT_ISIAN_JUDUL, ukuran: 21, miring: true, rataPenuh: true }));
+  const isi = isiBagian?.(b, indeks) ?? tempatIsian(b);
   return tabelTetap([LEBAR_ISIAN], [
     new TableRow({ cantSplit: true, children: [sel({ lebar: LEBAR_ISIAN, latar: BIRU_MUDA, margin: M_SEL_ISIAN, isi: kepala })] }),
-    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi: isiBagian?.(b, indeks) ?? tempatIsian(b) })] }),
+    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi: kunci ? [penandaIzin("MULAI", indeks + 1), ...isi, penandaIzin("AKHIR", indeks + 1)] : isi })] }),
   ]);
 }
 
@@ -397,10 +438,11 @@ export async function buatDokumenTemplat(
     page: { size: { width: 11906, height: 16838 }, margin: { top: margin.atas, bottom: margin.bawah, left: margin.kiri, right: margin.kanan } },
   });
 
+  const kunci = paket.kunci ?? !paket.isiBagian;
   const isian: (Paragraph | Table)[] = [...kepalaIsian(kepala)];
   lengkapiBagian(bagianDokumen(bagian)).forEach((b, i) => {
     if (i > 0) isian.push(pemisahTabel());
-    isian.push(tabelBagian(b, i, paket.isiBagian));
+    isian.push(tabelBagian(b, i, paket.isiBagian, kunci));
   });
   isian.push(pemisahTabel());
 
@@ -418,5 +460,6 @@ export async function buatDokumenTemplat(
     },
     sections: bagianDokumenDocx,
   });
-  return Packer.toBuffer(dokumen);
+  const berkas = await Packer.toBuffer(dokumen);
+  return kunci ? kunciTemplat(berkas) : berkas;
 }

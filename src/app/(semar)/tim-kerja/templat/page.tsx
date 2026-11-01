@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TombolLihatTemplat } from "@/components/templat/pratinjau-templat";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { KeadaanKosong, KepalaHalaman, LencanaStatus, TombolUnduh } from "@/components/ui";
@@ -86,7 +87,8 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
                   <span className="md:hidden">Diperbarui </span>
                   {formatTanggal(b.diperbarui)}
                 </p>
-                <div className="relative z-10 mt-2 md:mt-0 md:text-right">
+                <div className="relative z-10 mt-2 flex flex-wrap gap-2 md:mt-0 md:justify-end">
+                  <TombolLihatTemplat alamat={`/api/semar/templat/${b.id}/unduh`} judul={`${b.namaSkema} versi ${b.versi}`} label="Lihat" ukuran="sm" />
                   <TombolUnduh href={`/api/semar/templat/${b.id}/unduh`} ukuran="sm">
                     Unduh (.docx)
                     <span className="sr-only"> {b.namaSkema} versi {b.versi}</span>

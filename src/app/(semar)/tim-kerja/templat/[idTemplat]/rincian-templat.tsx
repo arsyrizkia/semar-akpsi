@@ -1,5 +1,6 @@
 "use client";
 
+import { TombolLihatTemplat } from "@/components/templat/pratinjau-templat";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Download } from "lucide-react";
@@ -178,6 +179,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
         aksi={
           bisaSunting ? (
             <>
+              <TombolLihatTemplat alamat={urlUnduh} judul={`Pratinjau ${namaSkema} versi ${templat.versi}`} label="Lihat Pratinjau" sebelumBuka={simpan} disabled={sibuk} />
               <Button varian="sekunder" onClick={unduhPratinjau} disabled={sibuk}>
                 <Download aria-hidden className="size-4" />
                 Unduh Pratinjau (.docx)
@@ -193,6 +195,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
             </>
           ) : (
             <>
+              <TombolLihatTemplat alamat={urlUnduh} judul={`${namaSkema} versi ${templat.versi}`} />
               <TombolUnduh href={urlUnduh}>Unduh Templat (.docx)</TombolUnduh>
               {dapatSusunVersiBaru(templat.status, adaDraf) ? (
                 <Button onClick={susunVersiBaru} memuat={sibuk}>

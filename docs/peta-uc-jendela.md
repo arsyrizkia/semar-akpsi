@@ -35,6 +35,7 @@ Modal memakai Dialog `radix-ui` (fokus terjebak, Esc menutup, `aria-labelledby`)
 | J-01 | "Masuk dengan akun BIMA" | BIMA masuk lalu J-02 (pengelola), J-04 (anggota), J-07 (reviewer) | layar | SSO tiruan |
 | J-02 | "Susun Versi Baru" / "Buka Draf Versi N" / "Buka Draf" | J-02b | layar | S-3: draf tersimpan dibuka kembali |
 | J-02 | "Unduh Templat (.docx)" (per versi), "Lihat" pada Riwayat Versi, nomor versi, "Lihat templat berlaku" | unduhan; J-02 `?versi=` | unduhan; layar | |
+| J-02, J-02a | "Lihat" (daftar per versi), "Lihat Templat" (J-02a terbit), "Lihat Pratinjau" (J-02a draf, menyimpan draf dulu) | modal pratinjau templat (.docx dirender di peramban) dengan "Unduh (.docx)" | modal | berkas templat terkunci kecuali baris isian putih (catatan #66) |
 | J-02b | "Terbitkan" | M-01 Konfirmasi Terbitkan | modal | isian belum lengkap: S-2 "Lengkapi isian yang ditandai", modal tidak terbuka |
 | M-01 | "Terbitkan" | J-02 `?hasil=terbit` (s.10) atau `?hasil=draf` (9a) | layar | "Buka Aturan Pemeriksaan" dan "Unduh Templat (.docx)" / "Buka Draf" dan "Unduh Pratinjau (.docx)" |
 | J-02b | "Unduh Pratinjau (.docx)" | unduhan (draf disimpan dulu) | unduhan | hanya Isian Substansi A-H (halaman depan dan lampiran milik BIMA; 24 Okt 2026) |

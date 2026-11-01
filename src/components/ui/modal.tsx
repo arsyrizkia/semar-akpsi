@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
-const lebarModal = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl" } as const;
+const lebarModal = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl", xl: "max-w-5xl" } as const;
 export type UkuranModal = keyof typeof lebarModal;
 
 /**
