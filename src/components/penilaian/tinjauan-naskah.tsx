@@ -299,7 +299,7 @@ export function TinjauanNaskah({
                         {kutipanButir(b).length > 1 ? <p className="text-xs font-semibold text-teks-redup">Kutipan bukti ({kutipanButir(b).length})</p> : null}
                         {kutipanButir(b).map((k, i) => (
                           <div key={i}>
-                            <blockquote className="border-l-4 border-peringatan-300 pl-3 text-sm text-primer-900">{tampilKutipan(k)}</blockquote>
+                            <blockquote className="border-l-4 border-peringatan-300 pl-3 text-xs leading-relaxed text-primer-900">{tampilKutipan(k)}</blockquote>
                             <button
                               type="button"
                               onClick={() => pilihButir(b, i)}
@@ -315,7 +315,12 @@ export function TinjauanNaskah({
                       <p className="text-xs text-teks-redup">Tidak ada kutipan pendukung.</p>
                     )}
                     {b.tingkatKeyakinan !== null ? <BarKeyakinan nilai={b.tingkatKeyakinan} /> : null}
-                    {b.alasanSistem ? <p className="text-xs text-teks-redup">Alasan sistem: {b.alasanSistem}</p> : null}
+                    {b.alasanSistem ? (
+                      <div>
+                        <p className="text-xs font-semibold text-teks-redup">Alasan sistem</p>
+                        <p className="text-sm leading-relaxed text-primer-900">{b.alasanSistem}</p>
+                      </div>
+                    ) : null}
                     {b.koreksi ? (
                       <div className="rounded-md bg-primer-50 p-2 text-sm">
                         <p className="flex flex-wrap items-center gap-2">

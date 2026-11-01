@@ -43,8 +43,8 @@ export interface PaketDokumen {
   /** judul pada properti dokumen */
   judul?: string;
   /**
-   * Kunci templat (bawaan: ya bila tanpa isiBagian): dokumen hanya-baca (Word: Restrict Editing) kecuali baris isian putih setiap bagian,
-   * sehingga pengusul hanya dapat mengetik di tempat isian, bukan mengubah kop, judul bagian, atau petunjuk.
+   * Kunci templat (bawaan: ya bila tanpa isiBagian): kop dan baris kepala setiap bagian (judul + petunjuk) dibungkus content control
+   * terkunci yang tidak tampak, sehingga pengusul hanya dapat mengetik di baris isian putih, bukan mengubah kop, judul bagian, atau petunjuk.
    */
   kunci?: boolean;
 }
@@ -177,32 +177,28 @@ export const pemisahTabel = () => new Paragraph({ spacing: { after: 0, before: 0
 
 /* ------------------------------ kunci templat: hanya baris isian yang dapat disunting ------------------------------ */
 
-/** Penanda sementara awal/akhir wilayah sunting (paragraf setinggi 1 pt); diganti w:permStart/w:permEnd oleh kunciTemplat. */
-const penandaIzin = (jenis: "MULAI" | "AKHIR", id: number) =>
-  new Paragraph({ spacing: { after: 0, before: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: `\u27e6IZIN-${jenis}-${id}\u27e7`, size: 2 })] });
+/** Penanda sementara awal/akhir wilayah terkunci; kunciTemplat mengganti paragraf penanda dengan pembuka/penutup content control. */
+const penandaKunci = (jenis: "MULAI" | "AKHIR", id: number) => new Paragraph({ children: [new TextRun({ text: `\u27e6KUNCI-${jenis}-${id}\u27e7`, size: 2 })] });
 
-const POLA_PENANDA_IZIN = /<w:p(?: [^>]*)?>(?:(?!<\/w:p>)[\s\S])*?\u27e6IZIN-(MULAI|AKHIR)-(\d+)\u27e7(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g;
+const POLA_PENANDA_KUNCI = /<w:p(?: [^>]*)?>(?:(?!<\/w:p>)[\s\S])*?\u27e6KUNCI-(MULAI|AKHIR)-(\d+)\u27e7(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g;
 
 /**
- * Mengunci berkas templat: perlindungan dokumen hanya-baca (w:documentProtection edit="readOnly") dengan pengecualian untuk semua orang
- * (w:permStart edGrp="everyone") pada setiap baris isian. Penanda dari penandaIzin diganti paragraf kosong setinggi 1 pt yang memuat
- * awal atau akhir wilayah sunting, jadi tata letak tidak berubah. Microsoft Word menghormati kunci ini dan menyorot wilayah isian.
+ * Mengunci berkas templat tanpa Restrict Editing (yang membuat Word menandai wilayah isian dengan kurung dan sorotan kuning): tiap
+ * pasangan penanda dari penandaKunci menjadi content control (w:sdt) berkunci sdtContentLocked (isi tidak dapat diubah, kontrol tidak
+ * dapat dihapus) dengan tampilan w15:appearance hidden (tanpa bingkai atau label). Paragraf penanda hilang seluruhnya, jadi tata letak
+ * sama dengan templat tanpa kunci. Baris isian di luar content control tetap bebas diketik.
  */
 export async function kunciTemplat(docx: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(docx);
   const dokumen = await zip.file("word/document.xml")!.async("string");
-  const paragrafTipis = (isi: string) => `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr>${isi}</w:p>`;
   zip.file(
     "word/document.xml",
-    dokumen.replace(POLA_PENANDA_IZIN, (_, jenis: string, id: string) =>
-      paragrafTipis(jenis === "MULAI" ? `<w:permStart w:id="${id}" w:edGrp="everyone"/>` : `<w:permEnd w:id="${id}"/>`),
+    dokumen.replace(POLA_PENANDA_KUNCI, (_, jenis: string, id: string) =>
+      jenis === "MULAI"
+        ? `<w:sdt><w:sdtPr><w:tag w:val="semar-kunci"/><w:id w:val="${7000 + Number(id)}"/><w:lock w:val="sdtContentLocked"/><w15:appearance w15:val="hidden"/></w:sdtPr><w:sdtContent>`
+        : "</w:sdtContent></w:sdt>",
     ),
   );
-  // urutan skema w:settings: documentProtection sebelum evenAndOddHeaders dan compat
-  const pengaturan = await zip.file("word/settings.xml")!.async("string");
-  const lindung = `<w:documentProtection w:edit="readOnly" w:enforcement="1"/>`;
-  const sisip = /<w:(evenAndOddHeaders|defaultTabStop|compat)\b/.exec(pengaturan);
-  zip.file("word/settings.xml", sisip ? `${pengaturan.slice(0, sisip.index)}${lindung}${pengaturan.slice(sisip.index)}` : pengaturan.replace("</w:settings>", `${lindung}</w:settings>`));
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
@@ -403,7 +399,7 @@ function tempatIsian(b: BagianTemplatDto): (Paragraph | Table)[] {
 
 /**
  * Satu bagian = tabel satu kolom: baris kepala berlatar biru muda (judul berhuruf tebal + petunjuk miring) dan baris isian berbingkai.
- * `kunci`: isi baris isian diapit penanda wilayah sunting (kunciTemplat).
+ * `kunci`: isi baris kepala diapit penanda wilayah terkunci (kunciTemplat); baris isian tidak.
  */
 function tabelBagian(b: BagianTemplatDto, indeks: number, isiBagian?: PaketDokumen["isiBagian"], kunci = false): Table {
   const kepala: Paragraph[] = [para(judulBerhuruf(indeks, b.nama), { font: FONT_ISIAN_JUDUL, ukuran: 22, tebal: true })];
@@ -411,8 +407,8 @@ function tabelBagian(b: BagianTemplatDto, indeks: number, isiBagian?: PaketDokum
   if (petunjuk) kepala.push(para(petunjuk, { font: FONT_ISIAN_JUDUL, ukuran: 21, miring: true, rataPenuh: true }));
   const isi = isiBagian?.(b, indeks) ?? tempatIsian(b);
   return tabelTetap([LEBAR_ISIAN], [
-    new TableRow({ cantSplit: true, children: [sel({ lebar: LEBAR_ISIAN, latar: BIRU_MUDA, margin: M_SEL_ISIAN, isi: kepala })] }),
-    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi: kunci ? [penandaIzin("MULAI", indeks + 1), ...isi, penandaIzin("AKHIR", indeks + 1)] : isi })] }),
+    new TableRow({ cantSplit: true, children: [sel({ lebar: LEBAR_ISIAN, latar: BIRU_MUDA, margin: M_SEL_ISIAN, isi: kunci ? [penandaKunci("MULAI", indeks + 1), ...kepala, penandaKunci("AKHIR", indeks + 1)] : kepala })] }),
+    new TableRow({ children: [sel({ lebar: LEBAR_ISIAN, margin: M_SEL_ISIAN, isi })] }),
   ]);
 }
 
@@ -439,7 +435,8 @@ export async function buatDokumenTemplat(
   });
 
   const kunci = paket.kunci ?? !paket.isiBagian;
-  const isian: (Paragraph | Table)[] = [...kepalaIsian(kepala)];
+  // kop (logo, judul, subjudul, pengantar, garis) dikunci sebagai satu content control; id 0 tidak dipakai bagian
+  const isian: (Paragraph | Table)[] = kunci ? [penandaKunci("MULAI", 0), ...kepalaIsian(kepala), penandaKunci("AKHIR", 0)] : kepalaIsian(kepala);
   lengkapiBagian(bagianDokumen(bagian)).forEach((b, i) => {
     if (i > 0) isian.push(pemisahTabel());
     isian.push(tabelBagian(b, i, paket.isiBagian, kunci));

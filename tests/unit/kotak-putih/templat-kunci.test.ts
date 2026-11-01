@@ -1,5 +1,5 @@
-// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: kunciTemplat (lib/templat/dokumen.ts): templat .docx hanya-baca kecuali
-// baris isian putih setiap bagian; naskah contoh yang sudah terisi tidak dikunci.
+// Uji kotak putih (Dennis dkk., 2015, hlm. 471-475). Sumber: kunciTemplat (lib/templat/dokumen.ts): kop dan kepala setiap bagian templat
+// .docx dikunci content control tak tampak, baris isian putih bebas; naskah contoh yang sudah terisi tidak dikunci.
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { buatDocx, susunContoh } from "@/lib/contoh/proposal";
@@ -13,26 +13,31 @@ const baca = async (buf: Buffer) => {
 };
 
 describe("kunciTemplat", () => {
-  it("KP-kunciTemplat-01: templat hanya-baca; satu wilayah sunting per bagian; penanda sementara tidak tersisa", async () => {
+  it("KP-kunciTemplat-01: kop dan kepala setiap bagian terkunci tanpa Restrict Editing; baris isian bebas; penanda tidak tersisa", async () => {
     const { dokumen, pengaturan } = await baca(await buatDokumenTemplat({ versi: 2, status: "Terbit" }, bagian, { kode: "PD", namaSkema: "Penelitian Dasar" }, null));
-    expect(pengaturan).toContain('<w:documentProtection w:edit="readOnly" w:enforcement="1"/>');
-    // urutan skema: documentProtection sebelum evenAndOddHeaders
-    expect(pengaturan.indexOf("documentProtection")).toBeLessThan(pengaturan.indexOf("evenAndOddHeaders"));
-    const mulai = dokumen.match(/<w:permStart w:id="\d+" w:edGrp="everyone"\/>/g) ?? [];
-    const akhir = dokumen.match(/<w:permEnd w:id="\d+"\/>/g) ?? [];
-    expect(mulai).toHaveLength(bagian.length);
-    expect(akhir).toHaveLength(bagian.length);
-    expect(dokumen).not.toContain("IZIN-");
-    // wilayah sunting membungkus tempat isian, bukan judul bagian
-    const awal = dokumen.indexOf('<w:permStart w:id="1"');
-    const ujung = dokumen.indexOf('<w:permEnd w:id="1"/>');
-    expect(dokumen.slice(awal, ujung)).toContain("[ ]");
-    expect(dokumen.slice(awal, ujung)).not.toContain("A. JUDUL");
-    expect(dokumen.lastIndexOf("A. JUDUL", awal)).toBeGreaterThan(-1);
+    // tanpa perlindungan dokumen dan tanpa wilayah izin: Word tidak menampilkan kurung atau sorotan kuning
+    expect(pengaturan).not.toContain("documentProtection");
+    expect(dokumen).not.toContain("permStart");
+    expect(dokumen).not.toContain("KUNCI-");
+    const kontrol = [...dokumen.matchAll(/<w:sdt><w:sdtPr>((?:(?!<\/w:sdtPr>)[\s\S])*)<\/w:sdtPr><w:sdtContent>((?:(?!<\/w:sdtContent>)[\s\S])*)<\/w:sdtContent><\/w:sdt>/g)];
+    // satu untuk kop + satu per bagian (tujuh bagian bawaan + Kata Kunci dan Daftar Pustaka bila belum ada)
+    expect(kontrol.length).toBeGreaterThanOrEqual(bagian.length + 1);
+    for (const [, pr] of kontrol) {
+      expect(pr).toContain('<w:lock w:val="sdtContentLocked"/>');
+      expect(pr).toContain('<w15:appearance w15:val="hidden"/>');
+    }
+    expect(new Set(kontrol.map(([, pr]) => /<w:id w:val="(\d+)"/.exec(pr)?.[1])).size).toBe(kontrol.length);
+    // kontrol pertama = kop; kontrol kedua = kepala bagian A (judul + petunjuk), tanpa tempat isian
+    expect(kontrol[0][2]).toContain("SKEMA PENELITIAN DASAR");
+    expect(kontrol[1][2]).toContain("A. JUDUL");
+    expect(kontrol[1][2]).not.toContain("[ ]");
+    // tempat isian "[ ]" berada di luar semua content control
+    const luar = dokumen.replace(/<w:sdt>[\s\S]*?<\/w:sdt>/g, "");
+    expect(luar).toContain("[ ]");
   });
   it("KP-kunciTemplat-02: naskah contoh terisi tidak dikunci", async () => {
     const { dokumen, pengaturan } = await baca(await buatDocx(susunContoh("a")));
     expect(pengaturan).not.toContain("documentProtection");
-    expect(dokumen).not.toContain("permStart");
+    expect(dokumen).not.toContain("<w:sdt>");
   });
 });

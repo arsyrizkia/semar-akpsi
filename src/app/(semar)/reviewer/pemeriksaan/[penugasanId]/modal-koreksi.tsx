@@ -86,7 +86,7 @@ export function ModalKoreksi({
           </div>
           <div>
             <dt className="text-xs font-semibold text-teks-redup">Kutipan</dt>
-            <dd>{butir.kutipan ? <q>{butir.kutipan}</q> : "Tidak ada kutipan."}</dd>
+            <dd className="text-xs leading-relaxed">{butir.kutipan ? <q>{butir.kutipan}</q> : "Tidak ada kutipan."}</dd>
           </div>
           <div>
             <dt className="text-xs font-semibold text-teks-redup">Alasan sistem</dt>
