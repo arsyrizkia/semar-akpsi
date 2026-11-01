@@ -921,3 +921,15 @@ Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: per
 | Arguments Returned | `{lolos, jumlahButir, jumlahGagal, bagianDikenali, bagianTemplat, baris: {kode, deskripsi, bagian, status, angkaPembukti, batasDilanggar}[]}`; rute menambah `tiket` (JWT berisi idProposal, sidik sha256, jumlahButir; 15 menit) bila lolos |
 | Algorithm Specification | [J1] bukan PDF atau > 4 MB → ditolak. Periode berjalan → templat Terbit dan basis aturan berlaku skema → butir deterministik Aktif/Perlu ditinjau. `ekstrakNaskah(..., {gambar: false})` → `potongTeks` → `periksaDeterministikTeks`. [J2] gagal baca → ditolak. `susunHasilPraPeriksa`: deskripsi digabung, Gagal dahulu lalu urutan butir; lolos = ada butir dan tidak ada yang Gagal. Tanpa versi dan tanpa tulis hasil; satu log audit `pengajuan.pra_periksa`. BIMA (`/bima/pengajuan/[id]/naskah`) hanya menyimpan berkas yang tiketnya sah untuk usulan dan sidik yang sama, lalu mencatat `bima_proposal.pra_periksa`; "Kirim Usulan" mensyaratkan `pra_periksa.berkasId = naskahBerkasId` (409 bila tidak). |
 | Misc. Notes | Uji KP `tests/unit/kotak-putih/pengajuan-pra-periksa.test.ts` (susunHasilPraPeriksa, tiket, token, identitasDemo) dan `contoh-pdf.test.ts` (PDF contoh dibaca balik: a lolos, b gagal batas kata Metode, f gagal kata kunci). |
+
+### MS-24 buatUsulanBaru ("Tambah Usulan" di Daftar Usulan BIMA tiruan)
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID / Contract ID | `validasiUsulanBaru`, `teksLampiranDemo` (`lib/bima/usulan-baru.ts`, murni), `buatUsulanBaru` (`lib/bima/servis-pengajuan.ts`) / Proposal (BIMA tiruan) / MS-24 / catatan inkonsistensi #67 |
+| Programmer / Date Due / Language | Kelompok AKPSI (prototipe) / 2026-11-01 / TypeScript |
+| Triggers/Events | Pengusul memilih "Tambah Usulan" di Daftar Usulan lalu "Buat Usulan" di modal |
+| Arguments Received | idBima pengusul (sesi); `{skemaKode, judul}` dari modal |
+| Arguments Returned | idProposal draf baru; rute `POST /bima/pengajuan/baru` mengembalikan `{lanjut: /bima/pengajuan/<id>?langkah=identitas}` atau 409 `{galat}` |
+| Algorithm Specification | [J1] masa pengusulan ditutup → ditolak. `validasiUsulanBaru`: skema harus skema bertemplat Terbit; judul dirapikan spasinya, [J2] < 10 atau > 250 karakter → ditolak. [J3] tanpa periode berjalan → ditolak. Nomor `PRP-<tahun periode berjalan>-nnnn` (nomor terbesar + 1). Simpan `bima_proposal` Draf dengan kata kunci naskah contoh varian a; untuk setiap lampiran wajib skema simpan PDF contoh dari `teksLampiranDemo` (teks lampiran naskah contoh dengan judul diganti judul usulan; lampiran tanpa contoh memakai teks umum rekaan). |
+| Misc. Notes | Uji KP `tests/unit/kotak-putih/usulan-baru.test.ts`. Draf buatan demo terhapus oleh "Reset & isi data demo" (TRUNCATE bima_proposal). |

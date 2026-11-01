@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { wajibPengusulBima } from "@/lib/bima/sesi";
 import { daftarSkemaBima, daftarUsulanPengusul, hasilPenilaianUsulan } from "@/lib/bima/servis-pengajuan";
+import { susunContoh } from "@/lib/contoh/proposal";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { LencanaStatusBima } from "./lencana-status";
 import { SakelarMasaBima } from "./sakelar-masa";
+import { TombolTambahUsulan } from "./tombol-tambah";
 
 export const metadata: Metadata = { title: "Daftar Usulan" };
 export const dynamic = "force-dynamic";
@@ -39,7 +41,14 @@ export default async function DaftarUsulan({ searchParams }: { searchParams: Pro
             {akun.nama} · {akun.institusi}
           </p>
         </div>
-        <SakelarMasaBima masa={pengaturan.masaPengusulan} />
+        <div className="flex flex-wrap items-start gap-3">
+          <SakelarMasaBima masa={pengaturan.masaPengusulan} />
+          <TombolTambahUsulan
+            skema={skema.filter((s) => s.adaTemplat).map((s) => ({ kode: s.kode, nama: s.nama }))}
+            judulAwal={susunContoh("a").judul}
+            masaDitutup={pengaturan.masaPengusulan === "ditutup"}
+          />
+        </div>
       </div>
 
       {q.terkirim ? (
@@ -63,7 +72,7 @@ export default async function DaftarUsulan({ searchParams }: { searchParams: Pro
 
       <div className="overflow-hidden rounded-lg bg-white shadow-[0_4px_20px_rgba(30,42,94,0.06)]">
         {usulan.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-slate-600">Belum ada usulan pada periode ini.</p>
+          <p className="px-6 py-10 text-center text-sm text-slate-600">Belum ada usulan pada periode ini. Pilih Tambah Usulan untuk memulai.</p>
         ) : (
           <div className="relative overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">

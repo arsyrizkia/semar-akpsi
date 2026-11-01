@@ -8,9 +8,11 @@
  */
 import { and, desc, eq, inArray, like } from "drizzle-orm";
 import { lampiranWajibSkema } from "./lampiran";
+import { teksLampiranDemo, validasiUsulanBaru } from "./usulan-baru";
 import { getDb } from "@/db";
-import { ambilPeriodeBerjalanId } from "@/lib/waktu";
-import { bimaBerkas, bimaKotakMasuk, bimaProposal, skemaPendanaan, templatProposal } from "@/db/schema";
+import { buatLampiranPdf, susunContoh } from "@/lib/contoh/proposal";
+import { ambilPengaturanDemo, ambilPeriodeBerjalanId } from "@/lib/waktu";
+import { bimaBerkas, bimaKotakMasuk, bimaProposal, periodeSeleksi, skemaPendanaan, templatProposal } from "@/db/schema";
 import { simpanBerkas } from "../berkas";
 
 export interface OpsiSkemaBima {
@@ -135,6 +137,31 @@ export class UsulanDitolak extends Error {
     super(pesan);
     this.name = "UsulanDitolak";
   }
+}
+
+/**
+ * "Tambah Usulan" (Daftar Usulan): draf baru milik pengusul pada periode pengusulan berjalan, bernomor PRP-<tahun periode>-nnnn (bukan
+ * tahun jam sistem: pengusulan 2027 dibuka pada 2026). Untuk demo, kata kunci dan dokumen pendukung wajib skema langsung terisi data
+ * rekaan dari naskah contoh varian a, sehingga yang tersisa hanya dokumen usulan (M-16).
+ */
+export async function buatUsulanBaru(idBima: string, masukan: { skemaKode?: unknown; judul?: unknown }): Promise<string> {
+  const db = getDb();
+  if ((await ambilPengaturanDemo()).masaPengusulan === "ditutup") throw new UsulanDitolak("Masa pengusulan sudah ditutup. Usulan baru tidak dapat dibuat.");
+  const skema = (await daftarSkemaBima()).filter((s) => s.adaTemplat);
+  const v = validasiUsulanBaru(masukan, skema.map((s) => s.kode));
+  if (!v.ok) throw new UsulanDitolak(v.galat);
+  const periodeId = await ambilPeriodeBerjalanId();
+  const [periode] = periodeId ? await db.select({ tahun: periodeSeleksi.tahun }).from(periodeSeleksi).where(eq(periodeSeleksi.id, periodeId)) : [];
+  if (!periode) throw new UsulanDitolak("Belum ada periode pengusulan yang dibuka.");
+
+  const id = await idProposalBerikut(periode.tahun);
+  const contoh = susunContoh("a");
+  await db.insert(bimaProposal).values({ id, judul: v.judul, skemaKode: v.skemaKode, pengusulIdBima: idBima, statusBima: "Draf", kataKunci: contoh.kataKunci });
+  for (const nama of lampiranWajibSkema(v.skemaKode)) {
+    const l = teksLampiranDemo(nama, v.judul, contoh);
+    await simpanBerkas({ ruang: "bima", nama: l.berkas, tipe: "application/pdf", bytes: Buffer.from(await buatLampiranPdf(nama, l.teks)), peran: "lampiran", proposalId: id, namaLampiran: nama });
+  }
+  return id;
 }
 
 /** Usulan milik pengusul yang masih dapat disunting (belum Terkirim). */
