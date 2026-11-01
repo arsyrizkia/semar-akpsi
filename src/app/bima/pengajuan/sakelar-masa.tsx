@@ -16,16 +16,16 @@ export function SakelarMasaBima({ masa }: { masa: "berjalan" | "ditutup" }) {
       router.refresh();
     });
   return (
-    <div className="flex flex-wrap items-center gap-3 border border-dashed border-slate-400 bg-white px-3 py-2 text-sm text-slate-700">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-600">
       <span>
-        Alat simulasi - masa pengusulan: <strong data-testid="masa-bima">{saatIni}</strong>
+        Alat simulasi · masa pengusulan: <strong data-testid="masa-bima">{saatIni}</strong>
       </span>
       {saatIni === "berjalan" ? (
-        <button type="button" disabled={sibuk} onClick={() => ubah("ditutup")} className="min-h-9 border border-slate-500 px-3 py-1 font-semibold transition-colors hover:bg-slate-100 disabled:opacity-60">
+        <button type="button" disabled={sibuk} onClick={() => ubah("ditutup")} className="min-h-9 rounded-md border border-slate-300 px-3 py-1 font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60">
           Tutup masa pengusulan
         </button>
       ) : (
-        <button type="button" disabled={sibuk} onClick={() => ubah("berjalan")} className="min-h-9 border border-slate-500 px-3 py-1 font-semibold transition-colors hover:bg-slate-100 disabled:opacity-60">
+        <button type="button" disabled={sibuk} onClick={() => ubah("berjalan")} className="min-h-9 rounded-md border border-slate-300 px-3 py-1 font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60">
           Buka masa pengusulan
         </button>
       )}

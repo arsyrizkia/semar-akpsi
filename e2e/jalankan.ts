@@ -342,6 +342,53 @@ async function hrefUnduh(page: Page, label: string, indeks = 0): Promise<string>
   return (await el.evaluate((e) => e.getAttribute("href"))) as string;
 }
 
+/**
+ * M-16 (catatan #65): unduh berkas contoh demo usulan ini lewat sesi peramban, lalu unggah ke modal Pemeriksaan SEMAR dan tunggu hasilnya.
+ * Mengembalikan teks hasil di modal. Tombol pembuka: "Unggah Dokumen Usulan" atau "Ganti Dokumen Usulan".
+ */
+async function unggahKeSemar(page: Page, idProposal: string, contoh: "lolos" | "batas-kata" | "kata-kunci"): Promise<string> {
+  const b64 = await page.evaluate(async (u) => {
+    const r = await fetch(u);
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let s = "";
+    for (const x of buf) s += String.fromCharCode(x);
+    return btoa(s);
+  }, `/bima/pengajuan/${idProposal}/contoh/${contoh}`);
+  const berkas = path.join(HASIL, `${idProposal}-${contoh}.pdf`);
+  writeFileSync(berkas, Buffer.from(b64, "base64"));
+  if (!(await page.$("#berkas-usulan"))) {
+    await page.evaluate(() => ([...document.querySelectorAll("button")].find((b) => /^(Unggah|Ganti) Dokumen Usulan$/.test(b.textContent?.trim() ?? "")) as HTMLButtonElement | undefined)?.click());
+    await tungguModal(page, "Pemeriksaan Dokumen Usulan");
+  }
+  const isian = (await page.waitForSelector("#berkas-usulan", { timeout: 15_000 })) as ElementHandle<HTMLInputElement>;
+  await isian.uploadFile(berkas);
+  await page.waitForFunction(() => /Lolos semua pemeriksaan|Belum lolos pemeriksaan/.test(document.querySelector("[role=dialog]")?.textContent ?? ""), { timeout: 90_000 });
+  return page.$eval("[role=dialog]", (d) => (d as HTMLElement).innerText);
+}
+
+/** Langkah 5: Kirim Usulan lalu konfirmasi; mengembalikan pesan galat (bila ditolak) atau null bila kembali ke Daftar Usulan. */
+async function kirimUsulan(page: Page, base: string, idProposal: string): Promise<string | null> {
+  await page.goto(`${base}/bima/pengajuan/${idProposal}?langkah=konfirmasi`, { waitUntil: "domcontentloaded" });
+  await adaTeks(page, "Konfirmasi Usulan");
+  await klik(page, "Kirim Usulan");
+  await klik(page, "Ya, Kirim Usulan");
+  await page.waitForFunction(() => location.search.includes("terkirim=") || !!document.querySelector("[role=alert]"), { timeout: 60_000 });
+  if (page.url().includes("terkirim=")) return null;
+  return page.$eval("[role=alert]", (e) => (e as HTMLElement).innerText);
+}
+
+/** Status usulan di Daftar Usulan BIMA (muat ulang sampai bukan "Diajukan ke SEMAR"). */
+async function tungguStatusBima(page: Page, base: string, idProposal: string, ms = 120_000): Promise<string> {
+  const batas = Date.now() + ms;
+  for (;;) {
+    await page.goto(`${base}/bima/pengajuan`, { waitUntil: "domcontentloaded" });
+    await adaTeks(page, "Daftar Usulan");
+    const st = await page.evaluate((id) => [...document.querySelectorAll("tbody tr")].find((tr) => tr.textContent?.includes(id))?.querySelectorAll("td")[2]?.textContent?.trim() ?? "", idProposal);
+    if (st !== "Diajukan ke SEMAR" || Date.now() > batas) return st;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+
 /** Membuka J-03 untuk skema PD (bawaan) dengan tabel butir. */
 async function bukaAturan(page: Page, base: string) {
   await page.goto(`${base}/tim-kerja/aturan`, { waitUntil: "domcontentloaded" }); // dialihkan ke tab Aturan Pemeriksaan templat Aktif
@@ -431,10 +478,6 @@ async function utama() {
     await klik(page, "Reset sekarang");
     await adaTeks(page, "Data demo direset dan diisi ulang.", 240_000);
   };
-  const ajukan = async () => {
-    await adaTeks(page, "Ajukan Usulan");
-    await klik(page, "Ajukan Usulan");
-  };
   const judulTab = async (kode: string) => yakin((await page.title()).includes(kode), `judul tab tidak memuat ${kode}: ${await page.title()}`);
 
   let pathJ08 = "";
@@ -465,8 +508,9 @@ async function utama() {
       await page.deleteCookie(...(await page.cookies(base)));
       await buka(page, url("/masuk"));
       await klik(page, "Masuk dengan akun BIMA");
-      await adaTeks(page, "Masuk (simulasi)");
+      await adaTeks(page, "Selamat Datang di Aplikasi BIMA");
       await foto(page, "bima-masuk");
+      await klik(page, "Kesulitan login? Bantuan");
       const akunAnggota = await page.evaluateHandle(() => [...document.querySelectorAll("a")].find((a) => a.textContent?.includes("Bagas Pramudya")) ?? null);
       yakin(akunAnggota.asElement(), "akun Bagas Pramudya tidak ada di BIMA masuk");
       await (akunAnggota.asElement() as ElementHandle<Element>).click();
@@ -479,86 +523,73 @@ async function utama() {
       c("anggota diarahkan dengan ?galat=akses saat membuka J-02");
     });
 
-    /* ---- UC-05 a/b/c ---- */
-    await skenario("UC-05a: proposal lolos semua butir (Terkirim) dan unduh templat di BIMA", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-05a"), "Pengajuan proposal");
-      await foto(page, "bima-pengajuan");
-      const d = await unduh(page, await hrefUnduh(page, "Unduh Templat"));
-      yakin(d.status === 200 && d.tipe === TIPE_DOCX && /\.docx/.test(d.disposisi), `Unduh Templat di BIMA: status ${d.status}, tipe ${d.tipe}`);
-      yakin((d.html.match(/<p>(?:<strong>)?[A-Z]\. [A-Z]{3,}/g) ?? []).length >= 3, "templat .docx dari BIMA tidak memuat judul bagian berhuruf (A. JUDUL ...)");
-      c(`BIMA Unduh Templat: 200, ${d.tipe.split(".").pop()}, ${d.ukuran} byte`);
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Terkirim", "status seharusnya Terkirim");
-      await adaTeks(page, "Bukti pengiriman");
-      await judulTab("J-06");
-      const t = await teksHalaman(page);
-      yakin(t.includes("Kembali ke BIMA"), "tombol Kembali ke BIMA tidak tampil");
-      const baris = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, " ")));
-      const lolos = baris.filter((x) => /\bLolos\b/.test(x)).length;
-      yakin(lolos >= 10 && !baris.some((x) => /\bGagal\b/.test(x)), `semua butir seharusnya Lolos (${lolos} lolos dari ${baris.length} baris)`);
-      await foto(page, "j06-terkirim");
-      c("J-06 menampilkan Terkirim, daftar butir Lolos, Bukti pengiriman, Kembali ke BIMA");
+    /* ---- UC-05 a/b/c dan UC-06: wizard BIMA + M-16 Pemeriksaan SEMAR (catatan #65) ---- */
+    await skenario("UC-05a: dokumen lolos di M-16, disimpan ke BIMA, lalu Kirim Usulan (Terkirim)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-05a"), "Substansi Usulan");
+      await foto(page, "bima-substansi");
+      const d = await unduh(page, await hrefUnduh(page, "Template"));
+      yakin(d.status === 200 && d.tipe === TIPE_DOCX && /\.docx/.test(d.disposisi), `Template di BIMA: status ${d.status}, tipe ${d.tipe}`);
+      c(`BIMA Template: 200, ${d.ukuran} byte`);
+      const hasil = await unggahKeSemar(page, "PRP-2027-0001", "lolos");
+      yakin(/Lolos semua pemeriksaan/.test(hasil) && /8 dari 8 bagian/.test(hasil), `M-16 seharusnya lolos dengan 8 bagian dikenali: ${hasil.slice(0, 200)}`);
+      await foto(page, "m16-lolos");
+      c("M-16: lolos semua ketentuan, 8 dari 8 bagian dikenali");
+      await klik(page, "Simpan ke BIMA");
+      await tungguModalTutup(page);
+      await adaTeks(page, "Lolos pemeriksaan SEMAR");
+      c("Simpan ke BIMA: dokumen tersimpan dengan lencana lolos");
+      yakin((await kirimUsulan(page, base, "PRP-2027-0001")) === null, "Kirim Usulan seharusnya berhasil");
+      await adaTeks(page, "berhasil dikirim");
+      yakin((await tungguStatusBima(page, base, "PRP-2027-0001")) === "Terkirim", "status BIMA seharusnya Terkirim");
+      await foto(page, "bima-terkirim");
+      c("Kirim Usulan: kembali ke Daftar Usulan, status Terkirim (dicerminkan SEMAR)");
     });
 
-    await skenario("UC-05b / UC-06: ada butir gagal (Ditahan), diperbaiki lalu Terkirim V2", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-05b"), "Pengajuan proposal");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "status seharusnya Ditahan");
-      const t = await teksHalaman(page);
-      const barisGagal = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, " ")).filter((x) => /\bGagal\b/.test(x)));
-      yakin(barisGagal.length >= 1, "butir Gagal tidak tampil");
-      yakin(/Metode/.test(barisGagal[0]) && /kata/.test(barisGagal[0]), `butir Gagal paling atas tidak memuat bagian dan angka pembukti: ${barisGagal[0]}`);
-      yakin(!t.includes("Bukti pengiriman"), "bukti pengiriman tidak boleh tampil pada Ditahan");
-      c(`butir Gagal paling atas: ${barisGagal[0].slice(0, 120)}`);
-      await foto(page, "j06-ditahan");
-      await klik(page, "Kembali ke BIMA");
-      await page.waitForFunction(() => location.pathname === "/bima/pengajuan", { timeout: 20_000 });
-      c("tombol Kembali ke BIMA berfungsi");
-      await buka(page, url("/bima/pengajuan?proposal=PRP-2026-0002"), "Ajukan: PRP-2026-0002");
-      await page.click("input[name=naskahPerbaikan]");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Terkirim", "setelah diperbaiki, status seharusnya Terkirim");
-      await adaTeks(page, "Bukti pengiriman");
-      yakin(/Kode versi\s*V2/.test(await teksHalaman(page)), "bukti pengiriman seharusnya memuat kode versi V2");
-      await foto(page, "j06-05b-terkirim-v2");
-      c("S-1.3/S-1.4: ajukan ulang dengan naskah perbaikan menghasilkan Terkirim, kode versi V2, bukti pengiriman");
+    await skenario("UC-05b / UC-06: dokumen belum lolos (Kirim terkunci), unggah ulang yang lolos, lalu Terkirim", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-05b"), "Substansi Usulan");
+      const hasil = await unggahKeSemar(page, "PRP-2027-0002", "batas-kata");
+      yakin(/Belum lolos pemeriksaan/.test(hasil) && /Metode/.test(hasil) && /1\.000/.test(hasil), `M-16 seharusnya belum lolos karena Metode: ${hasil.slice(0, 240)}`);
+      yakin(!/BGN-|KTA-|SIT-|KAT-/.test(hasil), "kode butir tidak boleh tampil di M-16");
+      await foto(page, "m16-belum-lolos");
+      c("M-16: belum lolos, butir Metode melebihi batas kata tampil dengan angka pembukti");
+      await page.keyboard.press("Escape");
+      await page.goto(`${base}/bima/pengajuan/PRP-2027-0002?langkah=konfirmasi`, { waitUntil: "domcontentloaded" });
+      const terkunci = await page.evaluate(() => ([...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Kirim Usulan") as HTMLButtonElement | undefined)?.disabled);
+      yakin(terkunci === true, "Kirim Usulan seharusnya terkunci sebelum dokumen lolos");
+      const paksa = await page.evaluate(async () => (await fetch("/bima/pengajuan/PRP-2027-0002/kirim", { method: "POST" })).status);
+      yakin(paksa === 409, `kirim langsung tanpa dokumen lolos seharusnya ditolak server (409), bukan ${paksa}`);
+      c("Kirim Usulan terkunci; POST langsung ke rute kirim ditolak server (409)");
+      await page.goto(`${base}/bima/pengajuan/PRP-2027-0002?langkah=substansi`, { waitUntil: "domcontentloaded" });
+      yakin(/Lolos semua pemeriksaan/.test(await unggahKeSemar(page, "PRP-2027-0002", "lolos")), "unggah ulang contoh lolos seharusnya lolos");
+      await klik(page, "Simpan ke BIMA");
+      await tungguModalTutup(page);
+      yakin((await kirimUsulan(page, base, "PRP-2027-0002")) === null, "Kirim Usulan sesudah perbaikan seharusnya berhasil");
+      yakin((await tungguStatusBima(page, base, "PRP-2027-0002")) === "Terkirim", "sesudah diperbaiki, status seharusnya Terkirim");
+      c("unggah ulang dokumen lolos, Simpan ke BIMA, Kirim: Terkirim");
     });
 
-    await skenario("UC-06: kata kunci dipisah koma Gagal di J-06 (cekKataKunci)", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-06-koma"), "Pengajuan proposal");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "proposal berkata kunci berkoma seharusnya Ditahan");
-      const baris = await page.$$eval("table tbody tr", (trs) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, " ")).filter((x) => /\bGagal\b/.test(x)));
-      yakin(baris.length === 1 && /Kata kunci/i.test(baris[0]) && /pemisah yang dipakai koma/.test(baris[0]), `hanya butir kata kunci yang seharusnya Gagal dengan penyebab koma: ${baris.join(" || ")}`);
-      await foto(page, "j06-kata-kunci-koma");
-      c(`J-06: butir kata kunci Gagal karena koma: ${baris[0].slice(0, 160)}`);
+    await skenario("UC-06: kata kunci dipisah koma belum lolos di M-16 (cekKataKunci)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-06-koma"), "Substansi Usulan");
+      const hasil = await unggahKeSemar(page, "PRP-2027-0004", "kata-kunci");
+      yakin(/Belum lolos pemeriksaan/.test(hasil) && /1 dari \d+ ketentuan belum terpenuhi/.test(hasil) && /koma/.test(hasil), `hanya butir kata kunci yang seharusnya belum lolos: ${hasil.slice(0, 240)}`);
+      await foto(page, "m16-kata-kunci-koma");
+      c("M-16: hanya butir kata kunci belum lolos karena koma");
     });
 
-    await skenario("UC-05c: ditahan lalu ditolak karena masa pengusulan ditutup (3a)", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-05c"), "Pengajuan proposal");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Ditahan", "pengajuan pertama (masa berjalan) seharusnya Ditahan");
-      await foto(page, "j06-05c-ditahan");
-      await klik(page, "Kembali ke BIMA");
-      await page.waitForFunction(() => location.pathname === "/bima/pengajuan", { timeout: 20_000 });
+    await skenario("UC-05c: dokumen lolos, masa pengusulan ditutup, Kirim Usulan ditolak SEMAR (3a)", page, async (c) => {
+      await buka(page, url("/demo/mulai?k=UC-05c"), "Substansi Usulan");
+      yakin(/Lolos semua pemeriksaan/.test(await unggahKeSemar(page, "PRP-2027-0003", "lolos")), "contoh lolos seharusnya lolos");
+      await klik(page, "Simpan ke BIMA");
+      await tungguModalTutup(page);
+      await page.goto(`${base}/bima/pengajuan`, { waitUntil: "domcontentloaded" });
       await klik(page, "Tutup masa pengusulan");
       await page.waitForFunction(() => document.querySelector("[data-testid=masa-bima]")?.textContent === "ditutup", { timeout: 20_000 });
-      await klik(page, "Ajukan ulang");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      yakin((await tungguStatusPengajuan(page)) === "Ditolak", "pengajuan ulang setelah masa ditutup seharusnya Ditolak");
-      const t = await teksHalaman(page);
-      yakin(/masa pengusulan/i.test(t) && /ditutup/i.test(t), "pemberitahuan masa pengusulan ditutup tidak tampil");
-      yakin((await page.$("table")) === null, "daftar butir tidak boleh tampil pada Ditolak");
-      const tgl = t.match(/ditutup pada ([^\n.]+)/i)?.[1];
-      yakin(tgl, "tanggal tutup tidak tampil pada pesan 3a.2");
-      await foto(page, "j06-ditolak");
-      c(`Ditahan lebih dulu, lalu Ditolak setelah masa ditutup; pesan 3a.2 memuat tanggal tutup (${tgl})`);
+      const galat = await kirimUsulan(page, base, "PRP-2027-0003");
+      yakin(galat !== null && /masa pengusulan/i.test(galat) && /ditutup/i.test(galat), `Kirim seharusnya ditolak karena masa ditutup: ${galat}`);
+      yakin((await tungguStatusBima(page, base, "PRP-2027-0003")) === "Ditolak", "status BIMA seharusnya Ditolak");
+      await foto(page, "bima-ditolak");
+      c("Kirim Usulan ditolak SEMAR karena masa ditutup (3a); status BIMA Ditolak");
+      await atur("berjalan");
     });
 
     /* ---- UC-01: J-02 daftar -> J-02a rincian bertab -> M-14, M-12, M-01 ---- */
@@ -861,8 +892,14 @@ async function utama() {
       await fotoUi(page, "m15-uji-contoh-kemajuan");
       c("M-15: contoh terpilih + naskah .docx diunggah; kemajuan tampil (bilah persen, langkah, bagian templat dikenali)");
       await tungguJalur(page, "/tim-kerja/aturan/uji", 240_000);
-      await adaTeks(page, "Hasil per Butir", 60_000);
+      // J-03b terbuka per dokumen seperti J-08 (teks bersorot); ringkasan semua dokumen lewat pilihan "Ringkasan semua dokumen"
+      await adaTeks(page, "Teks Contoh", 60_000);
       await judulTab("J-03b");
+      yakin((await page.$$("[role=tabpanel] mark")).length > 0 || (await page.$$("li[data-hasil]")).length > 0, "J-03b per dokumen tanpa teks bersorot atau panel butir");
+      await foto(page, "j03b-dokumen-bersorot");
+      c("J-03b: hasil uji terbuka per dokumen dengan teks bersorot dan panel butir semantik");
+      await klik(page, "Ringkasan semua dokumen");
+      await adaTeks(page, "Hasil per Butir", 60_000);
       const t3b = await teksHalaman(page);
       yakin(t3b.includes("Ringkasan per Contoh") && t3b.includes("naskah-uji-contoh-b.docx") && t3b.includes("Lolos") && (await jumlahTombol(page, "Uji Ulang")) >= 1 && (await jumlahTombol(page, "Kembali ke Aturan Pemeriksaan")) >= 1, "J-03b tidak lengkap (ringkasan, unggahan, Lolos, Uji Ulang, Kembali)");
       await foto(page, "j03b-hasil-uji");
@@ -879,7 +916,7 @@ async function utama() {
       yakin(!sorotan, sorotan);
       c("kode butir di J-03b menaut ke baris di tab Aturan yang tergulir ke layar");
       await page.goBack();
-      await adaTeks(page, "Hasil per Butir");
+      await adaTeks(page, "Kembali ke Aturan Pemeriksaan");
       await klik(page, "Kembali ke Aturan Pemeriksaan");
       await adaTeks(page, "Tambah Butir");
       yakin(page.url().includes("tab=aturan"), "Kembali ke Aturan Pemeriksaan tidak mendarat di tab Aturan");
@@ -1298,8 +1335,8 @@ async function utama() {
     }, { abaikan: [/403/, /404/, /401/, /Failed to load resource/] });
 
     await skenario("Jalan pintas UC-06, UC-08, UC-09 membuka jendela yang benar", page, async (c) => {
-      await buka(page, url("/demo/mulai?k=UC-06"), "Pengajuan proposal");
-      c("UC-06 membuka halaman pengajuan BIMA (proposal gagal jumlah kata)");
+      await buka(page, url("/demo/mulai?k=UC-06"), "Substansi Usulan");
+      c("UC-06 membuka langkah Substansi Usulan BIMA (unggahan diperiksa M-16)");
       await buka(page, url("/demo/mulai?k=UC-08"), "Butir Semantik");
       yakin(page.url().includes("/reviewer/pemeriksaan/"), "UC-08 tidak membuka J-08");
       await buka(page, url("/demo/mulai?k=UC-09"), "Butir Semantik");
@@ -1350,20 +1387,17 @@ async function utama() {
       await klik(page, "Simpan Versi");
       await tungguModalTutup(page);
       await adaTeks(page, "Basis aturan versi baru tersimpan");
-      // 6. BIMA pengajuan: unduh templat terbit, lalu ajukan
-      await buka(page, url("/demo/mulai?k=UC-05a"), "Pengajuan proposal");
-      const dB = await unduh(page, await hrefUnduh(page, "Unduh Templat"));
+      // 6. BIMA langkah Substansi Usulan: unduh templat terbit, lalu unggah naskah lama ke M-16
+      await buka(page, url("/demo/mulai?k=UC-05a"), "Substansi Usulan");
+      const dB = await unduh(page, await hrefUnduh(page, "Template"));
       yakin(dB.status === 200 && memuatBagian(dB.html, BARU), "templat di BIMA belum memuat bagian baru");
       await foto(page, "bolak-balik-bima-unduh-templat");
-      c("BIMA pengajuan: Unduh Templat memuat bagian baru");
-      await ajukan();
-      await tungguJalur(page, "/pengusul/hasil/", 60_000);
-      const status = await tungguStatusPengajuan(page);
-      const barisBaru = await page.$$eval("table tbody tr", (trs, b) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, " ")).filter((x) => x.includes(b)), BARU);
-      yakin(barisBaru.length >= 1, `J-06 tidak memeriksa bagian baru (status ${status})`);
-      yakin(status === "Ditahan" && /Gagal/.test(barisBaru[0]), `bagian baru seharusnya Gagal dan pengajuan Ditahan: ${status}, ${barisBaru[0]}`);
-      await foto(page, "bolak-balik-j06-bagian-baru");
-      c(`J-06: butir bagian baru diperiksa dan Gagal (naskah lama tidak memuat bagian itu), status ${status}`);
+      c("BIMA Substansi Usulan: Template memuat bagian baru");
+      const hasilBaru = await unggahKeSemar(page, "PRP-2027-0001", "lolos");
+      yakin(/Belum lolos pemeriksaan/.test(hasilBaru) && hasilBaru.toLowerCase().includes(BARU.toLowerCase()), `bagian baru seharusnya diperiksa dan belum lolos di M-16: ${hasilBaru.slice(0, 240)}`);
+      await foto(page, "bolak-balik-m16-bagian-baru");
+      c("M-16: butir bagian baru diperiksa dan belum lolos (naskah lama tidak memuat bagian itu)");
+      await page.keyboard.press("Escape");
       // 7. kembali ke J-02: versi lama berstatus Arsip, hanya-baca, tanpa bagian baru
       await buka(page, url("/tim-kerja/templat?status=Arsip"), "Penelitian Dasar");
       await page.evaluate(() => (document.querySelector("a[href^='/tim-kerja/templat/']") as HTMLElement).click());
@@ -1443,10 +1477,10 @@ async function utama() {
         ["J-02", "Templat Proposal", "/tim-kerja/templat"],
         ["J-02a", "Templat Proposal", "/tim-kerja/templat"],
         ["J-03", "Aturan Pemeriksaan", "/tim-kerja/templat/"],
-        ["J-03b", "Hasil per Butir", "/tim-kerja/aturan/uji"],
+        ["J-03b", "Teks Contoh", "/tim-kerja/aturan/uji"],
         ["J-08", "Butir Semantik", "/reviewer/pemeriksaan/"],
         ["J-08b", "Keputusan Komponen Borang", "/reviewer/pemeriksaan/"],
-        ["BIMA-1", "Pengajuan proposal", "/bima/pengajuan"],
+        ["BIMA-1", "Daftar Usulan", "/bima/pengajuan"],
         ["BIMA-2", "Kotak masuk", "/bima/kotak-masuk"],
         ["J-01", "Masuk dengan akun BIMA", "/masuk"],
       ];
@@ -1547,8 +1581,8 @@ async function utama() {
       await foto(page, "j03-perlu-ditinjau-navigator");
       await lewatNavigator("[data-skenario='normal']", "Tambah Butir", 90_000);
       yakin(!(await teksTabelAturan()).includes("Perlu ditinjau"), "skenario normal J-03 seharusnya tanpa butir Perlu ditinjau");
-      await buka(page, url("/demo/mulai?j=J-03b&s=hasil"), "Hasil per Butir", 120_000);
-      await lewatNavigator("[data-skenario='hasil']", "Hasil per Butir", 120_000);
+      await buka(page, url("/demo/mulai?j=J-03b&s=hasil"), "Teks Contoh", 120_000);
+      await lewatNavigator("[data-skenario='hasil']", "Teks Contoh", 120_000);
       c("J-03: butir Perlu ditinjau muncul pada skenario khusus dan hilang pada normal; J-03b membuka laporan uji");
       await buka(page, url("/demo/mulai?j=J-05&s=belum-final"), "Belum ada penilaian final untuk periode dan skema ini.", 90_000);
       await foto(page, "j05-belum-final");
@@ -1582,9 +1616,9 @@ async function utama() {
       await lewatNavigator("[data-skenario='draf']", "Butir Semantik");
       await lewatNavigator("[data-skenario='normal']", "Butir Semantik");
       c("J-08: final hanya-baca, perlu diperiksa manual, belum ada rekomendasi, draf, normal");
-      await buka(page, url("/demo/mulai?j=BIMA-1&s=ditahan"), "Pengajuan proposal");
-      yakin((await jumlahTombol(page, "Ajukan Usulan")) >= 1, "BIMA pengajuan tanpa tombol Ajukan Usulan");
-      c("BIMA tiruan: halaman pengajuan membuka draf siap diajukan");
+      await buka(page, url("/demo/mulai?j=BIMA-1&s=ditahan"), "Substansi Usulan");
+      yakin((await jumlahTombol(page, "Unggah Dokumen Usulan")) + (await jumlahTombol(page, "Ganti Dokumen Usulan")) >= 1, "BIMA Substansi Usulan tanpa tombol unggah dokumen");
+      c("BIMA tiruan: langkah Substansi Usulan siap untuk unggah dokumen ke M-16");
     });
 
     await skenario("Navigator demo: sakelar masa pengusulan, papan ketik, dan ciut", page, async (c) => {

@@ -264,21 +264,20 @@ export async function siapkanJalanPintas(kode: KodeJalanPintas, opsi: { langsung
     case "UC-06-koma": {
       const nomor = kode === "UC-05" || kode === "UC-05a" ? 1 : kode === "UC-06" || kode === "UC-05b" ? 2 : kode === "UC-06-koma" ? 4 : 3;
       const id = await pulihkanDrafBima(nomor);
-      // UC-05c dimulai saat masa berjalan: pengajuan pertama Ditahan; masa ditutup lewat alat simulasi di BIMA, lalu "Ajukan ulang" -> Ditolak (3a)
+      // masa berjalan; UC-05c menutupnya lewat alat simulasi di BIMA sebelum Kirim Usulan -> ditolak SEMAR (3a)
       await ubahPengaturanDemo({ masaPengusulan: "berjalan" });
       return {
         akun: nomor === 4 ? "pengusul-3" : `pengusul-${nomor}`,
-        tujuan: `/bima/pengajuan?proposal=${id}`,
+        // langkah 2 Substansi Usulan: dokumen usulan diunggah ke M-16 Pemeriksaan SEMAR (catatan inkonsistensi #65)
+        tujuan: `/bima/pengajuan/${id}?langkah=substansi`,
         catatan:
           kode === "UC-06-koma"
-            ? "Kata kunci dipisah koma (,) bukan titik koma (;): Ditahan karena butir kata kunci Gagal (pola contoh BIMA no. 5)."
+            ? "Unduh contoh \"Kata kunci dipisah koma\", lalu Unggah Dokumen Usulan: SEMAR menahan karena kata kunci dipisah koma (pola contoh BIMA no. 5)."
             : kode === "UC-05c"
-            ? "Ajukan (Ditahan karena kata kunci dan sitasi), tutup masa pengusulan di BIMA, lalu Ajukan ulang (Ditolak, alternatif 3a)."
-            : kode === "UC-05b"
-              ? "Ajukan (Ditahan karena Metode melebihi batas kata), lalu Ajukan ulang dengan naskah perbaikan contoh (Terkirim, versi V2)."
-              : nomor === 1
-                ? "Proposal lolos semua butir (Terkirim)."
-                : "Bagian Metode melebihi batas kata (Ditahan).",
+              ? "Unggah contoh lolos dan Simpan ke BIMA, tutup masa pengusulan (alat simulasi), lalu Kirim Usulan di langkah 5: ditolak SEMAR (3a)."
+              : kode === "UC-05b"
+                ? "Unggah contoh \"Metode melebihi 1.000 kata\": belum lolos, Kirim terkunci. Unggah Ulang contoh lolos, Simpan ke BIMA, lalu Kirim."
+                : "Unduh contoh \"Lolos semua pemeriksaan\", Unggah Dokumen Usulan, Simpan ke BIMA, lalu Kirim Usulan di langkah 5 (Terkirim).",
       };
     }
     case "UC-07":

@@ -12,7 +12,7 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | J-02 | Templat Proposal (daftar) | Tim Kerja (pengelola) | `/tim-kerja/templat?tahun=&skema=&status=` | UC-01 s.1-3 |
 | J-02a | Rincian Templat (tab Bagian, Aturan Pemeriksaan, Lampiran, Halaman Depan) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=&periode=&sorot=&hasil=` (`/susun` mengalihkan) | UC-01 s.4-10 |
 | J-03 | Aturan Pemeriksaan (tab di J-02a, tanpa menu sendiri) | Tim Kerja (pengelola) | `/tim-kerja/templat/[idTemplat]?tab=aturan`; `/tim-kerja/aturan?skema=&periode=&sorot=` (juga `butir=`) mengalihkan ke sini | UC-02 |
-| J-03b | Hasil Uji pada Contoh | Tim Kerja (pengelola) | `/tim-kerja/aturan/uji?skema=&periode=&templat=&uji=` (hasil tersimpan); `&dokumen=&tab=&butir=` satu dokumen bersorot seperti J-08 (hanya baca) | UC-02 s.6 |
+| J-03b | Hasil Uji pada Contoh | Tim Kerja (pengelola) | `/tim-kerja/aturan/uji?skema=&periode=&templat=&uji=` (hasil tersimpan): bawaan dokumen pertama, bersorot seperti J-08 (hanya baca); `&dokumen=KODE&tab=&butir=` dokumen lain; `&dokumen=semua` ringkasan per contoh dan matriks butir x contoh | UC-02 s.6 |
 | J-04 | Penugasan Reviewer | Tim Kerja | `/tim-kerja/penugasan` (tautan lama `?susun=1` dialihkan ke J-04b periode aktif) | UC-03 s.1 |
 | J-04b | Usulan Penugasan | Tim Kerja | `/tim-kerja/penugasan/[idPeriode]?tab=usulan\|sebaran\|ditetapkan&q=&rev=&inst=&skema=&syarat=melanggar&urut=&per=&hal=` (`?susun=1` hanya dari skenario S-1; `?tetap=n` pesan sesudah Tetapkan) | UC-03 s.2-8 |
 | J-05 | Pemantauan Kesesuaian | Tim Kerja | `/tim-kerja/pemantauan?periode=&skema=&tab=&urut=&butir=` (tab: kosong = Butir Semantik, `deterministik`, `tren`) | UC-04 |
@@ -21,7 +21,8 @@ Layar adalah halaman sendiri: punya alamat, dapat dibuka lewat tautan langsung, 
 | J-07 | Daftar Penugasan | Reviewer | `/reviewer/penugasan` | UC-07 |
 | J-08 | Pemeriksaan Proposal | Reviewer | `/reviewer/pemeriksaan/[penugasanId]?tab=&butir=` (data JSON: `.../data`) | UC-07/08/09 |
 | J-08b | Keputusan Penilaian | Reviewer | `/reviewer/pemeriksaan/[penugasanId]/keputusan` | UC-07 s.9-12 |
-| BIMA | Halaman BIMA tiruan | Semua (simulasi) | `/bima/masuk`, `/bima/pengajuan` (Unduh Templat), `/bima/kotak-masuk` (ID proposal menaut ke J-05b) | UC-05, API |
+| BIMA | Halaman BIMA tiruan (tampilan BIMA: logo, Poppins, navbar biru; bilah "Simulasi BIMA") | Semua (simulasi) | `/bima/masuk`; `/bima/pengajuan` (Daftar Usulan); `/bima/pengajuan/[id]?langkah=identitas\|substansi\|rab\|pendukung\|konfirmasi` (wizard usulan, isian terisi demo); `/bima/kotak-masuk` (ID proposal menaut ke J-05b) | UC-05, API |
+| M-16 | Pemeriksaan Dokumen Usulan (modal SEMAR di BIMA) | Pengusul | dibuka dari "Unggah Dokumen Usulan" di langkah Substansi Usulan; `POST /api/semar/pra-periksa` (token pra-periksa) lalu `POST /bima/pengajuan/[id]/naskah` (tiket lolos) | UC-05 s.2, UC-06 |
 
 Unduhan (rute): `/api/semar/templat/[idTemplat]/unduh` (J-02 per versi, J-02b pratinjau), `/api/semar/contoh/[kode]/unduh` (M-15 dan J-03b: PDF asli BIMA `pdf-asli-NN` dikirim apa adanya dari tabel `contoh_asli`; contoh rekaan dibangkitkan ulang sebagai .docx berformat templat resmi; unggahan tidak disimpan berkasnya, 404; hanya pengelola), `/api/semar/templat/berlaku/[idSkema]/unduh` (BIMA pengajuan dan Tim Kerja), `/api/semar/proposal/[idProposal]/berkas/[idBerkas]` (J-05b dan J-08; reviewer hanya penugasannya, selain itu 403; tanpa sesi 401). Gambar naskah per bagian: `/api/semar/proposal/[idProposal]/gambar/[idGambar]` (J-08 dan J-05b, hak akses sama dengan unduh berkas; gambar harus milik versi proposal itu); `/api/semar/contoh/[kode]/gambar/[idGambar]` (J-03b per dokumen; hanya pengelola; gambar harus milik dokumen contoh itu).
 
@@ -75,7 +76,11 @@ Modal memakai Dialog `radix-ui` (fokus terjebak, Esc menutup, `aria-labelledby`)
 | J-08b | "Simpan Sementara"; "Kembali ke Pemeriksaan"; "Tinjau butir semantik"; breadcrumb "Daftar Penugasan" dan "Pemeriksaan Proposal" | J-08b (toast); J-08 (`router.back()` bila datang dari J-08, tab dan butir terakhir terbawa); J-08; J-07 | - ; layar | isian belum disimpan dijaga `CegatTinggalkan` (modal "Tinggalkan tanpa menyimpan?"): Simpan Sementara lalu pindah, Tinggalkan, Batal |
 | M-11 | "Simpan Permanen" | J-08b hanya-baca ("Penilaian tersimpan dan terkirim ke BIMA", "Kembali ke Daftar Penugasan" ke J-07) | modal ke layar | judul "Konfirmasi Simpan Permanen" |
 | J-02b | breadcrumb "Templat Proposal"; menu sidebar | J-02; layar lain | layar | isian belum disimpan dijaga `CegatTinggalkan` (Simpan Draf lalu pindah, Tinggalkan, Batal) |
-| BIMA pengajuan | "Unduh Templat" | unduhan templat Terbit skema itu | unduhan | |
+| BIMA pengajuan | "Template" (langkah Substansi Usulan) | unduhan templat Terbit skema itu | unduhan | |
+| BIMA pengajuan | "Lanjutkan Usulan" (Daftar Usulan); langkah 1-5; "Sebelumnya"/"Selanjutnya"; "Simpan sebagai Draft" | wizard `?langkah=`; Daftar Usulan `?tersimpan=` | layar | isian terisi untuk demo (hanya baca), kecuali dokumen usulan |
+| BIMA pengajuan | "Unggah Dokumen Usulan" / "Ganti Dokumen Usulan" | M-16 Pemeriksaan Dokumen Usulan | modal | dokumen PDF maks. 4 MB (simulasi); panel "Berkas contoh (demo)" menyediakan PDF lolos, Metode > 1.000 kata, kata kunci koma (`/bima/pengajuan/[id]/contoh/[kunci]`) |
+| M-16 | lolos: "Simpan ke BIMA" / "Pilih Dokumen Lain"; belum lolos: "Unggah Ulang" / "Tutup" | langkah Substansi Usulan (lencana "Lolos pemeriksaan SEMAR") | modal ke layar | hanya dokumen bertiket lolos (sidik sha256 sama) yang disimpan BIMA; butir tampil dengan deskripsi, tanpa kode |
+| BIMA pengajuan | "Kirim Usulan" lalu "Ya, Kirim Usulan" (langkah Konfirmasi) | Daftar Usulan `?terkirim=` (status Terkirim dicerminkan SEMAR) | layar | terkunci sampai dokumen lolos M-16 (server: 409); masa ditutup: ditolak SEMAR (3a), status Ditolak |
 | BIMA pengajuan | "Ajukan Usulan" | J-06 | layar | |
 | BIMA kotak masuk | ID proposal | J-05b | layar | khusus demo |
 | Pusat Demo | "Reset & isi data demo" | modal konfirmasi lalu data direset | modal | satu-satunya selain "Pasang skenario" yang mengubah data |

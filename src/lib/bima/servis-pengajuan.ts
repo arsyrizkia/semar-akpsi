@@ -44,8 +44,11 @@ export interface UsulanBima {
   judul: string;
   skemaKode: string;
   statusBima: string;
-  naskah: { nama: string } | null;
-  lampiran: { namaLampiran: string; nama: string }[];
+  naskah: { id: string; nama: string; ukuran: number } | null;
+  lampiran: { id: string; namaLampiran: string; nama: string; ukuran: number }[];
+  /** naskah tersimpan lolos pra-periksa SEMAR (M-16); null bila belum atau naskah sudah berganti */
+  praPeriksa: { jumlahButir: number; pada: string } | null;
+  diperbaruiPada: Date;
 }
 
 export async function daftarUsulanPengusul(idBima: string): Promise<UsulanBima[]> {
@@ -60,8 +63,10 @@ export async function daftarUsulanPengusul(idBima: string): Promise<UsulanBima[]
       judul: p.judul,
       skemaKode: p.skemaKode,
       statusBima: p.statusBima,
-      naskah: naskah ? { nama: naskah.nama } : null,
-      lampiran: berkas.filter((b) => b.peran === "lampiran" && b.namaLampiran).map((b) => ({ namaLampiran: b.namaLampiran!, nama: b.nama })),
+      naskah: naskah ? { id: naskah.id, nama: naskah.nama, ukuran: naskah.ukuran } : null,
+      lampiran: berkas.filter((b) => b.peran === "lampiran" && b.namaLampiran).map((b) => ({ id: b.id, namaLampiran: b.namaLampiran!, nama: b.nama, ukuran: b.ukuran })),
+      praPeriksa: p.praPeriksa && naskah && p.praPeriksa.berkasId === naskah.id ? { jumlahButir: p.praPeriksa.jumlahButir, pada: p.praPeriksa.pada } : null,
+      diperbaruiPada: p.diperbaruiPada,
     });
   }
   return hasil;
@@ -115,13 +120,62 @@ export async function simpanUsulanBima(m: MasukanUsulan): Promise<{ idProposal: 
   if (m.naskah) {
     await db.delete(bimaBerkas).where(and(eq(bimaBerkas.proposalId, id), eq(bimaBerkas.peran, "naskah")));
     const b = await simpanBerkas({ ruang: "bima", nama: m.naskah.nama, tipe: m.naskah.tipe, bytes: m.naskah.bytes, peran: "naskah", proposalId: id });
-    await db.update(bimaProposal).set({ naskahBerkasId: b.id }).where(eq(bimaProposal.id, id));
+    // naskah berganti: hasil pra-periksa naskah lama tidak berlaku lagi
+    await db.update(bimaProposal).set({ naskahBerkasId: b.id, praPeriksa: null }).where(eq(bimaProposal.id, id));
   }
   for (const [namaLampiran, berkas] of Object.entries(m.lampiran)) {
     await db.delete(bimaBerkas).where(and(eq(bimaBerkas.proposalId, id), eq(bimaBerkas.peran, "lampiran"), eq(bimaBerkas.namaLampiran, namaLampiran)));
     await simpanBerkas({ ruang: "bima", nama: berkas.nama, tipe: berkas.tipe, bytes: berkas.bytes, peran: "lampiran", proposalId: id, namaLampiran });
   }
   return { idProposal: id };
+}
+
+export class UsulanDitolak extends Error {
+  constructor(pesan: string) {
+    super(pesan);
+    this.name = "UsulanDitolak";
+  }
+}
+
+/** Usulan milik pengusul yang masih dapat disunting (belum Terkirim). */
+async function usulanTerbuka(idBima: string, idProposal: string) {
+  const [u] = await getDb().select().from(bimaProposal).where(eq(bimaProposal.id, idProposal));
+  if (!u || u.pengusulIdBima !== idBima) throw new UsulanDitolak("Usulan tidak ditemukan.");
+  if (u.statusBima === "Terkirim") throw new UsulanDitolak("Usulan sudah terkirim dan tidak dapat diubah.");
+  return u;
+}
+
+/**
+ * M-16: naskah yang lolos pra-periksa SEMAR (tiket sudah diverifikasi pemanggil) disimpan sebagai dokumen usulan, beserta catatan
+ * pra_periksa yang mengikat berkas baru itu. Status tetap Draf (atau kembali Draf sesudah Ditahan/Ditolak) sampai usulan dikirim.
+ */
+export async function simpanNaskahLolos(idBima: string, idProposal: string, naskah: BerkasUnggahan, pra: { sidik: string; jumlahButir: number }): Promise<void> {
+  const db = getDb();
+  await usulanTerbuka(idBima, idProposal);
+  await db.delete(bimaBerkas).where(and(eq(bimaBerkas.proposalId, idProposal), eq(bimaBerkas.peran, "naskah")));
+  const b = await simpanBerkas({ ruang: "bima", nama: naskah.nama, tipe: naskah.tipe, bytes: naskah.bytes, peran: "naskah", proposalId: idProposal });
+  await db
+    .update(bimaProposal)
+    .set({ naskahBerkasId: b.id, statusBima: "Draf", praPeriksa: { berkasId: b.id, sidik: pra.sidik, jumlahButir: pra.jumlahButir, pada: new Date().toISOString() }, diperbaruiPada: new Date() })
+    .where(eq(bimaProposal.id, idProposal));
+}
+
+/**
+ * "Kirim Usulan" (langkah Konfirmasi): hanya bila naskah tersimpan lolos pra-periksa SEMAR. Status menjadi "Diajukan ke SEMAR";
+ * pemanggil lalu meneruskannya ke SEMAR. Status akhir (Terkirim/Ditahan) dicerminkan SEMAR.
+ */
+export async function ajukanUsulan(idBima: string, idProposal: string): Promise<{ judul: string; skemaKode: string }> {
+  const u = await usulanTerbuka(idBima, idProposal);
+  if (!u.naskahBerkasId || !u.praPeriksa || u.praPeriksa.berkasId !== u.naskahBerkasId) {
+    throw new UsulanDitolak("Dokumen usulan belum lolos pemeriksaan SEMAR. Unggah dokumen usulan di langkah Substansi Usulan.");
+  }
+  await getDb().update(bimaProposal).set({ statusBima: "Diajukan ke SEMAR", diperbaruiPada: new Date() }).where(eq(bimaProposal.id, idProposal));
+  return { judul: u.judul, skemaKode: u.skemaKode };
+}
+
+/** Status usulan di BIMA (mis. "Ditolak" bila SEMAR menolak karena masa pengusulan sudah ditutup). */
+export async function setStatusUsulan(idProposal: string, statusBima: string): Promise<void> {
+  await getDb().update(bimaProposal).set({ statusBima, diperbaruiPada: new Date() }).where(eq(bimaProposal.id, idProposal));
 }
 
 /** Hasil penilaian administrasi yang diterima BIMA dari SEMAR untuk satu usulan (keputusan reviewer terbaru). */

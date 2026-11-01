@@ -241,10 +241,10 @@ export const KATALOG_JENDELA: JendelaDemo[] = [
     akunBawaan: "pengusul-1",
     alamatPindah: "/bima/pengajuan",
     skenario: [
-      { id: "lolos", nama: "Draf lolos semua butir", ringkas: "PRP-2027-0001; masa 2027 berjalan; Ajukan Usulan menghasilkan Terkirim." },
-      { id: "ditahan", nama: "Draf ditahan lalu diperbaiki", ringkas: "PRP-2027-0002; Metode melebihi batas; Ajukan ulang dengan naskah perbaikan." },
-      { id: "ditolak", nama: "Draf ditahan lalu ditolak", ringkas: "PRP-2027-0003; tutup masa di BIMA lalu Ajukan ulang (Ditolak)." },
-      { id: "koma", nama: "Kata kunci dipisah koma", ringkas: "PRP-2027-0004 (pengusul-3); Ajukan Usulan menghasilkan Ditahan karena butir kata kunci Gagal." },
+      { id: "lolos", nama: "Dokumen lolos, usulan terkirim", ringkas: "PRP-2027-0001; langkah 2: unggah contoh lolos, SEMAR meloloskan, Simpan ke BIMA, lalu Kirim Usulan (Terkirim)." },
+      { id: "ditahan", nama: "Belum lolos lalu diperbaiki", ringkas: "PRP-2027-0002; contoh Metode > 1.000 kata belum lolos di SEMAR (Kirim terkunci); Unggah Ulang contoh lolos." },
+      { id: "ditolak", nama: "Masa ditutup saat kirim", ringkas: "PRP-2027-0003; dokumen lolos, tutup masa di BIMA, Kirim Usulan ditolak SEMAR (3a)." },
+      { id: "koma", nama: "Kata kunci dipisah koma", ringkas: "PRP-2027-0004 (pengusul-3); contoh kata kunci dipisah koma belum lolos di SEMAR." },
     ],
   },
   {

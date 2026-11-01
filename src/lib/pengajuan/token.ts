@@ -9,7 +9,7 @@ import { SignJWT, jwtVerify } from "jose";
 const AUDIENS = "semar-pengajuan";
 const DURASI_DETIK = 600;
 
-function kunciRahasia(): Uint8Array {
+export function kunciRahasia(): Uint8Array {
   // sama dengan cadangan di src/lib/sesi.ts agar prototipe jalan tanpa AUTH_SECRET
   const s =
     process.env.AUTH_SECRET ??

@@ -909,3 +909,15 @@ Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: per
 | Arguments Returned | `{dimulai, posisi, tenggat, total, final, persen, proyeksi, harian: {hari, final, kumulatif, jadwal, berjalan}[], reviewer (berstatus, urut), jumlahStatus, perluPerhatian}` |
 | Algorithm Specification | [J1] mulai null → dimulai false, tanpa posisi, proyeksi, dan harian. Selain itu posisi = posisiMasa, proyeksi = proyeksiSelesai; harian 1..lama: final per hari (hari di luar 1..lama dijepit), kumulatif, jadwal = round(total x hari / lama), berjalan = hari <= hariKe atau lewat [J2]; reviewer diberi statusReviewer lalu diurutkan Tertinggal, Di bawah jadwal, Sesuai jadwal, Selesai, sisa menurun, nama [J3]; perluPerhatian = total > 0 DAN (tidak tepat waktu ATAU ada Tertinggal) [J4]. |
 | Misc. Notes | Uji KP `tests/unit/kotak-putih/pemantauan-kemajuan.test.ts`. |
+
+### MS-23 praPeriksaNaskah (M-16 Pemeriksaan Dokumen Usulan di BIMA)
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID / Contract ID | `praPeriksaNaskah`, `susunHasilPraPeriksa` (`lib/pengajuan/pra-periksa.ts`), `buatTiketLolos`/`periksaTiketLolos` (`lib/pengajuan/tiket.ts`) / Proposal / MS-23 / C-11 (UC-06), catatan inkonsistensi #65 |
+| Programmer / Date Due / Language | Kelompok AKPSI (prototipe) / 2026-11-01 / TypeScript |
+| Triggers/Events | Pengusul mengunggah dokumen usulan di M-16 (langkah Substansi Usulan BIMA) |
+| Arguments Received | berkas `{bytes, nama, tipe}` (PDF, maks. 4 MB); `{skemaKode, judulBima, lampiranAda}` dari token pra-periksa dan API BIMA |
+| Arguments Returned | `{lolos, jumlahButir, jumlahGagal, bagianDikenali, bagianTemplat, baris: {kode, deskripsi, bagian, status, angkaPembukti, batasDilanggar}[]}`; rute menambah `tiket` (JWT berisi idProposal, sidik sha256, jumlahButir; 15 menit) bila lolos |
+| Algorithm Specification | [J1] bukan PDF atau > 4 MB → ditolak. Periode berjalan → templat Terbit dan basis aturan berlaku skema → butir deterministik Aktif/Perlu ditinjau. `ekstrakNaskah(..., {gambar: false})` → `potongTeks` → `periksaDeterministikTeks`. [J2] gagal baca → ditolak. `susunHasilPraPeriksa`: deskripsi digabung, Gagal dahulu lalu urutan butir; lolos = ada butir dan tidak ada yang Gagal. Tanpa versi dan tanpa tulis hasil; satu log audit `pengajuan.pra_periksa`. BIMA (`/bima/pengajuan/[id]/naskah`) hanya menyimpan berkas yang tiketnya sah untuk usulan dan sidik yang sama, lalu mencatat `bima_proposal.pra_periksa`; "Kirim Usulan" mensyaratkan `pra_periksa.berkasId = naskahBerkasId` (409 bila tidak). |
+| Misc. Notes | Uji KP `tests/unit/kotak-putih/pengajuan-pra-periksa.test.ts` (susunHasilPraPeriksa, tiket, token, identitasDemo) dan `contoh-pdf.test.ts` (PDF contoh dibaca balik: a lolos, b gagal batas kata Metode, f gagal kata kunci). |

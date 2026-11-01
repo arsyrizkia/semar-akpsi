@@ -516,6 +516,12 @@ export const bimaProposal = pgTable("bima_proposal", {
   statusBima: text("status_bima").notNull().default("Draf"),
   kataKunci: text("kata_kunci"),
   naskahBerkasId: uuid("naskah_berkas_id"),
+  /**
+   * Hasil pra-periksa SEMAR (M-16) atas naskah tersimpan: { berkasId, sidik, jumlahButir, pada }. Hanya diisi bila naskah lolos semua
+   * butir deterministik (tiket lolos sah); dikosongkan saat naskah berganti. "Kirim Usulan" mensyaratkan berkasId = naskahBerkasId.
+   * Aditif, 1 Nov 2026.
+   */
+  praPeriksa: jsonb("pra_periksa").$type<{ berkasId: string; sidik: string; jumlahButir: number; pada: string } | null>(),
   diperbaruiPada: waktu("diperbarui_pada").defaultNow().notNull(),
 });
 

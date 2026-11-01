@@ -42,6 +42,7 @@ export default async function HasilPengajuan({ params }: { params: Promise<{ idP
         remah={[{ label: "Pengusul" }, { label: "Hasil Pemeriksaan Pengajuan" }]}
         aksi={
           <Button asChild>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- pindah sistem (SEMAR ke BIMA): navigasi penuh, bukan navigasi klien */}
             <a href="/bima/pengajuan">Kembali ke BIMA</a>
           </Button>
         }

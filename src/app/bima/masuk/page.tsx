@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { GraduationCap } from "lucide-react";
 import { MasukCepat } from "@/components/layout/masuk-cepat";
 import { kelompokMasukCepat } from "@/lib/bima/sesi";
 import { jalurAman } from "@/lib/sesi";
@@ -15,9 +14,10 @@ const PESAN_GALAT: Record<string, string> = {
 };
 
 /**
- * Masuk BIMA tiruan: tata letak mengikuti halaman masuk BIMA (kartu bersambutan, Username, Password, Remember me, Log In, Bantuan)
- * tanpa logo, nama lembaga, atau kaki halaman resmi; label "Simulasi BIMA" tetap di atas. Akun demo dipilih cepat lewat popup
- * "Masuk cepat (demo)" di kanan bawah atau tombol Bantuan. Parameter:
+ * Masuk BIMA tiruan, mengikuti halaman masuk BIMA (tangkapan layar Arsy, 1 Nov 2026): kartu bersambutan "Selamat Datang di Aplikasi
+ * BIMA" dengan logo bulat menumpang di batas kepala, Username, Password, Remember me, Log In, dan "Kesulitan login? Bantuan". Pengaman
+ * simulasi: label "Simulasi BIMA" tetap di atas, hanya akun demo yang dapat masuk, dan catatan untuk tidak memakai akun asli. Akun demo
+ * dipilih cepat lewat popup "Masuk cepat (demo)" atau tombol Bantuan. Parameter:
  *  - kembali: "/api/sso/callback" (SSO ke SEMAR: BIMA menambahkan token bertanda tangan) atau jalur /bima/...
  *  - lanjut: jalur tujuan di SEMAR sesudah SSO (opsional)
  *  - galat: sandi | akun | peran; pengguna: nama pengguna yang diketik sebelumnya (galat sandi)
@@ -31,16 +31,16 @@ export default async function MasukBima({ searchParams }: { searchParams: Promis
   const galat = q.galat ? (PESAN_GALAT[q.galat] ?? PESAN_GALAT.akun) : null;
 
   return (
-    <section className="mx-auto w-full max-w-md pt-6 [font-family:ui-sans-serif,system-ui,sans-serif]">
-      <div className="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-200">
-        <div className="bg-[#e3e8f7] px-6 pb-12 pt-6">
-          <h1 className="text-lg font-medium text-[#1f2f6b]!">Selamat Datang di Simulasi BIMA</h1>
-          <p className="mt-1 text-sm text-[#1f2f6b]">Tiruan halaman masuk untuk prototipe SEMAR (bukan sistem resmi).</p>
+    <section className="mx-auto w-full max-w-[29rem] pt-2">
+      <div className="overflow-hidden rounded-lg bg-white shadow-[0_8px_30px_rgba(30,42,94,0.08)]">
+        <div className="bg-[#e1e6f4] px-6 pb-16 pt-7 sm:px-8">
+          <h1 className="text-xl font-semibold text-[#1f2d6b]">Selamat Datang di Aplikasi BIMA</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-[#1f2d6b]">Basis informasi penelitian dan pengabdian kepada masyarakat</p>
         </div>
-        <div className="px-7 pb-7">
-          {/* lencana bulat netral menggantikan lambang: halaman tiruan tidak memakai logo atau identitas resmi */}
-          <span aria-hidden className="-mt-9 mb-5 flex size-[4.5rem] items-center justify-center rounded-full bg-white ring-4 ring-[#e3e8f7]">
-            <GraduationCap className="size-9 text-[#2c4fb5]" />
+        <div className="px-6 pb-8 sm:px-8">
+          <span aria-hidden className="-mt-12 mb-6 flex size-[4.75rem] items-center justify-center rounded-full bg-[#eef0f6] p-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element -- SVG statis kecil */}
+            <img src="/bima/logo-bima.svg" alt="" width={64} height={64} className="size-16 rounded-full bg-white" />
           </span>
           {galat && q.galat !== "sandi" ? (
             <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">

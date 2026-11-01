@@ -5,7 +5,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { PERISTIWA_BUKA_MASUK_CEPAT } from "@/components/layout/masuk-cepat";
 
 const KELAS_ISIAN =
-  "block h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-500 transition-colors focus:border-[#2c4fb5] focus:outline-none focus:ring-2 focus:ring-[#2c4fb5]/30 aria-invalid:border-red-700";
+  "block h-11 w-full rounded-md border border-[#d0d5dd] bg-white px-3.5 text-[15px] text-slate-900 placeholder:text-slate-500 transition-colors focus:border-[#3651b0] focus:outline-none focus:ring-2 focus:ring-[#3651b0]/25 aria-invalid:border-red-700";
 
 /**
  * Formulir masuk BIMA tiruan, tata letaknya mengikuti halaman masuk BIMA (Username, Password dengan tombol lihat, Remember me,
@@ -33,11 +33,11 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
 
   const keterangan = galatSandi ? "galat-masuk" : undefined;
   return (
-    <form action="/api/bima/sesi/masuk" method="post" onSubmit={() => setSibuk(true)} className="space-y-4">
+    <form action="/api/bima/sesi/masuk" method="post" onSubmit={() => setSibuk(true)} className="space-y-5">
       <input type="hidden" name="kembali" value={kembali} />
       {lanjut ? <input type="hidden" name="lanjut" value={lanjut} /> : null}
       <div>
-        <label htmlFor="namaPengguna" className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label htmlFor="namaPengguna" className="mb-2 block text-[15px] font-medium text-slate-700">
           Username
         </label>
         <input
@@ -45,7 +45,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
           name="namaPengguna"
           type="text"
           required
-          placeholder="Masukkan Username"
+          placeholder="Masukan Username"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
@@ -56,7 +56,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
         />
       </div>
       <div>
-        <label htmlFor="kataSandi" className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label htmlFor="kataSandi" className="mb-2 block text-[15px] font-medium text-slate-700">
           Password
         </label>
         <div className="flex">
@@ -66,7 +66,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
             name="kataSandi"
             type={lihat ? "text" : "password"}
             required
-            placeholder="Masukkan Password"
+            placeholder="Masukan Password"
             autoComplete="current-password"
             aria-invalid={galatSandi ? true : undefined}
             aria-describedby={keterangan}
@@ -78,14 +78,14 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
             aria-pressed={lihat}
             aria-controls="kataSandi"
             aria-label="Tampilkan password"
-            className="flex h-10 w-11 shrink-0 items-center justify-center rounded-r-md border border-l-0 border-slate-300 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#2c4fb5]"
+            className="flex h-11 w-12 shrink-0 items-center justify-center rounded-r-md border border-l-0 border-[#d0d5dd] bg-[#f2f4f7] text-slate-800 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#3651b0]"
           >
             {lihat ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
           </button>
         </div>
       </div>
-      <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" name="ingat" value="1" className="size-4 rounded border-slate-400 accent-[#2c4fb5]" />
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-[15px] text-slate-700">
+        <input type="checkbox" name="ingat" value="1" className="size-4 rounded border-slate-400 accent-[#3651b0]" />
         Remember me
       </label>
       {galatSandi ? (
@@ -96,7 +96,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
       <button
         type="submit"
         disabled={sibuk}
-        className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2c4fb5] px-4 text-sm font-medium text-white transition-colors hover:bg-[#233f91] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c4fb5] disabled:cursor-wait disabled:opacity-70"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#3651b0] px-4 text-[15px] font-medium text-white transition-colors hover:bg-[#2b4294] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3651b0] disabled:cursor-wait disabled:opacity-70"
       >
         {sibuk ? (
           <>
@@ -106,12 +106,12 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
           "Log In"
         )}
       </button>
-      <p className="pt-1 text-center text-sm">
+      <p className="pt-2 text-center text-[15px]">
         <button
           type="button"
           aria-haspopup="dialog"
           onClick={() => window.dispatchEvent(new Event(PERISTIWA_BUKA_MASUK_CEPAT))}
-          className="text-[#2c4fb5] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[#2c4fb5]"
+          className="cursor-pointer text-[#3651b0] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[#3651b0]"
         >
           Kesulitan login? Bantuan
         </button>

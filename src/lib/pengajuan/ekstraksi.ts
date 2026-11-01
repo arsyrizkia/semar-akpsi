@@ -109,7 +109,12 @@ export function blokDariHtml(html: string): BlokTeks[] {
   return blok;
 }
 
-export async function ekstrakDocx(bytes: Buffer): Promise<BlokTeks[]> {
+/** `gambar: false`: penanda "[gambar]" tetap ada di posisinya, tetapi isi gambar tidak disiapkan (pemeriksaan deterministik cukup penandanya). */
+export interface OpsiEkstrak {
+  gambar?: boolean;
+}
+
+export async function ekstrakDocx(bytes: Buffer, opsi: OpsiEkstrak = {}): Promise<BlokTeks[]> {
   // gambar dikumpulkan berurutan; HTML hanya membawa rujukan "gambar:N" supaya blokDariHtml tetap murni
   const berkasGambar: Buffer[] = [];
   const hasil = await mammoth.convertToHtml(
@@ -125,7 +130,7 @@ export async function ekstrakDocx(bytes: Buffer): Promise<BlokTeks[]> {
   for (const b of blok) {
     if (b.rujukanGambar === undefined) continue;
     const berkas = berkasGambar[b.rujukanGambar];
-    const siap = berkas ? await siapkanGambar({ berkas }) : null;
+    const siap = berkas && opsi.gambar !== false ? await siapkanGambar({ berkas }) : null;
     if (siap) b.gambar = siap;
     delete b.rujukanGambar;
   }
@@ -182,7 +187,7 @@ export const normalkanButirPdf = (teks: string) => teks.replace(/[\uE000-\uF8FF]
  * Blok naskah PDF: baris teks sama dengan unpdf.extractText (item digabung, hasEOL memutus baris, spasi dirapatkan), ditambah blok
  * "[gambar]" di posisinya. Posisi gambar dihitung dari matriks transformasi daftar operator halaman (cm, save/restore, form XObject).
  */
-export async function ekstrakPdf(bytes: Buffer): Promise<BlokTeks[]> {
+export async function ekstrakPdf(bytes: Buffer, opsi: OpsiEkstrak = {}): Promise<BlokTeks[]> {
   const { getDocumentProxy, getResolvedPDFJS } = await import("unpdf");
   const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { OPS } = await getResolvedPDFJS();
@@ -240,6 +245,10 @@ export async function ekstrakPdf(bytes: Buffer): Promise<BlokTeks[]> {
         if (t) blok.push({ jenis: "paragraf", teks: t });
         continue;
       }
+      if (opsi.gambar === false) {
+        blok.push({ jenis: "gambar", teks: "[gambar]" });
+        continue;
+      }
       const o = (await gambar[x.gambar].objek()) as { data?: Uint8ClampedArray; width?: number; height?: number } | null;
       const kanal = o?.data && o.width && o.height ? o.data.length / (o.width * o.height) : 0;
       const siap = kanal === 1 || kanal === 3 || kanal === 4 ? await siapkanGambar({ piksel: o!.data!, lebar: o!.width!, tinggi: o!.height!, kanal }) : null;
@@ -259,10 +268,10 @@ export function jenisBerkas(nama: string, tipe: string, bytes: Buffer): "docx" |
 }
 
 /** Blok naskah proposal dari berkas BIMA (DOCX atau PDF). */
-export async function ekstrakNaskah(bytes: Buffer, nama: string, tipe: string): Promise<BlokTeks[]> {
+export async function ekstrakNaskah(bytes: Buffer, nama: string, tipe: string, opsi: OpsiEkstrak = {}): Promise<BlokTeks[]> {
   const jenis = jenisBerkas(nama, tipe, bytes);
-  if (jenis === "docx") return ekstrakDocx(bytes);
-  if (jenis === "pdf") return ekstrakPdf(bytes);
+  if (jenis === "docx") return ekstrakDocx(bytes, opsi);
+  if (jenis === "pdf") return ekstrakPdf(bytes, opsi);
   throw new Error(`format berkas tidak didukung: ${nama} (hanya DOCX atau PDF)`);
 }
 

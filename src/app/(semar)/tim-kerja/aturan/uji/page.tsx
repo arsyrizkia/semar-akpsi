@@ -20,8 +20,9 @@ export const maxDuration = 60;
  * J-03b Hasil Uji pada Contoh (UC-02 langkah 6). Layar tersendiri dengan URL sendiri (?uji=). Uji dijalankan dari M-15 (pilih contoh
  * dan/atau unggah naskah, kemajuan bertahap); halaman ini hanya membaca hasil tersimpan, jadi membukanya lagi tidak memanggil LLM.
  * Tanpa ?uji= ditampilkan uji terakhir templat (atau skema) itu. Butir yang diuji dibekukan saat uji dimulai.
- * Dengan ?dokumen= ditampilkan satu dokumen seperti J-08 reviewer (hanya baca): teks contoh per bagian dengan sorotan kutipan bukti dan
- * panel butir semantik, ditambah hasil butir deterministik dokumen itu.
+ * Hasil uji dibuka per dokumen seperti J-08 reviewer (hanya baca): teks contoh per bagian dengan sorotan kutipan bukti dan panel butir
+ * semantik, ditambah hasil butir deterministik dokumen itu. Bawaannya dokumen pertama; ?dokumen=KODE memilih dokumen lain, dan
+ * ?dokumen=semua menampilkan ringkasan per contoh dan matriks hasil per butir untuk semua dokumen.
  */
 export default async function Halaman({
   searchParams,
@@ -93,7 +94,35 @@ export default async function Halaman({
       </Alert>
     ) : null;
 
-  const tinjauan = dokumenParam ? await muatTinjauanUji(uji.ujiId, dokumenParam) : null;
+  // pilihan dokumen di atas kedua tampilan: ringkasan semua dokumen, lalu setiap dokumen (tampilan bersorot)
+  const SEMUA = "semua";
+  const pilihanDokumen = (aktif: string) => (
+    <nav aria-label="Tampilan hasil uji" className="mb-4">
+      <ul className="flex flex-wrap gap-2">
+        {[{ dokumenKode: SEMUA, dokumenNama: "Ringkasan semua dokumen" }, ...uji.contoh].map((c) => {
+          const dipilih = c.dokumenKode === aktif;
+          return (
+            <li key={c.dokumenKode}>
+              <Link
+                href={urlUji(c.dokumenKode)}
+                aria-current={dipilih ? "page" : undefined}
+                className={
+                  dipilih
+                    ? "inline-flex min-h-9 items-center rounded-md border border-primer-400 bg-primer-50 px-3 text-sm font-semibold text-primer-900 pointer-coarse:min-h-11"
+                    : "inline-flex min-h-9 items-center rounded-md border border-primer-200 bg-white px-3 text-sm text-primer-800 hover:border-primer-400 hover:text-primer-900 pointer-coarse:min-h-11"
+                }
+              >
+                {c.dokumenNama}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+
+  const dokumenDipilih = dokumenParam === SEMUA ? null : (dokumenParam ?? uji.contoh[0]?.dokumenKode ?? null);
+  const tinjauan = dokumenDipilih ? await muatTinjauanUji(uji.ujiId, dokumenDipilih) : null;
   if (tinjauan) {
     return (
       <>
@@ -101,35 +130,21 @@ export default async function Halaman({
           kode="J-03b"
           judul="Hasil Uji pada Contoh"
           keterangan={tinjauan.dokumen.nama}
-          remah={[...remah.slice(0, -1), { label: "Hasil Uji", href: urlUji() }, { label: tinjauan.dokumen.nama }]}
+          remah={[...remah.slice(0, -1), { label: "Hasil Uji", href: urlUji(SEMUA) }, { label: tinjauan.dokumen.nama }]}
           aksi={
-            <Link href={urlUji()} className={kelasTombol("sekunder")}>
-              Kembali ke Semua Hasil
-            </Link>
+            <>
+              {tombolUji("Uji Ulang", "sekunder")}
+              <Link href={urlKembali} className={kelasTombol("utama")}>
+                Kembali ke Aturan Pemeriksaan
+              </Link>
+            </>
           }
         />
-        <nav aria-label="Dokumen yang diuji" className="mb-4">
-          <ul className="flex flex-wrap gap-2">
-            {uji.contoh.map((c) => {
-              const aktif = c.dokumenKode === tinjauan.dokumen.kode;
-              return (
-                <li key={c.dokumenKode}>
-                  <Link
-                    href={urlUji(c.dokumenKode)}
-                    aria-current={aktif ? "page" : undefined}
-                    className={
-                      aktif
-                        ? "inline-flex min-h-9 items-center rounded-md border border-primer-400 pointer-coarse:min-h-11 bg-primer-50 px-3 text-sm font-semibold text-primer-900"
-                        : "inline-flex min-h-9 items-center rounded-md border border-primer-200 pointer-coarse:min-h-11 bg-white px-3 text-sm text-primer-800 hover:border-primer-400 hover:text-primer-900"
-                    }
-                  >
-                    {c.dokumenNama}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <p className="mb-4 text-sm text-teks-redup">
+          Diuji {formatWaktu(uji.dibuatPada)} oleh {uji.dibuatOleh} · {formatAngka(uji.contoh.length)} dokumen. Penggalan bersorot adalah kutipan bukti
+          yang dipakai sistem; nomor di ujungnya membuka rincian butirnya.
+        </p>
+        {pilihanDokumen(tinjauan.dokumen.kode)}
         {peringatanUji}
         <RingkasDeterministik d={tinjauan.deterministik} />
         <TinjauanNaskah
@@ -178,6 +193,7 @@ export default async function Halaman({
       <p className="mb-4 text-sm text-teks-redup">
         Diuji {formatWaktu(uji.dibuatPada)} oleh {uji.dibuatOleh} · {formatAngka(uji.contoh.length)} dokumen · {formatAngka(uji.butir.filter((b) => b.status !== "Nonaktif").length)} butir
       </p>
+      {pilihanDokumen(SEMUA)}
       {peringatanUji}
 
       {ringkasan.length > 0 ? (
