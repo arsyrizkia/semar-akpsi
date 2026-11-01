@@ -44,7 +44,7 @@ export default async function KotakMasuk() {
         {pesan.length === 0 ? (
           <p className="border border-slate-300 bg-white px-4 py-6 text-slate-700">Belum ada data yang diterima dari SEMAR.</p>
         ) : (
-          <div className="overflow-x-auto border border-slate-300 bg-white">
+          <div className="relative overflow-x-auto border border-slate-300 bg-white">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-slate-200 text-slate-800">
                 <tr>

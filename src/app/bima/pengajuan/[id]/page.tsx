@@ -86,7 +86,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
         <LencanaStatusBima status={usulan.statusBima} />
       </div>
 
-      <nav aria-label="Langkah pengusulan" className="overflow-x-auto rounded-lg bg-white px-4 py-4 shadow-[0_4px_20px_rgba(30,42,94,0.06)]">
+      <nav aria-label="Langkah pengusulan" className="relative overflow-x-auto rounded-lg bg-white px-4 py-4 shadow-[0_4px_20px_rgba(30,42,94,0.06)]">
         <ol className="flex min-w-max items-center gap-2">
           {LANGKAH.map((l, i) => {
             const aktif = l.id === langkah;
@@ -136,7 +136,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
               <Isian label="Lama Kegiatan" nilai={`${isi.lamaKegiatan} tahun`} />
             </dl>
             <h3 className="mb-3 mt-8 text-base font-semibold text-[#1e2a5e]">Anggota Peneliti</h3>
-            <div className="overflow-x-auto rounded-md border border-slate-200">
+            <div className="relative overflow-x-auto rounded-md border border-slate-200">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[#f2f4fa] text-xs uppercase tracking-wide text-slate-600">
                   <tr>
@@ -214,7 +214,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
             </div>
 
             <h3 className="mb-3 mt-8 text-base font-semibold text-[#1e2a5e]">Luaran Wajib Setiap Tahun</h3>
-            <div className="overflow-x-auto rounded-md border border-slate-200">
+            <div className="relative overflow-x-auto rounded-md border border-slate-200">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[#f2f4fa] text-xs uppercase tracking-wide text-slate-600">
                   <tr>
@@ -266,7 +266,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
             {Array.from({ length: isi.lamaKegiatan }, (_, t) => t + 1).map((tahunKe) => (
               <div key={tahunKe} className="mb-6 last:mb-0">
                 <h3 className="mb-2 text-base font-semibold text-[#1e2a5e]">Tahun ke-{tahunKe}</h3>
-                <div className="overflow-x-auto rounded-md border border-slate-200">
+                <div className="relative overflow-x-auto rounded-md border border-slate-200">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#f2f4fa] text-xs uppercase tracking-wide text-slate-600">
                       <tr>

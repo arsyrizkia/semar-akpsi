@@ -65,7 +65,7 @@ export default async function DaftarUsulan({ searchParams }: { searchParams: Pro
         {usulan.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-slate-600">Belum ada usulan pada periode ini.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[#f2f4fa] text-xs uppercase tracking-wide text-slate-600">
                 <tr>
