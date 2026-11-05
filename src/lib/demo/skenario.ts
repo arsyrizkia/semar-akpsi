@@ -227,6 +227,8 @@ async function bersihkanDrafTemplat() {
   for (const d of draf) {
     await db.delete(s.butirCek).where(eq(s.butirCek.templatId, d.id));
     await db.delete(s.bagianTemplat).where(eq(s.bagianTemplat.templatId, d.id));
+    // riwayat Uji pada Contoh tetap disimpan (butirnya sudah dibekukan saat uji); tanpa ini draf yang pernah diuji gagal dihapus (FK)
+    await db.update(s.ujiContoh).set({ templatId: null }).where(eq(s.ujiContoh.templatId, d.id));
     await db.delete(s.templatProposal).where(eq(s.templatProposal.id, d.id));
   }
 }
