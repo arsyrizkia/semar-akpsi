@@ -1,7 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { pelakuPengelola, PESAN_BUKAN_PENGELOLA } from "@/lib/aturan/akses";
-import { simpanDrafTemplat, susunVersiBaru, terbitkan, type HasilSimpanDraf, type HasilTerbitkan, type TemplatTampil } from "@/lib/templat/layanan";
+import { hapusDraf, simpanDrafTemplat, susunVersiBaru, terbitkan, type HasilHapusDraf, type HasilSimpanDraf, type HasilTerbitkan, type TemplatTampil } from "@/lib/templat/layanan";
 import type { MasukanKelengkapan } from "@/lib/templat/kelengkapan";
 
 export type HasilSusun = { ok: true; templat: TemplatTampil; dilanjutkan: boolean } | { ok: false; pesan: string };
@@ -39,5 +40,18 @@ export async function aksiTerbitkan(skemaId: string, templatId: string, isian: M
     return { ok: true, hasil: await terbitkan({ skemaId, templatId, isian, pelaku }) };
   } catch (e) {
     return { ok: false, pesan: e instanceof Error ? e.message : "Gagal menerbitkan templat." };
+  }
+}
+
+/** Tombol "Hapus Draf" di M-13 (UC-01, tambahan prototipe): hanya templat Draf; hak pengelola diperiksa ulang di layanan. */
+export async function aksiHapusDraf(templatId: string): Promise<HasilHapusDraf> {
+  const pelaku = await pelakuPengelola();
+  if (!pelaku) return { ok: false, pesan: PESAN_BUKAN_PENGELOLA };
+  try {
+    const r = await hapusDraf(templatId, pelaku);
+    if (r.ok) revalidatePath("/tim-kerja/templat"); // hanya daftar J-02; rincian yang baru dihapus tidak dirender ulang (akan 404)
+    return r;
+  } catch (e) {
+    return { ok: false, pesan: e instanceof Error ? e.message : "Gagal menghapus draf." };
   }
 }

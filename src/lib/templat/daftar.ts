@@ -137,3 +137,19 @@ export function urlTabAturan(templatId: string, o: { periodeId?: string | null; 
 /** Murni: masa pengusulan berjalan hanya berlaku bagi periode yang sedang berjalan; periode lain (mis. 2027) tidak terpengaruh (9a UC-01, 8a UC-02). */
 export const masaBerjalanUntuk = (sakelarBerjalan: boolean, periodeId: string | null, periodeBerjalanId: string | null): boolean =>
   sakelarBerjalan && periodeId !== null && periodeId === periodeBerjalanId;
+
+/** Tujuan sesudah "Hapus Draf" (M-13): J-02 dengan ?hasil=hapus&versi=&nama= untuk pesan singkat. */
+export function urlHasilHapus(versi: number, namaSkema: string): string {
+  return `/tim-kerja/templat?hasil=hapus&versi=${versi}&nama=${encodeURIComponent(namaSkema)}`;
+}
+
+/** Membaca ?hasil=hapus&versi=&nama= di J-02; null bila bukan hasil hapus atau nilainya tidak sah. */
+export function bacaHasilHapus(p: { hasil?: Mentah; versi?: Mentah; nama?: Mentah }): { versi: number; nama: string } | null {
+  if (satu(p.hasil) !== "hapus") return null;
+  const v = Number.parseInt(satu(p.versi) ?? "", 10);
+  const nama = (satu(p.nama) ?? "").trim().slice(0, 120);
+  return Number.isInteger(v) && v > 0 && nama ? { versi: v, nama } : null;
+}
+
+/** Pesan J-02 sesudah draf dihapus. */
+export const pesanDrafDihapus = (h: { versi: number; nama: string }): string => `Draf versi ${h.versi} skema ${h.nama} dihapus.`;

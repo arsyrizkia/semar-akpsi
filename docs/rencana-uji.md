@@ -438,6 +438,22 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-bersihkanIsianDraf-03 | batas bawah / atas | batas kata tidak sah (di bawah batas, huruf, desimal) menjadi tanpa batas | sesuai harapan (0 ms) | Lulus |
 | KH-bersihkanIsianDraf-04 | batas bawah / atas | spasi di nama dan batas dipangkas; batas tepat 1 sah (batas bawah) | sesuai harapan (0 ms) | Lulus |
 
+#### `templat-hapus-draf.test.ts`
+
+- **Unit yang diuji:** putuskanHapusDraf (hapus draf templat); pesan hasil hapus di J-02 (?hasil=hapus)
+- **Sumber rencana uji:** Sumber: behavioral state machine TemplatProposal (Draf, Terbit, Arsip; hapus hanya dari Draf), CRC TemplatProposal, Contract C-33 (hapusDraf). Hak pengelola dan keberadaan templat diputuskan oleh fungsi murni yang sama dengan layanan.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KH-hapusDraf-01 | nilai sah | nilai sah: pengelola menghapus templat berstatus Draf | sesuai harapan (2 ms) | Lulus |
+| KH-hapusDraf-02 | keadaan dan transisi | keadaan dan transisi: Terbit (Aktif) ditolak dengan pesan yang jelas | sesuai harapan (0 ms) | Lulus |
+| KH-hapusDraf-03 | keadaan dan transisi | keadaan dan transisi: Arsip ditolak dengan pesan yang jelas | sesuai harapan (0 ms) | Lulus |
+| KH-hapusDraf-04 | tipe salah / nilai janggal | nilai janggal: templat tidak ada ditolak | sesuai harapan (0 ms) | Lulus |
+| KH-hapusDraf-05 | nilai tidak sah | bukan pengelola ditolak walau templat berstatus Draf | sesuai harapan (0 ms) | Lulus |
+| KH-bacaHasilHapus-01 | nilai sah | nilai sah: url dari urlHasilHapus terbaca kembali dan pesannya persis | sesuai harapan (0 ms) | Lulus |
+| KH-bacaHasilHapus-02 | tipe salah / nilai janggal | nilai tidak sah: hasil lain, versi bukan angka atau nol, nama kosong menjadi null | sesuai harapan (0 ms) | Lulus |
+
 #### `templat-isian-substansi.test.ts`
 
 - **Unit yang diuji:** Isian Substansi Proposal: struktur templat; Isian Substansi Proposal: butir cek turunan dan katalog
@@ -845,6 +861,22 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 | KP-buatDokumenTemplat-02 | cabang / jalur | periode terisi menulis nama dan tahun; lampiran bernomor | sesuai harapan (19 ms) | Lulus |
 | KP-buatDokumenTemplat-03 | nilai tidak sah | periode tanpa tahun tidak menulis tanda kurung | sesuai harapan (17 ms) | Lulus |
 
+#### `templat-hapus-draf.test.ts`
+
+- **Unit yang diuji:** putuskanHapusDraf (MS-25, cabang); bacaHasilHapus (MS-25, cabang)
+- **Sumber rencana uji:** setiap cabang keputusan hapus draf. Sumber: Method Specification MS-25 (hapusDraf) pada templat/status.ts:putuskanHapusDraf dan templat/daftar.ts:bacaHasilHapus.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KP-putuskanHapusDraf-01 | cabang / jalur | cabang bukan pengelola (kondisi pertama benar), status tidak dievaluasi | sesuai harapan (2 ms) | Lulus |
+| KP-putuskanHapusDraf-02 | cabang / jalur | cabang pengelola dan templat tidak ada | sesuai harapan (0 ms) | Lulus |
+| KP-putuskanHapusDraf-03 | cabang / jalur | cabang pengelola, ada, status Terbit (label Aktif pada pesan) | sesuai harapan (0 ms) | Lulus |
+| KP-putuskanHapusDraf-04 | cabang / jalur | cabang pengelola, ada, status Arsip (label tetap Arsip) | sesuai harapan (0 ms) | Lulus |
+| KP-putuskanHapusDraf-05 | cabang / jalur | cabang jalur sukses (Draf) | sesuai harapan (0 ms) | Lulus |
+| KP-bacaHasilHapus-01 | cabang / jalur | cabang hasil bukan hapus | sesuai harapan (0 ms) | Lulus |
+| KP-bacaHasilHapus-02 | nilai tidak sah | cabang versi tidak sah, lalu cabang nama kosong, lalu cabang sah dengan nilai larik dan nama dipangkas 120 | sesuai harapan (0 ms) | Lulus |
+
 #### `templat-status.test.ts`
 
 - **Unit yang diuji:** putuskanTerbitkan (MS-11, cabang); transisiTemplat (MS-11, cabang)
@@ -947,6 +979,20 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 | IT-templatAturan-05 | nilai sah | Uji pada Contoh tidak melempar galat walau pemeriksa belum tersedia | sesuai harapan (2871 ms) | Lulus |
 | IT-templatAturan-06 | nilai tidak sah | 8a: tanggal berlaku di tengah masa pengusulan ditolak; di luar rentang disimpan dan semua butir Aktif | sesuai harapan (4998 ms) | Lulus |
 | IT-templatAturan-07 | nilai sah | templat versi 2: versi lama Arsip, butir turunan lama Nonaktif pada draf, butir baru Draf | sesuai harapan (9834 ms) | Lulus |
+
+#### `templat-hapus-draf-db.test.ts`
+
+- **Unit yang diuji:** -
+- **Sumber rencana uji:** Uji integrasi hapusDraf pada basis data (dilewati bila tidak ada basis data uji; lihat vitest.config.mts).
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| IT-hapusDraf-01 | nilai sah | siapkan skema dengan satu templat Arsip, Terbit, dan Draf | dilewati (butuh basis data uji) | Dilewati |
+| IT-hapusDraf-02 | nilai tidak sah | bukan pengelola ditolak dan draf tetap ada | dilewati (butuh basis data uji) | Dilewati |
+| IT-hapusDraf-03 | nilai tidak sah | Terbit dan Arsip ditolak dan tidak berubah | dilewati (butuh basis data uji) | Dilewati |
+| IT-hapusDraf-04 | nilai tidak sah | id tidak ada dan id bukan uuid ditolak | dilewati (butuh basis data uji) | Dilewati |
+| IT-hapusDraf-05 | nilai sah | Draf terhapus beserta bagiannya; templat Terbit dan Arsip tidak berubah | dilewati (butuh basis data uji) | Dilewati |
 
 ### 5.2 *Use-case testing* (e2e per UC dan alur bolak-balik)
 

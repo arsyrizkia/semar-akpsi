@@ -42,6 +42,7 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | C-29 | BasisAturan.rekapKesesuaian / ButirCek.hitungTingkatKoreksi | `pemantauan/rekap.ts:rekapKesesuaian`, `pemantauan/layanan.ts:susunLaporan` | UC-04 | — |
 | C-30 | BasisAturan.tandaiButir / ButirCek.tandaiPerluDitinjau | `pemantauan/layanan.ts:tandaiButir` | UC-04 | — |
 | C-31 | TemplatProposal.buatDokumenTemplat | `templat/dokumen.ts:buatDokumenTemplat`, `templat/isian-substansi.ts` | UC-01 (tambahan prototipe: unduh .docx) | — |
+| C-33 | TemplatProposal.hapusDraf | `templat/layanan.ts:hapusDraf`, `templat/layanan.ts:hapusDrafInti`, `templat/status.ts:putuskanHapusDraf` | UC-01 (tambahan prototipe: Hapus Draf) | — |
 
 | ID | Metode | Kontrak | Berkas:fungsi | ID uji |
 |---|---|---|---|---|
@@ -67,6 +68,7 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | MS-16 | turunkanButirCek | C-03 | `seed-butir.ts:turunkanButirDariTemplat` | — |
 | MS-17 | cekFormatLampiran | C-19 | `pemeriksa/deterministik/pemeriksa.ts:cekFormatLampiran` | — |
 | MS-14 | uraikanAturanHitung / validasiButir | C-06 | `aturan/parameter.ts:{uraikanAturanHitung, validasiButir}` | — |
+| MS-25 | hapusDraf (putuskanHapusDraf, hapusDrafInti, bacaHasilHapus) | C-33 | `templat/layanan.ts:{hapusDraf, hapusDrafInti}`, `templat/status.ts:putuskanHapusDraf`, `templat/daftar.ts:{urlHasilHapus, bacaHasilHapus}` | — |
 
 ## 3. Contracts
 
@@ -933,3 +935,34 @@ Tambahan dan perubahan atas C-13, C-14, C-15, MS-04, dan MS-05. Contoh demo: per
 | Arguments Returned | idProposal draf baru; rute `POST /bima/pengajuan/baru` mengembalikan `{lanjut: /bima/pengajuan/<id>?langkah=identitas}` atau 409 `{galat}` |
 | Algorithm Specification | [J1] masa pengusulan ditutup → ditolak. `validasiUsulanBaru`: skema harus skema bertemplat Terbit; judul dirapikan spasinya, [J2] < 10 atau > 250 karakter → ditolak. [J3] tanpa periode berjalan → ditolak. Nomor `PRP-<tahun periode berjalan>-nnnn` (nomor terbesar + 1). Simpan `bima_proposal` Draf dengan kata kunci naskah contoh varian a; untuk setiap lampiran wajib skema simpan PDF contoh dari `teksLampiranDemo` (teks lampiran naskah contoh dengan judul diganti judul usulan; lampiran tanpa contoh memakai teks umum rekaan). |
 | Misc. Notes | Uji KP `tests/unit/kotak-putih/usulan-baru.test.ts`. Draf buatan demo terhapus oleh "Reset & isi data demo" (TRUNCATE bima_proposal). |
+
+## Hapus Draf templat (tambahan prototipe, 7 Nov 2026)
+
+Alur Draf, Terbit, Arsip tetap: Arsip hanya terjadi otomatis saat versi baru terbit (C-04). Tambahan ini hanya menghapus templat berstatus Draf.
+
+### C-33 TemplatProposal.hapusDraf
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID | `hapusDraf` / TemplatProposal / C-33 (tambahan prototipe) |
+| Clients (Consumers) | `tim : TimKerjaDPPM` lewat tombol "Hapus Draf" di J-02a dan M-13 (aksi server `aksiHapusDraf`); `bersihkanDrafTemplat` pada jalan pintas demo memakai inti yang sama (`hapusDrafInti`) |
+| Associated Use Cases | UC-01 (tambahan prototipe; tidak ada di naskah Bab 10) |
+| Description of Responsibilities | Menghapus templat berstatus Draf beserta butir cek, bagian templat, dan keterkaitannya pada riwayat Uji pada Contoh, tanpa mengubah templat Aktif. |
+| Arguments Received | `templatId: string`; `pelaku: { id: string \| null; idBima: string } \| null` (null = bukan pengelola) |
+| Type of Value Returned | `Promise<HasilHapusDraf>` = `{ok:true; versi; skemaId; namaSkema}` \| `{ok:false; pesan}` |
+| Pre-Conditions | [P1] Pemanggil berhak pengelola (`pelakuPengelola` di lapisan aksi; layanan menolak `pelaku = null`).<br>[P2] Basis data tersedia. |
+| Post-Conditions | [Q1] Bila `pelaku = null`: ditolak dengan pesan hak pengelola, tanpa perubahan.<br>[Q2] Bila templat tidak ada (atau `templatId` bukan uuid): ditolak dengan pesan tidak ditemukan.<br>[Q3] Bila status Terbit (Aktif) atau Arsip: ditolak dengan pesan "Hanya templat berstatus Draf yang dapat dihapus. Templat ini berstatus ...", tanpa perubahan.<br>[Q4] Bila Draf: `butir_cek` dengan `templatId` itu dan `bagian_templat` templat itu dihapus; `uji_contoh.templat_id` dikosongkan (riwayat uji dipertahankan); lalu baris templat dihapus; seluruhnya satu transaksi. Templat Terbit dan Arsip skema itu tidak berubah.<br>[Q5] Bila status berubah menjadi bukan Draf di tengah jalan, transaksi dibatalkan dan hasilnya galat "Draf sudah tidak berstatus Draf".<br>[Q6] Sesudah [Q4] dicatat log audit `templat.draf-hapus` (objek `templat:<id>`, rincian skemaId dan versi). |
+| Catatan | Skema basis data tidak berubah. Uji: `tests/unit/kotak-hitam/templat-hapus-draf.test.ts` (KH-hapusDraf-01 sampai 05, KH-bacaHasilHapus), `tests/unit/kotak-putih/templat-hapus-draf.test.ts`, dan `tests/integrasi/templat-hapus-draf-db.test.ts` (IT-hapusDraf, butuh basis data uji). |
+
+### MS-25 hapusDraf
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID / Contract ID | `hapusDraf` (+ `putuskanHapusDraf`, `hapusDrafInti`, `urlHasilHapus`, `bacaHasilHapus`) / TemplatProposal / MS-25 / C-33 |
+| Programmer / Date Due / Language | Kelompok AKPSI (prototipe) / 2026-11-07 / TypeScript |
+| Triggers/Events | Tombol "Hapus Draf" pada M-13 (J-02a, status Draf) |
+| Arguments Received | `templatId`, `pelaku` (lihat C-33) |
+| Messages Sent & Arguments Passed | `putuskanHapusDraf({pengelola, status})` → `KeputusanHapusDraf` (murni); `hapusDrafInti(tx, templatId)` → `boolean`; `catatLogAudit(entri)` |
+| Arguments Returned | `HasilHapusDraf` |
+| Algorithm Specification | SET t = templat `templatId` (hanya bila pelaku ≠ null dan templatId uuid)<br>SET putusan = putuskanHapusDraf({pengelola: pelaku ≠ null, status: t?.status ATAU null})<br>[J1] IF pelaku = null THEN RETURN galat hak pengelola<br>[J2] ELSE IF t tidak ada THEN RETURN galat tidak ditemukan<br>[J3] ELSE IF t.status ≠ Draf THEN RETURN galat "hanya Draf" (label Terbit ditulis Aktif)<br>DALAM satu transaksi: hapus butir_cek (templatId); hapus bagian_templat; kosongkan uji_contoh.templat_id; hapus templat WHERE id = t.id DAN status = Draf<br>[J4] IF tidak ada baris terhapus THEN batalkan transaksi, RETURN galat berubah<br>catat log templat.draf-hapus; RETURN {ok: true, versi, skemaId, namaSkema} |
+| Misc. Notes | Empat jalur fungsi murni ([J1] sampai [J3] dan jalur sukses) diuji putih; [J4] hanya dapat diuji pada basis data uji. `bacaHasilHapus` memiliki cabang: hasil bukan "hapus", versi tidak sah, nama kosong, sah (nama dipangkas 120 karakter). |

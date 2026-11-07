@@ -7,14 +7,14 @@ import { Download } from "lucide-react";
 import { Alert, Button, CegatTinggalkan, KepalaHalaman, LencanaStatus, ModalKonfirmasi, Pilihan, Tabs, TabsContent, TabsList, TabsTrigger, TombolUnduh, beriTahu } from "@/components/ui";
 import { mentahKeBagian, periksaKelengkapan } from "@/lib/templat/kelengkapan";
 import { turunkanButirDariTemplat } from "@/lib/seed-butir";
-import { dapatDisunting, dapatSusunVersiBaru, masaBerjalanUntuk, statusTampil, TAB_TEMPLAT, urlTabAturan, type TabTemplat } from "@/lib/templat/daftar";
+import { dapatDisunting, dapatSusunVersiBaru, masaBerjalanUntuk, urlHasilHapus, statusTampil, TAB_TEMPLAT, urlTabAturan, type TabTemplat } from "@/lib/templat/daftar";
 import { PESAN_DRAF_9A, PESAN_LENGKAPI } from "@/lib/templat/status";
 import type { PeriodePilihan, TemplatTampil } from "@/lib/templat/layanan";
 import type { TampilanAturan } from "@/lib/aturan/layanan";
 import { formatAngka, formatTanggal } from "@/lib/utils";
 import { PapanAturan } from "../../aturan/papan-aturan";
 import type { ContohUji } from "../../aturan/uji-contoh";
-import { aksiSimpanDraf, aksiSusunVersiBaru, aksiTerbitkan } from "../aksi";
+import { aksiHapusDraf, aksiSimpanDraf, aksiSusunVersiBaru, aksiTerbitkan } from "../aksi";
 import { BAGIAN_BARU, dariTemplat, sidikIsian, type IsianForm } from "./isian";
 import { ModalKetentuan } from "./modal-ketentuan";
 import { TabBagian } from "./tab-bagian";
@@ -47,6 +47,10 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const [sudahCoba, setSudahCoba] = useState(false);
   const [modal, setModal] = useState(false);
   const [galatModal, setGalatModal] = useState<string | null>(null);
+  const [modalHapus, setModalHapus] = useState(false);
+  const [galatHapus, setGalatHapus] = useState<string | null>(null);
+  // sesudah dihapus, isian tidak lagi "kotor": penjaga tinggalkan-tanpa-menyimpan tidak boleh menghalangi navigasi ke J-02
+  const [dihapus, setDihapus] = useState(false);
   const [ketentuanDi, setKetentuanDi] = useState<number | null>(null);
   const [bagianBaru, setBagianBaru] = useState(false);
   const [sorotAturan, setSorotAturan] = useState<string | null>(sorotAwal);
@@ -54,7 +58,7 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
   const [ubahRingkas, setUbahRingkas] = useState(true);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  const kotor = bisaSunting && sidikIsian(isian) !== tersimpan;
+  const kotor = bisaSunting && !dihapus && sidikIsian(isian) !== tersimpan;
   useEffect(() => {
     if (!kotor) return;
     const jaga = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -147,6 +151,21 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
     });
   }
 
+  function bukaHapus() {
+    setGalatHapus(null);
+    setModalHapus(true);
+  }
+
+  function konfirmasiHapus() {
+    mulai(async () => {
+      const r = await aksiHapusDraf(templat.id);
+      if (!r.ok) return setGalatHapus(r.pesan);
+      setDihapus(true);
+      setModalHapus(false);
+      router.push(urlHasilHapus(r.versi, r.namaSkema));
+    });
+  }
+
   function susunVersiBaru() {
     mulai(async () => {
       const r = await aksiSusunVersiBaru(skemaId, templat.periodeBerlakuId);
@@ -189,6 +208,9 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
                   Simpan Draf
                 </Button>
               ) : null}
+              <Button varian="sekunder" className="border-bata-500 text-bata-700 hover:bg-bata-100" onClick={bukaHapus} disabled={sibuk}>
+                Hapus Draf
+              </Button>
               <Button onClick={klikTerbitkan} disabled={sibuk}>
                 Terbitkan
               </Button>
@@ -357,6 +379,19 @@ export function RincianTemplat({ skemaId, namaSkema, templat, periode, periodeBe
           saatTerapkan={(k) => gantiBaris(ketentuanDi, k)}
         />
       ) : null}
+
+      <ModalKonfirmasi kode="M-13" buka={modalHapus} saatUbah={(b) => !sibuk && setModalHapus(b)} judul="Hapus Draf?" labelKonfirmasi="Hapus Draf" bahaya memuat={sibuk} galat={galatHapus} saatKonfirmasi={konfirmasiHapus}>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+          <dt className="text-teks-redup">Skema</dt>
+          <dd className="font-semibold">{namaSkema}</dd>
+          <dt className="text-teks-redup">Versi</dt>
+          <dd className="font-semibold">{templat.versi}</dd>
+          <dt className="text-teks-redup">Periode Berlaku</dt>
+          <dd className="font-semibold">{namaPeriode}</dd>
+        </dl>
+        <p className="mt-3 font-semibold">Bagian dan butir cek draf ini ikut terhapus dan tidak dapat dibatalkan.</p>
+        <p className="mt-2 text-teks-redup">Templat yang sedang berlaku tidak berubah.</p>
+      </ModalKonfirmasi>
 
       <ModalKonfirmasi kode="M-01" buka={modal} saatUbah={(b) => !sibuk && setModal(b)} judul="Konfirmasi Terbitkan" labelKonfirmasi="Terbitkan" memuat={sibuk} galat={galatModal} saatKonfirmasi={konfirmasiTerbitkan}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">

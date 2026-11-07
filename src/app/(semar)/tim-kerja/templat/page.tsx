@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { TombolLihatTemplat } from "@/components/templat/pratinjau-templat";
 import Link from "next/link";
 import { FileText } from "lucide-react";
-import { KeadaanKosong, KepalaHalaman, LencanaStatus, TombolUnduh } from "@/components/ui";
+import { Alert, KeadaanKosong, KepalaHalaman, LencanaStatus, TombolUnduh } from "@/components/ui";
 import { wajibPengelola } from "@/lib/auth";
-import { adaPenyaring, bacaPenyaring, daftarTahun, saringDaftar, statusTampil, urutkanDaftar } from "@/lib/templat/daftar";
+import { adaPenyaring, bacaHasilHapus, bacaPenyaring, pesanDrafDihapus, daftarTahun, saringDaftar, statusTampil, urutkanDaftar } from "@/lib/templat/daftar";
 import { daftarPeriode, daftarSemuaTemplat, daftarSkema } from "@/lib/templat/layanan";
 import { ambilPeriodeBerjalanId } from "@/lib/waktu";
 import { formatAngka, formatTanggal } from "@/lib/utils";
@@ -14,7 +14,7 @@ import { TemplatBaru } from "./templat-baru";
 export const metadata: Metadata = { title: "J-02 Templat Proposal" };
 export const dynamic = "force-dynamic";
 
-type Param = { tahun?: string; skema?: string; status?: string };
+type Param = { tahun?: string; skema?: string; status?: string; hasil?: string; versi?: string; nama?: string };
 
 /** Kolom daftar di layar lebar; di layar sempit tiap baris menjadi kartu ringkas. */
 const KOLOM = "md:grid md:grid-cols-[minmax(0,2.2fr)_3.5rem_minmax(0,1.4fr)_6.5rem_4.5rem_7rem_7rem_9rem] md:items-center md:gap-x-3";
@@ -22,7 +22,9 @@ const KOLOM = "md:grid md:grid-cols-[minmax(0,2.2fr)_3.5rem_minmax(0,1.4fr)_6.5r
 /** J-02 Daftar Templat (UC-01 langkah 1-3). Hanya Tim Kerja DPPM dengan hak pengelola (NFR 3.2). Penyaring tersimpan di URL; baris menuju J-02a. */
 export default async function Halaman({ searchParams }: { searchParams: Promise<Param> }) {
   await wajibPengelola();
-  const penyaring = bacaPenyaring(await searchParams);
+  const q = await searchParams;
+  const penyaring = bacaPenyaring(q);
+  const hapus = bacaHasilHapus(q);
   const [semua, skema, periode, periodeBerjalan] = await Promise.all([daftarSemuaTemplat(), daftarSkema(), daftarPeriode(), ambilPeriodeBerjalanId()]);
   const baris = urutkanDaftar(saringDaftar(semua, penyaring));
   const namaSkemaFilter = skema.find((s) => s.id === penyaring.skema)?.namaSkema;
@@ -30,6 +32,11 @@ export default async function Halaman({ searchParams }: { searchParams: Promise<
   return (
     <>
       <KepalaHalaman kode="J-02" judul="Templat Proposal" remah={[{ label: "Templat Proposal" }]} aksi={<TemplatBaru skema={skema} periode={periode} periodeAwal={periodeBerjalan} skemaAwal={penyaring.skema} />} />
+      {hapus ? (
+        <Alert jenis="sukses" className="mb-4">
+          {pesanDrafDihapus(hapus)}
+        </Alert>
+      ) : null}
       <PenyaringDaftarTemplat skema={skema} tahun={daftarTahun([...semua, ...periode])} nilai={penyaring} />
 
       {baris.length === 0 ? (

@@ -33,6 +33,13 @@ DPPM.
 - Tombol "Tambah Lampiran" (s.5) menambah nama lampiran wajib.
 - Pilihan "Periode Berlaku" (s.6).
 - Tombol "Terbitkan" (s.7).
+- Tombol "Hapus Draf" (tambahan prototipe, hanya pada templat berstatus Draf; gaya sekunder dengan teks bata, di kelompok
+  tombol kepala bersama "Lihat Pratinjau", "Unduh Pratinjau (.docx)", dan "Terbitkan"). Membuka modal M-13 berjudul
+  "Hapus Draf?" yang menyebut Skema, Versi, dan Periode Berlaku draf, dengan teks "Bagian dan butir cek draf ini ikut
+  terhapus dan tidak dapat dibatalkan." dan "Templat yang sedang berlaku tidak berubah." Tombol modal: "Batal" dan
+  "Hapus Draf" (bahaya). Sesudah berhasil menuju J-02 dengan pesan "Draf versi N skema X dihapus." (`?hasil=hapus`).
+  Templat Aktif dan Arsip tidak punya tombol ini dan ditolak server dengan pesan "Hanya templat berstatus Draf yang
+  dapat dihapus. Templat ini berstatus Aktif." (atau Arsip).
 - Sesudah terbit (s.10):
   - pesan bahwa templat versi baru telah terbit, beserta jumlah butir draf yang dibuat;
   - tombol "Buka Aturan Pemeriksaan" menuju J-03.

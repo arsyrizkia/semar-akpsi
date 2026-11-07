@@ -40,3 +40,24 @@ export function putuskanTerbitkan(p: { lengkap: boolean; masaBerjalan: boolean }
   if (p.masaBerjalan) return "draf-disimpan";
   return "terbit";
 }
+
+export const PESAN_HAPUS_BUKAN_PENGELOLA = "Hanya akun dengan hak pengelola yang dapat menghapus draf templat.";
+export const PESAN_HAPUS_TIDAK_ADA = "Templat tidak ditemukan atau sudah dihapus. Muat ulang halaman.";
+
+export const PESAN_HAPUS_BERUBAH = "Draf sudah tidak berstatus Draf (mungkin baru diterbitkan). Muat ulang halaman.";
+
+export type KeputusanHapusDraf = { ok: true } | { ok: false; alasan: "bukan-pengelola" | "tidak-ada" | "bukan-draf"; pesan: string };
+
+/**
+ * Keputusan "Hapus Draf" (UC-01, tambahan prototipe): hanya pengelola, hanya templat yang ada, hanya berstatus Draf.
+ * Terbit (Aktif) dan Arsip tidak pernah dihapus; Arsip terjadi otomatis saat versi baru terbit. Hak diperiksa lebih dulu,
+ * lalu keberadaan, lalu status (tidak membocorkan status templat kepada yang bukan pengelola).
+ */
+export function putuskanHapusDraf(p: { pengelola: boolean; status: StatusTemplat | null }): KeputusanHapusDraf {
+  if (!p.pengelola) return { ok: false, alasan: "bukan-pengelola", pesan: PESAN_HAPUS_BUKAN_PENGELOLA };
+  if (p.status === null) return { ok: false, alasan: "tidak-ada", pesan: PESAN_HAPUS_TIDAK_ADA };
+  if (p.status !== "Draf") {
+    return { ok: false, alasan: "bukan-draf", pesan: `Hanya templat berstatus Draf yang dapat dihapus. Templat ini berstatus ${p.status === "Terbit" ? "Aktif" : p.status}.` };
+  }
+  return { ok: true };
+}

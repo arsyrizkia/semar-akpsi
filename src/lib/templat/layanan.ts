@@ -5,7 +5,7 @@
  */
 import { and, desc, eq, inArray, max, notLike } from "drizzle-orm";
 import { getDb } from "@/db";
-import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposal } from "@/db/schema";
+import { bagianTemplat, butirCek, periodeSeleksi, skemaPendanaan, templatProposal, ujiContoh } from "@/db/schema";
 import { catatLogAudit } from "@/lib/audit";
 import { masaPengusulanBerjalan, masaPengusulanBerjalanPada, NAMA_PERIODE_SKALA, waktuDemo } from "@/lib/waktu";
 import { PROFIL } from "@/lib/demo/profil-skala";
@@ -14,7 +14,7 @@ import type { BagianTemplatDto, KepalaTemplatDto } from "@/lib/kontrak";
 import { pastikanDrafBasis, type Db } from "@/lib/aturan/draf";
 import { bagianDariBaris, kepalaDariBaris, keKolomBagian } from "./isian-substansi";
 import { batasKataValid, bagianTersimpan, bersihkanIsianDraf, periksaKelengkapan, type HasilKelengkapan, type MasukanKelengkapan } from "./kelengkapan";
-import { putuskanTerbitkan } from "./status";
+import { PESAN_HAPUS_BERUBAH, putuskanHapusDraf, putuskanTerbitkan } from "./status";
 import type { BarisDaftar } from "./daftar";
 
 export interface Pelaku {
@@ -364,6 +364,53 @@ export async function simpanDrafTemplat(m: { skemaId: string; templatId: string;
   });
   await catatLogAudit({ aktor: m.pelaku.idBima, aksi: "templat.draf-simpan", objek: `templat:${t.id}`, rincian: { skemaId: m.skemaId, versi: t.versi, bagian: bersih.bagian.length } });
   return { ok: true, versi: t.versi, jumlahBagian: bersih.bagian.length };
+}
+
+/* ------------------------------ hapus draf ------------------------------ */
+
+/**
+ * Inti hapus draf, dipakai "Hapus Draf" (J-02a, M-13) dan pembersihan draf sisa demo: butir cek templat itu, bagian templat,
+ * lalu templat. Riwayat Uji pada Contoh dipertahankan (butirnya sudah dibekukan saat uji); tanpa melepas templatId, draf yang
+ * pernah diuji gagal dihapus karena FK. Mengembalikan false bila tidak ada baris Draf yang terhapus (sudah terbit atau hilang).
+ */
+export async function hapusDrafInti(db: Db, templatId: string): Promise<boolean> {
+  // penjaga: butir dan bagian templat Terbit/Arsip tidak boleh ikut terhapus walau pemanggil lupa memeriksa status
+  const [t] = await db.select({ status: templatProposal.status }).from(templatProposal).where(eq(templatProposal.id, templatId));
+  if (t?.status !== "Draf") return false;
+  await db.delete(butirCek).where(eq(butirCek.templatId, templatId));
+  await db.delete(bagianTemplat).where(eq(bagianTemplat.templatId, templatId));
+  await db.update(ujiContoh).set({ templatId: null }).where(eq(ujiContoh.templatId, templatId));
+  const terhapus = await db.delete(templatProposal).where(and(eq(templatProposal.id, templatId), eq(templatProposal.status, "Draf"))).returning({ id: templatProposal.id });
+  return terhapus.length > 0;
+}
+
+export type HasilHapusDraf = { ok: true; versi: number; skemaId: string; namaSkema: string } | { ok: false; pesan: string };
+
+/** Galat internal untuk membatalkan transaksi hapus bila templat berubah status di tengah jalan. */
+class HapusDrafBatal extends Error {}
+
+/**
+ * hapusDraf(templatId): "Hapus Draf" pada J-02a. Hanya pengelola (`pelaku` null = bukan pengelola), hanya templat Draf.
+ * Templat Terbit dan Arsip ditolak; templat yang berlaku tidak berubah. Seluruh penghapusan satu transaksi, lalu log audit.
+ */
+export async function hapusDraf(templatId: string, pelaku: Pelaku | null): Promise<HasilHapusDraf> {
+  const db = getDb();
+  const ada = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templatId);
+  const [t] = pelaku && ada ? await db.select().from(templatProposal).where(eq(templatProposal.id, templatId)) : [];
+  const putusan = putuskanHapusDraf({ pengelola: pelaku !== null, status: t?.status ?? null });
+  if (!putusan.ok) return { ok: false, pesan: putusan.pesan };
+
+  try {
+    await db.transaction(async (tx) => {
+      if (!(await hapusDrafInti(tx, t.id))) throw new HapusDrafBatal();
+    });
+  } catch (e) {
+    if (e instanceof HapusDrafBatal) return { ok: false, pesan: PESAN_HAPUS_BERUBAH };
+    throw e;
+  }
+  const [sk] = await db.select().from(skemaPendanaan).where(eq(skemaPendanaan.id, t.skemaId));
+  await catatLogAudit({ aktor: pelaku!.idBima, aksi: "templat.draf-hapus", objek: `templat:${t.id}`, rincian: { skemaId: t.skemaId, versi: t.versi } });
+  return { ok: true, versi: t.versi, skemaId: t.skemaId, namaSkema: sk?.namaSkema ?? "" };
 }
 
 /* ------------------------------ metode seq-uc01 ------------------------------ */

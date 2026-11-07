@@ -18,7 +18,7 @@ import { jalankan as jalankanSemantik } from "@/lib/pemeriksa/semantik/jalankan"
 import { kirimPermintaanTiruan } from "@/lib/pemeriksa/semantik/llm";
 import { ambilAturanBerlaku, ambilPeriodeBerjalan, ambilTemplatBerlaku } from "@/lib/pengajuan/layanan";
 import { susunPenugasan, tetapkanPenugasan } from "@/lib/penugasan/layanan";
-import { susunVersiBaru } from "@/lib/templat/layanan";
+import { hapusDrafInti, susunVersiBaru } from "@/lib/templat/layanan";
 import { setPeriodeAktif, ubahPengaturanDemo } from "@/lib/waktu";
 import { jalankanUjiLangsung } from "@/lib/aturan/uji-jalan";
 import { kosongkanPenugasanContoh1200, siapkanContoh1200 } from "./skala";
@@ -224,13 +224,7 @@ async function pastikanSkemaTanpaTemplat(): Promise<string> {
 async function bersihkanDrafTemplat() {
   const db = getDb();
   const draf = await db.select({ id: s.templatProposal.id }).from(s.templatProposal).where(eq(s.templatProposal.status, "Draf"));
-  for (const d of draf) {
-    await db.delete(s.butirCek).where(eq(s.butirCek.templatId, d.id));
-    await db.delete(s.bagianTemplat).where(eq(s.bagianTemplat.templatId, d.id));
-    // riwayat Uji pada Contoh tetap disimpan (butirnya sudah dibekukan saat uji); tanpa ini draf yang pernah diuji gagal dihapus (FK)
-    await db.update(s.ujiContoh).set({ templatId: null }).where(eq(s.ujiContoh.templatId, d.id));
-    await db.delete(s.templatProposal).where(eq(s.templatProposal.id, d.id));
-  }
+  for (const d of draf) await hapusDrafInti(db, d.id);
 }
 
 /* ------------------------------ pintu masuk ------------------------------ */
