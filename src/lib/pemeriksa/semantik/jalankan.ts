@@ -9,6 +9,7 @@ import { getDb } from "@/db";
 import { akun, basisAturan, butirCek, hasilPemeriksaan, jobSemantik, proposal, versiProposal } from "@/db/schema";
 import { AKHIRAN_SIMULASI } from "@/lib/aturan/draf";
 import { catatLogAudit } from "@/lib/audit";
+import { PESAN_ULANG_SEDANG_BERJALAN as PESAN_SEDANG_BERJALAN, putuskanJalankanUlangSemantik, type StatusSemantikJob } from "@/lib/penilaian/status";
 import type { ButirCek, RingkasanPemeriksaanSemantik } from "@/lib/kontrak/tipe";
 import { modeLlm } from "@/lib/llm/konfigurasi";
 import { muatGambarNaskah, pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
@@ -90,6 +91,60 @@ export async function pastikanSemantikBerjalan(versiId: string): Promise<{ siap:
   const macet = job.status === "Berjalan" && job.mulaiPada && Date.now() - job.mulaiPada.getTime() > BATAS_MACET_MS;
   if (job.status === "Menunggu" || macet) jadwalkan(versiId);
   return { siap: false, status: job.status === "Berjalan" ? "Berjalan" : "Menunggu" };
+}
+
+/** Keadaan antrean semantik sebuah versi (hanya baca; tidak memanggil LLM). */
+export async function bacaKeadaanSemantik(versiId: string): Promise<{ status: StatusSemantikJob; macet: boolean; adaHasil: boolean }> {
+  const db = getDb();
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(hasilPemeriksaan)
+    .where(and(eq(hasilPemeriksaan.versiId, versiId), eq(hasilPemeriksaan.jenis, "semantik")));
+  const [job] = await db.select().from(jobSemantik).where(eq(jobSemantik.versiId, versiId)).orderBy(desc(jobSemantik.diantrekanPada)).limit(1);
+  if (!job) return { status: "Belum ada", macet: false, adaHasil: n > 0 };
+  const sejak = job.status === "Berjalan" ? (job.mulaiPada ?? job.diantrekanPada) : job.diantrekanPada;
+  const macet = (job.status === "Berjalan" || job.status === "Menunggu") && Date.now() - sejak.getTime() > BATAS_MACET_MS;
+  return { status: job.status, macet, adaHasil: n > 0 };
+}
+
+export type HasilJalankanUlang = { ok: true; tindakan: "job-baru" | "pakai-job-ada" } | { ok: false; galat: string };
+
+/**
+ * Reviewer menjalankan ulang pemeriksaan semantik di J-08 (UC-07, UC-09). Pemanggil sudah memeriksa penugasan dan status
+ * penilaian (`konteks`); keadaan antrean dibaca dan diputuskan ulang di sini. LLM tidak dipanggil: pekerjaan hanya dijadwalkan.
+ *
+ * Hasil sebagian: `jalankan` menyimpan semua hasil semantik dengan satu pernyataan INSERT ... ON CONFLICT sebelum job
+ * ditandai Selesai, sehingga job yang gagal di tahap LLM tidak meninggalkan baris hasil. Bila job gagal sesudah penyimpanan
+ * (mis. saat mencatat audit), hasil sudah ada: `adaHasil` menolak jalan ulang, dan jalan ulang memang tidak diperlukan.
+ * Jalan ulang tidak pernah berjalan di atas hasil lama, jadi tidak ada percampuran; upsert berkunci (versi, butir) menjaga sisanya.
+ */
+export async function jalankanUlangSemantik(
+  versiId: string,
+  aktor: string,
+  konteks: { ditugaskan: boolean; final: boolean },
+): Promise<HasilJalankanUlang> {
+  const keadaan = await bacaKeadaanSemantik(versiId);
+  const putusan = putuskanJalankanUlangSemantik({ ...konteks, ...keadaan });
+  if (!putusan.boleh) return { ok: false, galat: putusan.pesan };
+
+  const db = getDb();
+  let jobId: string | undefined;
+  if (putusan.tindakan === "job-baru") {
+    // baris Gagal lama dibiarkan sebagai riwayat; sisip hanya bila belum ada job aktif (menahan klik ganda serentak)
+    const r = await db.execute(sql`
+      insert into job_semantik (versi_id, status)
+      select ${versiId}::uuid, 'Menunggu'
+      where not exists (select 1 from job_semantik where versi_id = ${versiId}::uuid and status in ('Menunggu', 'Berjalan'))
+      returning id`);
+    jobId = (r.rows[0] as { id: string } | undefined)?.id;
+    if (!jobId) return { ok: false, galat: PESAN_SEDANG_BERJALAN };
+  } else {
+    const [job] = await db.select({ id: jobSemantik.id }).from(jobSemantik).where(eq(jobSemantik.versiId, versiId)).orderBy(desc(jobSemantik.diantrekanPada)).limit(1);
+    jobId = job?.id;
+  }
+  await catatLogAudit({ aktor, aksi: "semantik.dijalankan-ulang", objek: `versi:${versiId}`, rincian: { jobId, tindakan: putusan.tindakan, statusSebelumnya: keadaan.status } });
+  jadwalkan(versiId);
+  return { ok: true, tindakan: putusan.tindakan };
 }
 
 async function ringkas(versiId: string, tiruan: boolean): Promise<RingkasanPemeriksaanSemantik> {

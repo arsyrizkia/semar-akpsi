@@ -80,3 +80,43 @@ export function ringkasLabelPenugasan(labels: LabelPenugasan[]): string {
     .map((x) => `${x.n} ${x.l}`);
   return `${labels.length} penugasan: ${rinci.join(", ")}`;
 }
+
+export type StatusSemantikJob = "Menunggu" | "Berjalan" | "Selesai" | "Gagal" | "Belum ada";
+
+export interface MasukanJalankanUlang {
+  /** reviewer yang masuk adalah reviewer penugasan ini */
+  ditugaskan: boolean;
+  /** penilaian sudah Final */
+  final: boolean;
+  /** status job semantik terbaru untuk versi yang dinilai */
+  status: StatusSemantikJob;
+  /** job Menunggu/Berjalan yang lebih lama dari batas macet */
+  macet: boolean;
+  /** sudah ada baris hasil_pemeriksaan semantik untuk versi ini */
+  adaHasil: boolean;
+}
+
+export type KeputusanJalankanUlang =
+  | { boleh: true; tindakan: "job-baru" | "pakai-job-ada" }
+  | { boleh: false; pesan: string };
+
+export const PESAN_ULANG_BUKAN_PENUGASAN = "Hanya reviewer yang ditugaskan pada proposal ini yang dapat menjalankan ulang pemeriksaan semantik.";
+export const PESAN_ULANG_FINAL = "Penilaian sudah final, pemeriksaan semantik tidak dapat dijalankan ulang.";
+export const PESAN_ULANG_ADA_HASIL = "Hasil pemeriksaan semantik sudah tersedia. Muat ulang halaman untuk melihatnya.";
+export const PESAN_ULANG_SEDANG_BERJALAN = "Pemeriksaan semantik masih berjalan. Tunggu beberapa saat, lalu coba lagi bila belum selesai.";
+export const PESAN_ULANG_TIDAK_PERLU = "Pemeriksaan semantik tidak memerlukan jalan ulang.";
+
+/**
+ * UC-07/UC-09 (tambahan prototipe): kapan reviewer boleh menjalankan ulang pemeriksaan semantik di J-08.
+ * Boleh bila ditugaskan, penilaian belum final, belum ada hasil, dan job Gagal (buat job baru) atau Menunggu/Berjalan yang macet (pakai job yang ada).
+ */
+export function putuskanJalankanUlangSemantik(m: MasukanJalankanUlang): KeputusanJalankanUlang {
+  if (!m.ditugaskan) return { boleh: false, pesan: PESAN_ULANG_BUKAN_PENUGASAN };
+  if (m.final) return { boleh: false, pesan: PESAN_ULANG_FINAL };
+  if (m.adaHasil) return { boleh: false, pesan: PESAN_ULANG_ADA_HASIL };
+  if (m.status === "Gagal") return { boleh: true, tindakan: "job-baru" };
+  if (m.status === "Menunggu" || m.status === "Berjalan") {
+    return m.macet ? { boleh: true, tindakan: "pakai-job-ada" } : { boleh: false, pesan: PESAN_ULANG_SEDANG_BERJALAN };
+  }
+  return { boleh: false, pesan: PESAN_ULANG_TIDAK_PERLU };
+}

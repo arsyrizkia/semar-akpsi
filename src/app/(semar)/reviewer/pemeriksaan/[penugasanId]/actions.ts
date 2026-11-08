@@ -1,7 +1,7 @@
 "use server";
 
 import { ambilSesi } from "@/lib/auth";
-import { kirimUlangKeBima, simpanKoreksi, simpanPermanen, simpanSementara } from "@/lib/penilaian/layanan";
+import { jalankanUlangPemeriksaanSemantik, kirimUlangKeBima, simpanKoreksi, simpanPermanen, simpanSementara } from "@/lib/penilaian/layanan";
 import type { HasilAksi } from "@/lib/penilaian/tipe";
 import type { MasukanKoreksi } from "@/lib/penilaian/validasi";
 
@@ -32,4 +32,9 @@ export async function aksiSimpanPermanen(penugasanId: string, isian: Isian) {
 export async function aksiKirimUlang(penugasanId: string) {
   const a = await reviewer();
   return a ? kirimUlangKeBima(penugasanId, a) : TOLAK;
+}
+
+export async function aksiJalankanUlangSemantik(penugasanId: string) {
+  const a = await reviewer();
+  return a ? jalankanUlangPemeriksaanSemantik(penugasanId, a) : TOLAK;
 }

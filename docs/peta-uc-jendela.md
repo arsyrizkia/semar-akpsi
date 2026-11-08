@@ -73,6 +73,7 @@ Modal memakai Dialog `radix-ui` (fokus terjebak, Esc menutup, `aria-labelledby`)
 | J-07 | "Periksa" / judul proposal | J-08 | layar | |
 | J-08 | "Tidak Setuju" / "Ubah Koreksi" | M-10 Koreksi Rekomendasi | modal | S-1 alasan kosong di dalam modal; "Batal" menutup |
 | J-08 | "Unduh Berkas" | unduhan | unduhan | 403 bila bukan penugasannya |
+| J-08 | "Jalankan Ulang Pemeriksaan Semantik" (di Alert "Pemeriksaan semantik gagal dijalankan" dan di Alert "Rekomendasi sedang disiapkan" sesudah batas muat ulang; tersembunyi bila penilaian Final) | J-08 ("Rekomendasi sedang disiapkan", penghitung muat ulang dari nol); galat di dekat tombol | aksi ke layar | UC-07 dan UC-09 (tambahan prototipe, C-34): menjadwalkan ulang job Gagal atau macet tanpa memanggil LLM; ditolak bila hasil sudah ada, job sedang berjalan, atau penilaian Final |
 | J-08 | "Lanjut ke Keputusan" / "Lihat Keputusan"; "Kembali ke Daftar Penugasan"; breadcrumb "Daftar Penugasan" | J-08b; J-07 | layar | |
 | M-10 | "Simpan Koreksi" / "Batal" | J-08 (butir berlabel Dikoreksi reviewer, toast) | modal ke layar | fokus kembali ke "Tidak Setuju" / "Ubah Koreksi" |
 | J-08b | "Simpan Permanen" | M-11 Simpan Permanen | modal | komponen kosong ditandai dan modal tidak terbuka |

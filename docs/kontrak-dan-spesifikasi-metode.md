@@ -43,6 +43,7 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | C-30 | BasisAturan.tandaiButir / ButirCek.tandaiPerluDitinjau | `pemantauan/layanan.ts:tandaiButir` | UC-04 | — |
 | C-31 | TemplatProposal.buatDokumenTemplat | `templat/dokumen.ts:buatDokumenTemplat`, `templat/isian-substansi.ts` | UC-01 (tambahan prototipe: unduh .docx) | — |
 | C-33 | TemplatProposal.hapusDraf | `templat/layanan.ts:hapusDraf`, `templat/layanan.ts:hapusDrafInti`, `templat/status.ts:putuskanHapusDraf` | UC-01 (tambahan prototipe: Hapus Draf) | — |
+| C-34 | JobSemantik.jalankanUlang | `pemeriksa/semantik/jalankan.ts:{jalankanUlangSemantik, bacaKeadaanSemantik}`, `penilaian/status.ts:putuskanJalankanUlangSemantik`, `penilaian/layanan.ts:jalankanUlangPemeriksaanSemantik` | UC-07, UC-09 (tambahan prototipe: Jalankan Ulang Pemeriksaan Semantik) | — |
 
 | ID | Metode | Kontrak | Berkas:fungsi | ID uji |
 |---|---|---|---|---|
@@ -69,6 +70,7 @@ Konvensi: "Clients" memakai nama objek pada `docs/sumber/sequence/seq-ucXX.puml`
 | MS-17 | cekFormatLampiran | C-19 | `pemeriksa/deterministik/pemeriksa.ts:cekFormatLampiran` | — |
 | MS-14 | uraikanAturanHitung / validasiButir | C-06 | `aturan/parameter.ts:{uraikanAturanHitung, validasiButir}` | — |
 | MS-25 | hapusDraf (putuskanHapusDraf, hapusDrafInti, bacaHasilHapus) | C-33 | `templat/layanan.ts:{hapusDraf, hapusDrafInti}`, `templat/status.ts:putuskanHapusDraf`, `templat/daftar.ts:{urlHasilHapus, bacaHasilHapus}` | — |
+| MS-26 | jalankanUlangSemantik (putuskanJalankanUlangSemantik, bacaKeadaanSemantik) | C-34 | `pemeriksa/semantik/jalankan.ts:{jalankanUlangSemantik, bacaKeadaanSemantik}`, `penilaian/status.ts:putuskanJalankanUlangSemantik` | — |
 
 ## 3. Contracts
 
@@ -966,3 +968,34 @@ Alur Draf, Terbit, Arsip tetap: Arsip hanya terjadi otomatis saat versi baru ter
 | Arguments Returned | `HasilHapusDraf` |
 | Algorithm Specification | SET t = templat `templatId` (hanya bila pelaku ≠ null dan templatId uuid)<br>SET putusan = putuskanHapusDraf({pengelola: pelaku ≠ null, status: t?.status ATAU null})<br>[J1] IF pelaku = null THEN RETURN galat hak pengelola<br>[J2] ELSE IF t tidak ada THEN RETURN galat tidak ditemukan<br>[J3] ELSE IF t.status ≠ Draf THEN RETURN galat "hanya Draf" (label Terbit ditulis Aktif)<br>DALAM satu transaksi: hapus butir_cek (templatId); hapus bagian_templat; kosongkan uji_contoh.templat_id; hapus templat WHERE id = t.id DAN status = Draf<br>[J4] IF tidak ada baris terhapus THEN batalkan transaksi, RETURN galat berubah<br>catat log templat.draf-hapus; RETURN {ok: true, versi, skemaId, namaSkema} |
 | Misc. Notes | Empat jalur fungsi murni ([J1] sampai [J3] dan jalur sukses) diuji putih; [J4] hanya dapat diuji pada basis data uji. `bacaHasilHapus` memiliki cabang: hasil bukan "hapus", versi tidak sah, nama kosong, sah (nama dipangkas 120 karakter). |
+
+## Jalankan ulang pemeriksaan semantik (tambahan prototipe, 8 Nov 2026)
+
+Pemeriksaan semantik (UC-09) yang gagal atau macet tidak diulang sendiri oleh J-08 (job Gagal tidak dijadwalkan ulang). Tambahan ini memberi reviewer tombol "Jalankan Ulang Pemeriksaan Semantik". Layanan LLM tetap tidak dipanggil di jalur render J-08 maupun di aksi ini (NFR 2.3): pekerjaan hanya dijadwalkan lewat `after()`.
+
+### C-34 JobSemantik.jalankanUlang
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID | `jalankanUlangSemantik` / JobSemantik / C-34 (tambahan prototipe) |
+| Clients (Consumers) | `reviewer : Reviewer` lewat tombol "Jalankan Ulang Pemeriksaan Semantik" di J-08 (aksi server `aksiJalankanUlangSemantik`, layanan `jalankanUlangPemeriksaanSemantik`) |
+| Associated Use Cases | UC-07 (pemeriksaan akhir), UC-09 (pemeriksaan semantik); tidak ada di naskah Bab 10 |
+| Description of Responsibilities | Menjadwalkan ulang pemeriksaan semantik sebuah versi proposal yang job-nya Gagal, atau Menunggu/Berjalan tetapi macet (lebih dari 3 menit), atas permintaan reviewer yang ditugaskan, selama penilaian belum Final dan hasil semantik belum ada. |
+| Arguments Received | `versiId: string`; `aktor: string` (id BIMA reviewer); `konteks: { ditugaskan: boolean; final: boolean }` |
+| Type of Value Returned | `Promise<HasilJalankanUlang>` = `{ok:true; tindakan: "job-baru" \| "pakai-job-ada"}` \| `{ok:false; galat}` |
+| Pre-Conditions | [P1] Reviewer yang masuk adalah reviewer penugasan itu (`periksaAkses`; reviewer lain mendapat "Akses ditolak" dan 403 dicatat di audit).<br>[P2] Basis data tersedia. |
+| Post-Conditions | [Q1] Bila bukan penugasan, penilaian Final, hasil semantik sudah ada, atau job sedang berjalan normal: ditolak dengan pesan jelas, tanpa perubahan.<br>[Q2] Bila job Gagal: satu baris `job_semantik` baru berstatus Menunggu disisipkan (hanya bila belum ada job Menunggu/Berjalan); baris Gagal lama tetap sebagai riwayat.<br>[Q3] Bila job Menunggu/Berjalan macet: job yang ada dipakai (diklaim ulang oleh `jalankan`).<br>[Q4] Sesudah [Q2] atau [Q3]: dicatat log audit `semantik.dijalankan-ulang` (aktor reviewer, objek `versi:<id>`, rincian jobId, tindakan, statusSebelumnya) dan pemrosesan dijadwalkan (`jadwalkan`). LLM tidak dipanggil di dalam aksi.<br>[Q5] Hasil sebagian: `jalankan` menyimpan seluruh hasil semantik dengan satu INSERT ... ON CONFLICT sebelum job Selesai, sehingga job yang gagal di tahap LLM tidak meninggalkan hasil; bila hasil sempat tersimpan, jalan ulang ditolak [Q1]. Hasil lama tidak pernah tercampur dengan hasil baru. |
+| Catatan | Skema basis data tidak berubah. Uji: `tests/unit/kotak-hitam/penilaian-jalankan-ulang.test.ts` (KH-jalankanUlangSemantik-01 sampai 08), `tests/unit/kotak-putih/penilaian-jalankan-ulang.test.ts`, `tests/integrasi/semantik-jalankan-ulang-db.test.ts` (IT-jalankanUlang, butuh basis data uji). |
+
+### MS-26 jalankanUlangSemantik
+
+| Bagian formulir | Isi |
+|---|---|
+| Method Name / Class Name / ID / Contract ID | `jalankanUlangSemantik` (+ `putuskanJalankanUlangSemantik`, `bacaKeadaanSemantik`, `jalankanUlangPemeriksaanSemantik`) / JobSemantik / MS-26 / C-34 |
+| Programmer / Date Due / Language | Kelompok AKPSI (prototipe) / 2026-11-08 / TypeScript |
+| Triggers/Events | Tombol "Jalankan Ulang Pemeriksaan Semantik" pada Alert "Pemeriksaan semantik gagal dijalankan" dan Alert "Rekomendasi sedang disiapkan" sesudah batas muat ulang (J-08) |
+| Arguments Received | `versiId`, `aktor`, `konteks` (lihat C-34) |
+| Messages Sent & Arguments Passed | `bacaKeadaanSemantik(versiId)` → `{status, macet, adaHasil}`; `putuskanJalankanUlangSemantik({ditugaskan, final, status, macet, adaHasil})` → `KeputusanJalankanUlang` (murni); `catatLogAudit(entri)`; `jadwalkan(versiId)` |
+| Arguments Returned | `HasilJalankanUlang` |
+| Algorithm Specification | SET keadaan = bacaKeadaanSemantik(versiId)<br>SET putusan = putuskanJalankanUlangSemantik({...konteks, ...keadaan})<br>[J1] IF NOT ditugaskan THEN RETURN galat bukan penugasan<br>[J2] ELSE IF final THEN RETURN galat penilaian final<br>[J3] ELSE IF adaHasil THEN RETURN galat hasil sudah tersedia<br>[J4] ELSE IF status = Gagal THEN tindakan = job-baru<br>[J5] ELSE IF status IN (Menunggu, Berjalan) DAN macet THEN tindakan = pakai-job-ada<br>[J6] ELSE IF status IN (Menunggu, Berjalan) THEN RETURN galat sedang berjalan<br>[J7] ELSE RETURN galat tidak perlu<br>IF tindakan = job-baru THEN sisip job Menunggu bila belum ada job aktif; IF tidak ada baris tersisip THEN RETURN galat sedang berjalan<br>catat log semantik.dijalankan-ulang; jadwalkan(versiId); RETURN {ok: true, tindakan} |
+| Misc. Notes | Tujuh jalur fungsi murni ([J1] sampai [J7]) diuji putih. Macet = Berjalan sejak `mulai_pada` atau Menunggu sejak `diantrekan_pada` lebih dari `BATAS_MACET_MS` (3 menit). Penyisipan job baru bersyarat (`WHERE NOT EXISTS`) menahan klik ganda serentak. |

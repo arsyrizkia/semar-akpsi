@@ -147,6 +147,11 @@ DPPM.
 - Tombol "Simpan Sementara" (S-1) dan "Simpan Permanen".
 - Sesudah simpan permanen: pesan "Penilaian tersimpan dan terkirim ke BIMA", lalu semua isian hanya-baca.
 - Butir deterministik hanya ditampilkan sebagai catatan bahwa semuanya sudah lolos.
+- Tombol sekunder "Jalankan Ulang Pemeriksaan Semantik" (tambahan prototipe, UC-07 dan UC-09):
+  - tampil di dalam Alert "Pemeriksaan semantik gagal dijalankan", dan di dalam Alert "Rekomendasi sedang disiapkan" sesudah pembaruan otomatis berhenti ("Pemeriksaan semantik belum selesai. Muat ulang halaman beberapa saat lagi.");
+  - tidak tampil bila penilaian sudah final; tanpa modal konfirmasi karena tindakannya tidak merusak data;
+  - selama berjalan tombol nonaktif dengan ikon memuat; sesudah berhasil J-08 kembali ke "Rekomendasi sedang disiapkan" dan penghitung pembaruan mulai dari nol;
+  - galat tampil di bawah tombol dengan `role="alert"`: "Hanya reviewer yang ditugaskan pada proposal ini yang dapat menjalankan ulang pemeriksaan semantik.", "Penilaian sudah final, pemeriksaan semantik tidak dapat dijalankan ulang.", "Hasil pemeriksaan semantik sudah tersedia. Muat ulang halaman untuk melihatnya.", "Pemeriksaan semantik masih berjalan. Tunggu beberapa saat, lalu coba lagi bila belum selesai.", "Akses ditolak".
 
 ## Navigasi
 

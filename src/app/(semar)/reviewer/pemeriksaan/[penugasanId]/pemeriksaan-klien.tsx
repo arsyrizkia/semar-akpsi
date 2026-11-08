@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowRight, CalendarClock, CheckCircle2, ChevronRight, FileText, Loader2, Lock, XCircle } from "lucide-react";
 import { Alert, Button, KepalaHalaman, StatusBadge, TombolUnduh, beriTahu, kelasTombol } from "@/components/ui";
 import { TinjauanNaskah } from "@/components/penilaian/tinjauan-naskah";
 import type { ButirTampil, DataPemeriksaan, KoreksiTampil } from "@/lib/penilaian/tipe";
 import { ringkasRekomendasi } from "@/lib/penilaian/status";
+import { aksiJalankanUlangSemantik } from "./actions";
 import { ModalKoreksi } from "./modal-koreksi";
 
 const MAKS_POLLING = 40;
@@ -47,6 +48,32 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
     }, 4000);
     return () => clearTimeout(t);
   }, [data.semantik.siap, kali, router]);
+
+  // Jalankan ulang pemeriksaan semantik (job Gagal atau macet); penghitung muat ulang mulai dari nol bila berhasil
+  const [sibukUlang, mulaiUlang] = useTransition();
+  const [galatUlang, setGalatUlang] = useState<string | null>(null);
+  function jalankanUlang() {
+    setGalatUlang(null);
+    mulaiUlang(async () => {
+      const r = await aksiJalankanUlangSemantik(data.penugasanId);
+      if (r.ok) {
+        setKali(0);
+        router.refresh();
+      } else setGalatUlang(r.galat);
+    });
+  }
+  const tombolUlang = final ? null : (
+    <div className="mt-2">
+      <Button varian="sekunder" ukuran="sm" memuat={sibukUlang} onClick={jalankanUlang}>
+        Jalankan Ulang Pemeriksaan Semantik
+      </Button>
+      {galatUlang ? (
+        <p role="alert" className="mt-2 text-sm font-semibold text-bata-700">
+          {galatUlang}
+        </p>
+      ) : null}
+    </div>
+  );
 
   const lanjut = (
     <Link href={`/reviewer/pemeriksaan/${data.penugasanId}/keputusan`} className={kelasTombol("utama", "md")}>
@@ -140,11 +167,13 @@ export function PemeriksaanKlien({ data, tabAwal, butirAwal }: { data: DataPemer
             <Loader2 aria-hidden className="size-4 animate-spin" />
             {kali >= MAKS_POLLING ? "Pemeriksaan semantik belum selesai. Muat ulang halaman beberapa saat lagi." : "Halaman diperbarui otomatis begitu rekomendasi tersedia."}
           </span>
+          {kali >= MAKS_POLLING ? tombolUlang : null}
         </Alert>
       ) : null}
       {data.semantik.status === "Gagal" ? (
         <Alert jenis="peringatan" className="mb-6" judul="Pemeriksaan semantik gagal dijalankan">
           Butir semantik belum memiliki rekomendasi. Anda tetap dapat memeriksa teks secara manual.
+          {tombolUlang}
         </Alert>
       ) : null}
       {final ? (

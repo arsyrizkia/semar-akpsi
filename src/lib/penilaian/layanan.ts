@@ -23,7 +23,7 @@ import type { Akun } from "@/lib/auth";
 import { catatLogAudit } from "@/lib/audit";
 import { bima } from "@/lib/bima/client";
 import { KOMPONEN_BORANG, type Keputusan, type ParameterButir, type StatusHasilSemantik } from "@/lib/kontrak/tipe";
-import { pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
+import { jalankanUlangSemantik, pastikanSemantikBerjalan } from "@/lib/pemeriksa/semantik/jalankan";
 import { daftarGambarPemilik, pemilikVersi } from "@/lib/pengajuan/gambar-simpan";
 import { waktuDemo } from "@/lib/waktu";
 import { formatTenggat, hitungTenggat, posisiMasa, teksSisa } from "./masa";
@@ -199,6 +199,18 @@ export async function muatPemeriksaan(penugasan: Penugasan): Promise<DataPemerik
     penilaian: penilaianTampil,
     berkas,
   };
+}
+
+/**
+ * Tombol "Jalankan Ulang Pemeriksaan Semantik" di J-08: pastikan penugasan milik reviewer, penilaian belum final,
+ * lalu jadwalkan ulang pemeriksaan semantik. Tidak memanggil LLM (hanya menjadwalkan).
+ */
+export async function jalankanUlangPemeriksaanSemantik(penugasanId: string, akun: Pick<Akun, "id" | "idBima">): Promise<HasilAksi> {
+  const akses = await periksaAkses(penugasanId, akun);
+  if (!akses.ok) return { ok: false, galat: "Akses ditolak" };
+  const [pen, versiId] = await Promise.all([pastikanPenilaian(penugasanId), bukaVersiDinilai(akses.penugasan)]);
+  const r = await jalankanUlangSemantik(versiId, akun.idBima, { ditugaskan: true, final: pen.status === "Final" });
+  return r.ok ? { ok: true } : { ok: false, galat: r.galat };
 }
 
 /** Hasil semantik (ambilHasilPemeriksaan) beserta koreksi per hasilId, sebelum ditempatkan pada tab. */

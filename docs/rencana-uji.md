@@ -21,9 +21,9 @@ Jenis kasus pada tiap baris mengikuti hlm. 473 (nilai sah; tidak sah di bawah at
 
 | Jenis | Jumlah uji | Lulus | Gagal | Dilewati |
 |---|---:|---:|---:|---:|
-| Unit *black box* (KH) | 272 | 272 | 0 | 0 |
-| Unit *white box* (KP) | 174 | 174 | 0 | 0 |
-| Integrasi basis data (IT) | 28 | 28 | 0 | 0 |
+| Unit *black box* (KH) | 280 | 280 | 0 | 0 |
+| Unit *white box* (KP) | 181 | 181 | 0 | 0 |
+| Integrasi basis data (IT) | 30 | 28 | 0 | 2 |
 | Integrasi e2e (skenario) | 29 | 29 | 0 | 0 |
 
 
@@ -454,6 +454,23 @@ Setiap butir sumber menjadi satu uji dengan beberapa kasus. Setiap keadaan *stat
 | KH-bacaHasilHapus-01 | nilai sah | nilai sah: url dari urlHasilHapus terbaca kembali dan pesannya persis | sesuai harapan (0 ms) | Lulus |
 | KH-bacaHasilHapus-02 | tipe salah / nilai janggal | nilai tidak sah: hasil lain, versi bukan angka atau nol, nama kosong menjadi null | sesuai harapan (0 ms) | Lulus |
 
+#### `penilaian-jalankan-ulang.test.ts`
+
+- **Unit yang diuji:** putuskanJalankanUlangSemantik (tombol "Jalankan Ulang Pemeriksaan Semantik" di J-08)
+- **Sumber rencana uji:** Sumber: CRC JobSemantik (keadaan Menunggu, Berjalan, Selesai, Gagal) dan Contract C-34 (jalankanUlangSemantik). Izin dan penolakan diputuskan oleh fungsi murni yang sama dengan layanan.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KH-jalankanUlangSemantik-01 | nilai sah | reviewer ditugaskan, belum final, job Gagal: boleh dengan job baru | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-02 | nilai sah | job Berjalan yang macet: boleh memakai job yang ada | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-03 | nilai sah | job Menunggu yang macet: boleh memakai job yang ada | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-04 | nilai tidak sah | bukan reviewer yang ditugaskan ditolak walau job Gagal | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-05 | keadaan dan transisi | penilaian Final ditolak walau job Gagal | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-06 | nilai tidak sah | hasil sudah tersedia ditolak | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-07 | tipe salah / nilai janggal | job Berjalan atau Menunggu yang belum macet ditolak dengan pesan sedang berjalan | sesuai harapan | Lulus |
+| KH-jalankanUlangSemantik-08 | tipe salah / nilai janggal | job Selesai tanpa hasil atau belum ada job ditolak dengan pesan yang jelas | sesuai harapan | Lulus |
+
 #### `templat-isian-substansi.test.ts`
 
 - **Unit yang diuji:** Isian Substansi Proposal: struktur templat; Isian Substansi Proposal: butir cek turunan dan katalog
@@ -877,6 +894,22 @@ Setiap cabang atau jalur metode yang kompleks diuji menurut *Method Specificatio
 | KP-bacaHasilHapus-01 | cabang / jalur | cabang hasil bukan hapus | sesuai harapan (0 ms) | Lulus |
 | KP-bacaHasilHapus-02 | nilai tidak sah | cabang versi tidak sah, lalu cabang nama kosong, lalu cabang sah dengan nilai larik dan nama dipangkas 120 | sesuai harapan (0 ms) | Lulus |
 
+#### `penilaian-jalankan-ulang.test.ts`
+
+- **Unit yang diuji:** putuskanJalankanUlangSemantik (MS-26, cabang)
+- **Sumber rencana uji:** setiap cabang keputusan jalankan ulang semantik. Sumber: Method Specification MS-26 (jalankanUlangSemantik) pada penilaian/status.ts:putuskanJalankanUlangSemantik.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| KP-putuskanJalankanUlangSemantik-01 | cabang / jalur | cabang [J1] bukan penugasan, kondisi lain tidak dievaluasi | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-02 | cabang / jalur | cabang [J2] penilaian final | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-03 | cabang / jalur | cabang [J3] hasil sudah ada | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-04 | cabang / jalur | cabang [J4] status Gagal: job baru | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-05 | cabang / jalur | cabang [J5] Menunggu atau Berjalan dan macet: pakai job yang ada | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-06 | cabang / jalur | cabang [J6] Menunggu atau Berjalan dan belum macet: ditolak sedang berjalan | sesuai harapan | Lulus |
+| KP-putuskanJalankanUlangSemantik-07 | cabang / jalur | cabang [J7] sisanya (Selesai tanpa hasil, Belum ada): ditolak tidak perlu | sesuai harapan | Lulus |
+
 #### `templat-status.test.ts`
 
 - **Unit yang diuji:** putuskanTerbitkan (MS-11, cabang); transisiTemplat (MS-11, cabang)
@@ -993,6 +1026,17 @@ Berjalan pada basis data uji; dilewati bila `DATABASE_URL` tidak diizinkan (liha
 | IT-hapusDraf-03 | nilai tidak sah | Terbit dan Arsip ditolak dan tidak berubah | dilewati (butuh basis data uji) | Dilewati |
 | IT-hapusDraf-04 | nilai tidak sah | id tidak ada dan id bukan uuid ditolak | dilewati (butuh basis data uji) | Dilewati |
 | IT-hapusDraf-05 | nilai sah | Draf terhapus beserta bagiannya; templat Terbit dan Arsip tidak berubah | dilewati (butuh basis data uji) | Dilewati |
+
+#### `semantik-jalankan-ulang-db.test.ts`
+
+- **Unit yang diuji:** -
+- **Sumber rencana uji:** Uji integrasi jalankan ulang pemeriksaan semantik pada basis data (dilewati bila tidak ada basis data uji; lihat vitest.config.mts). Hanya membaca keadaan antrean skenario seed.
+- **Tujuan:** menjalankan setiap butir sumber di atas sebagai satu uji dengan satu kasus atau lebih; tiap baris di bawah adalah satu uji.
+
+| ID | Jenis kasus | Kasus uji dan hasil yang diharapkan | Hasil aktual | Lulus/Gagal |
+|---|---|---|---|---|
+| IT-jalankanUlang-01 | nilai tidak sah | reviewer lain ditolak dan tidak menambah job | dilewati (butuh basis data uji) | Dilewati |
+| IT-jalankanUlang-02 | nilai tidak sah | hasil semantik sudah tersedia: ditolak dengan pesan jelas, antrean tidak berubah | dilewati (butuh basis data uji) | Dilewati |
 
 ### 5.2 *Use-case testing* (e2e per UC dan alur bolak-balik)
 
