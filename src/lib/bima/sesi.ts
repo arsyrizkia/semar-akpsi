@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bimaAkun } from "@/db/schema";
 import { COOKIE_BIMA, verifikasiSesiBima } from "../sesi";
-import { alamatMasukCepat, type KelompokCepat } from "./akun-demo";
+import { alamatMasukCepat, type BarisAkunBantuan, type KelompokCepat } from "./akun-demo";
+import { AKUN_PROTOTIPE } from "./akun-prototipe";
 import { reviewerMassal } from "@/lib/demo/profil-skala";
 
 export type AkunBima = typeof bimaAkun.$inferSelect;
@@ -38,12 +39,13 @@ const PERAN_CEPAT = [
 ] as const;
 
 /**
- * Pilihan "Masuk cepat" per peran. Akun reviewer massal skenario skala (rvw-skala-*, rvw-c12-*) tidak ditampilkan. Pengusul dapat diarahkan
+ * Pilihan "Masuk cepat" per peran, dan baris tabel akun untuk dialog Bantuan (username/email dari akun.json). Akun reviewer massal skenario skala (rvw-skala-*, rvw-c12-*) tidak ditampilkan. Pengusul dapat diarahkan
  * ke BIMA (`kembaliPengusul`) karena pengusul tidak masuk lewat J-01.
  */
 export async function kelompokMasukCepat(o: { kembali: string; lanjut?: string; kembaliPengusul?: string; catatanPengusul?: string }): Promise<{
   kelompok: KelompokCepat[];
   tersembunyi: number;
+  bantuan: BarisAkunBantuan[];
 }> {
   const semua = await getDb().select().from(bimaAkun);
   const akun = semua
@@ -64,5 +66,15 @@ export async function kelompokMasukCepat(o: { kembali: string; lanjut?: string; 
         })),
     };
   });
-  return { kelompok, tersembunyi: semua.length - akun.length };
+  const bantuan = PERAN_CEPAT.flatMap((k) =>
+    akun
+      .filter((a) => a.peran === k.peran)
+      .flatMap((a) => {
+        const p = AKUN_PROTOTIPE.find((x) => x.idBima === a.idBima);
+        if (!p) return [];
+        const peran = a.hakAkses ? `${k.judul} (${a.hakAkses === "pengelola" ? "pengelola" : "anggota"})` : k.judul;
+        return [{ nama: a.nama, peran, username: p.username, email: p.email }];
+      }),
+  );
+  return { kelompok, tersembunyi: semua.length - akun.length, bantuan };
 }

@@ -1,3 +1,4 @@
+import { AlatPeragaan } from "@/components/layout/alat-peragaan";
 import type { Metadata } from "next";
 import { daftarKotakMasuk, ringkasanKotakMasuk } from "@/lib/bima/servis";
 import { alamatPindah } from "@/lib/demo/katalog";
@@ -62,15 +63,19 @@ export default async function KotakMasuk() {
                     <td className="px-3 py-2 align-top">{p.jenis === "penugasan" ? "Penugasan reviewer" : "Keputusan reviewer"}</td>
                     <td className="px-3 py-2 align-top">
                       {p.idProposal ? (
-                        <a
-                          href={alamatPindah("J-05b", p.idProposal)}
-                          rel="nofollow"
-                          data-rincian-semar={p.idProposal}
-                          className="font-mono text-xs font-semibold text-slate-900 underline underline-offset-2"
-                          title="Khusus demo: buka rincian proposal ini di SEMAR (J-05b)"
+                        <AlatPeragaan
+                          cadangan={<span className="font-mono text-xs font-semibold text-slate-900">{p.idProposal}</span>}
                         >
-                          {p.idProposal}
-                        </a>
+                          <a
+                            href={alamatPindah("J-05b", p.idProposal)}
+                            rel="nofollow"
+                            data-rincian-semar={p.idProposal}
+                            className="font-mono text-xs font-semibold text-slate-900 underline underline-offset-2"
+                            title="Buka rincian proposal ini di SEMAR (J-05b)"
+                          >
+                            {p.idProposal}
+                          </a>
+                        </AlatPeragaan>
                       ) : (
                         "-"
                       )}
@@ -85,7 +90,9 @@ export default async function KotakMasuk() {
             </table>
           </div>
         )}
-        <p className="mt-2 text-xs text-slate-600">Demo: ID proposal membuka rincian proposal itu di SEMAR (J-05b) tanpa mengubah data.</p>
+        <AlatPeragaan>
+          <p className="mt-2 text-xs text-slate-600">ID proposal membuka rincian proposal itu di SEMAR (J-05b) tanpa mengubah data.</p>
+        </AlatPeragaan>
       </div>
     </section>
   );

@@ -39,7 +39,7 @@ export default async function Halaman({
     return (
       <>
         <KepalaHalaman kode="J-03b" judul="Hasil Uji pada Contoh" remah={[{ label: "Templat Proposal", href: "/tim-kerja/templat" }, { label: "Hasil Uji" }]} />
-        <KeadaanKosong judul="Belum ada skema pendanaan">Jalankan &ldquo;Reset &amp; isi data demo&rdquo; di Pusat Demo.</KeadaanKosong>
+        <KeadaanKosong judul="Belum ada skema pendanaan">Skema pendanaan belum tersedia di sistem.</KeadaanKosong>
       </>
     );
   }
@@ -292,7 +292,7 @@ export default async function Halaman({
           </Table>
         )}
         <p className="mt-3 text-xs text-teks-redup">
-          Contoh proposal adalah data contoh sementara; butir yang diuji adalah butir saat uji dijalankan
+          Butir yang diuji adalah butir saat uji dijalankan
           {sumber?.jenis === "basis" && sumber.tanggalBerlaku ? `; basis aturan berlaku sejak ${formatTanggal(sumber.tanggalBerlaku)}` : ""}
           {sumber?.jenis === "templat-draf" ? "; perubahan yang belum disimpan di templat tidak ikut diuji" : ""}.
         </p>

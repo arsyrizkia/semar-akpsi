@@ -454,6 +454,10 @@ async function utama() {
   console.log("Aplikasi berjalan di", base);
   const peramban: Browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--no-sandbox", "--hide-scrollbars"] });
   const page = await peramban.newPage();
+  // alat peragaan (navigator, Masuk cepat, dll.) tersembunyi bawaan; skrip ini memakainya, jadi ditampilkan sebelum tiap dokumen dimuat
+  await page.evaluateOnNewDocument(() => {
+    if (localStorage.getItem("semar:alat-peragaan") === null) localStorage.setItem("semar:alat-peragaan", "tampil");
+  });
   await page.setViewport({ width: 1440, height: 900 });
   page.setDefaultTimeout(30_000);
   page.on("dialog", (d) => void d.accept()); // jaga-jaga bila ada konfirmasi bawaan peramban

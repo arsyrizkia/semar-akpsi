@@ -18,6 +18,7 @@ import {
   type JendelaDemo,
 } from "@/lib/demo/katalog";
 import { cn } from "@/lib/utils";
+import { alatPeragaanTampil, useAlatPeragaan } from "@/components/layout/alat-peragaan";
 
 const KUNCI = "semar:navigator";
 const PERISTIWA = "semar:navigator-ubah";
@@ -143,13 +144,16 @@ function PenangkapCatatan() {
  * yang sedang dibuka), lalu setiap layar use case itu tampil dengan dua hal yang dipisah tegas:
  *  - "Buka": tautan ke /demo/pindah; hanya membuka layar (dan memasang sesi peran bila perlu). Data TIDAK berubah.
  *  - keadaan (skenario): tombol ke /demo/mulai; menyiapkan data keadaan itu, lalu membuka layarnya. Data berubah.
- * Catatan skenario tampil di panel ini. Papan pintas: Alt+Shift+N membuka/menciutkan, Esc menciutkan.
+ * Catatan skenario tampil di panel ini. Papan pintas: Alt+Shift+N membuka/menciutkan, Esc menciutkan. Seluruhnya tersembunyi sampai alat peragaan ditampilkan (Alt+Shift+D).
  */
 export function NavigatorDemo() {
   const jalur = usePathname();
   const kueri = useSyncExternalStore(langgananKueri, () => kueriSaatIni, () => "");
   const router = useRouter();
-  const terbuka = useSyncExternalStore(langganan, bacaTerbuka, () => false);
+  const peragaan = useAlatPeragaan();
+  const terbukaTersimpan = useSyncExternalStore(langganan, bacaTerbuka, () => false);
+  // alat peragaan tersembunyi (bawaan): panel dianggap ciut dan tidak ada yang dirender
+  const terbuka = terbukaTersimpan && peragaan;
   const cookieSkenario = useSyncExternalStore(tanpaLangganan, bacaCookieSkenario, () => null);
   const [menyiapkan, setMenyiapkan] = useState<string | null>(null);
   const [masa, setMasa] = useState<"berjalan" | "ditutup" | null>(null);
@@ -182,9 +186,11 @@ export function NavigatorDemo() {
   useEffect(() => {
     function tekan(e: KeyboardEvent) {
       if (e.altKey && e.shiftKey && e.code === "KeyN") {
+        // tersembunyi: pintasan ini tidak berbuat apa-apa (dan tidak membatalkan tombolnya), tampilkan dulu dengan Alt+Shift+D
+        if (!alatPeragaanTampil()) return;
         e.preventDefault();
         aturTerbuka(!bacaTerbuka());
-      } else if (e.key === "Escape" && bacaTerbuka() && panelRef.current?.contains(document.activeElement)) {
+      } else if (e.key === "Escape" && alatPeragaanTampil() && bacaTerbuka() && panelRef.current?.contains(document.activeElement)) {
         aturTerbuka(false);
       }
     }
@@ -258,6 +264,8 @@ export function NavigatorDemo() {
       <PembacaKueri />
     </Suspense>
   );
+  // tersembunyi: hanya penangkap ?catatan= yang jalan (tidak terlihat, tanpa unsur fokus) supaya alamat tetap bersih
+  if (!peragaan) return penangkap;
 
   const namaPendek = (j: { kode: string; nama: string }) => (j.kode.startsWith("BIMA") ? j.nama.replace("BIMA: ", "BIMA ") : `${j.kode} ${j.nama}`);
   const kodePendek = (j: JendelaDemo) => (j.kode.startsWith("BIMA") ? `B-${j.kode.slice(-1)}` : j.kode);

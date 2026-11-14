@@ -1,3 +1,4 @@
+import { AlatPeragaan } from "@/components/layout/alat-peragaan";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -13,8 +14,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * J-01 Masuk: Tim Kerja DPPM dan Reviewer. Pengusul tidak memakai jendela ini (mereka masuk dari BIMA langsung ke J-06).
- * Merek dan ilustrasi hanya di panel kiri (area merek, berkawung); sisi kanan bersih: satu judul, satu tombol, satu tautan demo.
- * Popup "Masuk cepat (demo)" di kanan bawah langsung memasang sesi lewat SSO BIMA tiruan; akun pengusul diarahkan ke BIMA.
+ * Merek dan ilustrasi hanya di panel kiri (area merek, berkawung); sisi kanan bersih: satu judul, satu tombol. Tautan Pusat Demo hanya tampil bila alat peragaan ditampilkan (Alt+Shift+D).
+ * Popup "Masuk cepat" (alat peragaan, tersembunyi bawaan) di kanan bawah langsung memasang sesi lewat SSO BIMA tiruan; akun pengusul diarahkan ke BIMA.
  */
 export default async function Masuk({ searchParams }: { searchParams: Promise<{ galat?: string; lanjut?: string }> }) {
   const { galat, lanjut: lanjutMentah } = await searchParams;
@@ -54,14 +55,16 @@ export default async function Masuk({ searchParams }: { searchParams: Promise<{ 
           <Button asChild ukuran="lg" className="mt-6 w-full">
             <Link href={lanjut ? `/bima/masuk?kembali=/api/sso/callback&lanjut=${encodeURIComponent(lanjut)}` : "/bima/masuk?kembali=/api/sso/callback"}>Masuk dengan akun BIMA</Link>
           </Button>
-          <p className="mt-6 text-sm text-teks-redup">
-            Ingin mencoba tanpa akun?{" "}
-            <Link href="/demo" className="font-semibold text-primer-800 underline underline-offset-2">
-              Buka Pusat Demo
-            </Link>
-          </p>
+          <AlatPeragaan>
+            <p className="mt-6 text-sm text-teks-redup">
+              Ingin mencoba tanpa akun?{" "}
+              <Link href="/demo" className="font-semibold text-primer-800 underline underline-offset-2">
+                Buka Pusat Demo
+              </Link>
+            </p>
+          </AlatPeragaan>
           <p className="mt-10 border-t border-primer-200 pt-4 text-xs text-abu-600">
-            BIMA pada prototipe ini adalah simulasi, bukan sistem resmi. Pengusul tidak masuk dari sini; pengusul membuka SEMAR dari halaman proposal di BIMA.
+            Pengusul tidak masuk dari sini; pengusul membuka SEMAR dari halaman proposal di BIMA.
           </p>
         </div>
       </main>

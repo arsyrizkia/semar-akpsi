@@ -97,7 +97,7 @@ export function identitasDemo(u: { id: string; skemaKode: string; judul: string;
     tema: b.tema,
     topik: b.topik,
     rumpunIlmu: [...b.rumpun],
-    prioritasRiset: "Riset prioritas nasional (rekaan)",
+    prioritasRiset: "Riset prioritas nasional",
     tahunPertama: u.tahun,
     lamaKegiatan: lama,
     anggota: [

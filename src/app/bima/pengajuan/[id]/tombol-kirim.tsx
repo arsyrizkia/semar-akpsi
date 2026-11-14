@@ -36,7 +36,7 @@ export function TombolKirim({ idProposal, siap, masaDitutup }: { idProposal: str
   return (
     <div className="space-y-3">
       {!siap ? <p className="text-sm text-amber-900">Dokumen usulan belum lolos pemeriksaan SEMAR. Usulan belum dapat dikirim.</p> : null}
-      {siap && masaDitutup ? <p className="text-sm text-slate-600">Alat simulasi: masa pengusulan sedang ditutup, jadi pengiriman akan ditolak SEMAR.</p> : null}
+      {siap && masaDitutup ? <p className="text-sm text-slate-600">Masa pengusulan sedang ditutup, jadi pengiriman akan ditolak SEMAR.</p> : null}
       {yakin ? (
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-[#3651b0]/30 bg-[#eef1fb] px-4 py-3">
           <p className="text-sm text-[#1e2a5e]">Kirim usulan sekarang? Usulan yang sudah dikirim tidak dapat diubah.</p>

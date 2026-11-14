@@ -214,7 +214,7 @@ async function pastikanSkemaTanpaTemplat(): Promise<string> {
   if (!sk) {
     [sk] = await db
       .insert(s.skemaPendanaan)
-      .values({ kode: "PK", namaSkema: "Penelitian Kolaborasi (contoh sementara)", deskripsi: "Skema tanpa templat untuk memperagakan UC-01 S-1 (contoh sementara).", contoh: true })
+      .values({ kode: "PK", namaSkema: "Penelitian Kolaborasi", deskripsi: "Skema tanpa templat untuk memperagakan UC-01 S-1.", contoh: true })
       .returning();
   }
   return sk.id;

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setSakelarMasa } from "@/app/demo/aksi";
 
-/** Alat bantu simulasi di BIMA tiruan: menutup/membuka masa pengusulan (UC-05c: ditahan lalu ditolak karena masa ditutup). */
+/** Alat peragaan di BIMA tiruan (tersembunyi bawaan, dibungkus AlatPeragaan oleh halamannya): menutup/membuka masa pengusulan (UC-05c: ditahan lalu ditolak karena masa ditutup). */
 export function SakelarMasaBima({ masa }: { masa: "berjalan" | "ditutup" }) {
   const router = useRouter();
   const [sibuk, mulai] = useTransition();

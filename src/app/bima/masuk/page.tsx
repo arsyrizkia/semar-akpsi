@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BantuanAkun } from "@/components/layout/bantuan-akun";
 import { MasukCepat } from "@/components/layout/masuk-cepat";
 import { kelompokMasukCepat } from "@/lib/bima/sesi";
 import { jalurAman } from "@/lib/sesi";
@@ -8,7 +9,7 @@ export const metadata: Metadata = { title: "Masuk" };
 export const dynamic = "force-dynamic";
 
 const PESAN_GALAT: Record<string, string> = {
-  sandi: "Username atau password salah. Periksa lagi, atau buka Bantuan untuk melihat akun demo.",
+  sandi: "Username atau password salah. Periksa lagi, atau buka Bantuan untuk melihat akun prototipe.",
   akun: "Akun tidak ditemukan. Masuk dengan akun lain.",
   peran: "Akun ini tidak dapat membuka halaman tersebut. Masuk dengan akun lain.",
 };
@@ -16,8 +17,8 @@ const PESAN_GALAT: Record<string, string> = {
 /**
  * Masuk BIMA tiruan, mengikuti halaman masuk BIMA (tangkapan layar Arsy, 1 Nov 2026): kartu bersambutan "Selamat Datang di Aplikasi
  * BIMA" dengan logo bulat menumpang di batas kepala, Username, Password, Remember me, Log In, dan "Kesulitan login? Bantuan". Pengaman
- * simulasi: label "Simulasi BIMA" tetap di atas, hanya akun demo yang dapat masuk, dan catatan untuk tidak memakai akun asli. Akun demo
- * dipilih cepat lewat popup "Masuk cepat (demo)" atau tombol Bantuan. Parameter:
+ * simulasi: label "Simulasi BIMA" tetap di atas, hanya akun prototipe yang dapat masuk, dan catatan untuk tidak memakai akun asli. Akun
+ * prototipe tampil di dialog Bantuan; popup "Masuk cepat" adalah alat peragaan (tersembunyi bawaan). Parameter:
  *  - kembali: "/api/sso/callback" (SSO ke SEMAR: BIMA menambahkan token bertanda tangan) atau jalur /bima/...
  *  - lanjut: jalur tujuan di SEMAR sesudah SSO (opsional)
  *  - galat: sandi | akun | peran; pengguna: nama pengguna yang diketik sebelumnya (galat sandi)
@@ -27,7 +28,7 @@ export default async function MasukBima({ searchParams }: { searchParams: Promis
   const kembali = jalurAman(q.kembali, "/bima/pengajuan");
   const lanjut = jalurAman(q.lanjut, "");
   const keSemar = kembali.startsWith("/api/sso/callback");
-  const { kelompok, tersembunyi } = await kelompokMasukCepat({ kembali, lanjut });
+  const { kelompok, tersembunyi, bantuan } = await kelompokMasukCepat({ kembali, lanjut });
   const galat = q.galat ? (PESAN_GALAT[q.galat] ?? PESAN_GALAT.akun) : null;
 
   return (
@@ -51,7 +52,8 @@ export default async function MasukBima({ searchParams }: { searchParams: Promis
           <FormMasukBima kembali={kembali} lanjut={lanjut} pengguna={q.pengguna ?? ""} galatSandi={q.galat === "sandi" ? galat : null} />
         </div>
       </div>
-      <p className="mt-6 text-center text-xs text-slate-600">Simulasi: jangan memasukkan username atau password BIMA asli. Akun demo ada di Bantuan.</p>
+      <p className="mt-6 text-center text-xs text-slate-600">Simulasi: jangan memasukkan username atau password BIMA asli.</p>
+      <BantuanAkun akun={bantuan} />
       <MasukCepat kelompok={kelompok} tersembunyi={tersembunyi} />
     </section>
   );

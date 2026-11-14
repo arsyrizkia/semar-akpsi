@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Halaman BIMA tiruan meniru tampilan BIMA (logo, warna, fon Poppins) supaya alur demo terasa seperti aslinya, dengan pengaman:
- * bilah tetap "Simulasi BIMA – bukan sistem resmi", hanya akun demo yang dapat masuk (kata sandi tidak disimpan), dan kaki halaman
+ * Halaman BIMA tiruan meniru tampilan BIMA (logo, warna, fon Poppins) supaya alur terasa seperti aslinya, dengan pengaman:
+ * bilah tetap "Simulasi BIMA – bukan sistem resmi", hanya akun prototipe yang dapat masuk (kata sandi tidak disimpan), dan kaki halaman
  * menyebut simulasi, bukan nama lembaga.
  */
 export default async function LayoutBima({ children }: { children: React.ReactNode }) {
@@ -33,7 +33,7 @@ export default async function LayoutBima({ children }: { children: React.ReactNo
       <main id="isi" className="mx-auto max-w-6xl px-4 py-8">
         {children}
       </main>
-      <footer className="mx-auto max-w-6xl px-4 pb-24 text-center text-xs text-slate-500">Simulasi BIMA untuk prototipe SEMAR (data rekaan). Bukan layanan resmi.</footer>
+      <footer className="mx-auto max-w-6xl px-4 pb-24 text-center text-xs text-slate-500">Simulasi BIMA untuk prototipe SEMAR. Bukan layanan resmi.</footer>
     </div>
   );
 }

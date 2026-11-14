@@ -1,3 +1,4 @@
+import { AlatPeragaan } from "@/components/layout/alat-peragaan";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -116,7 +117,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
       <div className="rounded-lg bg-white p-5 shadow-[0_4px_20px_rgba(30,42,94,0.06)] sm:p-7">
         {langkah === "identitas" ? (
           <>
-            <JudulBagian keterangan="Isian sudah terisi untuk demo (data rekaan).">Identitas Usulan</JudulBagian>
+            <JudulBagian>Identitas Usulan</JudulBagian>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
               <Isian label="Judul Penelitian" nilai={usulan.judul} lebar />
               <Isian label="Skema" nilai={namaSkema} />
@@ -177,7 +178,7 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-[#1e2a5e]">Dokumen Usulan</h3>
-                  <p className="mt-0.5 text-sm text-slate-600">Isian Substansi sesuai templat skema, format PDF, maksimal 4 MB (simulasi; BIMA: 5 MB).</p>
+                  <p className="mt-0.5 text-sm text-slate-600">Isian Substansi sesuai templat skema, format PDF, maksimal 4 MB.</p>
                 </div>
                 <a
                   href={`/api/semar/templat/berlaku/${encodeURIComponent(usulan.skemaKode)}/unduh`}
@@ -236,33 +237,35 @@ export default async function UsulanPenelitian({ params, searchParams }: { param
             </div>
 
             {token ? (
-              <aside aria-labelledby="judul-contoh-demo" className="mt-8 rounded-lg border border-dashed border-slate-300 px-5 py-4">
-                <h3 id="judul-contoh-demo" className="text-sm font-semibold text-slate-700">
-                  Berkas contoh (demo)
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-500">Naskah rekaan dengan judul usulan ini, untuk dicoba diunggah.</p>
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {Object.entries(VARIAN_DEMO).map(([kunci, v]) => (
-                    <li key={kunci}>
-                      <a
-                        href={`/bima/pengajuan/${encodeURIComponent(usulan.id)}/contoh/${kunci}`}
-                        download
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-slate-100 px-3 text-xs font-medium text-slate-800 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-[#3651b0]"
-                      >
-                        <Download aria-hidden className="size-3.5" />
-                        {v.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </aside>
+              <AlatPeragaan>
+                <aside aria-labelledby="judul-contoh-demo" className="mt-8 rounded-lg border border-dashed border-slate-300 px-5 py-4">
+                  <h3 id="judul-contoh-demo" className="text-sm font-semibold text-slate-700">
+                    Berkas contoh (demo)
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-500">Naskah rekaan dengan judul usulan ini, untuk dicoba diunggah.</p>
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {Object.entries(VARIAN_DEMO).map(([kunci, v]) => (
+                      <li key={kunci}>
+                        <a
+                          href={`/bima/pengajuan/${encodeURIComponent(usulan.id)}/contoh/${kunci}`}
+                          download
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-slate-100 px-3 text-xs font-medium text-slate-800 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-[#3651b0]"
+                        >
+                          <Download aria-hidden className="size-3.5" />
+                          {v.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </aside>
+              </AlatPeragaan>
             ) : null}
           </>
         ) : null}
 
         {langkah === "rab" ? (
           <>
-            <JudulBagian keterangan="Isian sudah terisi untuk demo (data rekaan).">Rencana Anggaran Biaya</JudulBagian>
+            <JudulBagian>Rencana Anggaran Biaya</JudulBagian>
             {Array.from({ length: isi.lamaKegiatan }, (_, t) => t + 1).map((tahunKe) => (
               <div key={tahunKe} className="mb-6 last:mb-0">
                 <h3 className="mb-2 text-base font-semibold text-[#1e2a5e]">Tahun ke-{tahunKe}</h3>

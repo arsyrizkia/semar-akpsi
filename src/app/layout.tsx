@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { NavigatorDemo } from "@/components/layout/navigator-demo";
+import { PintasanAlatPeragaan } from "@/components/layout/alat-peragaan";
 import { Notifikasi } from "@/components/ui/notifikasi";
 
 /** Outfit untuk merek, judul, dan teks UI (variabel; angka tabel memakai fitur tnum bawaan Outfit). */
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         {children}
         <NavigatorDemo />
+        <PintasanAlatPeragaan />
         <Notifikasi />
       </body>
     </html>

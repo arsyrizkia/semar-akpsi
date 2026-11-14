@@ -7,6 +7,7 @@ import { daftarSkemaBima, daftarUsulanPengusul, hasilPenilaianUsulan } from "@/l
 import { susunContoh } from "@/lib/contoh/proposal";
 import { ambilPengaturanDemo } from "@/lib/waktu";
 import { LencanaStatusBima } from "./lencana-status";
+import { AlatPeragaan } from "@/components/layout/alat-peragaan";
 import { SakelarMasaBima } from "./sakelar-masa";
 import { TombolTambahUsulan } from "./tombol-tambah";
 
@@ -42,7 +43,9 @@ export default async function DaftarUsulan({ searchParams }: { searchParams: Pro
           </p>
         </div>
         <div className="flex flex-wrap items-start gap-3">
-          <SakelarMasaBima masa={pengaturan.masaPengusulan} />
+          <AlatPeragaan>
+            <SakelarMasaBima masa={pengaturan.masaPengusulan} />
+          </AlatPeragaan>
           <TombolTambahUsulan
             skema={skema.filter((s) => s.adaTemplat).map((s) => ({ kode: s.kode, nama: s.nama }))}
             judulAwal={susunContoh("a").judul}

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bimaAkun } from "@/db/schema";
-import { KATA_SANDI_DEMO } from "@/lib/bima/akun-demo";
+import { cocokkanAkun } from "@/lib/bima/akun-prototipe";
 import { COOKIE_BIMA, buatSesiBima, buatTokenSso, jalurAman, opsiCookie } from "@/lib/sesi";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ async function masukkan(idBima: string, kembali: string, lanjut: string, dasar: 
   return res;
 }
 
-/** Masuk cepat (pintasan demo): langsung sebagai satu akun demo. */
+/** Masuk cepat (alat peragaan): langsung sebagai satu akun prototipe, lewat idBima. */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const idBima = q.get("idBima") ?? "";
@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Formulir masuk BIMA tiruan: nama pengguna (id akun demo) dan kata sandi demo. Kata sandi yang diketik hanya dibandingkan, tidak
- * disimpan atau dicatat. Gagal: kembali ke formulir dengan ?galat=sandi (nama pengguna dipertahankan, kata sandi tidak).
+ * Formulir masuk BIMA tiruan: username, email, atau idBima lama (tidak peka huruf besar) dan kata sandi prototipe (pencocokan di
+ * lib/bima/akun-prototipe.ts). Kata sandi yang diketik hanya dibandingkan, tidak disimpan atau dicatat. Gagal: kembali ke formulir dengan ?galat=sandi (nama pengguna dipertahankan, kata sandi tidak).
  */
 export async function POST(req: NextRequest) {
   const asal = req.headers.get("origin");
@@ -45,8 +45,9 @@ export async function POST(req: NextRequest) {
   const kembali = jalurAman(String(fd.get("kembali") ?? ""), "/bima/pengajuan");
   const lanjut = jalurAman(String(fd.get("lanjut") ?? ""), "");
 
-  const [akun] = namaPengguna ? await getDb().select().from(bimaAkun).where(eq(bimaAkun.idBima, namaPengguna)) : [];
-  if (!akun || kataSandi !== KATA_SANDI_DEMO) {
+  const idBima = cocokkanAkun(namaPengguna, kataSandi);
+  const [akun] = idBima ? await getDb().select().from(bimaAkun).where(eq(bimaAkun.idBima, idBima)) : [];
+  if (!akun) {
     const balik = new URLSearchParams({ galat: "sandi", kembali, pengguna: namaPengguna });
     if (lanjut) balik.set("lanjut", lanjut);
     return NextResponse.redirect(new URL(`/bima/masuk?${balik}`, req.url), 303);

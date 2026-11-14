@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { PERISTIWA_BUKA_MASUK_CEPAT } from "@/components/layout/masuk-cepat";
+import { PERISTIWA_BUKA_BANTUAN_AKUN } from "@/components/layout/bantuan-akun";
 
 const KELAS_ISIAN =
   "block h-11 w-full rounded-md border border-[#d0d5dd] bg-white px-3.5 text-[15px] text-slate-900 placeholder:text-slate-500 transition-colors focus:border-[#3651b0] focus:outline-none focus:ring-2 focus:ring-[#3651b0]/25 aria-invalid:border-red-700";
 
 /**
  * Formulir masuk BIMA tiruan, tata letaknya mengikuti halaman masuk BIMA (Username, Password dengan tombol lihat, Remember me,
- * Log In, Kesulitan login? Bantuan). Dikirim POST biasa ke /api/bima/sesi/masuk sehingga cookie dan pengalihan SSO berjalan sebagai
- * navigasi penuh. "Bantuan" membuka popup Masuk cepat (demo) yang berisi akun demo dan kata sandinya.
+ * Log In, Kesulitan login? Bantuan). Isian Username menerima username, email, atau idBima lama. Dikirim POST biasa ke /api/bima/sesi/masuk sehingga cookie dan pengalihan SSO berjalan sebagai
+ * navigasi penuh. "Bantuan" membuka dialog Akun prototipe SEMAR (username, email, kata sandi).
  */
 export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kembali: string; lanjut: string; pengguna: string; galatSandi: string | null }) {
   const [lihat, setLihat] = useState(false);
@@ -45,7 +45,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
           name="namaPengguna"
           type="text"
           required
-          placeholder="Masukan Username"
+          placeholder="Masukan Username atau Email"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
@@ -110,7 +110,7 @@ export function FormMasukBima({ kembali, lanjut, pengguna, galatSandi }: { kemba
         <button
           type="button"
           aria-haspopup="dialog"
-          onClick={() => window.dispatchEvent(new Event(PERISTIWA_BUKA_MASUK_CEPAT))}
+          onClick={() => window.dispatchEvent(new Event(PERISTIWA_BUKA_BANTUAN_AKUN))}
           className="cursor-pointer text-[#3651b0] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[#3651b0]"
         >
           Kesulitan login? Bantuan

@@ -12,7 +12,8 @@ DPPM.
 
 - Fungsi: memeriksa akun dan peran pengguna, lalu membuka menu Tim Kerja DPPM atau J-07.
 - Sumber tidak memberi label isian. Prototipe memakai tombol **"Masuk dengan akun BIMA"** (SSO tiruan) yang diarahkan ke
-  halaman login BIMA tiruan, tempat pengguna memilih akun demo, lalu kembali ke SEMAR.
+  halaman login BIMA tiruan, tempat pengguna masuk dengan username (atau email, atau idBima lama) dan kata sandi akun prototipe, lalu kembali ke SEMAR. Daftar akun ada di
+  dialog **Bantuan** ("Kesulitan login? Bantuan", judul "Akun prototipe SEMAR": nama, peran, username, email, kata sandi).
 - Tujuan sesudah masuk:
   - pengelola: J-02;
   - Tim Kerja non-pengelola: J-04, dengan menu J-04 dan J-05 saja;
@@ -152,6 +153,30 @@ DPPM.
   - tidak tampil bila penilaian sudah final; tanpa modal konfirmasi karena tindakannya tidak merusak data;
   - selama berjalan tombol nonaktif dengan ikon memuat; sesudah berhasil J-08 kembali ke "Rekomendasi sedang disiapkan" dan penghitung pembaruan mulai dari nol;
   - galat tampil di bawah tombol dengan `role="alert"`: "Hanya reviewer yang ditugaskan pada proposal ini yang dapat menjalankan ulang pemeriksaan semantik.", "Penilaian sudah final, pemeriksaan semantik tidak dapat dijalankan ulang.", "Hasil pemeriksaan semantik sudah tersedia. Muat ulang halaman untuk melihatnya.", "Pemeriksaan semantik masih berjalan. Tunggu beberapa saat, lalu coba lagi bila belum selesai.", "Akses ditolak".
+
+## Alat peragaan (tersembunyi bawaan)
+
+Prototipe tampil seperti sistem sungguhan. Alat yang hanya untuk peragaan dan pengujian tersembunyi sampai ditampilkan.
+
+- **Alt+Shift+D** (Mac: Option+Shift+D) menampilkan atau menyembunyikan alat peragaan di halaman mana pun, termasuk BIMA tiruan.
+  Keadaannya disimpan di `localStorage` peramban (kunci `semar:alat-peragaan`, nilai `tampil` atau `tersembunyi`); bawaan tersembunyi.
+  Pembaca layar diberi kabar lewat wilayah status tersembunyi.
+- Pintasan dikenali lewat `e.code === "KeyD"` (di Mac `e.key` berisi karakter Option, bukan "d"). Tetap berlaku saat fokus di isian
+  teks: kombinasi Alt+Shift tidak mengetik di Windows/Linux, dan di Mac karakternya dibatalkan (`preventDefault`), jadi tidak ada
+  ketikan yang hilang. Tidak berlaku bila tombol ditahan (repeat), saat komposisi IME, atau bersama Ctrl/Cmd.
+- Saat tersembunyi, unsur berikut tidak dirender sama sekali (tidak ikut urutan tab, tidak terbaca pembaca layar):
+  - pil dan panel Navigator (Alt+Shift+N hanya bekerja saat alat ditampilkan);
+  - pil dan popup Masuk cepat (J-01 dan masuk BIMA tiruan);
+  - panel "Berkas contoh" di langkah Substansi Usulan BIMA;
+  - sakelar "Alat simulasi · masa pengusulan" di Daftar Usulan BIMA;
+  - tautan "Buka Pusat Demo" di J-01, dan tautan ID proposal ke J-05b di Kotak Masuk BIMA (ID tetap tampil sebagai teks).
+- Rute `/demo` dan `/demo/mulai` tetap ada lewat alamat langsung (dipakai skrip tangkap layar dan peragaan); navigator memang tidak
+  tampil di rute itu. Skrip e2e menampilkan alat dengan mengisi `localStorage` sebelum dokumen dimuat.
+- Yang TETAP tampil karena menandai tiruan: judul dan bilah "Simulasi BIMA – bukan sistem resmi", kaki halaman "Simulasi BIMA untuk
+  prototipe SEMAR. Bukan layanan resmi.", peringatan di masuk BIMA "Simulasi: jangan memasukkan username atau password BIMA asli.",
+  dan lencana "tiruan" pada hasil semantik mode LLM tiruan.
+- Akun prototipe: kata sandi `Semar2026!` (konstanta `KATA_SANDI_PROTOTIPE`); "simulasi" masih diterima sementara agar skrip lama jalan,
+  tidak ditampilkan di UI. Username `namadepan.namabelakang`, email `username@semar.id` (fiktif; tidak ada email dikirim).
 
 ## Navigasi
 

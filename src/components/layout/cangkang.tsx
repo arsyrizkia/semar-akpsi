@@ -82,7 +82,6 @@ function IsiSidebar({ menu, nama, peran, pengelola, institusi, beranda, bisaKelu
             </button>
           </form>
         ) : null}
-        <p className="mt-3 text-xs leading-snug text-latar-200/90">Nama dan institusi: contoh sementara (rekaan).</p>
       </div>
     </div>
   );
@@ -105,7 +104,7 @@ export function CangkangSemar({ children, ...p }: PropsCangkang) {
           <LogoSemar />
           <p className="text-right text-xs leading-snug text-latar-200">
             <span className="block text-sm font-semibold text-white">{p.nama}</span>
-            {p.institusi} · contoh sementara (rekaan)
+            {p.institusi}
           </p>
         </header>
         <main id="isi-utama" tabIndex={-1} className="mx-auto max-w-5xl px-4 pb-40 pt-6 outline-none sm:px-6 lg:pt-8">
