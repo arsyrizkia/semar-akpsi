@@ -73,14 +73,14 @@ class Penulis {
 export async function buatPdfContoh(def: DefinisiContoh): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(aman(def.judul));
-  pdf.setProducer("SEMAR prototipe - contoh sementara");
+  pdf.setProducer("SEMAR prototipe");
   const [font, tebal] = await Promise.all([pdf.embedFont(StandardFonts.Helvetica), pdf.embedFont(StandardFonts.HelveticaBold)]);
   const diagram = await pdf.embedPng(Buffer.from(DIAGRAM_ALIR_PNG_BASE64, "base64"));
   const p = new Penulis(pdf, font, tebal);
 
   // kepala (sebelum bagian A, dilewati pemotong bagian)
   p.paragraf("ISIAN SUBSTANSI PROPOSAL", { ukuran: 14, tebal: true, sesudah: 2 });
-  p.paragraf("Skema Penelitian Dasar - dokumen contoh sementara (data rekaan) untuk prototipe SEMAR", { ukuran: 9, sesudah: 14 });
+  p.paragraf("Skema Penelitian Dasar", { ukuran: 9, sesudah: 14 });
 
   bagianBawaan("dasar").forEach((b, i) => {
     const teks = def.bagian[b.nama];

@@ -217,7 +217,7 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
     t,
     [
       `Penelitian dilakukan dalam empat tahap yang digambarkan pada diagram alir penelitian (Gambar 1). Tahap pertama adalah pengumpulan data di ${t.lokasi} [2]. Tahap kedua adalah pengembangan model dengan ${t.metode} [6]. Tahap ketiga adalah pengujian, dan tahap keempat adalah penyusunan luaran.`,
-      `Gambar 1. Diagram alir penelitian (contoh sementara).`,
+      `Gambar 1. Diagram alir penelitian.`,
       `Pembagian tugas. Ketua pengusul bertanggung jawab atas perancangan model dan penulisan artikel. ${SIAPA[1]} menangani pengumpulan data. ${SIAPA[2]} menangani pengujian dan analisis. ${t.mitra} menyediakan lokasi, data pendukung, dan masukan atas kebutuhan pengguna.`,
     ],
     gagalKata ? 1240 : 880,
@@ -249,7 +249,7 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
 
   const pustaka = daftarPustaka(t, jumlahPustaka).join("\n");
 
-  const nomorSurat = (jenis: string) => `Dokumen ${jenis} - CONTOH SEMENTARA (data rekaan)`;
+  const nomorSurat = (jenis: string) => `Dokumen ${jenis}`;
   const lampiran = [
     {
       nama: "Surat Pernyataan Mitra",
@@ -264,7 +264,7 @@ export function susunContoh(varian: VarianContoh): DefinisiContoh {
     {
       nama: "Surat Keterangan Mahasiswa Bimbingan",
       berkas: "surat-mahasiswa-bimbingan.pdf",
-      teks: `${nomorSurat("Surat Keterangan Mahasiswa Bimbingan")}\nMenerangkan bahwa mahasiswa ${t.mahasiswa} dibimbing oleh promotor ${t.promotor} dan terlibat dalam penelitian berjudul "${t.judul}".\nDitandatangani: Ketua Program Studi (contoh sementara).`,
+      teks: `${nomorSurat("Surat Keterangan Mahasiswa Bimbingan")}\nMenerangkan bahwa mahasiswa ${t.mahasiswa} dibimbing oleh promotor ${t.promotor} dan terlibat dalam penelitian berjudul "${t.judul}".\nDitandatangani: Ketua Program Studi.`,
     },
   ];
 
@@ -347,7 +347,7 @@ export async function buatDocx(def: DefinisiContoh): Promise<Buffer> {
   return buatDokumenTemplat({ versi: 1, status: "Terbit" }, bagian, { kode: "PD", namaSkema: "Penelitian Dasar" }, null, {
     kepala: kepalaBawaan("dasar"),
     isiBagian: (b) => isiBagianContoh(def, b),
-    teksKaki: "Dokumen contoh sementara - data rekaan untuk prototipe SEMAR",
+    teksKaki: "Prototipe SEMAR",
     judul: def.judul,
   });
 }
@@ -372,6 +372,6 @@ export async function buatLampiranPdf(judul: string, teks: string): Promise<Uint
     halaman.drawText(baris, { x: 50, y, size: 11, font });
     y -= 22;
   }
-  halaman.drawText("Contoh sementara - bukan dokumen resmi", { x: 50, y: 40, size: 9, font });
+  halaman.drawText("Bukan dokumen resmi", { x: 50, y: 40, size: 9, font });
   return pdf.save();
 }

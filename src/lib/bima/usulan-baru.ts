@@ -30,5 +30,5 @@ export function teksLampiranDemo(nama: string, judul: string, contoh: NaskahCont
   const l = contoh.lampiran.find((x) => x.nama === nama);
   if (l) return { berkas: l.berkas, teks: l.teks.replaceAll(contoh.judul, judul) };
   const berkas = `${nama.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.pdf`;
-  return { berkas, teks: `Dokumen ${nama} - CONTOH SEMENTARA (data rekaan)\nDokumen pendukung untuk usulan berjudul "${judul}".` };
+  return { berkas, teks: `Dokumen ${nama}\nDokumen pendukung untuk usulan berjudul "${judul}".` };
 }

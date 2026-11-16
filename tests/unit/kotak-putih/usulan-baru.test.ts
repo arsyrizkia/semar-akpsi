@@ -28,10 +28,11 @@ describe("teksLampiranDemo", () => {
     expect(l.teks).toContain('"Judul Usulan Baru Uji"');
     expect(l.teks).not.toContain(contoh.judul);
   });
-  it("KP-teksLampiranDemo-02: lampiran tanpa contoh memakai teks umum rekaan", () => {
+  it("KP-teksLampiranDemo-02: lampiran tanpa contoh memakai teks umum dengan nama dokumen", () => {
     const l = teksLampiranDemo("Surat Izin Etik", "Judul Usulan Baru Uji", contoh);
     expect(l.berkas).toBe("surat-izin-etik.pdf");
-    expect(l.teks).toContain("CONTOH SEMENTARA (data rekaan)");
+    expect(l.teks).toContain("Dokumen Surat Izin Etik");
+    expect(l.teks).not.toMatch(/contoh sementara|rekaan/i);
     expect(l.teks).toContain("Judul Usulan Baru Uji");
   });
 });
