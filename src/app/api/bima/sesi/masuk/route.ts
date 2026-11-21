@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { bimaAkun } from "@/db/schema";
-import { cocokkanAkun } from "@/lib/bima/akun-prototipe";
+import { cocokkanAkun, tujuanSesudahMasuk } from "@/lib/bima/akun-prototipe";
 import { COOKIE_BIMA, buatSesiBima, buatTokenSso, jalurAman, opsiCookie } from "@/lib/sesi";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
   const idBima = q.get("idBima") ?? "";
   const [akun] = await getDb().select().from(bimaAkun).where(eq(bimaAkun.idBima, idBima));
   if (!akun) return NextResponse.redirect(new URL("/bima/masuk?galat=akun", req.url));
-  return masukkan(akun.idBima, jalurAman(q.get("kembali"), "/bima/pengajuan"), jalurAman(q.get("lanjut"), ""), req.url);
+  const kembali = jalurAman(q.get("kembali"), "/bima/pengajuan");
+  const tujuan = tujuanSesudahMasuk(akun.peran, kembali);
+  return masukkan(akun.idBima, tujuan, tujuan === kembali ? jalurAman(q.get("lanjut"), "") : "", req.url);
 }
 
 /**
@@ -52,5 +54,7 @@ export async function POST(req: NextRequest) {
     if (lanjut) balik.set("lanjut", lanjut);
     return NextResponse.redirect(new URL(`/bima/masuk?${balik}`, req.url), 303);
   }
-  return masukkan(akun.idBima, kembali, lanjut, req.url, fd.get("ingat") === "1");
+  // setiap akun langsung ke jendela perannya: Tim Kerja/Reviewer yang masuk dari halaman pengusul diteruskan SSO ke SEMAR
+  const tujuan = tujuanSesudahMasuk(akun.peran, kembali);
+  return masukkan(akun.idBima, tujuan, tujuan === kembali ? lanjut : "", req.url, fd.get("ingat") === "1");
 }

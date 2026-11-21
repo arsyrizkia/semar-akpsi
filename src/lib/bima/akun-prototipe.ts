@@ -42,3 +42,23 @@ export function cocokkanAkun(masukan: string, kataSandi: string, daftar: readonl
   if (!id || !kataSandiBenar(kataSandi)) return null;
   return id;
 }
+
+/** Jalur SSO BIMA tiruan ke SEMAR (BIMA menambahkan token bertanda tangan, SEMAR memilih jendela menurut peran). */
+export const JALUR_SSO_SEMAR = "/api/sso/callback";
+
+/** Halaman BIMA tiruan khusus pengusul: beranda /bima (dialihkan ke pengajuan) dan /bima/pengajuan/... */
+function halamanPengusul(jalur: string): boolean {
+  const j = jalur.split(/[?#]/)[0].replace(/\/+$/, "");
+  return j === "/bima" || j === "/bima/pengajuan" || j.startsWith("/bima/pengajuan/");
+}
+
+/**
+ * Tujuan sesudah masuk BIMA tiruan, supaya setiap akun langsung tiba di jendela perannya. Pengusul tetap ke `kembali`. Tim Kerja
+ * DPPM dan Reviewer yang masuk dari halaman BIMA khusus pengusul (bawaan formulir: /bima/pengajuan) diteruskan lewat SSO ke SEMAR,
+ * yang memilih J-02 (pengelola), J-04 (anggota), atau J-07 (reviewer), alih-alih ditolak dengan galat peran (Arsy, 21 Nov 2026).
+ * Tujuan lain (SSO, kotak masuk BIMA) tidak diubah.
+ */
+export function tujuanSesudahMasuk(peran: string, kembali: string): string {
+  if (peran === "pengusul") return kembali;
+  return halamanPengusul(kembali) ? JALUR_SSO_SEMAR : kembali;
+}

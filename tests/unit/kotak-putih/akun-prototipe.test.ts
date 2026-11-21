@@ -1,7 +1,7 @@
 // Uji kotak putih (Dennis dkk., 2015, hlm. 471-475): setiap cabang idBimaDariMasukan, kataSandiBenar, dan cocokkanAkun
 // (src/lib/bima/akun-prototipe.ts; Method Specification pencocokan akun masuk BIMA tiruan).
 import { describe, expect, it } from "vitest";
-import { cocokkanAkun, idBimaDariMasukan, kataSandiBenar, type AkunPrototipe } from "@/lib/bima/akun-prototipe";
+import { JALUR_SSO_SEMAR, cocokkanAkun, idBimaDariMasukan, kataSandiBenar, tujuanSesudahMasuk, type AkunPrototipe } from "@/lib/bima/akun-prototipe";
 import { KATA_SANDI_LAMA_DITERIMA, KATA_SANDI_PROTOTIPE } from "@/lib/bima/akun-demo";
 
 const DAFTAR: AkunPrototipe[] = [
@@ -50,5 +50,19 @@ describe("cocokkanAkun (cabang)", () => {
   });
   it("KP-cocokkanAkun-03: akun dan kata sandi cocok -> idBima", () => {
     expect(cocokkanAkun("budi.santoso@semar.id", KATA_SANDI_PROTOTIPE, DAFTAR)).toBe("a-1");
+  });
+});
+
+describe("tujuanSesudahMasuk (cabang)", () => {
+  it("KP-tujuanSesudahMasuk-01: cabang pengusul -> kembali apa adanya, termasuk halaman pengusul", () => {
+    expect(tujuanSesudahMasuk("pengusul", "/bima")).toBe("/bima");
+  });
+  it("KP-tujuanSesudahMasuk-02: cabang bukan pengusul + halaman pengusul (/bima, /bima/, /bima/pengajuan, turunannya, dengan query/hash) -> SSO", () => {
+    for (const j of ["/bima", "/bima/", "/bima?x=1", "/bima/pengajuan", "/bima/pengajuan/", "/bima/pengajuan#atas", "/bima/pengajuan/P-1/naskah"])
+      expect(tujuanSesudahMasuk("reviewer", j)).toBe(JALUR_SSO_SEMAR);
+  });
+  it("KP-tujuanSesudahMasuk-03: cabang bukan pengusul + halaman lain -> kembali apa adanya", () => {
+    expect(tujuanSesudahMasuk("tim_kerja", "/bima/kotak-masuk")).toBe("/bima/kotak-masuk");
+    expect(tujuanSesudahMasuk("tim_kerja", JALUR_SSO_SEMAR)).toBe(JALUR_SSO_SEMAR);
   });
 });

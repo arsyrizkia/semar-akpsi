@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { bimaAkun } from "@/db/schema";
 import { COOKIE_BIMA, verifikasiSesiBima } from "../sesi";
 import { alamatMasukCepat, type BarisAkunBantuan, type KelompokCepat } from "./akun-demo";
-import { AKUN_PROTOTIPE } from "./akun-prototipe";
+import { AKUN_PROTOTIPE, JALUR_SSO_SEMAR } from "./akun-prototipe";
 import { reviewerMassal } from "@/lib/demo/profil-skala";
 
 export type AkunBima = typeof bimaAkun.$inferSelect;
@@ -28,7 +28,8 @@ export async function wajibSesiBima(kembali = "/bima/pengajuan"): Promise<AkunBi
 
 export async function wajibPengusulBima(kembali = "/bima/pengajuan"): Promise<AkunBima> {
   const a = await wajibSesiBima(kembali);
-  if (a.peran !== "pengusul") redirect("/bima/masuk?galat=peran");
+  // Tim Kerja/Reviewer yang sudah masuk BIMA lalu membuka halaman pengusul: diteruskan SSO ke jendela SEMAR perannya
+  if (a.peran !== "pengusul") redirect(alamatMasukCepat(a.idBima, JALUR_SSO_SEMAR));
   return a;
 }
 
