@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Alert, Button, Isian, ModalKonfirmasi } from "@/components/ui";
-import { formatDurasi, formatTenggat, kapasitasReviewer, masaDariLama, menitPerHariDibutuhkan, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
+import { RENTANG_MASA, formatDurasi, formatTenggat, kapasitasReviewer, masaDariLama, menitPerHariDibutuhkan, periksaParamMasa, type ParamMasa } from "@/lib/penilaian/masa";
 import { cn } from "@/lib/utils";
 import { aksiSusun } from "../aksi";
 import type { HasilSusunAksi } from "../tipe";
@@ -139,7 +139,7 @@ export function FormSusun({
             name="lamaHari"
             type="number"
             min={1}
-            max={31}
+            max={RENTANG_MASA.lamaHari[1]}
             step={1}
             inputMode="numeric"
             autoComplete="off"

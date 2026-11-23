@@ -29,8 +29,11 @@ describe("kapasitas", () => {
     expect(kapasitasPerHari(MASA_BAWAAN)).toBeCloseTo(23.21, 2);
     expect(jamDibutuhkan(45, MASA_BAWAAN)).toBeCloseTo(3.88, 2);
   });
-  it("KP-periksaParamMasa-01: lama bulat 1..31, jam 0,5..12, menit 1..60; sah = null", () => {
+  it("KP-periksaParamMasa-01: lama bulat 1..60, jam 0,5..12, menit 1..60; sah = null", () => {
     expect(periksaParamMasa(MASA_BAWAAN)).toBeNull();
+    expect(periksaParamMasa({ ...MASA_BAWAAN, lamaHari: 37 })).toBeNull();
+    expect(periksaParamMasa({ ...MASA_BAWAAN, lamaHari: 60 })).toBeNull();
+    expect(periksaParamMasa({ ...MASA_BAWAAN, lamaHari: 61 })).toMatch(/Lama/);
     expect(periksaParamMasa({ ...MASA_BAWAAN, lamaHari: 7.5 })).toMatch(/Lama/);
     expect(periksaParamMasa({ ...MASA_BAWAAN, lamaHari: 0 })).toMatch(/Lama/);
     expect(periksaParamMasa({ ...MASA_BAWAAN, jamPerHari: 0.2 })).toMatch(/Jam/);

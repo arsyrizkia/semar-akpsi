@@ -23,7 +23,9 @@ export const MASA_BAWAAN: ParamMasa = { lamaHari: 7, jamPerHari: 2, menitPerProp
  */
 export const masaDariLama = (lamaHari: number): ParamMasa => ({ ...MASA_BAWAAN, lamaHari });
 /** rentang isian yang diterima (J-04b) */
-export const RENTANG_MASA = { lamaHari: [1, 31], jamPerHari: [0.5, 12], menitPerProposal: [1, 60] } as const;
+// lama maks. 60 hari (23 Nov 2026): masa penilaian periode contoh diperpanjang sampai 21 Des 2026 (37 hari) agar tidak lewat
+// tenggat saat demo; susunPenugasan memeriksa ulang masa yang sudah dimulai, jadi batas 31 akan menolak Susun di J-04.
+export const RENTANG_MASA = { lamaHari: [1, 60], jamPerHari: [0.5, 12], menitPerProposal: [1, 60] } as const;
 
 export const HARI_MS = 86_400_000;
 const WIB_MS = 7 * 3_600_000;
